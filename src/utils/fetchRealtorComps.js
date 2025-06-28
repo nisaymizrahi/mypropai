@@ -11,7 +11,7 @@ const fetchRealtorComps = async (lat, lng, filters = {}) => {
 
   try {
     const res = await fetch(
-      `http://localhost:5000/api/comps?lat=${lat}&lng=${lng}&distance=${distance}`
+      `https://mypropai-server.onrender.com/api/comps?lat=${lat}&lng=${lng}&distance=${distance}`
     );
 
     if (!res.ok) {
@@ -45,3 +45,4 @@ const fetchRealtorComps = async (lat, lng, filters = {}) => {
 };
 
 export default fetchRealtorComps;
+
