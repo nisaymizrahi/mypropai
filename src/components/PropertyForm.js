@@ -4,51 +4,39 @@ const PropertyForm = ({ onSubmit }) => {
   const [address, setAddress] = useState("");
   const [distance, setDistance] = useState(1);
   const [propertyType, setPropertyType] = useState("");
+  const [bedsMin, setBedsMin] = useState("");
+  const [bedsMax, setBedsMax] = useState("");
+  const [bathsMin, setBathsMin] = useState("");
+  const [bathsMax, setBathsMax] = useState("");
+  const [sqftMin, setSqftMin] = useState("");
+  const [sqftMax, setSqftMax] = useState("");
 
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!address.trim()) return;
-    onSubmit({ address, distance, propertyType });
+    onSubmit({ address, distance, propertyType, bedsMin, bedsMax, bathsMin, bathsMax, sqftMin, sqftMax });
   };
 
   return (
     <form onSubmit={handleSubmit} className="mb-4 space-y-2">
-      <input
-        type="text"
-        placeholder="Enter property address"
-        value={address}
-        onChange={(e) => setAddress(e.target.value)}
-        className="w-full p-2 border rounded"
-      />
-
-      <select
-        value={propertyType}
-        onChange={(e) => setPropertyType(e.target.value)}
-        className="w-full p-2 border rounded"
-      >
-        <option value="">All Property Types</option>
+      <input type="text" placeholder="Enter address" value={address} onChange={(e) => setAddress(e.target.value)} className="w-full p-2 border rounded" />
+      <select value={propertyType} onChange={(e) => setPropertyType(e.target.value)} className="w-full p-2 border rounded">
+        <option value="">All Types</option>
         <option value="SFR">Single Family</option>
         <option value="CONDO">Condo</option>
         <option value="APT">Apartment</option>
         <option value="MULTI">Multi-Family</option>
       </select>
-
-      <input
-        type="number"
-        value={distance}
-        onChange={(e) => setDistance(e.target.value)}
-        className="w-full p-2 border rounded"
-        min="0.1"
-        step="0.1"
-        placeholder="Search radius (miles)"
-      />
-
-      <button
-        type="submit"
-        className="w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-700"
-      >
-        Search Comps
-      </button>
+      <input type="number" value={distance} onChange={(e) => setDistance(e.target.value)} className="w-full p-2 border rounded" placeholder="Distance (mi)" />
+      <div className="grid grid-cols-2 gap-2">
+        <input type="number" value={bedsMin} onChange={(e) => setBedsMin(e.target.value)} placeholder="Min Beds" className="p-2 border rounded" />
+        <input type="number" value={bedsMax} onChange={(e) => setBedsMax(e.target.value)} placeholder="Max Beds" className="p-2 border rounded" />
+        <input type="number" value={bathsMin} onChange={(e) => setBathsMin(e.target.value)} placeholder="Min Baths" className="p-2 border rounded" />
+        <input type="number" value={bathsMax} onChange={(e) => setBathsMax(e.target.value)} placeholder="Max Baths" className="p-2 border rounded" />
+        <input type="number" value={sqftMin} onChange={(e) => setSqftMin(e.target.value)} placeholder="Min Sqft" className="p-2 border rounded" />
+        <input type="number" value={sqftMax} onChange={(e) => setSqftMax(e.target.value)} placeholder="Max Sqft" className="p-2 border rounded" />
+      </div>
+      <button type="submit" className="w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-700">Search Comps</button>
     </form>
   );
 };

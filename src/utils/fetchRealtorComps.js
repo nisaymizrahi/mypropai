@@ -1,16 +1,30 @@
 const fetchComps = async (lat, lng, filters = {}) => {
-  const { distance = 1, propertyType } = filters;
+  const {
+    distance = 1,
+    propertyType,
+    bedsMin,
+    bedsMax,
+    bathsMin,
+    bathsMax,
+    sqftMin,
+    sqftMax
+  } = filters;
 
   try {
     const url = new URL("https://mypropai-server.onrender.com/api/comps");
     url.searchParams.append("lat", lat);
     url.searchParams.append("lng", lng);
     url.searchParams.append("distance", distance);
-    if (propertyType) {
-      url.searchParams.append("propertyType", propertyType);
-    }
 
-    const res = await fetch(url);
+    if (propertyType) url.searchParams.append("propertyType", propertyType);
+    if (bedsMin) url.searchParams.append("bedsMin", bedsMin);
+    if (bedsMax) url.searchParams.append("bedsMax", bedsMax);
+    if (bathsMin) url.searchParams.append("bathsMin", bathsMin);
+    if (bathsMax) url.searchParams.append("bathsMax", bathsMax);
+    if (sqftMin) url.searchParams.append("sqftMin", sqftMin);
+    if (sqftMax) url.searchParams.append("sqftMax", sqftMax);
+
+    const res = await fetch(url.toString());
     if (!res.ok) throw new Error("Backend error");
 
     const data = await res.json();
