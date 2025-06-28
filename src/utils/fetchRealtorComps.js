@@ -1,4 +1,4 @@
-const fetchRealtorComps = async (lat, lng, filters = {}) => {
+const fetchComps = async (lat, lng, filters = {}) => {
   const {
     bedsMin,
     bedsMax,
@@ -11,40 +11,35 @@ const fetchRealtorComps = async (lat, lng, filters = {}) => {
 
   try {
     const res = await fetch(
-      `https://mypropai.onrender.com/api/comps?lat=${lat}&lng=${lng}&distance=${distance}`
+      `https://mypropai-server.onrender.com/api/comps?lat=${lat}&lng=${lng}&distance=${distance}`
     );
 
     if (!res.ok) {
-      console.error("❌ Backend request failed:", res.statusText);
+      console.error("Backend error:", res.statusText);
       return [];
     }
 
     const data = await res.json();
 
-    const filtered = data.filter((comp) => {
-      if (bedsMin && comp.beds < parseInt(bedsMin)) return false;
-      if (bedsMax && comp.beds > parseInt(bedsMax)) return false;
-      if (bathsMin && comp.baths < parseFloat(bathsMin)) return false;
-      if (bathsMax && comp.baths > parseFloat(bathsMax)) return false;
-      if (sqftMin && comp.sqft < parseInt(sqftMin)) return false;
-      if (sqftMax && comp.sqft > parseInt(sqftMax)) return false;
-      return true;
-    });
-
-    return filtered.map((comp, i) => ({
-      ...comp,
-      lat: lat + (Math.random() - 0.5) * 0.01,
-      lng: lng + (Math.random() - 0.5) * 0.01,
-      color: "#FF0000",
-      id: comp.id || `realtor-${i}`
-    }));
+    return data
+      .filter((comp) => {
+        if (bedsMin && comp.beds < +bedsMin) return false;
+        if (bedsMax && comp.beds > +bedsMax) return false;
+        if (bathsMin && comp.baths < +bathsMin) return false;
+        if (bathsMax && comp.baths > +bathsMax) return false;
+        if (sqftMin && comp.sqft < +sqftMin) return false;
+        if (sqftMax && comp.sqft > +sqftMax) return false;
+        return true;
+      })
+      .map((comp, i) => ({
+        ...comp,
+        id: comp.id || `comp-${i}`,
+        color: comp.color || "#FF0000"
+      }));
   } catch (err) {
-    console.error("❌ Error fetching from backend:", err.message);
+    console.error("❌ Error fetching comps:", err);
     return [];
   }
 };
 
-export default fetchRealtorComps;
-
-
-
+export default fetchComps;
