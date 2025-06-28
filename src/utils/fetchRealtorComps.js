@@ -11,11 +11,11 @@ const fetchRealtorComps = async (lat, lng, filters = {}) => {
 
   try {
     const res = await fetch(
-      `https://mypropai-server.onrender.com/api/comps?lat=${lat}&lng=${lng}&distance=${distance}`
+      `https://mypropai.onrender.com/api/comps?lat=${lat}&lng=${lng}&distance=${distance}`
     );
 
     if (!res.ok) {
-      console.error("Backend request failed:", res.statusText);
+      console.error("❌ Backend request failed:", res.statusText);
       return [];
     }
 
@@ -39,10 +39,12 @@ const fetchRealtorComps = async (lat, lng, filters = {}) => {
       id: comp.id || `realtor-${i}`
     }));
   } catch (err) {
-    console.error("Error fetching from backend:", err);
+    console.error("❌ Error fetching from backend:", err.message);
     return [];
   }
 };
 
 export default fetchRealtorComps;
+
+
 
