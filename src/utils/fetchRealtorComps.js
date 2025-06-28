@@ -1,40 +1,28 @@
 const fetchComps = async (lat, lng, filters = {}) => {
-  const {
-    bedsMin,
-    bedsMax,
-    bathsMin,
-    bathsMax,
-    sqftMin,
-    sqftMax,
-    distance = 1
-  } = filters;
+  const { distance = 1, propertyType } = filters;
 
   try {
-    const res = await fetch(
-      `https://mypropai-server.onrender.com/api/comps?lat=${lat}&lng=${lng}&distance=${distance}`
-    );
-
-    if (!res.ok) {
-      console.error("Backend error:", res.statusText);
-      return [];
+    const url = new URL("https://mypropai-server.onrender.com/api/comps");
+    url.searchParams.append("lat", lat);
+    url.searchParams.append("lng", lng);
+    url.searchParams.append("distance", distance);
+    if (propertyType) {
+      url.searchParams.append("propertyType", propertyType);
     }
+
+    const res = await fetch(url);
+    if (!res.ok) throw new Error("Backend error");
 
     const data = await res.json();
 
     return data
-      .filter((comp) => {
-        if (bedsMin && comp.beds < +bedsMin) return false;
-        if (bedsMax && comp.beds > +bedsMax) return false;
-        if (bathsMin && comp.baths < +bathsMin) return false;
-        if (bathsMax && comp.baths > +bathsMax) return false;
-        if (sqftMin && comp.sqft < +sqftMin) return false;
-        if (sqftMax && comp.sqft > +sqftMax) return false;
-        return true;
-      })
+      .filter((c) => c.price > 0 && c.sqft > 0)
       .map((comp, i) => ({
         ...comp,
-        id: comp.id || `comp-${i}`,
-        color: comp.color || "#FF0000"
+        id: comp.id ?? `comp-${i}`,
+        color: "#FF0000",
+        lat: comp.lat ?? lat + (Math.random() - 0.5) * 0.01,
+        lng: comp.lng ?? lng + (Math.random() - 0.5) * 0.01
       }));
   } catch (err) {
     console.error("❌ Error fetching comps:", err);
