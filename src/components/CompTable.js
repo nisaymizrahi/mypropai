@@ -3,12 +3,6 @@ import React from "react";
 const CompTable = ({ comps }) => {
   if (!comps.length) return null;
 
-  const formatNumber = (num) =>
-    num && num > 0 ? num.toLocaleString() : "N/A";
-
-  const formatDate = (dateStr) =>
-    dateStr ? new Date(dateStr).toLocaleDateString() : "N/A";
-
   return (
     <div className="bg-white rounded shadow p-4 overflow-x-auto">
       <h2 className="text-xl font-semibold mb-4">Comparable Properties</h2>
@@ -25,18 +19,17 @@ const CompTable = ({ comps }) => {
         </thead>
         <tbody>
           {comps.map((comp, index) => (
-            <tr
-              key={comp.id}
-              className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}
-            >
-              <td className="px-4 py-2">{comp.address || "N/A"}</td>
-              <td className="px-4 py-2">{formatNumber(comp.beds)}</td>
-              <td className="px-4 py-2">{formatNumber(comp.baths)}</td>
-              <td className="px-4 py-2">{formatNumber(comp.sqft)}</td>
+            <tr key={comp.id} className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}>
+              <td className="px-4 py-2">{comp.address}</td>
+              <td className="px-4 py-2">{comp.beds || "—"}</td>
+              <td className="px-4 py-2">{comp.baths || "—"}</td>
+              <td className="px-4 py-2">{comp.sqft ? comp.sqft.toLocaleString() : "—"}</td>
               <td className="px-4 py-2">
-                ${formatNumber(comp.price)}
+                {comp.price > 0 ? `$${comp.price.toLocaleString()}` : "—"}
               </td>
-              <td className="px-4 py-2">{formatDate(comp.saleDate)}</td>
+              <td className="px-4 py-2">
+                {comp.saleDate ? new Date(comp.saleDate).toLocaleDateString() : "—"}
+              </td>
             </tr>
           ))}
         </tbody>
