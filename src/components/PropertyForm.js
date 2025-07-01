@@ -19,7 +19,7 @@ const PropertyForm = ({ onSubmit }) => {
     if (!address.trim()) return;
     onSubmit({
       address,
-      distance,
+      distance: parseFloat(distance), // ✅ FIXED: ensure distance is a number
       propertyType,
       bedsMin,
       bedsMax,
