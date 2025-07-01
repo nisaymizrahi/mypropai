@@ -2,7 +2,7 @@ import React, { useState } from "react";
 
 const PropertyForm = ({ onSubmit }) => {
   const [address, setAddress] = useState("");
-  const [distance, setDistance] = useState(1);
+  const [distance, setDistance] = useState(0.5);
   const [propertyType, setPropertyType] = useState("");
   const [bedsMin, setBedsMin] = useState("");
   const [bedsMax, setBedsMax] = useState("");
@@ -29,7 +29,7 @@ const PropertyForm = ({ onSubmit }) => {
       sqftMax,
       priceMin,
       priceMax,
-      soldInLastMonths
+      soldInLastMonths,
     });
   };
 
@@ -43,6 +43,19 @@ const PropertyForm = ({ onSubmit }) => {
         className="w-full p-2 border rounded"
       />
 
+      <label className="block text-sm font-medium text-gray-700 mt-2">
+        Search Radius (miles)
+      </label>
+      <input
+        type="number"
+        step="0.1"
+        min="0.1"
+        value={distance}
+        onChange={(e) => setDistance(e.target.value)}
+        className="w-full p-2 border rounded"
+        placeholder="e.g. 0.5, 1, 2"
+      />
+
       <select
         value={propertyType}
         onChange={(e) => setPropertyType(e.target.value)}
@@ -54,14 +67,6 @@ const PropertyForm = ({ onSubmit }) => {
         <option value="APT">Apartment</option>
         <option value="MULTI">Multi-Family</option>
       </select>
-
-      <input
-        type="number"
-        value={distance}
-        onChange={(e) => setDistance(e.target.value)}
-        className="w-full p-2 border rounded"
-        placeholder="Distance (mi)"
-      />
 
       <div className="grid grid-cols-2 gap-2">
         <input type="number" value={bedsMin} onChange={(e) => setBedsMin(e.target.value)} placeholder="Min Beds" className="p-2 border rounded" />
