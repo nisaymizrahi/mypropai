@@ -9,6 +9,7 @@ import fetchRealtorComps from "./utils/fetchRealtorComps";
 function App() {
   const [coords, setCoords] = useState({ lat: 40.7484, lng: -73.9857 });
   const [comps, setComps] = useState([]);
+  const [subject, setSubject] = useState(null);
   const [subjectMarker, setSubjectMarker] = useState(null);
   const [roiData, setRoiData] = useState(null);
 
@@ -28,10 +29,24 @@ function App() {
 
       const [lng, lat] = json.features[0].center;
       setCoords({ lat, lng });
-      setSubjectMarker({ id: "subject", lat, lng, color: "#0077ff" });
 
       const comps = await fetchRealtorComps(lat, lng, formData);
       setComps(comps);
+
+      // Use first comp as subject approximation (optional improvement: use /property/detail)
+      const firstComp = comps[0] || {};
+      setSubject({
+        address: formData.address,
+        lat,
+        lng,
+        beds: firstComp.beds,
+        baths: firstComp.baths,
+        sqft: firstComp.sqft,
+        price: firstComp.price,
+        saleDate: firstComp.saleDate,
+      });
+
+      setSubjectMarker({ id: "subject", lat, lng, color: "#0077ff" });
     } catch (err) {
       alert("Address not found or comp fetch failed.");
       console.error(err);
@@ -59,7 +74,7 @@ function App() {
         </div>
 
         <div className="mb-6">
-          <CompTable comps={comps} />
+          <CompTable comps={comps} subject={subject} />
         </div>
 
         <div className="mb-6">
