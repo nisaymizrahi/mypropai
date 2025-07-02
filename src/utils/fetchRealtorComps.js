@@ -32,8 +32,8 @@ const fetchRealtorComps = async (lat, lng, filters = {}) => {
   } = filters;
 
   try {
-    const url = new URL("https://mypropai-server.onrender.com/api/comps");
-    url.searchParams.append("lat", lat);
+    const url = new URL("http://localhost:5001/api/comps");
+
     url.searchParams.append("lng", lng);
     url.searchParams.append("distance", distance);
     if (propertyType) url.searchParams.append("propertyType", propertyType);
