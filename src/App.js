@@ -1,56 +1,66 @@
-import React from "react";
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import React, { useEffect } from "react";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import DashboardLayout from "./components/DashboardLayout";
 import DashboardPage from "./pages/DashboardPage";
 import CompsTool from "./pages/CompsTool";
 import NewInvestment from "./pages/NewInvestment";
 import MyInvestments from "./pages/MyInvestments";
-import InvestmentDetail from "./pages/InvestmentDetail"; // 👈 New import
+import LoginPage from "./pages/LoginPage";
+import ProtectedRoute from "./components/ProtectedRoute";
+import { setTokenCookieFromURL } from "./utils/setTokenFromURL";
 
 function App() {
+  useEffect(() => {
+    setTokenCookieFromURL();
+  }, []);
+
   return (
     <Router>
       <Routes>
+        <Route path="/login" element={<LoginPage />} />
         <Route
           path="/dashboard"
           element={
-            <DashboardLayout>
-              <DashboardPage />
-            </DashboardLayout>
+            <ProtectedRoute>
+              <DashboardLayout>
+                <DashboardPage />
+              </DashboardLayout>
+            </ProtectedRoute>
           }
         />
         <Route
           path="/comps"
           element={
-            <DashboardLayout>
-              <CompsTool />
-            </DashboardLayout>
+            <ProtectedRoute>
+              <DashboardLayout>
+                <CompsTool />
+              </DashboardLayout>
+            </ProtectedRoute>
           }
         />
         <Route
           path="/investments"
           element={
-            <DashboardLayout>
-              <MyInvestments />
-            </DashboardLayout>
+            <ProtectedRoute>
+              <DashboardLayout>
+                <MyInvestments />
+              </DashboardLayout>
+            </ProtectedRoute>
           }
         />
         <Route
           path="/investments/new"
           element={
-            <DashboardLayout>
-              <NewInvestment />
-            </DashboardLayout>
+            <ProtectedRoute>
+              <DashboardLayout>
+                <NewInvestment />
+              </DashboardLayout>
+            </ProtectedRoute>
           }
         />
-        <Route
-          path="/investments/:id"
-          element={
-            <DashboardLayout>
-              <InvestmentDetail />
-            </DashboardLayout>
-          }
-        />
+
+        {/* ✅ Fallback route: Redirect unknown paths to login */}
+        <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </Router>
   );
