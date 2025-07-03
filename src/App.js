@@ -8,6 +8,7 @@ import MyInvestments from "./pages/MyInvestments";
 import LoginPage from "./pages/LoginPage";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { setTokenCookieFromURL } from "./utils/setTokenFromURL";
+import { AuthProvider } from "./context/AuthContext"; // ✅ NEW
 
 function App() {
   useEffect(() => {
@@ -15,54 +16,54 @@ function App() {
   }, []);
 
   return (
-    <Router>
-      <Routes>
-        <Route path="/login" element={<LoginPage />} />
-        <Route
-          path="/dashboard"
-          element={
-            <ProtectedRoute>
-              <DashboardLayout>
-                <DashboardPage />
-              </DashboardLayout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/comps"
-          element={
-            <ProtectedRoute>
-              <DashboardLayout>
-                <CompsTool />
-              </DashboardLayout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/investments"
-          element={
-            <ProtectedRoute>
-              <DashboardLayout>
-                <MyInvestments />
-              </DashboardLayout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/investments/new"
-          element={
-            <ProtectedRoute>
-              <DashboardLayout>
-                <NewInvestment />
-              </DashboardLayout>
-            </ProtectedRoute>
-          }
-        />
-
-        {/* ✅ Fallback route: Redirect unknown paths to login */}
-        <Route path="*" element={<Navigate to="/login" replace />} />
-      </Routes>
-    </Router>
+    <AuthProvider>
+      <Router>
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <DashboardPage />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/comps"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <CompsTool />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/investments"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <MyInvestments />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/investments/new"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <NewInvestment />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route path="*" element={<Navigate to="/login" replace />} />
+        </Routes>
+      </Router>
+    </AuthProvider>
   );
 }
 

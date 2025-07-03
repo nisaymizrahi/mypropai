@@ -1,14 +1,9 @@
 import React from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
+import LogoutButton from "./LogoutButton";
+import UserInfoBanner from "./UserInfoBanner";
 
 function DashboardLayout({ children }) {
-  const navigate = useNavigate();
-
-  const handleLogout = () => {
-    document.cookie = "token=; Max-Age=0; path=/;";
-    navigate("/login");
-  };
-
   return (
     <div className="flex min-h-screen">
       {/* Sidebar */}
@@ -27,17 +22,17 @@ function DashboardLayout({ children }) {
           <Link to="/investments/new" className="block hover:text-blue-300">
             Add Investment
           </Link>
-          <button
-            onClick={handleLogout}
-            className="mt-8 block w-full text-left text-red-400 hover:text-red-600"
-          >
-            Logout
-          </button>
+          <div className="mt-8">
+            <LogoutButton />
+          </div>
         </nav>
       </aside>
 
       {/* Main content */}
-      <main className="flex-1 p-8 bg-gray-50">{children}</main>
+      <main className="flex-1 bg-gray-50">
+        <UserInfoBanner />
+        <div className="p-8">{children}</div>
+      </main>
     </div>
   );
 }

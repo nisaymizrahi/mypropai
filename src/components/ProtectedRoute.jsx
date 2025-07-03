@@ -1,31 +1,13 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { Navigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 
 const ProtectedRoute = ({ children }) => {
-  const [authenticated, setAuthenticated] = useState(null);
+  const { authenticated, loading } = useAuth();
 
-  useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const res = await fetch("https://mypropai-server.onrender.com/api/auth/me", {
-          method: "GET",
-          credentials: "include", // ✅ Important to send cookies
-        });
-
-        if (res.ok) {
-          setAuthenticated(true);
-        } else {
-          setAuthenticated(false);
-        }
-      } catch (err) {
-        setAuthenticated(false);
-      }
-    };
-
-    checkAuth();
-  }, []);
-
-  if (authenticated === null) return null; // Still checking
+  if (loading) {
+    return <div className="p-6 text-center">Loading...</div>; // Optional: use a spinner
+  }
 
   return authenticated ? children : <Navigate to="/login" />;
 };
