@@ -1,40 +1,45 @@
 import React from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
-const DashboardLayout = ({ children }) => {
-  const location = useLocation();
+function DashboardLayout({ children }) {
+  const navigate = useNavigate();
 
-  const navItems = [
-    { label: "Dashboard", path: "/dashboard" },
-    { label: "Comps Tool", path: "/comps" },
-    { label: "Add Investment", path: "/investments/new" },
-    { label: "My Investments", path: "/investments" },
-  ];
+  const handleLogout = () => {
+    document.cookie = "token=; Max-Age=0; path=/;";
+    navigate("/login");
+  };
 
   return (
-    <div className="flex min-h-screen bg-gray-100">
+    <div className="flex min-h-screen">
       {/* Sidebar */}
-      <aside className="w-64 bg-white border-r p-4 shadow-md">
-        <h2 className="text-xl font-bold text-purple-700 mb-6">MyPropAI</h2>
-        <nav className="space-y-2">
-          {navItems.map((item) => (
-            <Link
-              key={item.path}
-              to={item.path}
-              className={`block px-4 py-2 rounded hover:bg-purple-100 ${
-                location.pathname === item.path ? "bg-purple-200 font-semibold" : ""
-              }`}
-            >
-              {item.label}
-            </Link>
-          ))}
+      <aside className="w-64 bg-gray-800 text-white p-6 space-y-6">
+        <h1 className="text-2xl font-bold mb-6">MyPropAI</h1>
+        <nav className="space-y-4">
+          <Link to="/dashboard" className="block hover:text-blue-300">
+            Dashboard
+          </Link>
+          <Link to="/comps" className="block hover:text-blue-300">
+            Comps Tool
+          </Link>
+          <Link to="/investments" className="block hover:text-blue-300">
+            My Investments
+          </Link>
+          <Link to="/investments/new" className="block hover:text-blue-300">
+            Add Investment
+          </Link>
+          <button
+            onClick={handleLogout}
+            className="mt-8 block w-full text-left text-red-400 hover:text-red-600"
+          >
+            Logout
+          </button>
         </nav>
       </aside>
 
-      {/* Main Content */}
-      <main className="flex-1 p-6 overflow-y-auto">{children}</main>
+      {/* Main content */}
+      <main className="flex-1 p-8 bg-gray-50">{children}</main>
     </div>
   );
-};
+}
 
 export default DashboardLayout;
