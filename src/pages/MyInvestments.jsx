@@ -1,24 +1,33 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
-const dummyInvestments = [
-  {
-    _id: "1",
-    address: "123 Main St, Philadelphia, PA",
-    type: "Fix & Flip",
-    purchasePrice: 150000,
-    lotSize: 2000,
-  },
-  {
-    _id: "2",
-    address: "456 Elm St, Philadelphia, PA",
-    type: "Fix & Rent",
-    purchasePrice: 180000,
-    lotSize: 2200,
-  },
-];
-
 function MyInvestments() {
+  const [investments, setInvestments] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const fetchInvestments = async () => {
+      try {
+        const res = await fetch("https://mypropai-server.onrender.com/api/investments", {
+          credentials: "include",
+        });
+        if (!res.ok) throw new Error("Failed to fetch");
+        const data = await res.json();
+        setInvestments(data);
+      } catch (err) {
+        setError("Failed to load investments");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchInvestments();
+  }, []);
+
+  if (loading) return <p>Loading investments...</p>;
+  if (error) return <p className="text-red-500">{error}</p>;
+
   return (
     <div>
       <h1 className="text-2xl font-bold mb-4">My Investments</h1>
@@ -34,15 +43,12 @@ function MyInvestments() {
             </tr>
           </thead>
           <tbody>
-            {dummyInvestments.map((inv, idx) => (
-              <tr
-                key={inv._id}
-                className={idx % 2 === 0 ? "bg-white" : "bg-gray-50"}
-              >
+            {investments.map((inv, idx) => (
+              <tr key={inv._id} className={idx % 2 === 0 ? "bg-white" : "bg-gray-50"}>
                 <td className="px-4 py-2">{inv.address}</td>
                 <td className="px-4 py-2">{inv.type}</td>
-                <td className="px-4 py-2">${inv.purchasePrice.toLocaleString()}</td>
-                <td className="px-4 py-2">{inv.lotSize} sqft</td>
+                <td className="px-4 py-2">${inv.purchasePrice?.toLocaleString()}</td>
+                <td className="px-4 py-2">{inv.lotSize || "—"} sqft</td>
                 <td className="px-4 py-2">
                   <Link
                     to={`/investments/${inv._id}`}

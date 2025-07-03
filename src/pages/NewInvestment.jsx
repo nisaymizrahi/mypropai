@@ -1,16 +1,13 @@
 import React, { useState } from "react";
-import { createInvestment } from "../utils/api";
 
 const NewInvestment = () => {
   const [type, setType] = useState("flip");
   const [address, setAddress] = useState("");
-  const [propertyType, setPropertyType] = useState("");
   const [size, setSize] = useState("");
   const [lotSize, setLotSize] = useState("");
   const [purchasePrice, setPurchasePrice] = useState("");
   const [arv, setArv] = useState("");
-  const [rent, setRent] = useState("");
-  const [status, setStatus] = useState("");
+  const [rentEstimate, setRentEstimate] = useState("");
   const [message, setMessage] = useState("");
 
   const handleSubmit = async (e) => {
@@ -18,28 +15,30 @@ const NewInvestment = () => {
     setMessage("");
 
     try {
-      const data = {
-        type,
-        address,
-        propertyType,
-        size: Number(size),
-        lotSize: Number(lotSize),
-        purchasePrice: Number(purchasePrice),
-        arv: type === "flip" ? Number(arv) : undefined,
-        rent: type === "rent" ? Number(rent) : undefined,
-        status,
-      };
+      const res = await fetch("https://mypropai-server.onrender.com/api/investments", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type,
+          address,
+          sqft: Number(size),
+          lotSize: Number(lotSize),
+          purchasePrice: Number(purchasePrice),
+          arv: type === "flip" ? Number(arv) : undefined,
+          rentEstimate: type === "rent" ? Number(rentEstimate) : undefined,
+        }),
+      });
 
-      await createInvestment(data);
-      setMessage("✅ Investment saved successfully!");
+      if (!res.ok) throw new Error("Failed to save investment");
+
+      setMessage("✅ Investment saved!");
       setAddress("");
-      setPropertyType("");
       setSize("");
       setLotSize("");
       setPurchasePrice("");
       setArv("");
-      setRent("");
-      setStatus("");
+      setRentEstimate("");
     } catch (err) {
       setMessage(`❌ ${err.message}`);
     }
@@ -71,13 +70,6 @@ const NewInvestment = () => {
           onChange={(e) => setAddress(e.target.value)}
           className="w-full p-2 border rounded"
           required
-        />
-        <input
-          type="text"
-          placeholder="Property Type"
-          value={propertyType}
-          onChange={(e) => setPropertyType(e.target.value)}
-          className="w-full p-2 border rounded"
         />
         <input
           type="number"
@@ -115,19 +107,11 @@ const NewInvestment = () => {
           <input
             type="number"
             placeholder="Projected Monthly Rent"
-            value={rent}
-            onChange={(e) => setRent(e.target.value)}
+            value={rentEstimate}
+            onChange={(e) => setRentEstimate(e.target.value)}
             className="w-full p-2 border rounded"
           />
         )}
-
-        <input
-          type="text"
-          placeholder="Status (optional)"
-          value={status}
-          onChange={(e) => setStatus(e.target.value)}
-          className="w-full p-2 border rounded"
-        />
 
         <button
           type="submit"
