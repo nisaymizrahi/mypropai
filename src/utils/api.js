@@ -1,9 +1,9 @@
 const API_BASE = "https://mypropai-server.onrender.com/api";
 
-// Helper: get auth header
-const getAuthHeaders = () => {
+// ✅ Exported token header helper for use in all secured API calls
+export const getTokenHeader = () => {
   const token = localStorage.getItem("token");
-  console.log("Auth token being sent:", token); // ✅ DEBUG LINE
+  console.log("Auth token being sent:", token);
 
   const headers = {
     "Content-Type": "application/json",
@@ -20,7 +20,7 @@ const getAuthHeaders = () => {
 export const createInvestment = async (data) => {
   const res = await fetch(`${API_BASE}/investments`, {
     method: "POST",
-    headers: getAuthHeaders(),
+    headers: getTokenHeader(),
     body: JSON.stringify(data),
   });
 
@@ -36,7 +36,7 @@ export const createInvestment = async (data) => {
 export const getInvestments = async () => {
   const res = await fetch(`${API_BASE}/investments`, {
     method: "GET",
-    headers: getAuthHeaders(),
+    headers: getTokenHeader(),
   });
 
   if (!res.ok) {
