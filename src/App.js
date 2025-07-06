@@ -5,8 +5,9 @@ import DashboardPage from "./pages/DashboardPage";
 import CompsTool from "./pages/CompsTool";
 import NewInvestment from "./pages/NewInvestment";
 import MyInvestments from "./pages/MyInvestments";
+import InvestmentDetail from "./pages/InvestmentDetail"; // ✅ new import
 import LoginPage from "./pages/LoginPage";
-import LoginContinuePage from "./pages/LoginContinuePage"; // ✅ NEW
+import LoginContinuePage from "./pages/LoginContinuePage";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { setTokenCookieFromURL } from "./utils/setTokenFromURL";
 import { AuthProvider } from "./context/AuthContext.js";
@@ -21,7 +22,7 @@ function App() {
       <Router>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
-          <Route path="/login-continue" element={<LoginContinuePage />} /> {/* ✅ NEW route */}
+          <Route path="/login-continue" element={<LoginContinuePage />} />
           <Route
             path="/dashboard"
             element={
@@ -58,6 +59,16 @@ function App() {
               <ProtectedRoute>
                 <DashboardLayout>
                   <NewInvestment />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/investments/:id"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <InvestmentDetail />
                 </DashboardLayout>
               </ProtectedRoute>
             }
