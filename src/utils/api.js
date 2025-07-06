@@ -3,11 +3,13 @@ const API_BASE = "https://mypropai-server.onrender.com/api";
 // Helper: get auth header
 const getAuthHeaders = () => {
   const token = localStorage.getItem("token");
+  console.log("Auth token being sent:", token); // ✅ DEBUG LINE
   return {
     Authorization: `Bearer ${token}`,
     "Content-Type": "application/json",
   };
 };
+
 
 // Create Investment
 export const createInvestment = async (data) => {
