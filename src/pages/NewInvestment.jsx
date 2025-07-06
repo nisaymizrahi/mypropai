@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { createInvestment } from "../utils/api";
 
 const NewInvestment = () => {
   const [type, setType] = useState("flip");
@@ -15,22 +16,15 @@ const NewInvestment = () => {
     setMessage("");
 
     try {
-      const res = await fetch("https://mypropai-server.onrender.com/api/investments", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          type,
-          address,
-          sqft: Number(size),
-          lotSize: Number(lotSize),
-          purchasePrice: Number(purchasePrice),
-          arv: type === "flip" ? Number(arv) : undefined,
-          rentEstimate: type === "rent" ? Number(rentEstimate) : undefined,
-        }),
+      await createInvestment({
+        type,
+        address,
+        sqft: Number(size),
+        lotSize: Number(lotSize),
+        purchasePrice: Number(purchasePrice),
+        arv: type === "flip" ? Number(arv) : undefined,
+        rentEstimate: type === "rent" ? Number(rentEstimate) : undefined,
       });
-
-      if (!res.ok) throw new Error("Failed to save investment");
 
       setMessage("✅ Investment saved!");
       setAddress("");
