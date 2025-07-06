@@ -4,12 +4,17 @@ const API_BASE = "https://mypropai-server.onrender.com/api";
 const getAuthHeaders = () => {
   const token = localStorage.getItem("token");
   console.log("Auth token being sent:", token); // ✅ DEBUG LINE
-  return {
-    Authorization: `Bearer ${token}`,
+
+  const headers = {
     "Content-Type": "application/json",
   };
-};
 
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
+  return headers;
+};
 
 // Create Investment
 export const createInvestment = async (data) => {
@@ -45,5 +50,4 @@ export const getInvestments = async () => {
 // Logout
 export const logoutUser = async () => {
   localStorage.removeItem("token");
-  // Optional: call backend to invalidate token (if implemented)
 };
