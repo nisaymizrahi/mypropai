@@ -3,15 +3,16 @@ import { useNavigate } from "react-router-dom";
 import { logoutUser } from "../utils/api";
 import { useAuth } from "../context/AuthContext";
 
-
 const LogoutButton = () => {
   const navigate = useNavigate();
-  const { authenticated } = useAuth();
+  const { authenticated, setUser, setAuthenticated, setToken } = useAuth();
 
-  const handleLogout = async () => {
-    await logoutUser();
+  const handleLogout = () => {
+    logoutUser(); // ✅ remove token from localStorage
+    setAuthenticated(false);
+    setUser(null);
+    setToken(null);
     navigate("/login");
-    window.location.reload(); // Clear all state
   };
 
   if (!authenticated) return null;
