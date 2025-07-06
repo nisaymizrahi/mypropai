@@ -1,15 +1,19 @@
-// src/utils/api.js
+const API_BASE = "https://mypropai-server.onrender.com/api";
 
-const API_BASE = "https://mypropai-server.onrender.com/api"; // ✅ Use your live backend URL
+// Helper: get auth header
+const getAuthHeaders = () => {
+  const token = localStorage.getItem("token");
+  return {
+    Authorization: `Bearer ${token}`,
+    "Content-Type": "application/json",
+  };
+};
 
 // Create Investment
 export const createInvestment = async (data) => {
   const res = await fetch(`${API_BASE}/investments`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    credentials: "include", // ✅ Needed for cookie-based sessions
+    headers: getAuthHeaders(),
     body: JSON.stringify(data),
   });
 
@@ -25,7 +29,7 @@ export const createInvestment = async (data) => {
 export const getInvestments = async () => {
   const res = await fetch(`${API_BASE}/investments`, {
     method: "GET",
-    credentials: "include", // ✅ Include cookie in request
+    headers: getAuthHeaders(),
   });
 
   if (!res.ok) {
@@ -38,8 +42,6 @@ export const getInvestments = async () => {
 
 // Logout
 export const logoutUser = async () => {
-  await fetch(`${API_BASE}/auth/logout`, {
-    method: "POST",
-    credentials: "include", // ✅ Send cookie for logout
-  });
+  localStorage.removeItem("token");
+  // Optional: call backend to invalidate token (if implemented)
 };
