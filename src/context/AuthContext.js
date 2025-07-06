@@ -6,25 +6,37 @@ export const AuthProvider = ({ children }) => {
   const [authenticated, setAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState(null);
+  const [token, setToken] = useState(() => localStorage.getItem("token"));
 
-  // ✅ Handle ?loggedin=true param from Google OAuth redirect
+  // ✅ Handle ?token=... from Google OAuth redirect
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get("loggedin") === "true") {
-      // Remove the query param from the URL without refreshing
+    const tokenFromUrl = urlParams.get("token");
+
+    if (tokenFromUrl) {
+      localStorage.setItem("token", tokenFromUrl);
+      setToken(tokenFromUrl);
+
+      // Remove token param from URL
       window.history.replaceState({}, document.title, window.location.pathname);
-      // Force a reload to trigger cookie-based session detection
-      window.location.reload();
     }
   }, []);
 
-  // ✅ Normal session check
+  // ✅ Fetch user session using token
   useEffect(() => {
     const checkAuth = async () => {
+      if (!token) {
+        setAuthenticated(false);
+        setLoading(false);
+        return;
+      }
+
       try {
         const res = await fetch("https://mypropai-server.onrender.com/api/auth/me", {
           method: "GET",
-          credentials: "include",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
         });
 
         if (res.ok) {
@@ -33,6 +45,8 @@ export const AuthProvider = ({ children }) => {
           setAuthenticated(true);
         } else {
           setAuthenticated(false);
+          localStorage.removeItem("token");
+          setToken(null);
         }
       } catch (err) {
         console.error("Auth check failed:", err);
@@ -43,10 +57,10 @@ export const AuthProvider = ({ children }) => {
     };
 
     checkAuth();
-  }, []);
+  }, [token]);
 
   return (
-    <AuthContext.Provider value={{ authenticated, loading, user }}>
+    <AuthContext.Provider value={{ authenticated, loading, user, token, setToken }}>
       {children}
     </AuthContext.Provider>
   );
