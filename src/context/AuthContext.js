@@ -8,7 +8,7 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(() => localStorage.getItem("token"));
 
-  // ✅ Handle ?token=... from Google OAuth redirect
+  // ✅ Handle token from URL (Google login)
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const tokenFromUrl = urlParams.get("token");
@@ -16,13 +16,11 @@ export const AuthProvider = ({ children }) => {
     if (tokenFromUrl) {
       localStorage.setItem("token", tokenFromUrl);
       setToken(tokenFromUrl);
-
-      // Remove token param from URL
       window.history.replaceState({}, document.title, window.location.pathname);
     }
   }, []);
 
-  // ✅ Fetch user session using token
+  // ✅ Check token on load or token change
   useEffect(() => {
     const checkAuth = async () => {
       if (!token) {
@@ -44,13 +42,13 @@ export const AuthProvider = ({ children }) => {
           setUser(userData);
           setAuthenticated(true);
         } else {
-          setAuthenticated(false);
-          localStorage.removeItem("token");
-          setToken(null);
+          throw new Error("Unauthorized");
         }
       } catch (err) {
         console.error("Auth check failed:", err);
         setAuthenticated(false);
+        localStorage.removeItem("token");
+        setToken(null);
       } finally {
         setLoading(false);
       }
