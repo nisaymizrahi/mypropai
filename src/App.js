@@ -6,9 +6,10 @@ import CompsTool from "./pages/CompsTool";
 import NewInvestment from "./pages/NewInvestment";
 import MyInvestments from "./pages/MyInvestments";
 import LoginPage from "./pages/LoginPage";
+import LoginContinuePage from "./pages/LoginContinuePage"; // ✅ NEW
 import ProtectedRoute from "./components/ProtectedRoute";
 import { setTokenCookieFromURL } from "./utils/setTokenFromURL";
-import { AuthProvider } from "./context/AuthContext.js"; // ✅ NEW
+import { AuthProvider } from "./context/AuthContext.js";
 
 function App() {
   useEffect(() => {
@@ -20,6 +21,7 @@ function App() {
       <Router>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/login-continue" element={<LoginContinuePage />} /> {/* ✅ NEW route */}
           <Route
             path="/dashboard"
             element={
