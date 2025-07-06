@@ -7,6 +7,18 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState(null);
 
+  // ✅ Handle ?loggedin=true param from Google OAuth redirect
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get("loggedin") === "true") {
+      // Remove the query param from the URL without refreshing
+      window.history.replaceState({}, document.title, window.location.pathname);
+      // Force a reload to trigger cookie-based session detection
+      window.location.reload();
+    }
+  }, []);
+
+  // ✅ Normal session check
   useEffect(() => {
     const checkAuth = async () => {
       try {
