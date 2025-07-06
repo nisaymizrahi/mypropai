@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { logoutUser } from "../utils/api";
 import { useAuth } from "../context/AuthContext";
 
+
 const LogoutButton = () => {
   const navigate = useNavigate();
   const { authenticated } = useAuth();

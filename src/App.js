@@ -8,7 +8,7 @@ import MyInvestments from "./pages/MyInvestments";
 import LoginPage from "./pages/LoginPage";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { setTokenCookieFromURL } from "./utils/setTokenFromURL";
-import { AuthProvider } from "./context/AuthContext"; // ✅ NEW
+import { AuthProvider } from "./context/AuthContext.js"; // ✅ NEW
 
 function App() {
   useEffect(() => {
