@@ -2,7 +2,23 @@ import React from "react";
 
 const LoginPage = () => {
   const handleGoogleLogin = () => {
-    window.location.href = "https://mypropai-server.onrender.com/api/auth/google";
+    const width = 500;
+    const height = 600;
+    const left = window.screen.width / 2 - width / 2;
+    const top = window.screen.height / 2 - height / 2;
+
+    const googleWindow = window.open(
+      "https://mypropai-server.onrender.com/api/auth/google",
+      "_blank",
+      `width=${width},height=${height},top=${top},left=${left}`
+    );
+
+    const pollTimer = setInterval(() => {
+      if (googleWindow?.closed) {
+        clearInterval(pollTimer);
+        window.location.href = "/login-continue"; // ✅ forces frontend to check session
+      }
+    }, 500);
   };
 
   return (
