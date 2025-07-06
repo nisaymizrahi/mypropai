@@ -7,25 +7,27 @@ const LoginContinuePage = () => {
 
   useEffect(() => {
     const confirmSession = async () => {
-      try {
-        const res = await fetch("https://mypropai-server.onrender.com/api/auth/me", {
-          method: "GET",
-          credentials: "include",
-        });
+      // ✅ Delay slightly so Safari can attach cookie properly
+      setTimeout(async () => {
+        try {
+          const res = await fetch("https://mypropai-server.onrender.com/api/auth/me", {
+            method: "GET",
+            credentials: "include",
+          });
 
-        if (res.ok) {
-          // ✅ Login confirmed, redirect to dashboard
-          setStatus("Login successful. Redirecting...");
-          setTimeout(() => {
-            navigate("/dashboard");
-          }, 1000);
-        } else {
-          setStatus("Login failed. Please click below to try again.");
+          if (res.ok) {
+            setStatus("Login successful. Redirecting...");
+            setTimeout(() => {
+              navigate("/dashboard");
+            }, 1000);
+          } else {
+            setStatus("Login failed. Please click below to try again.");
+          }
+        } catch (err) {
+          console.error("Auth check failed:", err);
+          setStatus("Network error. Please try again.");
         }
-      } catch (err) {
-        console.error("Auth check failed:", err);
-        setStatus("Network error. Please try again.");
-      }
+      }, 500); // ✅ Slight delay after redirect to help Safari
     };
 
     confirmSession();
