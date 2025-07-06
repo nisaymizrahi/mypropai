@@ -8,10 +8,19 @@ const LoginContinuePage = () => {
   const handleManualCheck = async () => {
     setStatus("Checking login...");
 
+    const token = localStorage.getItem("token"); // ✅ read token from storage
+
+    if (!token) {
+      setStatus("No token found. Please log in again.");
+      return;
+    }
+
     try {
       const res = await fetch("https://mypropai-server.onrender.com/api/auth/me", {
         method: "GET",
-        credentials: "include",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
       });
 
       if (res.ok) {
