@@ -1,3 +1,5 @@
+// TEMP: casing fix to force Git commit
+
 import React, { createContext, useContext, useEffect, useState } from "react";
 
 const AuthContext = createContext();
