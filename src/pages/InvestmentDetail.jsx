@@ -1,37 +1,44 @@
 import React, { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { getTokenHeader } from "../utils/api";
 
 const InvestmentDetail = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [investment, setInvestment] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const [budget, setBudget] = useState("");
 
+  const [newExpense, setNewExpense] = useState({
+    category: "",
+    type: "",
+    amount: "",
+  });
+
   useEffect(() => {
-    const fetchInvestment = async () => {
-      try {
-        const res = await fetch(`https://mypropai-server.onrender.com/api/investments/${id}`, {
-          headers: getTokenHeader(),
-        });
-
-        if (!res.ok) throw new Error("Failed to load investment");
-
-        const data = await res.json();
-        setInvestment(data);
-        setBudget(data.initialBudget || "");
-      } catch (err) {
-        console.error(err);
-        setError("Failed to load investment.");
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchInvestment();
   }, [id]);
+
+  const fetchInvestment = async () => {
+    try {
+      const res = await fetch(`https://mypropai-server.onrender.com/api/investments/${id}`, {
+        headers: getTokenHeader(),
+      });
+
+      if (!res.ok) throw new Error("Failed to load investment");
+
+      const data = await res.json();
+      setInvestment(data);
+      setBudget(data.initialBudget || "");
+    } catch (err) {
+      console.error(err);
+      setError("Failed to load investment.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const saveBudget = async () => {
     if (!budget) return;
@@ -54,6 +61,37 @@ const InvestmentDetail = () => {
     }
   };
 
+  const handleAddExpense = async () => {
+    if (!newExpense.category || !newExpense.amount) return;
+
+    const updated = {
+      ...investment,
+      expenses: [
+        ...(investment.expenses || []),
+        {
+          ...newExpense,
+          amount: Number(newExpense.amount),
+          date: new Date(),
+        },
+      ],
+    };
+
+    try {
+      const res = await fetch(`https://mypropai-server.onrender.com/api/investments/${id}`, {
+        method: "PATCH",
+        headers: getTokenHeader(),
+        body: JSON.stringify(updated),
+      });
+
+      if (!res.ok) throw new Error("Failed to add expense");
+      const data = await res.json();
+      setInvestment(data);
+      setNewExpense({ category: "", type: "", amount: "" });
+    } catch (err) {
+      console.error("Add expense error:", err);
+    }
+  };
+
   if (loading) return <div className="p-6">Loading...</div>;
   if (error) return <div className="p-6 text-red-600">{error}</div>;
   if (!investment) return null;
@@ -68,7 +106,15 @@ const InvestmentDetail = () => {
 
   return (
     <div className="p-6 max-w-5xl mx-auto space-y-6">
-      <h1 className="text-2xl font-bold">Investment Detail</h1>
+      <div className="flex justify-between items-center">
+        <h1 className="text-2xl font-bold">Investment Detail</h1>
+        <button
+          onClick={() => navigate(`/investments/${id}/edit`)}
+          className="bg-yellow-500 text-white px-4 py-2 rounded hover:bg-yellow-600"
+        >
+          Edit Property
+        </button>
+      </div>
 
       <div className="bg-white p-4 rounded shadow space-y-2">
         <p><strong>Address:</strong> {investment.address}</p>
@@ -109,7 +155,40 @@ const InvestmentDetail = () => {
       </div>
 
       <div className="bg-white p-4 rounded shadow">
-        <h2 className="text-lg font-semibold mb-2">Expenses</h2>
+        <h2 className="text-lg font-semibold mb-2">Add Expense</h2>
+        <div className="flex flex-wrap gap-2 items-center">
+          <input
+            type="text"
+            placeholder="Category"
+            value={newExpense.category}
+            onChange={(e) => setNewExpense({ ...newExpense, category: e.target.value })}
+            className="border p-2 rounded w-40"
+          />
+          <input
+            type="text"
+            placeholder="Type"
+            value={newExpense.type}
+            onChange={(e) => setNewExpense({ ...newExpense, type: e.target.value })}
+            className="border p-2 rounded w-40"
+          />
+          <input
+            type="number"
+            placeholder="Amount"
+            value={newExpense.amount}
+            onChange={(e) => setNewExpense({ ...newExpense, amount: e.target.value })}
+            className="border p-2 rounded w-40"
+          />
+          <button
+            onClick={handleAddExpense}
+            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+          >
+            Add Expense
+          </button>
+        </div>
+      </div>
+
+      <div className="bg-white p-4 rounded shadow">
+        <h2 className="text-lg font-semibold mb-2">All Expenses</h2>
         {expenses.length === 0 && <p className="text-gray-500">No expenses added yet.</p>}
         {expenses.map((e, idx) => (
           <div key={e._id || idx} className="flex justify-between border-b py-2 text-sm">
