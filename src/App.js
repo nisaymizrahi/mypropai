@@ -5,7 +5,8 @@ import DashboardPage from "./pages/DashboardPage";
 import CompsTool from "./pages/CompsTool";
 import NewInvestment from "./pages/NewInvestment";
 import MyInvestments from "./pages/MyInvestments";
-import InvestmentDetail from "./pages/InvestmentDetail"; // ✅ new import
+import InvestmentDetail from "./pages/InvestmentDetail";
+import EditInvestment from "./pages/EditInvestment";
 import LoginPage from "./pages/LoginPage";
 import LoginContinuePage from "./pages/LoginContinuePage";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -23,6 +24,7 @@ function App() {
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/login-continue" element={<LoginContinuePage />} />
+
           <Route
             path="/dashboard"
             element={
@@ -33,6 +35,7 @@ function App() {
               </ProtectedRoute>
             }
           />
+
           <Route
             path="/comps"
             element={
@@ -43,6 +46,7 @@ function App() {
               </ProtectedRoute>
             }
           />
+
           <Route
             path="/investments"
             element={
@@ -53,6 +57,7 @@ function App() {
               </ProtectedRoute>
             }
           />
+
           <Route
             path="/investments/new"
             element={
@@ -63,6 +68,7 @@ function App() {
               </ProtectedRoute>
             }
           />
+
           <Route
             path="/investments/:id"
             element={
@@ -73,6 +79,18 @@ function App() {
               </ProtectedRoute>
             }
           />
+
+          <Route
+            path="/investments/:id/edit"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <EditInvestment />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       </Router>
