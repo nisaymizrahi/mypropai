@@ -65,10 +65,13 @@ export const getInvestment = async (id) => {
 
 // ✅ Add a new budget line
 export const addBudgetLine = async (investmentId, line) => {
+  const current = await getInvestment(investmentId);
+  const updated = [...(current.budget || []), line];
+
   const res = await fetch(`${API_BASE}/investments/${investmentId}`, {
     method: "PATCH",
     headers: getTokenHeader(),
-    body: JSON.stringify({ $push: { budget: line } }),
+    body: JSON.stringify({ budget: updated }),
   });
 
   if (!res.ok) {
@@ -79,12 +82,18 @@ export const addBudgetLine = async (investmentId, line) => {
   return res.json();
 };
 
+
 // ✅ Add a new expense (linked to budget category)
 export const addExpense = async (investmentId, expense) => {
+  // 1. Get the current investment
+  const current = await getInvestment(investmentId);
+  const updatedExpenses = [...(current.expenses || []), expense];
+
+  // 2. Send updated array to backend
   const res = await fetch(`${API_BASE}/investments/${investmentId}`, {
     method: "PATCH",
     headers: getTokenHeader(),
-    body: JSON.stringify({ $push: { expenses: expense } }),
+    body: JSON.stringify({ expenses: updatedExpenses }),
   });
 
   if (!res.ok) {
@@ -94,6 +103,7 @@ export const addExpense = async (investmentId, expense) => {
 
   return res.json();
 };
+
 
 // ✅ Logout
 export const logoutUser = async () => {
