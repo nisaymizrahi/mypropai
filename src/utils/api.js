@@ -32,7 +32,7 @@ export const getInvestments = async () => {
   return res.json();
 };
 
-// Get single investment
+// Get a single investment by ID
 export const getInvestment = async (id) => {
   const res = await fetch(`${API_BASE}/investments/${id}`, {
     method: "GET",
@@ -43,7 +43,7 @@ export const getInvestment = async (id) => {
   return res.json();
 };
 
-// Add budget line
+// Add a new budget line
 export const addBudgetLine = async (investmentId, line) => {
   const current = await getInvestment(investmentId);
   const updated = [...(current.budget || []), line];
@@ -58,7 +58,7 @@ export const addBudgetLine = async (investmentId, line) => {
   return res.json();
 };
 
-// Update specific budget line
+// Update a specific budget line
 export const updateBudgetLine = async (investmentId, index, updates) => {
   const res = await fetch(`${API_BASE}/investments/${investmentId}/budget/${index}`, {
     method: "PATCH",
@@ -70,22 +70,22 @@ export const updateBudgetLine = async (investmentId, index, updates) => {
   return res.json();
 };
 
-// Add new expense
+// Add an expense
 export const addExpense = async (investmentId, expense) => {
   const current = await getInvestment(investmentId);
-  const updatedExpenses = [...(current.expenses || []), expense];
+  const updated = [...(current.expenses || []), expense];
 
   const res = await fetch(`${API_BASE}/investments/${investmentId}`, {
     method: "PATCH",
     headers: getTokenHeader(),
-    body: JSON.stringify({ expenses: updatedExpenses }),
+    body: JSON.stringify({ expenses: updated }),
   });
 
   if (!res.ok) throw new Error((await res.json()).message || "Failed to add expense");
   return res.json();
 };
 
-// ✅ NEW: Update a specific expense by index
+// ✅ Update an expense by index
 export const updateExpense = async (investmentId, index, updates) => {
   const current = await getInvestment(investmentId);
   const updated = [...(current.expenses || [])];
@@ -98,6 +98,22 @@ export const updateExpense = async (investmentId, index, updates) => {
   });
 
   if (!res.ok) throw new Error((await res.json()).message || "Failed to update expense");
+  return res.json();
+};
+
+// ✅ Delete an expense by index
+export const deleteExpense = async (investmentId, index) => {
+  const current = await getInvestment(investmentId);
+  const updated = [...(current.expenses || [])];
+  updated.splice(index, 1); // remove the item at index
+
+  const res = await fetch(`${API_BASE}/investments/${investmentId}`, {
+    method: "PATCH",
+    headers: getTokenHeader(),
+    body: JSON.stringify({ expenses: updated }),
+  });
+
+  if (!res.ok) throw new Error((await res.json()).message || "Failed to delete expense");
   return res.json();
 };
 
