@@ -14,7 +14,7 @@ const InvestmentDetail = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const [newBudget, setNewBudget] = useState({ category: "", description: "", amount: "" });
+  const [newBudget, setNewBudget] = useState({ category: "", description: "", amount: "", status: "Not Started" });
   const [newExpense, setNewExpense] = useState({ category: "", type: "", amount: "" });
   const [expandedCategory, setExpandedCategory] = useState(null);
 
@@ -40,11 +40,12 @@ const InvestmentDetail = () => {
       category: newBudget.category,
       description: newBudget.description,
       amount: Number(newBudget.amount),
+      status: newBudget.status,
     };
     try {
       await addBudgetLine(id, line);
       await fetchData();
-      setNewBudget({ category: "", description: "", amount: "" });
+      setNewBudget({ category: "", description: "", amount: "", status: "Not Started" });
     } catch (err) {
       console.error("Add budget error:", err);
     }
@@ -87,9 +88,16 @@ const InvestmentDetail = () => {
 
   const categories = Object.values(budgetMap);
 
+  const getStatusColor = (status) => {
+    switch (status) {
+      case "Completed": return "text-green-600";
+      case "In Progress": return "text-yellow-600";
+      default: return "text-gray-600";
+    }
+  };
+
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-6">
-      {/* Header */}
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">Investment Detail</h1>
         <button
@@ -100,7 +108,6 @@ const InvestmentDetail = () => {
         </button>
       </div>
 
-      {/* Property Info */}
       <div className="bg-white p-4 rounded shadow space-y-2">
         <h2 className="text-lg font-semibold mb-2 text-gray-700">Property Info</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-2 gap-x-6 text-sm">
@@ -113,7 +120,6 @@ const InvestmentDetail = () => {
         </div>
       </div>
 
-      {/* Budget + Expenses Section */}
       <div className="bg-white p-4 rounded shadow space-y-4">
         <h2 className="text-lg font-semibold text-gray-700 mb-2">Renovation Budget & Expenses</h2>
         <p className="text-sm mb-2">Total Budget: ${totalBudget.toLocaleString()}</p>
@@ -127,6 +133,7 @@ const InvestmentDetail = () => {
               <div className="flex justify-between items-center">
                 <div>
                   <strong>{cat.category}</strong> — ${used.toLocaleString()} / ${cat.amount.toLocaleString()} ({percent}%)
+                  <span className={`ml-3 text-sm font-semibold ${getStatusColor(cat.status)}`}>[{cat.status || "Not Started"}]</span>
                 </div>
                 <button
                   className="text-sm text-blue-600 hover:underline"
@@ -150,7 +157,6 @@ const InvestmentDetail = () => {
           );
         })}
 
-        {/* Add Budget Line */}
         <div>
           <h3 className="font-semibold mb-1">Add Budget Line</h3>
           <div className="flex flex-wrap gap-2 items-center text-sm">
@@ -175,6 +181,15 @@ const InvestmentDetail = () => {
               onChange={(e) => setNewBudget({ ...newBudget, amount: e.target.value })}
               className="border p-2 rounded w-32"
             />
+            <select
+              value={newBudget.status}
+              onChange={(e) => setNewBudget({ ...newBudget, status: e.target.value })}
+              className="border p-2 rounded w-40"
+            >
+              <option value="Not Started">Not Started</option>
+              <option value="In Progress">In Progress</option>
+              <option value="Completed">Completed</option>
+            </select>
             <button
               onClick={handleAddBudgetLine}
               className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
@@ -184,7 +199,6 @@ const InvestmentDetail = () => {
           </div>
         </div>
 
-        {/* Add Expense */}
         <div>
           <h3 className="font-semibold mt-4 mb-1">Add Expense</h3>
           <div className="flex flex-wrap gap-2 items-center text-sm">
@@ -223,7 +237,6 @@ const InvestmentDetail = () => {
         </div>
       </div>
 
-      {/* Profit Summary */}
       <div className={`p-4 rounded shadow text-lg font-semibold ${
         profit >= 0 ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"
       }`}>
