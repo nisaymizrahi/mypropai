@@ -4,7 +4,7 @@ import {
   getInvestment,
   addBudgetLine,
   addExpense,
-  getTokenHeader,
+  updateBudgetLine,
 } from "../utils/api";
 
 const InvestmentDetail = () => {
@@ -51,6 +51,15 @@ const InvestmentDetail = () => {
     }
   };
 
+  const handleUpdateBudgetField = async (index, field, value) => {
+    try {
+      await updateBudgetLine(id, index, { [field]: value });
+      await fetchData();
+    } catch (err) {
+      console.error("Update budget line error:", err);
+    }
+  };
+
   const handleAddExpense = async () => {
     if (!newExpense.category || !newExpense.amount) return;
     const exp = {
@@ -76,8 +85,8 @@ const InvestmentDetail = () => {
   const totalExpenses = (investment.expenses || []).reduce((sum, e) => sum + (e.amount || 0), 0);
   const profit = (investment.arv || 0) - (investment.purchasePrice || 0) - totalExpenses;
 
-  const budgetMap = (investment.budget || []).reduce((map, b) => {
-    map[b.category] = { ...b, expenses: [] };
+  const budgetMap = (investment.budget || []).reduce((map, b, idx) => {
+    map[b.category] = { ...b, expenses: [], index: idx };
     return map;
   }, {});
   (investment.expenses || []).forEach((e) => {
@@ -132,8 +141,29 @@ const InvestmentDetail = () => {
             <div key={idx} className="border-b pb-2 mb-2">
               <div className="flex justify-between items-center">
                 <div>
-                  <strong>{cat.category}</strong> — ${used.toLocaleString()} / ${cat.amount.toLocaleString()} ({percent}%)
-                  <span className={`ml-3 text-sm font-semibold ${getStatusColor(cat.status)}`}>[{cat.status || "Not Started"}]</span>
+                  <input
+                    className="text-sm font-semibold mr-2 border-b border-dashed"
+                    value={cat.category}
+                    onChange={(e) => handleUpdateBudgetField(cat.index, "category", e.target.value)}
+                    onBlur={(e) => handleUpdateBudgetField(cat.index, "category", e.target.value)}
+                  />
+                  — ${used.toLocaleString()} /
+                  <input
+                    type="number"
+                    value={cat.amount}
+                    onChange={(e) => handleUpdateBudgetField(cat.index, "amount", e.target.value)}
+                    onBlur={(e) => handleUpdateBudgetField(cat.index, "amount", e.target.value)}
+                    className="border p-1 w-24 ml-2 text-sm"
+                  />
+                  <select
+                    value={cat.status}
+                    onChange={(e) => handleUpdateBudgetField(cat.index, "status", e.target.value)}
+                    className="ml-2 text-sm"
+                  >
+                    <option value="Not Started">Not Started</option>
+                    <option value="In Progress">In Progress</option>
+                    <option value="Completed">Completed</option>
+                  </select>
                 </div>
                 <button
                   className="text-sm text-blue-600 hover:underline"

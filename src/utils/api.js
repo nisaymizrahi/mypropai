@@ -82,14 +82,27 @@ export const addBudgetLine = async (investmentId, line) => {
   return res.json();
 };
 
+// ✅ Update a specific budget line by index (autosave)
+export const updateBudgetLine = async (investmentId, index, updates) => {
+  const res = await fetch(`${API_BASE}/investments/${investmentId}/budget/${index}`, {
+    method: "PATCH",
+    headers: getTokenHeader(),
+    body: JSON.stringify(updates),
+  });
+
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(error.message || "Failed to update budget line");
+  }
+
+  return res.json();
+};
 
 // ✅ Add a new expense (linked to budget category)
 export const addExpense = async (investmentId, expense) => {
-  // 1. Get the current investment
   const current = await getInvestment(investmentId);
   const updatedExpenses = [...(current.expenses || []), expense];
 
-  // 2. Send updated array to backend
   const res = await fetch(`${API_BASE}/investments/${investmentId}`, {
     method: "PATCH",
     headers: getTokenHeader(),
