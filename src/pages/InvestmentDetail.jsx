@@ -8,14 +8,9 @@ const InvestmentDetail = () => {
   const [investment, setInvestment] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [budget, setBudget] = useState("");
+  const [showBudgetDetails, setShowBudgetDetails] = useState(false);
 
-  const [newExpense, setNewExpense] = useState({
-    category: "",
-    type: "",
-    amount: "",
-  });
+  const [newLine, setNewLine] = useState({ category: "", description: "", amount: "" });
 
   useEffect(() => {
     fetchInvestment();
@@ -28,10 +23,8 @@ const InvestmentDetail = () => {
       });
 
       if (!res.ok) throw new Error("Failed to load investment");
-
       const data = await res.json();
       setInvestment(data);
-      setBudget(data.initialBudget || "");
     } catch (err) {
       console.error(err);
       setError("Failed to load investment.");
@@ -40,38 +33,16 @@ const InvestmentDetail = () => {
     }
   };
 
-  const saveBudget = async () => {
-    if (!budget) return;
-    setSaving(true);
-    try {
-      const res = await fetch(`https://mypropai-server.onrender.com/api/investments/${id}`, {
-        method: "PATCH",
-        headers: getTokenHeader(),
-        body: JSON.stringify({ initialBudget: Number(budget) }),
-      });
-
-      if (!res.ok) throw new Error("Failed to save budget");
-
-      const updated = await res.json();
-      setInvestment(updated);
-    } catch (err) {
-      console.error("Save budget error:", err);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleAddExpense = async () => {
-    if (!newExpense.category || !newExpense.amount) return;
+  const handleAddBudgetLine = async () => {
+    if (!newLine.category || !newLine.amount) return;
 
     const updated = {
       ...investment,
-      expenses: [
-        ...(investment.expenses || []),
+      budget: [
+        ...(investment.budget || []),
         {
-          ...newExpense,
-          amount: Number(newExpense.amount),
-          date: new Date(),
+          ...newLine,
+          amount: Number(newLine.amount),
         },
       ],
     };
@@ -80,15 +51,15 @@ const InvestmentDetail = () => {
       const res = await fetch(`https://mypropai-server.onrender.com/api/investments/${id}`, {
         method: "PATCH",
         headers: getTokenHeader(),
-        body: JSON.stringify(updated),
+        body: JSON.stringify({ budget: updated.budget }),
       });
 
-      if (!res.ok) throw new Error("Failed to add expense");
+      if (!res.ok) throw new Error("Failed to save budget line");
       const data = await res.json();
       setInvestment(data);
-      setNewExpense({ category: "", type: "", amount: "" });
+      setNewLine({ category: "", description: "", amount: "" });
     } catch (err) {
-      console.error("Add expense error:", err);
+      console.error("Add budget line error:", err);
     }
   };
 
@@ -96,13 +67,10 @@ const InvestmentDetail = () => {
   if (error) return <div className="p-6 text-red-600">{error}</div>;
   if (!investment) return null;
 
+  const totalBudget = (investment.budget || []).reduce((sum, line) => sum + (line.amount || 0), 0);
   const expenses = investment.expenses || [];
-  const renovationExpenses = expenses
-    .filter((e) => e.category?.toLowerCase() === "renovation" || e.category?.toLowerCase() === "labor")
-    .reduce((sum, e) => sum + (e.amount || 0), 0);
-
-  const remainingBudget = (investment.initialBudget || 0) - renovationExpenses;
-  const profit = (investment.arv || 0) - (investment.purchasePrice || 0) - expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+  const totalExpenses = expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+  const profit = (investment.arv || 0) - (investment.purchasePrice || 0) - totalExpenses;
 
   return (
     <div className="p-6 max-w-5xl mx-auto space-y-6">
@@ -126,69 +94,66 @@ const InvestmentDetail = () => {
       </div>
 
       <div className="bg-white p-4 rounded shadow">
-        <h2 className="text-lg font-semibold mb-2">Renovation Budget</h2>
-        <div className="flex items-center gap-4">
-          <input
-            type="number"
-            value={budget}
-            onChange={(e) => setBudget(e.target.value)}
-            placeholder="Enter budget"
-            className="border p-2 rounded w-40"
-          />
+        <div className="flex justify-between items-center">
+          <h2 className="text-lg font-semibold">Renovation Budget</h2>
           <button
-            onClick={saveBudget}
-            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-            disabled={saving}
+            onClick={() => setShowBudgetDetails(!showBudgetDetails)}
+            className="text-blue-600 hover:underline"
           >
-            {saving ? "Saving..." : "Save Budget"}
+            {showBudgetDetails ? "Hide" : "View"} Details
           </button>
         </div>
-        {investment.initialBudget && (
-          <div className="mt-4 text-sm text-gray-700 space-y-1">
-            <p>Initial Budget: ${investment.initialBudget.toLocaleString()}</p>
-            <p>Renovation Cost So Far: ${renovationExpenses.toLocaleString()}</p>
-            <p className={remainingBudget >= 0 ? "text-green-600" : "text-red-600"}>
-              {remainingBudget >= 0 ? "Remaining Budget" : "Over Budget"}: ${Math.abs(remainingBudget).toLocaleString()}
-            </p>
-          </div>
+        <p className="mt-2 text-gray-700">Total Budget: ${totalBudget.toLocaleString()}</p>
+
+        {showBudgetDetails && (
+          <>
+            <div className="mt-3 border-t pt-2 space-y-2 text-sm">
+              {(investment.budget || []).map((item, idx) => (
+                <div key={idx} className="flex justify-between border-b py-1">
+                  <span>{item.category}{item.description ? ` - ${item.description}` : ""}</span>
+                  <span>${item.amount.toLocaleString()}</span>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-4">
+              <h3 className="font-semibold mb-1">Add Budget Line</h3>
+              <div className="flex gap-2 flex-wrap items-center">
+                <input
+                  type="text"
+                  placeholder="Category"
+                  className="border p-2 rounded w-40"
+                  value={newLine.category}
+                  onChange={(e) => setNewLine({ ...newLine, category: e.target.value })}
+                />
+                <input
+                  type="text"
+                  placeholder="Description"
+                  className="border p-2 rounded w-48"
+                  value={newLine.description}
+                  onChange={(e) => setNewLine({ ...newLine, description: e.target.value })}
+                />
+                <input
+                  type="number"
+                  placeholder="Amount"
+                  className="border p-2 rounded w-32"
+                  value={newLine.amount}
+                  onChange={(e) => setNewLine({ ...newLine, amount: e.target.value })}
+                />
+                <button
+                  onClick={handleAddBudgetLine}
+                  className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+                >
+                  Add Line
+                </button>
+              </div>
+            </div>
+          </>
         )}
       </div>
 
       <div className="bg-white p-4 rounded shadow">
-        <h2 className="text-lg font-semibold mb-2">Add Expense</h2>
-        <div className="flex flex-wrap gap-2 items-center">
-          <input
-            type="text"
-            placeholder="Category"
-            value={newExpense.category}
-            onChange={(e) => setNewExpense({ ...newExpense, category: e.target.value })}
-            className="border p-2 rounded w-40"
-          />
-          <input
-            type="text"
-            placeholder="Type"
-            value={newExpense.type}
-            onChange={(e) => setNewExpense({ ...newExpense, type: e.target.value })}
-            className="border p-2 rounded w-40"
-          />
-          <input
-            type="number"
-            placeholder="Amount"
-            value={newExpense.amount}
-            onChange={(e) => setNewExpense({ ...newExpense, amount: e.target.value })}
-            className="border p-2 rounded w-40"
-          />
-          <button
-            onClick={handleAddExpense}
-            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
-          >
-            Add Expense
-          </button>
-        </div>
-      </div>
-
-      <div className="bg-white p-4 rounded shadow">
-        <h2 className="text-lg font-semibold mb-2">All Expenses</h2>
+        <h2 className="text-lg font-semibold mb-2">Expenses</h2>
         {expenses.length === 0 && <p className="text-gray-500">No expenses added yet.</p>}
         {expenses.map((e, idx) => (
           <div key={e._id || idx} className="flex justify-between border-b py-2 text-sm">
@@ -198,7 +163,7 @@ const InvestmentDetail = () => {
         ))}
         <div className="flex justify-between font-semibold mt-3">
           <span>Total Expenses:</span>
-          <span>${expenses.reduce((sum, e) => sum + (e.amount || 0), 0).toLocaleString()}</span>
+          <span>${totalExpenses.toLocaleString()}</span>
         </div>
       </div>
 

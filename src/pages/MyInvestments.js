@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { getInvestments } from "../utils/api"; // ✅ use the token-aware API
+import { getInvestments } from "../utils/api"; // ✅ correct import
+
 
 function MyInvestments() {
   const [investments, setInvestments] = useState([]);
