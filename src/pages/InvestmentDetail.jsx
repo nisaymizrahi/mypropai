@@ -88,7 +88,8 @@ const InvestmentDetail = () => {
   const categories = Object.values(budgetMap);
 
   return (
-    <div className="p-6 max-w-5xl mx-auto space-y-6">
+    <div className="p-6 max-w-6xl mx-auto space-y-6">
+      {/* Header */}
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">Investment Detail</h1>
         <button
@@ -99,28 +100,33 @@ const InvestmentDetail = () => {
         </button>
       </div>
 
+      {/* Property Info */}
       <div className="bg-white p-4 rounded shadow space-y-2">
-        <p><strong>Address:</strong> {investment.address}</p>
-        <p><strong>Type:</strong> {investment.type}</p>
-        <p><strong>Purchase Price:</strong> ${investment.purchasePrice?.toLocaleString()}</p>
-        <p><strong>Lot Size:</strong> {investment.lotSize} sqft</p>
-        <p><strong>Property Size:</strong> {investment.sqft} sqft</p>
-        <p><strong>ARV:</strong> ${investment.arv?.toLocaleString()}</p>
+        <h2 className="text-lg font-semibold mb-2 text-gray-700">Property Info</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-2 gap-x-6 text-sm">
+          <p><strong>Address:</strong> {investment.address}</p>
+          <p><strong>Type:</strong> {investment.type}</p>
+          <p><strong>Purchase Price:</strong> ${investment.purchasePrice?.toLocaleString()}</p>
+          <p><strong>Lot Size:</strong> {investment.lotSize} sqft</p>
+          <p><strong>Property Size:</strong> {investment.sqft} sqft</p>
+          <p><strong>ARV:</strong> ${investment.arv?.toLocaleString()}</p>
+        </div>
       </div>
 
-      <div className="bg-white p-4 rounded shadow">
-        <h2 className="text-lg font-semibold mb-2">Budget Overview</h2>
-        <p className="mb-2">Total Budget: ${totalBudget.toLocaleString()}</p>
+      {/* Budget + Expenses Section */}
+      <div className="bg-white p-4 rounded shadow space-y-4">
+        <h2 className="text-lg font-semibold text-gray-700 mb-2">Renovation Budget & Expenses</h2>
+        <p className="text-sm mb-2">Total Budget: ${totalBudget.toLocaleString()}</p>
 
         {categories.map((cat, idx) => {
           const used = cat.expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
           const percent = cat.amount ? Math.min((used / cat.amount) * 100, 100).toFixed(0) : 0;
           const expanded = expandedCategory === cat.category;
           return (
-            <div key={idx} className="border-b py-2">
+            <div key={idx} className="border-b pb-2 mb-2">
               <div className="flex justify-between items-center">
                 <div>
-                  <strong>{cat.category}</strong>: ${used.toLocaleString()} / ${cat.amount.toLocaleString()} ({percent}%)
+                  <strong>{cat.category}</strong> — ${used.toLocaleString()} / ${cat.amount.toLocaleString()} ({percent}%)
                 </div>
                 <button
                   className="text-sm text-blue-600 hover:underline"
@@ -143,78 +149,81 @@ const InvestmentDetail = () => {
             </div>
           );
         })}
-      </div>
 
-      <div className="bg-white p-4 rounded shadow">
-        <h3 className="font-semibold mb-2">Add Budget Line</h3>
-        <div className="flex flex-wrap gap-2 items-center">
-          <input
-            type="text"
-            placeholder="Category"
-            value={newBudget.category}
-            onChange={(e) => setNewBudget({ ...newBudget, category: e.target.value })}
-            className="border p-2 rounded w-36"
-          />
-          <input
-            type="text"
-            placeholder="Description"
-            value={newBudget.description}
-            onChange={(e) => setNewBudget({ ...newBudget, description: e.target.value })}
-            className="border p-2 rounded w-64"
-          />
-          <input
-            type="number"
-            placeholder="Amount"
-            value={newBudget.amount}
-            onChange={(e) => setNewBudget({ ...newBudget, amount: e.target.value })}
-            className="border p-2 rounded w-32"
-          />
-          <button
-            onClick={handleAddBudgetLine}
-            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-          >
-            Add
-          </button>
+        {/* Add Budget Line */}
+        <div>
+          <h3 className="font-semibold mb-1">Add Budget Line</h3>
+          <div className="flex flex-wrap gap-2 items-center text-sm">
+            <input
+              type="text"
+              placeholder="Category"
+              value={newBudget.category}
+              onChange={(e) => setNewBudget({ ...newBudget, category: e.target.value })}
+              className="border p-2 rounded w-36"
+            />
+            <input
+              type="text"
+              placeholder="Description"
+              value={newBudget.description}
+              onChange={(e) => setNewBudget({ ...newBudget, description: e.target.value })}
+              className="border p-2 rounded w-64"
+            />
+            <input
+              type="number"
+              placeholder="Amount"
+              value={newBudget.amount}
+              onChange={(e) => setNewBudget({ ...newBudget, amount: e.target.value })}
+              className="border p-2 rounded w-32"
+            />
+            <button
+              onClick={handleAddBudgetLine}
+              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+            >
+              Add
+            </button>
+          </div>
+        </div>
+
+        {/* Add Expense */}
+        <div>
+          <h3 className="font-semibold mt-4 mb-1">Add Expense</h3>
+          <div className="flex flex-wrap gap-2 items-center text-sm">
+            <select
+              value={newExpense.category}
+              onChange={(e) => setNewExpense({ ...newExpense, category: e.target.value })}
+              className="border p-2 rounded w-40"
+            >
+              <option value="">Select Category</option>
+              {categories.map((c, idx) => (
+                <option key={idx} value={c.category}>{c.category}</option>
+              ))}
+              <option value="Other">Other</option>
+            </select>
+            <input
+              type="text"
+              placeholder="Type (optional)"
+              value={newExpense.type}
+              onChange={(e) => setNewExpense({ ...newExpense, type: e.target.value })}
+              className="border p-2 rounded w-48"
+            />
+            <input
+              type="number"
+              placeholder="Amount"
+              value={newExpense.amount}
+              onChange={(e) => setNewExpense({ ...newExpense, amount: e.target.value })}
+              className="border p-2 rounded w-32"
+            />
+            <button
+              onClick={handleAddExpense}
+              className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+            >
+              Add
+            </button>
+          </div>
         </div>
       </div>
 
-      <div className="bg-white p-4 rounded shadow">
-        <h3 className="font-semibold mb-2">Add Expense</h3>
-        <div className="flex flex-wrap gap-2 items-center">
-          <select
-            value={newExpense.category}
-            onChange={(e) => setNewExpense({ ...newExpense, category: e.target.value })}
-            className="border p-2 rounded w-40"
-          >
-            <option value="">Select Category</option>
-            {categories.map((c, idx) => (
-              <option key={idx} value={c.category}>{c.category}</option>
-            ))}
-            <option value="Other">Other</option>
-          </select>
-          <input
-            type="text"
-            placeholder="Type (optional)"
-            value={newExpense.type}
-            onChange={(e) => setNewExpense({ ...newExpense, type: e.target.value })}
-            className="border p-2 rounded w-48"
-          />
-          <input
-            type="number"
-            placeholder="Amount"
-            value={newExpense.amount}
-            onChange={(e) => setNewExpense({ ...newExpense, amount: e.target.value })}
-            className="border p-2 rounded w-32"
-          />
-          <button
-            onClick={handleAddExpense}
-            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
-          >
-            Add
-          </button>
-        </div>
-      </div>
-
+      {/* Profit Summary */}
       <div className={`p-4 rounded shadow text-lg font-semibold ${
         profit >= 0 ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"
       }`}>
