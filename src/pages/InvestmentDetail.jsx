@@ -5,8 +5,6 @@ import {
   addBudgetLine,
   addExpense,
   updateBudgetLine,
-  updateExpense,
-  deleteExpense,
 } from "../utils/api";
 
 const InvestmentDetail = () => {
@@ -62,24 +60,6 @@ const InvestmentDetail = () => {
     }
   };
 
-  const handleUpdateExpense = async (index, field, value) => {
-    try {
-      await updateExpense(id, index, { [field]: value });
-      await fetchData();
-    } catch (err) {
-      console.error("Update expense error:", err);
-    }
-  };
-
-  const handleDeleteExpense = async (index) => {
-    try {
-      await deleteExpense(id, index);
-      await fetchData();
-    } catch (err) {
-      console.error("Delete expense error:", err);
-    }
-  };
-
   const handleAddExpense = async () => {
     if (!newExpense.category || !newExpense.amount) return;
     const exp = {
@@ -109,10 +89,10 @@ const InvestmentDetail = () => {
     map[b.category] = { ...b, expenses: [], index: idx };
     return map;
   }, {});
-  (investment.expenses || []).forEach((e, i) => {
+  (investment.expenses || []).forEach((e) => {
     const cat = e.category || "Other";
-    if (!budgetMap[cat]) budgetMap[cat] = { category: cat, amount: 0, expenses: [], index: -1 };
-    budgetMap[cat].expenses.push({ ...e, index: i });
+    if (!budgetMap[cat]) budgetMap[cat] = { category: cat, amount: 0, expenses: [] };
+    budgetMap[cat].expenses.push(e);
   });
 
   const categories = Object.values(budgetMap);
@@ -196,28 +176,9 @@ const InvestmentDetail = () => {
                 <div className="mt-2 ml-4 space-y-1 text-sm">
                   {cat.expenses.length === 0 && <p className="text-gray-500">No expenses yet.</p>}
                   {cat.expenses.map((e, i) => (
-                    <div key={i} className="flex justify-between items-center border-b py-1">
-                      <div className="flex gap-2">
-                        <input
-                          className="border p-1 text-sm w-48"
-                          value={e.type || ""}
-                          onChange={(ev) => handleUpdateExpense(e.index, "type", ev.target.value)}
-                          onBlur={(ev) => handleUpdateExpense(e.index, "type", ev.target.value)}
-                        />
-                        <input
-                          type="number"
-                          className="border p-1 text-sm w-24"
-                          value={e.amount || ""}
-                          onChange={(ev) => handleUpdateExpense(e.index, "amount", ev.target.value)}
-                          onBlur={(ev) => handleUpdateExpense(e.index, "amount", ev.target.value)}
-                        />
-                      </div>
-                      <button
-                        onClick={() => handleDeleteExpense(e.index)}
-                        className="text-red-500 hover:underline text-sm"
-                      >
-                        Delete
-                      </button>
+                    <div key={i} className="flex justify-between border-b py-1">
+                      <span>{e.type || "Unnamed"}</span>
+                      <span>${e.amount?.toLocaleString()}</span>
                     </div>
                   ))}
                 </div>
@@ -225,11 +186,47 @@ const InvestmentDetail = () => {
             </div>
           );
         })}
+
+        {/* Add Budget Line */}
+        <div>
+          <h3 className="font-semibold mb-1">Add Budget Line</h3>
+          <div className="flex flex-wrap gap-2 items-center text-sm">
+            <input type="text" placeholder="Category" value={newBudget.category} onChange={(e) => setNewBudget({ ...newBudget, category: e.target.value })} className="border p-2 rounded w-36" />
+            <input type="text" placeholder="Description" value={newBudget.description} onChange={(e) => setNewBudget({ ...newBudget, description: e.target.value })} className="border p-2 rounded w-64" />
+            <input type="number" placeholder="Amount" value={newBudget.amount} onChange={(e) => setNewBudget({ ...newBudget, amount: e.target.value })} className="border p-2 rounded w-32" />
+            <select value={newBudget.status} onChange={(e) => setNewBudget({ ...newBudget, status: e.target.value })} className="border p-2 rounded w-40">
+              <option value="Not Started">Not Started</option>
+              <option value="In Progress">In Progress</option>
+              <option value="Completed">Completed</option>
+            </select>
+            <button onClick={handleAddBudgetLine} className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+              Add
+            </button>
+          </div>
+        </div>
+
+        {/* Add Expense */}
+        <div>
+          <h3 className="font-semibold mt-4 mb-1">Add Expense</h3>
+          <div className="flex flex-wrap gap-2 items-center text-sm">
+            <select value={newExpense.category} onChange={(e) => setNewExpense({ ...newExpense, category: e.target.value })} className="border p-2 rounded w-40">
+              <option value="">Select Category</option>
+              {categories.map((c, idx) => (
+                <option key={idx} value={c.category}>{c.category}</option>
+              ))}
+              <option value="Other">Other</option>
+            </select>
+            <input type="text" placeholder="Type (optional)" value={newExpense.type} onChange={(e) => setNewExpense({ ...newExpense, type: e.target.value })} className="border p-2 rounded w-48" />
+            <input type="number" placeholder="Amount" value={newExpense.amount} onChange={(e) => setNewExpense({ ...newExpense, amount: e.target.value })} className="border p-2 rounded w-32" />
+            <button onClick={handleAddExpense} className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
+              Add
+            </button>
+          </div>
+        </div>
       </div>
 
-      <div className={`p-4 rounded shadow text-lg font-semibold ${
-        profit >= 0 ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"
-      }`}>
+      {/* Profit Estimate */}
+      <div className={`p-4 rounded shadow text-lg font-semibold ${profit >= 0 ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>
         Profit Estimate: ${profit.toLocaleString()}
       </div>
     </div>
