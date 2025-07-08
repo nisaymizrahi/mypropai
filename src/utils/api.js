@@ -4,20 +4,12 @@ const API_BASE = "https://mypropai-server.onrender.com/api";
 // Get token-based headers
 export const getTokenHeader = () => {
   const token = localStorage.getItem("token");
-  console.log("Auth token being sent:", token);
-
-  const headers = {
-    "Content-Type": "application/json",
-  };
-
-  if (token) {
-    headers.Authorization = `Bearer ${token}`;
-  }
-
+  const headers = { "Content-Type": "application/json" };
+  if (token) headers.Authorization = `Bearer ${token}`;
   return headers;
 };
 
-// ✅ Create a new investment
+// Create a new investment
 export const createInvestment = async (data) => {
   const res = await fetch(`${API_BASE}/investments`, {
     method: "POST",
@@ -25,45 +17,33 @@ export const createInvestment = async (data) => {
     body: JSON.stringify(data),
   });
 
-  if (!res.ok) {
-    const error = await res.json();
-    throw new Error(error.message || "Failed to save investment");
-  }
-
+  if (!res.ok) throw new Error((await res.json()).message || "Failed to save investment");
   return res.json();
 };
 
-// ✅ Get all investments
+// Get all investments
 export const getInvestments = async () => {
   const res = await fetch(`${API_BASE}/investments`, {
     method: "GET",
     headers: getTokenHeader(),
   });
 
-  if (!res.ok) {
-    const error = await res.json();
-    throw new Error(error.message || "Failed to load investments");
-  }
-
+  if (!res.ok) throw new Error((await res.json()).message || "Failed to load investments");
   return res.json();
 };
 
-// ✅ Get a single investment by ID
+// Get single investment
 export const getInvestment = async (id) => {
   const res = await fetch(`${API_BASE}/investments/${id}`, {
     method: "GET",
     headers: getTokenHeader(),
   });
 
-  if (!res.ok) {
-    const error = await res.json();
-    throw new Error(error.message || "Failed to fetch investment");
-  }
-
+  if (!res.ok) throw new Error((await res.json()).message || "Failed to fetch investment");
   return res.json();
 };
 
-// ✅ Add a new budget line
+// Add budget line
 export const addBudgetLine = async (investmentId, line) => {
   const current = await getInvestment(investmentId);
   const updated = [...(current.budget || []), line];
@@ -74,15 +54,11 @@ export const addBudgetLine = async (investmentId, line) => {
     body: JSON.stringify({ budget: updated }),
   });
 
-  if (!res.ok) {
-    const error = await res.json();
-    throw new Error(error.message || "Failed to add budget line");
-  }
-
+  if (!res.ok) throw new Error((await res.json()).message || "Failed to add budget line");
   return res.json();
 };
 
-// ✅ Update a specific budget line by index (autosave)
+// Update specific budget line
 export const updateBudgetLine = async (investmentId, index, updates) => {
   const res = await fetch(`${API_BASE}/investments/${investmentId}/budget/${index}`, {
     method: "PATCH",
@@ -90,15 +66,11 @@ export const updateBudgetLine = async (investmentId, index, updates) => {
     body: JSON.stringify(updates),
   });
 
-  if (!res.ok) {
-    const error = await res.json();
-    throw new Error(error.message || "Failed to update budget line");
-  }
-
+  if (!res.ok) throw new Error((await res.json()).message || "Failed to update budget line");
   return res.json();
 };
 
-// ✅ Add a new expense (linked to budget category)
+// Add new expense
 export const addExpense = async (investmentId, expense) => {
   const current = await getInvestment(investmentId);
   const updatedExpenses = [...(current.expenses || []), expense];
@@ -109,16 +81,27 @@ export const addExpense = async (investmentId, expense) => {
     body: JSON.stringify({ expenses: updatedExpenses }),
   });
 
-  if (!res.ok) {
-    const error = await res.json();
-    throw new Error(error.message || "Failed to add expense");
-  }
-
+  if (!res.ok) throw new Error((await res.json()).message || "Failed to add expense");
   return res.json();
 };
 
+// ✅ NEW: Update a specific expense by index
+export const updateExpense = async (investmentId, index, updates) => {
+  const current = await getInvestment(investmentId);
+  const updated = [...(current.expenses || [])];
+  updated[index] = { ...updated[index], ...updates };
 
-// ✅ Logout
+  const res = await fetch(`${API_BASE}/investments/${investmentId}`, {
+    method: "PATCH",
+    headers: getTokenHeader(),
+    body: JSON.stringify({ expenses: updated }),
+  });
+
+  if (!res.ok) throw new Error((await res.json()).message || "Failed to update expense");
+  return res.json();
+};
+
+// Logout
 export const logoutUser = async () => {
   localStorage.removeItem("token");
 };
