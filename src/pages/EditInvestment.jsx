@@ -9,6 +9,8 @@ const EditInvestment = () => {
   const [investment, setInvestment] = useState(null);
   const [message, setMessage] = useState("");
 
+  const multiUnitTypes = ["multifamily", "mixed-use", "commercial"];
+
   useEffect(() => {
     const fetchInvestment = async () => {
       try {
@@ -58,86 +60,150 @@ const EditInvestment = () => {
   if (!investment) return <div className="p-6 text-red-600">Investment not found.</div>;
 
   return (
-    <div className="max-w-3xl mx-auto p-6 bg-white rounded shadow">
-      <h2 className="text-2xl font-bold mb-4">Edit Investment</h2>
+    <div className="max-w-3xl mx-auto p-6 bg-white rounded shadow space-y-4">
+      <h2 className="text-2xl font-bold mb-2">Edit Investment</h2>
 
-      {message && <p className="mb-4 text-sm text-blue-600">{message}</p>}
+      {message && <p className="mb-2 text-sm text-blue-600">{message}</p>}
 
       <form onSubmit={handleSave} className="space-y-4">
+
         <div>
-          <label className="font-medium">Investment Type</label>
+          <label className="block font-medium mb-1">Property Type</label>
           <select
             value={investment.type}
             onChange={(e) => handleChange("type", e.target.value)}
             className="w-full p-2 border rounded"
           >
-            <option value="flip">Fix and Flip</option>
-            <option value="rent">Fix and Rent</option>
+            <option value="">Select Type</option>
+            <option value="single-family">Single Family</option>
+            <option value="multifamily">Multifamily</option>
+            <option value="townhouse">Townhouse</option>
+            <option value="condo">Condominium</option>
+            <option value="commercial">Commercial</option>
+            <option value="mixed-use">Mixed Use</option>
+            <option value="lot">Vacant Lot</option>
           </select>
         </div>
 
-        <input
-          type="text"
-          placeholder="Address"
-          value={investment.address}
-          onChange={(e) => handleChange("address", e.target.value)}
-          className="w-full p-2 border rounded"
-          required
-        />
+        {multiUnitTypes.includes(investment.type) && (
+          <div>
+            <label className="block font-medium mb-1">Units</label>
+            <input
+              type="number"
+              placeholder="Number of Units"
+              value={investment.units || ""}
+              onChange={(e) => handleChange("units", e.target.value)}
+              className="w-full p-2 border rounded"
+            />
+          </div>
+        )}
 
-        <input
-          type="number"
-          placeholder="Size (Sqft)"
-          value={investment.sqft || ""}
-          onChange={(e) => handleChange("sqft", e.target.value)}
-          className="w-full p-2 border rounded"
-        />
-        <input
-          type="number"
-          placeholder="Lot Size"
-          value={investment.lotSize || ""}
-          onChange={(e) => handleChange("lotSize", e.target.value)}
-          className="w-full p-2 border rounded"
-        />
-        <input
-          type="number"
-          placeholder="Purchase Price"
-          value={investment.purchasePrice || ""}
-          onChange={(e) => handleChange("purchasePrice", e.target.value)}
-          className="w-full p-2 border rounded"
-        />
+        <div>
+          <label className="block font-medium mb-1">Address</label>
+          <input
+            type="text"
+            value={investment.address}
+            onChange={(e) => handleChange("address", e.target.value)}
+            className="w-full p-2 border rounded"
+            required
+          />
+        </div>
 
-        {investment.type === "flip" && (
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block font-medium mb-1">Size (Sqft)</label>
+            <input
+              type="number"
+              value={investment.sqft || ""}
+              onChange={(e) => handleChange("sqft", e.target.value)}
+              className="w-full p-2 border rounded"
+            />
+          </div>
+          <div>
+            <label className="block font-medium mb-1">Lot Size (Sqft)</label>
+            <input
+              type="number"
+              value={investment.lotSize || ""}
+              onChange={(e) => handleChange("lotSize", e.target.value)}
+              className="w-full p-2 border rounded"
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block font-medium mb-1">Bedrooms</label>
+            <input
+              type="number"
+              value={investment.bedrooms || ""}
+              onChange={(e) => handleChange("bedrooms", e.target.value)}
+              className="w-full p-2 border rounded"
+            />
+          </div>
+          <div>
+            <label className="block font-medium mb-1">Bathrooms</label>
+            <input
+              type="number"
+              value={investment.bathrooms || ""}
+              onChange={(e) => handleChange("bathrooms", e.target.value)}
+              className="w-full p-2 border rounded"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="block font-medium mb-1">Year Built</label>
           <input
             type="number"
-            placeholder="ARV (After Repair Value)"
+            value={investment.yearBuilt || ""}
+            onChange={(e) => handleChange("yearBuilt", e.target.value)}
+            className="w-full p-2 border rounded"
+          />
+        </div>
+
+        <div>
+          <label className="block font-medium mb-1">Purchase Price</label>
+          <input
+            type="number"
+            value={investment.purchasePrice || ""}
+            onChange={(e) => handleChange("purchasePrice", e.target.value)}
+            className="w-full p-2 border rounded"
+          />
+        </div>
+
+        <div>
+          <label className="block font-medium mb-1">ARV (After Repair Value)</label>
+          <input
+            type="number"
             value={investment.arv || ""}
             onChange={(e) => handleChange("arv", e.target.value)}
             className="w-full p-2 border rounded"
           />
-        )}
+        </div>
 
-        {investment.type === "rent" && (
+        <div>
+          <label className="block font-medium mb-1">Projected Monthly Rent</label>
           <input
             type="number"
-            placeholder="Projected Monthly Rent"
             value={investment.rentEstimate || ""}
             onChange={(e) => handleChange("rentEstimate", e.target.value)}
             className="w-full p-2 border rounded"
           />
-        )}
+        </div>
 
-        <input
-          type="number"
-          placeholder="Renovation Budget"
-          value={investment.initialBudget || ""}
-          onChange={(e) => handleChange("initialBudget", e.target.value)}
-          className="w-full p-2 border rounded"
-        />
+        <div>
+          <label className="block font-medium mb-1">Renovation Budget</label>
+          <input
+            type="number"
+            value={investment.initialBudget || ""}
+            onChange={(e) => handleChange("initialBudget", e.target.value)}
+            className="w-full p-2 border rounded"
+          />
+        </div>
 
         <button
           type="submit"
-          className="w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-700"
+          className="w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-700 mt-4"
         >
           Save Changes
         </button>
