@@ -7,6 +7,11 @@ const NewInvestment = () => {
   const [size, setSize] = useState("");
   const [lotSize, setLotSize] = useState("");
   const [purchasePrice, setPurchasePrice] = useState("");
+  const [bedrooms, setBedrooms] = useState("");
+  const [bathrooms, setBathrooms] = useState("");
+  const [yearBuilt, setYearBuilt] = useState("");
+  const [propertyType, setPropertyType] = useState("");
+  const [unitCount, setUnitCount] = useState("");
   const [arv, setArv] = useState("");
   const [rentEstimate, setRentEstimate] = useState("");
   const [message, setMessage] = useState("");
@@ -22,6 +27,11 @@ const NewInvestment = () => {
         sqft: Number(size),
         lotSize: Number(lotSize),
         purchasePrice: Number(purchasePrice),
+        bedrooms: Number(bedrooms),
+        bathrooms: Number(bathrooms),
+        yearBuilt: Number(yearBuilt),
+        propertyType,
+        unitCount: ["multi-family", "mixed-use", "commercial"].includes(propertyType) ? Number(unitCount) : undefined,
         arv: type === "flip" ? Number(arv) : undefined,
         rentEstimate: type === "rent" ? Number(rentEstimate) : undefined,
       });
@@ -31,6 +41,11 @@ const NewInvestment = () => {
       setSize("");
       setLotSize("");
       setPurchasePrice("");
+      setBedrooms("");
+      setBathrooms("");
+      setYearBuilt("");
+      setPropertyType("");
+      setUnitCount("");
       setArv("");
       setRentEstimate("");
     } catch (err) {
@@ -56,6 +71,33 @@ const NewInvestment = () => {
             <option value="rent">Fix and Rent</option>
           </select>
         </div>
+
+        <div>
+          <label className="font-medium">Property Type</label>
+          <select
+            value={propertyType}
+            onChange={(e) => setPropertyType(e.target.value)}
+            className="w-full p-2 border rounded"
+          >
+            <option value="">Select Type</option>
+            <option value="single-family">Single Family</option>
+            <option value="multi-family">Multi-Family</option>
+            <option value="mixed-use">Mixed Use</option>
+            <option value="commercial">Commercial</option>
+            <option value="land">Land</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+
+        {propertyType && ["multi-family", "mixed-use", "commercial"].includes(propertyType) && (
+          <input
+            type="number"
+            placeholder="Number of Units"
+            value={unitCount}
+            onChange={(e) => setUnitCount(e.target.value)}
+            className="w-full p-2 border rounded"
+          />
+        )}
 
         <input
           type="text"
@@ -84,6 +126,27 @@ const NewInvestment = () => {
           placeholder="Purchase Price"
           value={purchasePrice}
           onChange={(e) => setPurchasePrice(e.target.value)}
+          className="w-full p-2 border rounded"
+        />
+        <input
+          type="number"
+          placeholder="Bedrooms"
+          value={bedrooms}
+          onChange={(e) => setBedrooms(e.target.value)}
+          className="w-full p-2 border rounded"
+        />
+        <input
+          type="number"
+          placeholder="Bathrooms"
+          value={bathrooms}
+          onChange={(e) => setBathrooms(e.target.value)}
+          className="w-full p-2 border rounded"
+        />
+        <input
+          type="number"
+          placeholder="Year Built"
+          value={yearBuilt}
+          onChange={(e) => setYearBuilt(e.target.value)}
           className="w-full p-2 border rounded"
         />
 
