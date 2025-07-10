@@ -4,16 +4,14 @@ import PropertyForm from "../components/PropertyForm";
 import CompTable from "../components/CompTable";
 import ROICalculator from "../components/ROICalculator";
 import ReportDownloader from "../components/ReportDownloader";
-import fetchRealtorComps from "../utils/fetchRealtorComps";
+import fetchComps from "../utils/fetchRealtorComps";
 
-// --- NEW: Loading Spinner Component ---
 const LoadingSpinner = () => (
     <div className="flex justify-center items-center p-8">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-blue"></div>
     </div>
 );
 
-// --- NEW: Error Message Component ---
 const ErrorMessage = ({ message }) => (
     <div className="bg-red-900/50 border border-red-500 text-red-300 px-4 py-3 rounded-lg text-center">
         <p><strong>Error:</strong> {message}</p>
@@ -27,33 +25,39 @@ const CompsTool = () => {
   const [subjectMarker, setSubjectMarker] = useState(null);
   const [roiData, setRoiData] = useState(null);
   
-  // --- NEW: State for loading and error handling ---
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
 
+  // FIXED: This function now restores the original, correct logic.
   const handleSearch = async (formData) => {
-    setIsLoading(true); // Start loading
-    setError(null); // Clear previous errors
+    setIsLoading(true);
+    setError(null);
+    setComps([]);
+    setSubject(null);
+    setSubjectMarker(null);
     
     try {
+      // Step 1: Geocode the address with Mapbox, just like before.
       const encodedAddress = encodeURIComponent(formData.address);
       const mapboxToken = process.env.REACT_APP_MAPBOX_TOKEN;
 
-      const res = await fetch(
+      const geocodeRes = await fetch(
         `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodedAddress}.json?access_token=${mapboxToken}`
       );
-      const json = await res.json();
-      if (!json.features?.length) {
-        throw new Error("Address not found. Please try a more specific address.");
+      const geocodeJson = await geocodeRes.json();
+      if (!geocodeJson.features?.length) {
+        throw new Error("Address not found by Mapbox. Please try a more specific address.");
       }
 
-      const [lng, lat] = json.features[0].center;
-      setCoords({ lat, lng });
+      const [lng, lat] = geocodeJson.features[0].center;
+      setCoords({ lat, lng }); // This makes the map re-center correctly.
 
-      const fetchedComps = await fetchRealtorComps(lat, lng, formData);
+      // Step 2: Fetch comps from our backend using the coordinates.
+      const fetchedComps = await fetchComps({ ...formData, lat, lng });
       setComps(fetchedComps);
 
-      const firstComp = fetchedComps[0] || {};
+      // Step 3: Set the subject property for the table and map marker.
+      const firstComp = fetchedComps.length > 0 ? fetchedComps[0] : {};
       setSubject({
         address: formData.address,
         lat,
@@ -64,27 +68,29 @@ const CompsTool = () => {
         price: firstComp.price,
         saleDate: firstComp.saleDate,
       });
+      setSubjectMarker({ id: "subject", lat, lng, color: "#00BFFF" });
 
-      setSubjectMarker({ id: "subject", lat, lng, color: "#00BFFF" }); // Use brand-blue color
+      if (fetchedComps.length === 0) {
+        setError("Address found, but no comparable sales were returned from Attom for that area.");
+      }
+
     } catch (err) {
       console.error(err);
-      setError(err.message || "An unknown error occurred."); // Set error message for display
+      setError(err.message || "An unknown error occurred.");
     } finally {
-      setIsLoading(false); // Stop loading
+      setIsLoading(false);
     }
   };
 
   return (
-    // NEW: Removed old layout classes
     <div className="max-w-7xl mx-auto space-y-8">
       <div>
         <h1 className="text-3xl font-bold text-brand-dark-100">Comps Tool</h1>
         <p className="text-lg text-brand-dark-400 mt-1">
-            Find and analyze comparable property sales.
+            Find and analyze comparable property sales using Attom Data.
         </p>
       </div>
 
-      {/* NEW: Component sections wrapped in styled cards */}
       <div className="bg-brand-slate-100 rounded-lg p-6 border border-brand-dark-800">
         <PropertyForm onSubmit={handleSearch} isLoading={isLoading} />
       </div>
@@ -92,8 +98,8 @@ const CompsTool = () => {
       {isLoading && <LoadingSpinner />}
       {error && <ErrorMessage message={error} />}
 
-      {/* Only show results if a search has been performed and there are no errors */}
-      {!isLoading && !error && (comps.length > 0 || subject) && (
+      {/* FIXED: The map is now always visible after the first search */}
+      {!isLoading && subject && (
         <>
           <div className="bg-brand-slate-100 rounded-lg p-4 border border-brand-dark-800">
             <MapView
