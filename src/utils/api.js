@@ -1,5 +1,7 @@
 // src/utils/api.js
-const API_BASE = "https://mypropai-server.onrender.com/api";
+
+// FIXED: The fallback URL now correctly includes the /api path.
+const API_BASE = process.env.REACT_APP_API_BASE_URL || "https://mypropai-server.onrender.com/api";
 
 // Get token-based headers
 export const getTokenHeader = () => {
@@ -53,13 +55,10 @@ export const deleteInvestment = async (id) => {
 
 // Add a new budget line
 export const addBudgetLine = async (investmentId, line) => {
-  const current = await getInvestment(investmentId);
-  const updated = [...(current.budget || []), line];
-
-  const res = await fetch(`${API_BASE}/investments/${investmentId}`, {
-    method: "PATCH",
+  const res = await fetch(`${API_BASE}/investments/${investmentId}/budget`, {
+    method: "POST",
     headers: getTokenHeader(),
-    body: JSON.stringify({ budget: updated }),
+    body: JSON.stringify(line),
   });
 
   if (!res.ok) throw new Error((await res.json()).message || "Failed to add budget line");
@@ -79,13 +78,10 @@ export const updateBudgetLine = async (investmentId, index, updates) => {
 
 // Add an expense
 export const addExpense = async (investmentId, expense) => {
-  const current = await getInvestment(investmentId);
-  const updated = [...(current.expenses || []), expense];
-
-  const res = await fetch(`${API_BASE}/investments/${investmentId}`, {
-    method: "PATCH",
+  const res = await fetch(`${API_BASE}/investments/${investmentId}/expenses`, {
+    method: "POST",
     headers: getTokenHeader(),
-    body: JSON.stringify({ expenses: updated }),
+    body: JSON.stringify(expense),
   });
 
   if (!res.ok) throw new Error((await res.json()).message || "Failed to add expense");

@@ -1,5 +1,8 @@
 // utils/fetchRealtorComps.js
 
+// FIXED: The fallback URL now correctly includes the /api path.
+const API_BASE = process.env.REACT_APP_API_BASE_URL || "https://mypropai-server.onrender.com/api";
+
 const haversineDistance = (lat1, lng1, lat2, lng2) => {
   const toRad = (deg) => (deg * Math.PI) / 180;
   const R = 3958.8; // Earth radius in miles
@@ -32,15 +35,16 @@ const fetchRealtorComps = async (lat, lng, filters = {}) => {
   } = filters;
 
   try {
-    const url = new URL("http://localhost:5001/api/comps");
+    const url = new URL(`${API_BASE}/comps`); // Use the environment variable here
 
     url.searchParams.append("lng", lng);
+    url.searchParams.append("lat", lat); // Pass lat as well for the API
     url.searchParams.append("distance", distance);
     if (propertyType) url.searchParams.append("propertyType", propertyType);
     if (soldInLastMonths) url.searchParams.append("soldInLastMonths", soldInLastMonths);
 
     const res = await fetch(url.toString());
-    if (!res.ok) throw new Error("Failed to fetch comps");
+    if (!res.ok) throw new Error("Failed to fetch comps from the server.");
 
     const comps = await res.json();
 
@@ -62,7 +66,8 @@ const fetchRealtorComps = async (lat, lng, filters = {}) => {
     });
   } catch (err) {
     console.error("❌ Error fetching comps:", err);
-    return [];
+    // Re-throw the error so the calling component can handle it
+    throw err;
   }
 };
 

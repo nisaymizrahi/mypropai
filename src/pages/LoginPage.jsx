@@ -1,6 +1,6 @@
 import React from "react";
 
-// NEW: SVG Icon for the Google login button
+// SVG Icon for the Google login button
 const GoogleIcon = () => (
     <svg className="w-5 h-5 mr-3" viewBox="0 0 48 48">
         <path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8c-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4C12.955 4 4 12.955 4 24s8.955 20 20 20s20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z"></path>
@@ -13,21 +13,19 @@ const GoogleIcon = () => (
 
 const LoginPage = () => {
   const handleGoogleLogin = () => {
-    // This correctly points to your backend authentication route
-    window.location.href = `${process.env.REACT_APP_API_BASE_URL || 'https://mypropai-server.onrender.com'}/auth/google`;
+    // FIXED: Use the correct fallback URL including the /api path.
+    const apiBaseUrl = process.env.REACT_APP_API_BASE_URL || 'https://mypropai-server.onrender.com/api';
+    window.location.href = `${apiBaseUrl}/auth/google`;
   };
 
   return (
-    // NEW: Main container with dark background
     <div className="min-h-screen flex items-center justify-center bg-brand-slate-300 p-4">
-      {/* NEW: Redesigned login card */}
       <div className="w-full max-w-md bg-brand-slate-200 p-8 rounded-lg shadow-2xl border border-brand-dark-800 text-center">
         <h1 className="text-3xl font-bold text-brand-blue tracking-wider mb-2">MyPropAI</h1>
         <p className="text-brand-dark-300 mb-8">
           Your AI-Powered Real Estate Investment Co-Pilot
         </p>
         
-        {/* NEW: Redesigned Google login button */}
         <button
           onClick={handleGoogleLogin}
           className="w-full inline-flex items-center justify-center bg-white text-gray-700 font-medium px-6 py-3 rounded-lg hover:bg-gray-200 transition-colors duration-200 shadow-md"
