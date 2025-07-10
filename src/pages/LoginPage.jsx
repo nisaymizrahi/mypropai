@@ -13,9 +13,10 @@ const GoogleIcon = () => (
 
 const LoginPage = () => {
   const handleGoogleLogin = () => {
-    // FIXED: Use the correct fallback URL including the /api path.
-    const apiBaseUrl = process.env.REACT_APP_API_BASE_URL || 'https://mypropai-server.onrender.com/api';
-    window.location.href = `${apiBaseUrl}/auth/google`;
+    // FIXED: Hardcode the full, correct URL for the authentication endpoint
+    // to ensure it always works, regardless of environment variables.
+    const authUrl = "https://mypropai-server.onrender.com/api/auth/google";
+    window.location.href = authUrl;
   };
 
   return (
