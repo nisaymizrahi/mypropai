@@ -3,16 +3,6 @@ import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { getTokenHeader } from "../utils/api";
 
-const propertyTypesWithUnits = [
-  "multifamily",
-  "commercial",
-  "mixed-use",
-  "apartment",
-  "duplex",
-  "triplex",
-  "quadplex",
-];
-
 const EditInvestment = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -20,18 +10,33 @@ const EditInvestment = () => {
   const [investment, setInvestment] = useState(null);
   const [message, setMessage] = useState("");
 
+  const propertyTypes = [
+    "Single Family",
+    "Multi-Family",
+    "Condo",
+    "Townhouse",
+    "Mixed Use",
+    "Commercial",
+    "Lot",
+    "Other"
+  ];
+
+  const allowsUnits = (type) => ["Multi-Family", "Mixed Use", "Commercial"].includes(type);
+
   useEffect(() => {
     const fetchInvestment = async () => {
       try {
-        const res = await fetch(
-          `https://mypropai-server.onrender.com/api/investments/${id}`,
-          { headers: getTokenHeader() }
-        );
+        const res = await fetch(`https://mypropai-server.onrender.com/api/investments/${id}`, {
+          headers: getTokenHeader(),
+        });
+
         if (!res.ok) throw new Error("Failed to fetch investment");
+
         const data = await res.json();
         setInvestment(data);
       } catch (err) {
         setMessage("❌ Error loading investment.");
+        console.error(err);
       } finally {
         setLoading(false);
       }
@@ -49,14 +54,11 @@ const EditInvestment = () => {
     setMessage("");
 
     try {
-      const res = await fetch(
-        `https://mypropai-server.onrender.com/api/investments/${id}`,
-        {
-          method: "PATCH",
-          headers: getTokenHeader(),
-          body: JSON.stringify(investment),
-        }
-      );
+      const res = await fetch(`https://mypropai-server.onrender.com/api/investments/${id}`, {
+        method: "PATCH",
+        headers: getTokenHeader(),
+        body: JSON.stringify(investment),
+      });
 
       if (!res.ok) throw new Error("Failed to update investment");
       setMessage("✅ Investment updated!");
@@ -94,20 +96,14 @@ const EditInvestment = () => {
             onChange={(e) => handleChange("propertyType", e.target.value)}
             className="w-full p-2 border rounded"
           >
-            <option value="">Select Property Type</option>
-            <option value="single-family">Single Family</option>
-            <option value="multifamily">Multifamily</option>
-            <option value="apartment">Apartment</option>
-            <option value="duplex">Duplex</option>
-            <option value="triplex">Triplex</option>
-            <option value="quadplex">Quadplex</option>
-            <option value="mixed-use">Mixed Use</option>
-            <option value="commercial">Commercial</option>
-            <option value="lot">Vacant Lot</option>
+            <option value="">Select Type</option>
+            {propertyTypes.map((type) => (
+              <option key={type} value={type}>{type}</option>
+            ))}
           </select>
         </div>
 
-        {propertyTypesWithUnits.includes(investment.propertyType) && (
+        {allowsUnits(investment.propertyType) && (
           <div>
             <label className="font-medium">Unit Count</label>
             <input
@@ -123,35 +119,14 @@ const EditInvestment = () => {
           <label className="font-medium">Address</label>
           <input
             type="text"
-            value={investment.address || ""}
+            value={investment.address}
             onChange={(e) => handleChange("address", e.target.value)}
             className="w-full p-2 border rounded"
             required
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="font-medium">Size (Sqft)</label>
-            <input
-              type="number"
-              value={investment.sqft || ""}
-              onChange={(e) => handleChange("sqft", e.target.value)}
-              className="w-full p-2 border rounded"
-            />
-          </div>
-          <div>
-            <label className="font-medium">Lot Size</label>
-            <input
-              type="number"
-              value={investment.lotSize || ""}
-              onChange={(e) => handleChange("lotSize", e.target.value)}
-              className="w-full p-2 border rounded"
-            />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="font-medium">Bedrooms</label>
             <input
@@ -170,12 +145,34 @@ const EditInvestment = () => {
               className="w-full p-2 border rounded"
             />
           </div>
+        </div>
+
+        <div>
+          <label className="font-medium">Year Built</label>
+          <input
+            type="number"
+            value={investment.yearBuilt || ""}
+            onChange={(e) => handleChange("yearBuilt", e.target.value)}
+            className="w-full p-2 border rounded"
+          />
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="font-medium">Year Built</label>
+            <label className="font-medium">Size (Sqft)</label>
             <input
               type="number"
-              value={investment.yearBuilt || ""}
-              onChange={(e) => handleChange("yearBuilt", e.target.value)}
+              value={investment.sqft || ""}
+              onChange={(e) => handleChange("sqft", e.target.value)}
+              className="w-full p-2 border rounded"
+            />
+          </div>
+          <div>
+            <label className="font-medium">Lot Size (Sqft)</label>
+            <input
+              type="number"
+              value={investment.lotSize || ""}
+              onChange={(e) => handleChange("lotSize", e.target.value)}
               className="w-full p-2 border rounded"
             />
           </div>
