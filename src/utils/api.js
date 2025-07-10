@@ -40,6 +40,17 @@ export const getInvestment = async (id) => {
   return res.json();
 };
 
+// Delete an investment by ID
+export const deleteInvestment = async (id) => {
+    const res = await fetch(`${API_BASE}/investments/${id}`, {
+        method: "DELETE",
+        headers: getTokenHeader(),
+    });
+    if (!res.ok) throw new Error((await res.json()).message || "Failed to delete investment");
+    return res.json();
+};
+
+
 // Add a new budget line
 export const addBudgetLine = async (investmentId, line) => {
   const current = await getInvestment(investmentId);
@@ -81,7 +92,7 @@ export const addExpense = async (investmentId, expense) => {
   return res.json();
 };
 
-// ✅ Update an expense by index using backend route
+// Update an expense by index using backend route
 export const updateExpense = async (investmentId, index, updates) => {
   const res = await fetch(`${API_BASE}/investments/${investmentId}/expenses/${index}`, {
     method: "PATCH",
@@ -92,7 +103,7 @@ export const updateExpense = async (investmentId, index, updates) => {
   return res.json();
 };
 
-// ✅ Delete an expense by index using backend route
+// Delete an expense by index using backend route
 export const deleteExpense = async (investmentId, index) => {
   const res = await fetch(`${API_BASE}/investments/${investmentId}/expenses/${index}`, {
     method: "DELETE",
