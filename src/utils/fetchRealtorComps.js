@@ -1,44 +1,22 @@
-// utils/fetchRealtorComps.js
-
-// FIXED: The fallback URL now correctly includes the /api path.
-const API_BASE = process.env.REACT_APP_API_BASE_URL || "https://mypropai-server.onrender.com/api";
+import { API_BASE_URL } from '../config'; // NEW: Import from our central config file
 
 const haversineDistance = (lat1, lng1, lat2, lng2) => {
   const toRad = (deg) => (deg * Math.PI) / 180;
   const R = 3958.8; // Earth radius in miles
-
   const dLat = toRad(lat2 - lat1);
   const dLng = toRad(lng2 - lng1);
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRad(lat1)) *
-      Math.cos(toRad(lat2)) *
-      Math.sin(dLng / 2) ** 2;
-
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c;
 };
 
 const fetchRealtorComps = async (lat, lng, filters = {}) => {
-  const {
-    distance = 1,
-    propertyType = "",
-    bedsMin,
-    bedsMax,
-    bathsMin,
-    bathsMax,
-    sqftMin,
-    sqftMax,
-    priceMin,
-    priceMax,
-    soldInLastMonths
-  } = filters;
+  const { distance = 1, propertyType = "", bedsMin, bedsMax, bathsMin, bathsMax, sqftMin, sqftMax, priceMin, priceMax, soldInLastMonths } = filters;
 
   try {
-    const url = new URL(`${API_BASE}/comps`); // Use the environment variable here
-
+    const url = new URL(`${API_BASE_URL}/comps`);
     url.searchParams.append("lng", lng);
-    url.searchParams.append("lat", lat); // Pass lat as well for the API
+    url.searchParams.append("lat", lat);
     url.searchParams.append("distance", distance);
     if (propertyType) url.searchParams.append("propertyType", propertyType);
     if (soldInLastMonths) url.searchParams.append("soldInLastMonths", soldInLastMonths);
@@ -47,12 +25,9 @@ const fetchRealtorComps = async (lat, lng, filters = {}) => {
     if (!res.ok) throw new Error("Failed to fetch comps from the server.");
 
     const comps = await res.json();
-
     return comps.filter((comp) => {
-      // Filter by real distance
       const d = haversineDistance(lat, lng, parseFloat(comp.lat), parseFloat(comp.lng));
       if (d > parseFloat(distance)) return false;
-
       if (bedsMin && comp.beds < parseFloat(bedsMin)) return false;
       if (bedsMax && comp.beds > parseFloat(bedsMax)) return false;
       if (bathsMin && comp.baths < parseFloat(bathsMin)) return false;
@@ -61,12 +36,10 @@ const fetchRealtorComps = async (lat, lng, filters = {}) => {
       if (sqftMax && comp.sqft > parseFloat(sqftMax)) return false;
       if (priceMin && comp.price < parseFloat(priceMin)) return false;
       if (priceMax && comp.price > parseFloat(priceMax)) return false;
-
       return true;
     });
   } catch (err) {
     console.error("❌ Error fetching comps:", err);
-    // Re-throw the error so the calling component can handle it
     throw err;
   }
 };

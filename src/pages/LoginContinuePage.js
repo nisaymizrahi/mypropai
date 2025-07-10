@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { API_BASE_URL } from '../config'; // NEW: Import from our central config file
 
-// NEW: A spinner for visual feedback during the login process
 const LoadingSpinner = () => (
     <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-brand-blue mb-6"></div>
 );
@@ -16,14 +16,12 @@ const LoginContinuePage = () => {
     const token = new URLSearchParams(window.location.search).get("token");
 
     if (token) {
-      // Set token in local storage and context
       localStorage.setItem("token", token);
       setToken(token);
 
-      // Verify the token with the backend
       const verifyToken = async () => {
         try {
-          const res = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'https://mypropai-server.onrender.com'}/auth/me`, {
+          const res = await fetch(`${API_BASE_URL}/auth/me`, {
             headers: { Authorization: `Bearer ${token}` },
           });
 
@@ -42,16 +40,12 @@ const LoginContinuePage = () => {
           setTimeout(() => navigate("/login"), 2000);
         }
       };
-
       verifyToken();
-
     } else {
-      // No token found, redirect to login
       setStatus("No token found. Redirecting to login...");
       setTimeout(() => navigate("/login"), 1500);
     }
     
-    // Clean up the URL
     window.history.replaceState({}, document.title, "/login-continue");
 
   }, [navigate, setAuthenticated, setToken, setUser]);
