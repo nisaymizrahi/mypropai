@@ -13,8 +13,8 @@ const GoogleIcon = () => (
 
 const LoginPage = () => {
   const handleGoogleLogin = () => {
-    // FIXED: Hardcode the full, correct URL for the authentication endpoint
-    // to ensure it always works, regardless of environment variables.
+    // FINAL FIX: This hardcoded URL is the exact endpoint on your live server.
+    // This removes any dependency on environment variables for the initial login click.
     const authUrl = "https://mypropai-server.onrender.com/api/auth/google";
     window.location.href = authUrl;
   };
