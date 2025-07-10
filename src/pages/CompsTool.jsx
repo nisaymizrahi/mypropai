@@ -4,7 +4,7 @@ import PropertyForm from "../components/PropertyForm";
 import CompTable from "../components/CompTable";
 import ROICalculator from "../components/ROICalculator";
 import ReportDownloader from "../components/ReportDownloader";
-import fetchComps from "../utils/fetchRealtorComps";
+import fetchComps from "../utils/fetchAttomComps"; // FIXED: Importing from the new, correct file.
 
 const LoadingSpinner = () => (
     <div className="flex justify-center items-center p-8">
@@ -28,7 +28,6 @@ const CompsTool = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // FIXED: This function now restores the original, correct logic.
   const handleSearch = async (formData) => {
     setIsLoading(true);
     setError(null);
@@ -37,7 +36,6 @@ const CompsTool = () => {
     setSubjectMarker(null);
     
     try {
-      // Step 1: Geocode the address with Mapbox, just like before.
       const encodedAddress = encodeURIComponent(formData.address);
       const mapboxToken = process.env.REACT_APP_MAPBOX_TOKEN;
 
@@ -50,13 +48,11 @@ const CompsTool = () => {
       }
 
       const [lng, lat] = geocodeJson.features[0].center;
-      setCoords({ lat, lng }); // This makes the map re-center correctly.
+      setCoords({ lat, lng });
 
-      // Step 2: Fetch comps from our backend using the coordinates.
       const fetchedComps = await fetchComps({ ...formData, lat, lng });
       setComps(fetchedComps);
 
-      // Step 3: Set the subject property for the table and map marker.
       const firstComp = fetchedComps.length > 0 ? fetchedComps[0] : {};
       setSubject({
         address: formData.address,
@@ -98,7 +94,6 @@ const CompsTool = () => {
       {isLoading && <LoadingSpinner />}
       {error && <ErrorMessage message={error} />}
 
-      {/* FIXED: The map is now always visible after the first search */}
       {!isLoading && subject && (
         <>
           <div className="bg-brand-slate-100 rounded-lg p-4 border border-brand-dark-800">

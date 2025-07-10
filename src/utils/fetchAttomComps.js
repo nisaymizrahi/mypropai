@@ -1,18 +1,24 @@
 import { API_BASE_URL } from '../config';
-import { getTokenHeader } from './api'; // NEW: Import the working header function
+import { getTokenHeader } from './api';
 
-const fetchComps = async (formData) => {
-  const { address, distance, propertyType, soldInLastMonths } = formData;
+const fetchAttomComps = async (formData) => {
+  const { lat, lng, distance, propertyType, soldInLastMonths } = formData;
+
+  // This check ensures we don't send a request without coordinates.
+  if (!lat || !lng) {
+    throw new Error("Latitude and longitude are required to fetch comps.");
+  }
 
   try {
     const url = new URL(`${API_BASE_URL}/comps`);
     
-    url.searchParams.append("address", address);
+    // Add lat and lng to the URL search parameters.
+    url.searchParams.append("lat", lat);
+    url.searchParams.append("lng", lng);
     if (distance) url.searchParams.append("radius", distance);
     if (propertyType) url.searchParams.append("propertyType", propertyType);
     if (soldInLastMonths) url.searchParams.append("soldInLastMonths", soldInLastMonths);
 
-    // FIXED: Use the exact same header function as all other working API calls.
     const res = await fetch(url.toString(), {
         headers: getTokenHeader() 
     });
@@ -26,8 +32,8 @@ const fetchComps = async (formData) => {
 
   } catch (err) {
     console.error("❌ Error fetching comps:", err);
-    throw err; // Re-throw the error so the calling component can handle it
+    throw err; 
   }
 };
 
-export default fetchComps;
+export default fetchAttomComps;
