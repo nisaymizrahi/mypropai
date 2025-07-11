@@ -130,3 +130,12 @@ export const uploadReceipt = async (file) => {
 export const logoutUser = () => {
   localStorage.removeItem("token");
 };
+// --- Recurring Charges ---
+export const runRecurringCharges = async () => {
+  const res = await fetch(`${API_BASE_URL}/management/recurring/run`, {
+    method: 'POST',
+    headers: getTokenHeader()
+  });
+  if (!res.ok) throw new Error((await res.json()).msg || 'Failed to run recurring charges');
+  return res.json();
+};
