@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { getTokenHeader } from "../utils/api";
 import { API_BASE_URL } from '../config';
-import PromotePropertyModal from '../components/PromotePropertyModal'; // NEW: Import the modal
+import PromotePropertyModal from '../components/PromotePropertyModal';
 
 const LoadingSpinner = () => (
     <div className="flex justify-center items-center p-8">
@@ -16,11 +16,10 @@ const ManagementDashboard = () => {
   const [error, setError] = useState("");
   const navigate = useNavigate();
 
-  // NEW: State to control the modal's visibility
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // NEW: Use useCallback to memoize the fetch function
   const fetchManagedProperties = useCallback(async () => {
+    // UPDATED: Reset loading state on each fetch
     setLoading(true);
     try {
       const res = await fetch(`${API_BASE_URL}/management`, {
@@ -44,9 +43,7 @@ const ManagementDashboard = () => {
     fetchManagedProperties();
   }, [fetchManagedProperties]);
   
-  // NEW: Handler to be called when a property is successfully promoted
   const handlePromoteSuccess = () => {
-    // Re-fetch the list to show the newly added property
     fetchManagedProperties(); 
   };
 
@@ -60,7 +57,6 @@ const ManagementDashboard = () => {
 
   return (
     <>
-      {/* NEW: Render the modal component */}
       <PromotePropertyModal 
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
@@ -78,7 +74,6 @@ const ManagementDashboard = () => {
             </p>
           </div>
           <button
-            // NEW: Connect the button to open the modal
             onClick={() => setIsModalOpen(true)}
             className="bg-brand-turquoise hover:bg-brand-turquoise-600 text-white font-semibold px-4 py-2 rounded-md transition"
           >
@@ -108,8 +103,9 @@ const ManagementDashboard = () => {
                       </span>
                     </td>
                     <td className="px-6 py-4 text-right">
+                      {/* UPDATED: Button now navigates to the detail page */}
                       <button
-                        onClick={() => alert(`Maps to detail page for ${prop._id}`)}
+                        onClick={() => navigate(`/management/${prop._id}`)}
                         className="text-brand-turquoise-600 hover:text-brand-turquoise-700 font-semibold"
                       >
                         Manage

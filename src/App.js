@@ -13,8 +13,10 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import { setTokenCookieFromURL } from "./utils/setTokenFromURL";
 import { AuthProvider } from "./context/AuthContext.js";
 
-// NEW: Import the ManagementDashboard page
 import ManagementDashboard from "./pages/ManagementDashboard";
+// NEW: Import the detail page component
+import ManagedPropertyDetail from "./pages/ManagedPropertyDetail";
+
 
 function App() {
   useEffect(() => {
@@ -38,14 +40,25 @@ function App() {
               </ProtectedRoute>
             }
           />
-
-          {/* NEW: Add the route for the management dashboard */}
+          
           <Route
             path="/management"
             element={
               <ProtectedRoute>
                 <DashboardLayout>
                   <ManagementDashboard />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* NEW: Add the dynamic route for the specific property detail page */}
+          <Route
+            path="/management/:propertyId"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <ManagedPropertyDetail />
                 </DashboardLayout>
               </ProtectedRoute>
             }
