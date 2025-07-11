@@ -1,4 +1,4 @@
-// ...imports unchanged
+// all imports unchanged
 import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -122,7 +122,7 @@ const LeaseDetailPage = () => {
           </button>
         </div>
 
-        {/* Ledger and Tenant Info */}
+        {/* Ledger + Tenant Info */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="md:col-span-1 space-y-4">
             <div className="bg-white p-4 rounded-lg shadow-sm border border-brand-gray-200">
@@ -176,7 +176,7 @@ const LeaseDetailPage = () => {
         </div>
 
         {/* Recurring Charges */}
-        <div className="mt-12 bg-white p-6 rounded-lg border border-brand-gray-200 shadow-sm">
+        <div className="mt-12 bg-white p-6 rounded-lg border border-brand-gray-200 shadow-sm min-h-[200px] overflow-visible">
           <h2 className="text-xl font-bold text-brand-gray-900 mb-4">Recurring Charges</h2>
 
           <ul className="space-y-2 mb-6">
@@ -191,7 +191,7 @@ const LeaseDetailPage = () => {
             )}
           </ul>
 
-          {/* Form + Button Container */}
+          {/* Form + Button */}
           <div className="flex flex-col space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div>
@@ -231,7 +231,7 @@ const LeaseDetailPage = () => {
               </div>
             </div>
 
-            <div>
+            <div className="pt-2">
               <button
                 onClick={handleAddRecurring}
                 className="bg-brand-blue text-white font-semibold px-4 py-2 rounded-md hover:bg-brand-blue-dark"
