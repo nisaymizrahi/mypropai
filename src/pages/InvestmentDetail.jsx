@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   getInvestment,
@@ -10,9 +10,9 @@ import {
   deleteInvestment,
   deleteBudgetLine,
   uploadReceipt,
-  getTokenHeader, // NEW: Import this function
+  getTokenHeader,
 } from "../utils/api";
-import { API_BASE_URL } from '../config'; // NEW: Import the base URL
+import { API_BASE_URL } from '../config';
 
 // --- Reusable UI Components ---
 const FormInput = (props) => <input className="w-full bg-brand-gray-50 border border-brand-gray-300 rounded-md p-2 text-brand-gray-800 placeholder-brand-gray-400 focus:ring-2 focus:ring-brand-turquoise focus:border-brand-turquoise outline-none transition" {...props} />;
@@ -20,6 +20,7 @@ const FormSelect = ({ children, ...props }) => <select className="w-full bg-bran
 const PrimaryButton = ({ onClick, children, className = '', ...props }) => <button onClick={onClick} className={`bg-brand-turquoise hover:bg-brand-turquoise-600 text-white font-semibold px-4 py-2 rounded-md transition ${className}`} {...props}>{children}</button>;
 const SecondaryButton = ({ onClick, children, className = '', ...props }) => <button onClick={onClick} className={`bg-white hover:bg-brand-gray-100 text-brand-gray-700 font-semibold px-4 py-2 rounded-md border border-brand-gray-300 transition ${className}`} {...props}>{children}</button>;
 const DangerButton = ({ onClick, children, className = '', ...props }) => <button onClick={onClick} className={`bg-red-500 hover:bg-red-600 text-white font-semibold px-4 py-2 rounded-md transition ${className}`} {...props}>{children}</button>;
+const Tooltip = ({ text }) => <span className="ml-1 text-brand-gray-400 cursor-help" title={text}>(?)</span>;
 
 // --- Deal Analysis Sub-Components ---
 const StatCard = ({ title, value, tooltip }) => (
@@ -29,91 +30,106 @@ const StatCard = ({ title, value, tooltip }) => (
     </div>
 );
 
+// --- Smart Deal Analysis Dashboard ---
 const DealAnalysisDashboard = ({ investment, onUpdate }) => {
-    const [dealAnalysis, setDealAnalysis] = useState(investment.dealAnalysis || {});
-    const [financingDetails, setFinancingDetails] = useState(investment.financingDetails || {});
+    const [dealData, setDealData] = useState({
+        dealAnalysis: investment.dealAnalysis || {},
+        financingDetails: investment.financingDetails || {},
+        rentalAnalysis: investment.rentalAnalysis || {}
+    });
 
-    const handleDealChange = (e) => {
+    useEffect(() => {
+        setDealData({
+            dealAnalysis: investment.dealAnalysis || {},
+            financingDetails: investment.financingDetails || {},
+            rentalAnalysis: investment.rentalAnalysis || {}
+        });
+    }, [investment]);
+
+    const handleDebouncedUpdate = useCallback(
+        debounce((updatedData) => onUpdate(updatedData), 1500),
+        [onUpdate]
+    );
+
+    const handleChange = (e) => {
         const { name, value, type, checked } = e.target;
-        const [section, field] = name.split('.');
-        const updatedValue = type === 'checkbox' ? checked : value;
+        const keys = name.split('.');
+        const updatedValue = type === 'checkbox' ? checked : (type === 'number' ? Number(value) : value);
 
-        if (section === 'dealAnalysis') {
-            setDealAnalysis(prev => ({ ...prev, [field]: updatedValue }));
-        } else if (section === 'financingDetails') {
-            setFinancingDetails(prev => ({ ...prev, [field]: updatedValue }));
-        }
+        setDealData(prev => {
+            const newState = JSON.parse(JSON.stringify(prev)); // Deep copy for nested objects
+            let current = newState;
+            for (let i = 0; i < keys.length - 1; i++) {
+                if (!current[keys[i]]) current[keys[i]] = {};
+                current = current[keys[i]];
+            }
+            current[keys[keys.length - 1]] = updatedValue;
+            handleDebouncedUpdate(newState);
+            return newState;
+        });
     };
     
-    const handleNestedChange = (e) => {
-        const { name, value, type, checked } = e.target;
-        const [section, nestedField, field] = name.split('.');
-        const updatedValue = type === 'checkbox' ? checked : value;
-        
-        if (section === 'dealAnalysis') {
-            setDealAnalysis(prev => ({
-                ...prev,
-                [nestedField]: { ...prev[nestedField], [field]: updatedValue }
-            }));
-        }
-    };
+    return (
+        <div className="bg-white p-6 rounded-lg shadow-sm border border-brand-gray-200">
+            <h2 className="text-xl font-semibold text-brand-gray-800 mb-4">Deal Analysis</h2>
+            {investment.type === 'flip' ? 
+                <FlipAnalysisView investment={investment} dealData={dealData} onChange={handleChange} /> : 
+                <RentAnalysisView investment={investment} dealData={dealData} onChange={handleChange} />
+            }
+        </div>
+    );
+};
 
-    const handleSave = () => {
-        onUpdate({ dealAnalysis, financingDetails });
-    };
-
+// --- Flip Analysis View ---
+const FlipAnalysisView = ({ investment, dealData, onChange }) => {
     const calculations = useMemo(() => {
         const arv = Number(investment.arv) || 0;
         const purchasePrice = Number(investment.purchasePrice) || 0;
         const totalBudget = (investment.budget || []).reduce((sum, b) => sum + (Number(b.amount) || 0), 0);
         
-        const buyingCosts = Number(dealAnalysis.buyingCosts) || 0;
-        const financingCosts = Number(dealAnalysis.financingCosts) || 0;
-        const holdingCosts = (Number(dealAnalysis.holdingCosts?.monthlyAmount) || 0) * (Number(dealAnalysis.holdingCosts?.durationMonths) || 0);
+        const buyingCosts = Number(dealData.dealAnalysis.buyingCosts) || 0;
+        const financingCosts = Number(dealData.dealAnalysis.financingCosts) || 0;
+        const holdingCosts = (Number(dealData.dealAnalysis.holdingCosts?.monthlyAmount) || 0) * (Number(dealData.dealAnalysis.holdingCosts?.durationMonths) || 0);
         
         let sellingCosts = 0;
-        if (dealAnalysis.sellingCosts?.isPercentage) {
-            sellingCosts = arv * ((Number(dealAnalysis.sellingCosts?.value) || 0) / 100);
+        if (dealData.dealAnalysis.sellingCosts?.isPercentage) {
+            sellingCosts = arv * ((Number(dealData.dealAnalysis.sellingCosts?.value) || 0) / 100);
         } else {
-            sellingCosts = Number(dealAnalysis.sellingCosts?.value) || 0;
+            sellingCosts = Number(dealData.dealAnalysis.sellingCosts?.value) || 0;
         }
 
         const totalSoftCosts = buyingCosts + financingCosts + holdingCosts + sellingCosts;
         const totalProjectCost = purchasePrice + totalBudget + totalSoftCosts;
         const projectedNetProfit = arv - totalProjectCost;
 
-        const loanAmount = Number(financingDetails.loanAmount) || 0;
-        const downPayment = financingDetails.useFinancing ? purchasePrice - loanAmount : purchasePrice;
+        const loanAmount = Number(dealData.financingDetails.purchaseLoan?.loanAmount) || 0;
+        const downPayment = purchasePrice - loanAmount;
         const totalCashNeeded = downPayment + buyingCosts + financingCosts + totalBudget;
         
         const projectedROI = totalCashNeeded > 0 ? (projectedNetProfit / totalCashNeeded) * 100 : 0;
 
         return { projectedNetProfit, projectedROI, totalCashNeeded, totalSoftCosts };
-    }, [investment, dealAnalysis, financingDetails]);
+    }, [investment, dealData]);
 
     return (
-        <div className="bg-white p-6 rounded-lg shadow-sm border border-brand-gray-200 grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="md:col-span-1 space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="md:col-span-1 space-y-4">
                 <div>
                     <h3 className="text-lg font-semibold text-brand-gray-800 mb-2">Deal Costs</h3>
                     <div className="space-y-2">
-                        <div><label className="text-xs text-brand-gray-500">Buying Costs</label><FormInput name="dealAnalysis.buyingCosts" type="number" value={dealAnalysis.buyingCosts || ''} onChange={handleDealChange} placeholder="$" /></div>
-                        <div><label className="text-xs text-brand-gray-500">Financing Costs</label><FormInput name="dealAnalysis.financingCosts" type="number" value={dealAnalysis.financingCosts || ''} onChange={handleDealChange} placeholder="$" /></div>
+                        <div><label className="text-xs text-brand-gray-500">Buying Costs</label><FormInput name="dealAnalysis.buyingCosts" type="number" value={dealData.dealAnalysis.buyingCosts || ''} onChange={onChange} placeholder="$" /></div>
                         <div>
                             <label className="text-xs text-brand-gray-500">Selling Costs</label>
                             <div className="flex items-center gap-2">
-                                <FormInput name="dealAnalysis.sellingCosts.value" type="number" value={dealAnalysis.sellingCosts?.value || ''} onChange={handleNestedChange} />
-                                <FormSelect name="dealAnalysis.sellingCosts.isPercentage" value={dealAnalysis.sellingCosts?.isPercentage || false} onChange={handleNestedChange}>
-                                    <option value={true}>%</option>
-                                    <option value={false}>$</option>
-                                </FormSelect>
+                                <FormInput name="dealAnalysis.sellingCosts.value" type="number" value={dealData.dealAnalysis.sellingCosts?.value || ''} onChange={onChange} />
+                                <FormSelect name="dealAnalysis.sellingCosts.isPercentage" value={dealData.dealAnalysis.sellingCosts?.isPercentage || false} onChange={onChange}><option value={true}>%</option><option value={false}>$</option></FormSelect>
                             </div>
                         </div>
                         <div>
                             <label className="text-xs text-brand-gray-500">Holding Costs</label>
                             <div className="flex items-center gap-2">
-                                <FormInput name="dealAnalysis.holdingCosts.monthlyAmount" type="number" value={dealAnalysis.holdingCosts?.monthlyAmount || ''} onChange={handleNestedChange} placeholder="$ / month" />
-                                <FormInput name="dealAnalysis.holdingCosts.durationMonths" type="number" value={dealAnalysis.holdingCosts?.durationMonths || ''} onChange={handleNestedChange} placeholder="months" />
+                                <FormInput name="dealAnalysis.holdingCosts.monthlyAmount" type="number" value={dealData.dealAnalysis.holdingCosts?.monthlyAmount || ''} onChange={onChange} placeholder="$ / month" />
+                                <FormInput name="dealAnalysis.holdingCosts.durationMonths" type="number" value={dealData.dealAnalysis.holdingCosts?.durationMonths || ''} onChange={onChange} placeholder="months" />
                             </div>
                         </div>
                     </div>
@@ -121,16 +137,17 @@ const DealAnalysisDashboard = ({ investment, onUpdate }) => {
                  <div>
                     <h3 className="text-lg font-semibold text-brand-gray-800 mb-2">Financing</h3>
                     <div className="space-y-2">
-                        <div><label className="text-xs text-brand-gray-500">Loan Amount</label><FormInput name="financingDetails.loanAmount" type="number" value={financingDetails.loanAmount || ''} onChange={handleDealChange} placeholder="$" /></div>
+                        <div><label className="text-xs text-brand-gray-500">Purchase Loan Amount</label><FormInput name="financingDetails.purchaseLoan.loanAmount" type="number" value={dealData.financingDetails.purchaseLoan?.loanAmount || ''} onChange={onChange} placeholder="$" /></div>
+                        <div><label className="text-xs text-brand-gray-500">Financing Costs (Points, Fees)</label><FormInput name="dealAnalysis.financingCosts" type="number" value={dealData.dealAnalysis.financingCosts || ''} onChange={onChange} placeholder="$" /></div>
                     </div>
                 </div>
-                <PrimaryButton onClick={handleSave} className="w-full">Save Analysis</PrimaryButton>
+                <PrimaryButton onClick={() => {}} className="w-full">Download Analysis</PrimaryButton>
             </div>
             <div className="md:col-span-2 bg-brand-gray-50 p-6 rounded-lg">
-                <h3 className="text-lg font-semibold text-brand-gray-800 mb-4">Financial Summary</h3>
+                <h3 className="text-lg font-semibold text-brand-gray-800 mb-4">Flip Financial Summary</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
                     <StatCard title="Projected Net Profit" value={`$${calculations.projectedNetProfit.toLocaleString('en-US', { maximumFractionDigits: 0 })}`} tooltip="ARV - Total Project Cost" />
-                    <StatCard title="Projected ROI" value={`${calculations.projectedROI.toFixed(1)}%`} tooltip="(Net Profit / Total Cash Needed) * 100" />
+                    <StatCard title="Cash-on-Cash ROI" value={`${calculations.projectedROI.toFixed(1)}%`} tooltip="(Net Profit / Total Cash Needed) * 100" />
                     <StatCard title="Total Cash Needed" value={`$${calculations.totalCashNeeded.toLocaleString('en-US', { maximumFractionDigits: 0 })}`} tooltip="Down Payment + Buying/Financing Costs + Renovation Budget" />
                 </div>
                 <div className="text-sm space-y-2">
@@ -139,6 +156,81 @@ const DealAnalysisDashboard = ({ investment, onUpdate }) => {
                     <div className="flex justify-between"><span className="text-brand-gray-500">Renovation Budget</span><span>- ${((investment.budget || []).reduce((sum, b) => sum + (Number(b.amount) || 0), 0)).toLocaleString()}</span></div>
                     <div className="flex justify-between border-b pb-1"><span className="text-brand-gray-500">Total Deal Costs</span><span>- ${calculations.totalSoftCosts.toLocaleString()}</span></div>
                     <div className="flex justify-between font-bold text-lg pt-1"><span className="text-brand-gray-800">Projected Net Profit</span><span>${calculations.projectedNetProfit.toLocaleString()}</span></div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// --- Rent Analysis View ---
+const RentAnalysisView = ({ investment, dealData, onChange }) => {
+    const calculations = useMemo(() => {
+        const grossRent = Number(investment.rentEstimate) || 0;
+        const purchasePrice = Number(investment.purchasePrice) || 0;
+        const totalBudget = (investment.budget || []).reduce((sum, b) => sum + (Number(b.amount) || 0), 0);
+        const buyingCosts = Number(dealData.dealAnalysis.buyingCosts) || 0;
+        
+        const vacancy = grossRent * ((Number(dealData.rentalAnalysis.vacancyRate) || 0) / 100);
+        const repairs = grossRent * ((Number(dealData.rentalAnalysis.repairsMaintenanceRate) || 0) / 100);
+        const capex = grossRent * ((Number(dealData.rentalAnalysis.capitalExpendituresRate) || 0) / 100);
+        const management = grossRent * ((Number(dealData.rentalAnalysis.managementFeeRate) || 0) / 100);
+        const taxes = (Number(dealData.rentalAnalysis.propertyTaxes) || 0) / 12;
+        const insurance = (Number(dealData.rentalAnalysis.insurance) || 0) / 12;
+        const other = Number(dealData.rentalAnalysis.otherMonthlyCosts) || 0;
+        const totalOpEx = vacancy + repairs + capex + management + taxes + insurance + other;
+        
+        const P = Number(dealData.financingDetails.refinanceLoan?.loanAmount) || 0;
+        const r = ((Number(dealData.financingDetails.refinanceLoan?.interestRate) || 0) / 100) / 12;
+        const n = (Number(dealData.financingDetails.refinanceLoan?.loanTerm) || 0) * 12;
+        const M = n > 0 && r > 0 ? P * (r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1) : 0;
+        
+        const netOperatingIncome = (grossRent - totalOpEx) * 12;
+        const monthlyCashFlow = grossRent - totalOpEx - M;
+        
+        const capRate = purchasePrice > 0 ? (netOperatingIncome / purchasePrice) * 100 : 0;
+        
+        const totalCashToClose = purchasePrice + totalBudget + buyingCosts - (Number(dealData.financingDetails.purchaseLoan?.loanAmount) || 0);
+        const cashOnCashROI = totalCashToClose > 0 ? ((monthlyCashFlow * 12) / totalCashToClose) * 100 : 0;
+        
+        return { monthlyCashFlow, cashOnCashROI, capRate, monthlyMortgage: M, totalOpEx };
+    }, [investment, dealData]);
+
+    return (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="md:col-span-1 space-y-4">
+                <div>
+                    <h3 className="text-lg font-semibold text-brand-gray-800 mb-2">Operating Expenses</h3>
+                    <div className="space-y-2">
+                        <div><label className="text-xs text-brand-gray-500">Vacancy<Tooltip text="Percentage of gross rent set aside for times the unit is empty."/></label><FormInput name="rentalAnalysis.vacancyRate" type="number" value={dealData.rentalAnalysis.vacancyRate || ''} onChange={onChange} placeholder="% of rent" /></div>
+                        <div><label className="text-xs text-brand-gray-500">Repairs & Maintenance<Tooltip text="Percentage of gross rent for routine repairs."/></label><FormInput name="rentalAnalysis.repairsMaintenanceRate" type="number" value={dealData.rentalAnalysis.repairsMaintenanceRate || ''} onChange={onChange} placeholder="% of rent" /></div>
+                        <div><label className="text-xs text-brand-gray-500">Capital Expenditures (CapEx)<Tooltip text="Percentage of gross rent for large future items like a new roof or HVAC."/></label><FormInput name="rentalAnalysis.capitalExpendituresRate" type="number" value={dealData.rentalAnalysis.capitalExpendituresRate || ''} onChange={onChange} placeholder="% of rent" /></div>
+                        <div><label className="text-xs text-brand-gray-500">Management Fee<Tooltip text="Percentage of gross rent paid to a property manager."/></label><FormInput name="rentalAnalysis.managementFeeRate" type="number" value={dealData.rentalAnalysis.managementFeeRate || ''} onChange={onChange} placeholder="% of rent" /></div>
+                        <div><label className="text-xs text-brand-gray-500">Property Taxes (Annual)</label><FormInput name="rentalAnalysis.propertyTaxes" type="number" value={dealData.rentalAnalysis.propertyTaxes || ''} onChange={onChange} placeholder="$ per year" /></div>
+                        <div><label className="text-xs text-brand-gray-500">Insurance (Annual)</label><FormInput name="rentalAnalysis.insurance" type="number" value={dealData.rentalAnalysis.insurance || ''} onChange={onChange} placeholder="$ per year" /></div>
+                    </div>
+                </div>
+                <div>
+                    <h3 className="text-lg font-semibold text-brand-gray-800 mb-2">Refinance Mortgage</h3>
+                     <div className="space-y-2">
+                        <div><label className="text-xs text-brand-gray-500">Loan Amount</label><FormInput name="financingDetails.refinanceLoan.loanAmount" type="number" value={dealData.financingDetails.refinanceLoan?.loanAmount || ''} onChange={onChange} placeholder="$" /></div>
+                        <div><label className="text-xs text-brand-gray-500">Interest Rate</label><FormInput name="financingDetails.refinanceLoan.interestRate" type="number" value={dealData.financingDetails.refinanceLoan?.interestRate || ''} onChange={onChange} placeholder="%" /></div>
+                        <div><label className="text-xs text-brand-gray-500">Loan Term</label><FormInput name="financingDetails.refinanceLoan.loanTerm" type="number" value={dealData.financingDetails.refinanceLoan?.loanTerm || ''} onChange={onChange} placeholder="Years" /></div>
+                    </div>
+                </div>
+                <PrimaryButton onClick={() => {}} className="w-full">Download Analysis</PrimaryButton>
+            </div>
+            <div className="md:col-span-2 bg-brand-gray-50 p-6 rounded-lg">
+                <h3 className="text-lg font-semibold text-brand-gray-800 mb-4">Rental Financial Summary</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+                    <StatCard title="Monthly Cash Flow" value={`$${calculations.monthlyCashFlow.toFixed(2)}`} tooltip="Monthly Rent - (Total OpEx + Mortgage)" />
+                    <StatCard title="Cash-on-Cash ROI" value={`${calculations.cashOnCashROI.toFixed(1)}%`} tooltip="(Annual Cash Flow / Total Cash to Close) * 100" />
+                    <StatCard title="Cap Rate" value={`${calculations.capRate.toFixed(1)}%`} tooltip="(Net Operating Income / Purchase Price) * 100" />
+                </div>
+                 <div className="text-sm space-y-2">
+                    <div className="flex justify-between border-b pb-1"><span className="text-brand-gray-500">Gross Monthly Rent</span><span>+ ${Number(investment.rentEstimate || 0).toLocaleString()}</span></div>
+                    <div className="flex justify-between"><span className="text-brand-gray-500">Total Operating Expenses</span><span>- ${calculations.totalOpEx.toFixed(2)}</span></div>
+                    <div className="flex justify-between border-b pb-1"><span className="text-brand-gray-500">Monthly Mortgage (P&I)</span><span>- ${calculations.monthlyMortgage.toFixed(2)}</span></div>
+                    <div className="flex justify-between font-bold text-lg pt-1"><span className="text-brand-gray-800">Total Monthly Cash Flow</span><span>${calculations.monthlyCashFlow.toFixed(2)}</span></div>
                 </div>
             </div>
         </div>
@@ -293,13 +385,13 @@ const InvestmentDetail = () => {
 
   const handleUpdateAnalysis = async (updateData) => {
       try {
-          // FIXED: This now uses the imported functions and will work correctly.
           await fetch(`${API_BASE_URL}/investments/${id}`, {
               method: 'PATCH',
               headers: getTokenHeader(),
               body: JSON.stringify(updateData)
           });
-          await fetchData();
+          // We optimistically update the local state, but refetch to be safe.
+          await fetchData(); 
       } catch (err) {
           console.error("Failed to update deal analysis", err);
       }
@@ -372,7 +464,7 @@ const InvestmentDetail = () => {
                     <div className="flex gap-4 items-end">
                         <div className="flex-grow"><label className="text-xs text-brand-gray-500">Category</label><FormInput value={editingBudgetData.category} onChange={(e) => setEditingBudgetData({...editingBudgetData, category: e.target.value})} /></div>
                         <div className="flex-grow"><label className="text-xs text-brand-gray-500">Amount</label><FormInput type="number" value={editingBudgetData.amount} onChange={(e) => setEditingBudgetData({...editingBudgetData, amount: e.target.value})} /></div>
-                        <PrimaryButton onClick={() => handleSaveBudgetEdit(cat.index)}>Save</PrimaryButton>
+                        <PrimaryButton onClick={() => handleSaveBudgetEdit(idx)}>Save</PrimaryButton>
                         <SecondaryButton onClick={handleCancelEdit}>Cancel</SecondaryButton>
                     </div>
                 </div>
@@ -384,7 +476,7 @@ const InvestmentDetail = () => {
                       {expanded ? "Hide" : "View"} Expenses
                     </button>
                     <button onClick={() => handleEditBudgetClick(idx, cat)} className="text-xs text-blue-500 hover:underline">Edit</button>
-                    <button onClick={() => handleDeleteBudget(cat.index)} className="text-xs text-red-500 hover:underline">Delete</button>
+                    <button onClick={() => handleDeleteBudget(idx)} className="text-xs text-red-500 hover:underline">Delete</button>
                   </div>
                 </div>
               )}
@@ -423,5 +515,15 @@ const InvestmentDetail = () => {
     </>
   );
 };
+
+// --- NEW: Debounce function to delay API calls while typing ---
+function debounce(func, delay) {
+    let timeout;
+    return function(...args) {
+        const context = this;
+        clearTimeout(timeout);
+        timeout = setTimeout(() => func.apply(context, args), delay);
+    };
+}
 
 export default InvestmentDetail;
