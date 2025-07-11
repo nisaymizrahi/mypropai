@@ -1,4 +1,3 @@
-// all imports unchanged
 import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -191,7 +190,6 @@ const LeaseDetailPage = () => {
             )}
           </ul>
 
-          {/* Form + Button */}
           <div className="flex flex-col space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div>
