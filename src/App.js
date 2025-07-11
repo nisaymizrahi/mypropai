@@ -14,9 +14,8 @@ import { setTokenCookieFromURL } from "./utils/setTokenFromURL";
 import { AuthProvider } from "./context/AuthContext.js";
 
 import ManagementDashboard from "./pages/ManagementDashboard";
-// NEW: Import the detail page component
 import ManagedPropertyDetail from "./pages/ManagedPropertyDetail";
-
+import LeaseDetailPage from "./pages/LeaseDetailPage"; // Lease Detail Page
 
 function App() {
   useEffect(() => {
@@ -40,7 +39,7 @@ function App() {
               </ProtectedRoute>
             }
           />
-          
+
           <Route
             path="/management"
             element={
@@ -52,13 +51,24 @@ function App() {
             }
           />
 
-          {/* NEW: Add the dynamic route for the specific property detail page */}
           <Route
             path="/management/:propertyId"
             element={
               <ProtectedRoute>
                 <DashboardLayout>
                   <ManagedPropertyDetail />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* ✅ FIXED: Lease detail route now correctly under /management/leases/:leaseId */}
+          <Route
+            path="/management/leases/:leaseId"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <LeaseDetailPage />
                 </DashboardLayout>
               </ProtectedRoute>
             }
