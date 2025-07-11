@@ -1,182 +1,179 @@
 import React, { useState } from "react";
 import { createInvestment } from "../utils/api";
+import { useNavigate } from "react-router-dom";
+
+// --- NEW: Reusable styled components for this form ---
+const FormInput = (props) => (
+    <input 
+        className="w-full bg-brand-gray-50 border border-brand-gray-300 rounded-md p-2 text-brand-gray-800 placeholder-brand-gray-400 focus:ring-2 focus:ring-brand-turquoise focus:border-brand-turquoise outline-none transition"
+        {...props} 
+    />
+);
+
+const FormSelect = ({ children, ...props }) => (
+    <select 
+        className="w-full bg-brand-gray-50 border border-brand-gray-300 rounded-md p-2 text-brand-gray-800 focus:ring-2 focus:ring-brand-turquoise focus:border-brand-turquoise outline-none transition"
+        {...props}
+    >
+        {children}
+    </select>
+);
+
+const FormLabel = ({ children }) => (
+    <label className="block text-sm font-medium text-brand-gray-700 mb-1">{children}</label>
+);
 
 const NewInvestment = () => {
-  const [type, setType] = useState("flip");
-  const [address, setAddress] = useState("");
-  const [size, setSize] = useState("");
-  const [lotSize, setLotSize] = useState("");
-  const [purchasePrice, setPurchasePrice] = useState("");
-  const [bedrooms, setBedrooms] = useState("");
-  const [bathrooms, setBathrooms] = useState("");
-  const [yearBuilt, setYearBuilt] = useState("");
-  const [propertyType, setPropertyType] = useState("");
-  const [unitCount, setUnitCount] = useState("");
-  const [arv, setArv] = useState("");
-  const [rentEstimate, setRentEstimate] = useState("");
+  const [formData, setFormData] = useState({
+    type: "flip",
+    address: "",
+    sqft: "",
+    lotSize: "",
+    purchasePrice: "",
+    bedrooms: "",
+    bathrooms: "",
+    yearBuilt: "",
+    propertyType: "",
+    unitCount: "",
+    arv: "",
+    rentEstimate: "",
+  });
   const [message, setMessage] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const navigate = useNavigate();
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setMessage("");
+    setIsLoading(true);
 
     try {
-      await createInvestment({
-        type,
-        address,
-        sqft: Number(size),
-        lotSize: Number(lotSize),
-        purchasePrice: Number(purchasePrice),
-        bedrooms: Number(bedrooms),
-        bathrooms: Number(bathrooms),
-        yearBuilt: Number(yearBuilt),
-        propertyType,
-        unitCount: ["multi-family", "mixed-use", "commercial"].includes(propertyType) ? Number(unitCount) : undefined,
-        arv: type === "flip" ? Number(arv) : undefined,
-        rentEstimate: type === "rent" ? Number(rentEstimate) : undefined,
-      });
+      const dataToSubmit = {
+        ...formData,
+        sqft: Number(formData.sqft) || undefined,
+        lotSize: Number(formData.lotSize) || undefined,
+        purchasePrice: Number(formData.purchasePrice) || undefined,
+        bedrooms: Number(formData.bedrooms) || undefined,
+        bathrooms: Number(formData.bathrooms) || undefined,
+        yearBuilt: Number(formData.yearBuilt) || undefined,
+        unitCount: ["multi-family", "mixed-use", "commercial"].includes(formData.propertyType) ? Number(formData.unitCount) : undefined,
+        arv: formData.type === "flip" ? Number(formData.arv) : undefined,
+        rentEstimate: formData.type === "rent" ? Number(formData.rentEstimate) : undefined,
+      };
 
-      setMessage("✅ Investment saved!");
-      setAddress("");
-      setSize("");
-      setLotSize("");
-      setPurchasePrice("");
-      setBedrooms("");
-      setBathrooms("");
-      setYearBuilt("");
-      setPropertyType("");
-      setUnitCount("");
-      setArv("");
-      setRentEstimate("");
+      const newInvestment = await createInvestment(dataToSubmit);
+      setMessage("✅ Investment saved successfully! Redirecting...");
+      
+      setTimeout(() => {
+        navigate(`/investments/${newInvestment._id}`);
+      }, 1500);
+
     } catch (err) {
       setMessage(`❌ ${err.message}`);
+    } finally {
+        setIsLoading(false);
     }
   };
 
   return (
-    <div className="max-w-3xl mx-auto p-6 bg-white rounded shadow">
-      <h2 className="text-2xl font-bold mb-4">Add New Investment</h2>
-
-      {message && <p className="mb-4 text-sm text-blue-600">{message}</p>}
-
-      <form onSubmit={handleSubmit} className="space-y-4">
+    <div className="max-w-3xl mx-auto">
         <div>
-          <label className="font-medium">Investment Type</label>
-          <select
-            value={type}
-            onChange={(e) => setType(e.target.value)}
-            className="w-full p-2 border rounded"
-          >
-            <option value="flip">Fix and Flip</option>
-            <option value="rent">Fix and Rent</option>
-          </select>
+            <h1 className="text-3xl font-bold text-brand-gray-900">Add New Investment</h1>
+            <p className="text-lg text-brand-gray-500 mt-1">Enter the details for your new property.</p>
         </div>
+      
+      <div className="mt-8 bg-white p-6 rounded-lg shadow-sm border border-brand-gray-200">
+        {message && <p className={`mb-4 text-sm p-3 rounded-md ${message.startsWith('✅') ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>{message}</p>}
 
-        <div>
-          <label className="font-medium">Property Type</label>
-          <select
-            value={propertyType}
-            onChange={(e) => setPropertyType(e.target.value)}
-            className="w-full p-2 border rounded"
-          >
-            <option value="">Select Type</option>
-            <option value="single-family">Single Family</option>
-            <option value="multi-family">Multi-Family</option>
-            <option value="mixed-use">Mixed Use</option>
-            <option value="commercial">Commercial</option>
-            <option value="land">Land</option>
-            <option value="other">Other</option>
-          </select>
-        </div>
+        <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <FormLabel>Investment Type</FormLabel>
+                    <FormSelect name="type" value={formData.type} onChange={handleChange}>
+                        <option value="flip">Fix and Flip</option>
+                        <option value="rent">Fix and Rent</option>
+                    </FormSelect>
+                </div>
+                <div>
+                    <FormLabel>Property Type</FormLabel>
+                    <FormSelect name="propertyType" value={formData.propertyType} onChange={handleChange}>
+                        <option value="">Select Type</option>
+                        <option value="single-family">Single Family</option>
+                        <option value="multi-family">Multi-Family</option>
+                        <option value="mixed-use">Mixed Use</option>
+                        <option value="commercial">Commercial</option>
+                        <option value="land">Land</option>
+                        <option value="other">Other</option>
+                    </FormSelect>
+                </div>
+            </div>
 
-        {propertyType && ["multi-family", "mixed-use", "commercial"].includes(propertyType) && (
-          <input
-            type="number"
-            placeholder="Number of Units"
-            value={unitCount}
-            onChange={(e) => setUnitCount(e.target.value)}
-            className="w-full p-2 border rounded"
-          />
-        )}
+            {["multi-family", "mixed-use", "commercial"].includes(formData.propertyType) && (
+                <div>
+                    <FormLabel>Number of Units</FormLabel>
+                    <FormInput name="unitCount" type="number" placeholder="e.g., 4" value={formData.unitCount} onChange={handleChange} />
+                </div>
+            )}
 
-        <input
-          type="text"
-          placeholder="Address"
-          value={address}
-          onChange={(e) => setAddress(e.target.value)}
-          className="w-full p-2 border rounded"
-          required
-        />
-        <input
-          type="number"
-          placeholder="Size (Sqft)"
-          value={size}
-          onChange={(e) => setSize(e.target.value)}
-          className="w-full p-2 border rounded"
-        />
-        <input
-          type="number"
-          placeholder="Lot Size"
-          value={lotSize}
-          onChange={(e) => setLotSize(e.target.value)}
-          className="w-full p-2 border rounded"
-        />
-        <input
-          type="number"
-          placeholder="Purchase Price"
-          value={purchasePrice}
-          onChange={(e) => setPurchasePrice(e.target.value)}
-          className="w-full p-2 border rounded"
-        />
-        <input
-          type="number"
-          placeholder="Bedrooms"
-          value={bedrooms}
-          onChange={(e) => setBedrooms(e.target.value)}
-          className="w-full p-2 border rounded"
-        />
-        <input
-          type="number"
-          placeholder="Bathrooms"
-          value={bathrooms}
-          onChange={(e) => setBathrooms(e.target.value)}
-          className="w-full p-2 border rounded"
-        />
-        <input
-          type="number"
-          placeholder="Year Built"
-          value={yearBuilt}
-          onChange={(e) => setYearBuilt(e.target.value)}
-          className="w-full p-2 border rounded"
-        />
+            <div>
+                <FormLabel>Property Address</FormLabel>
+                <FormInput name="address" type="text" placeholder="123 Main St, Anytown, USA" value={formData.address} onChange={handleChange} required />
+            </div>
 
-        {type === "flip" && (
-          <input
-            type="number"
-            placeholder="ARV (After Repair Value)"
-            value={arv}
-            onChange={(e) => setArv(e.target.value)}
-            className="w-full p-2 border rounded"
-          />
-        )}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <FormLabel>Purchase Price</FormLabel>
+                    <FormInput name="purchasePrice" type="number" placeholder="e.g., 300000" value={formData.purchasePrice} onChange={handleChange} />
+                </div>
+                {formData.type === "flip" && (
+                    <div>
+                        <FormLabel>ARV (After Repair Value)</FormLabel>
+                        <FormInput name="arv" type="number" placeholder="e.g., 450000" value={formData.arv} onChange={handleChange} />
+                    </div>
+                )}
+                {formData.type === "rent" && (
+                    <div>
+                        <FormLabel>Projected Monthly Rent</FormLabel>
+                        <FormInput name="rentEstimate" type="number" placeholder="e.g., 2500" value={formData.rentEstimate} onChange={handleChange} />
+                    </div>
+                )}
+            </div>
+            
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                 <div>
+                    <FormLabel>Bedrooms</FormLabel>
+                    <FormInput name="bedrooms" type="number" placeholder="e.g., 3" value={formData.bedrooms} onChange={handleChange} />
+                </div>
+                 <div>
+                    <FormLabel>Bathrooms</FormLabel>
+                    <FormInput name="bathrooms" type="number" placeholder="e.g., 2" value={formData.bathrooms} onChange={handleChange} />
+                </div>
+                <div>
+                    <FormLabel>Property Size (Sqft)</FormLabel>
+                    <FormInput name="sqft" type="number" placeholder="e.g., 1500" value={formData.sqft} onChange={handleChange} />
+                </div>
+                <div>
+                    <FormLabel>Lot Size (Sqft)</FormLabel>
+                    <FormInput name="lotSize" type="number" placeholder="e.g., 5000" value={formData.lotSize} onChange={handleChange} />
+                </div>
+            </div>
 
-        {type === "rent" && (
-          <input
-            type="number"
-            placeholder="Projected Monthly Rent"
-            value={rentEstimate}
-            onChange={(e) => setRentEstimate(e.target.value)}
-            className="w-full p-2 border rounded"
-          />
-        )}
-
-        <button
-          type="submit"
-          className="w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-700"
-        >
-          Save Investment
-        </button>
-      </form>
+            <div className="pt-4">
+                <button
+                type="submit"
+                disabled={isLoading}
+                className="w-full bg-brand-turquoise hover:bg-brand-turquoise-600 text-white font-semibold p-3 rounded-lg disabled:bg-brand-gray-300 disabled:cursor-not-allowed transition-all duration-200"
+                >
+                {isLoading ? "Saving..." : "Save Investment"}
+                </button>
+            </div>
+        </form>
+      </div>
     </div>
   );
 };

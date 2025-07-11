@@ -1,41 +1,44 @@
-// src/pages/EditInvestment.jsx
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { getTokenHeader } from "../utils/api";
+import { getInvestment, getTokenHeader } from "../utils/api";
+
+// --- Reusable styled components ---
+const FormInput = (props) => (
+    <input 
+        className="w-full bg-brand-gray-50 border border-brand-gray-300 rounded-md p-2 text-brand-gray-800 placeholder-brand-gray-400 focus:ring-2 focus:ring-brand-turquoise focus:border-brand-turquoise outline-none transition"
+        {...props} 
+    />
+);
+
+const FormSelect = ({ children, ...props }) => (
+    <select 
+        className="w-full bg-brand-gray-50 border border-brand-gray-300 rounded-md p-2 text-brand-gray-800 focus:ring-2 focus:ring-brand-turquoise focus:border-brand-turquoise outline-none transition"
+        {...props}
+    >
+        {children}
+    </select>
+);
+
+const FormLabel = ({ children }) => (
+    <label className="block text-sm font-medium text-brand-gray-700 mb-1">{children}</label>
+);
 
 const EditInvestment = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  
+  const [formData, setFormData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [investment, setInvestment] = useState(null);
   const [message, setMessage] = useState("");
-
-  const propertyTypes = [
-    "Single Family",
-    "Multi-Family",
-    "Condo",
-    "Townhouse",
-    "Mixed Use",
-    "Commercial",
-    "Lot",
-    "Other"
-  ];
-
-  const allowsUnits = (type) => ["Multi-Family", "Mixed Use", "Commercial"].includes(type);
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     const fetchInvestment = async () => {
       try {
-        const res = await fetch(`https://mypropai-server.onrender.com/api/investments/${id}`, {
-          headers: getTokenHeader(),
-        });
-
-        if (!res.ok) throw new Error("Failed to fetch investment");
-
-        const data = await res.json();
-        setInvestment(data);
+        const data = await getInvestment(id);
+        setFormData(data);
       } catch (err) {
-        setMessage("❌ Error loading investment.");
+        setMessage("❌ Error loading investment data.");
         console.error(err);
       } finally {
         setLoading(false);
@@ -45,180 +48,134 @@ const EditInvestment = () => {
     fetchInvestment();
   }, [id]);
 
-  const handleChange = (field, value) => {
-    setInvestment((prev) => ({ ...prev, [field]: value }));
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
   const handleSave = async (e) => {
     e.preventDefault();
     setMessage("");
+    setIsSaving(true);
 
     try {
       const res = await fetch(`https://mypropai-server.onrender.com/api/investments/${id}`, {
         method: "PATCH",
         headers: getTokenHeader(),
-        body: JSON.stringify(investment),
+        body: JSON.stringify(formData),
       });
 
       if (!res.ok) throw new Error("Failed to update investment");
-      setMessage("✅ Investment updated!");
-      navigate(`/investments/${id}`);
+      
+      setMessage("✅ Investment updated successfully!");
+      setTimeout(() => {
+        navigate(`/investments/${id}`);
+      }, 1500);
+
     } catch (err) {
-      setMessage("❌ " + err.message);
+      setMessage(`❌ ${err.message}`);
+    } finally {
+        setIsSaving(false);
     }
   };
 
-  if (loading) return <div className="p-6">Loading...</div>;
-  if (!investment) return <div className="p-6 text-red-600">Investment not found.</div>;
+  if (loading) return <div className="p-6 text-center">Loading investment data...</div>;
+  if (!formData) return <div className="p-6 text-red-500 text-center">Investment not found.</div>;
 
   return (
-    <div className="max-w-3xl mx-auto p-6 bg-white rounded shadow">
-      <h2 className="text-2xl font-bold mb-4">Edit Investment</h2>
-      {message && <p className="mb-4 text-sm text-blue-600">{message}</p>}
+    <div className="max-w-3xl mx-auto">
+      <div>
+        <h1 className="text-3xl font-bold text-brand-gray-900">Edit Investment</h1>
+        <p className="text-lg text-brand-gray-500 mt-1">{formData.address}</p>
+      </div>
+      
+      <div className="mt-8 bg-white p-6 rounded-lg shadow-sm border border-brand-gray-200">
+        {message && <p className={`mb-4 text-sm p-3 rounded-md ${message.startsWith('✅') ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>{message}</p>}
 
-      <form onSubmit={handleSave} className="space-y-4">
-        <div>
-          <label className="font-medium">Investment Type</label>
-          <select
-            value={investment.type}
-            onChange={(e) => handleChange("type", e.target.value)}
-            className="w-full p-2 border rounded"
-          >
-            <option value="flip">Fix and Flip</option>
-            <option value="rent">Fix and Rent</option>
-          </select>
-        </div>
+        <form onSubmit={handleSave} className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <FormLabel>Investment Type</FormLabel>
+                    <FormSelect name="type" value={formData.type} onChange={handleChange}>
+                        <option value="flip">Fix and Flip</option>
+                        <option value="rent">Fix and Rent</option>
+                    </FormSelect>
+                </div>
+                <div>
+                    <FormLabel>Property Type</FormLabel>
+                    <FormSelect name="propertyType" value={formData.propertyType} onChange={handleChange}>
+                        <option value="">Select Type</option>
+                        <option value="single-family">Single Family</option>
+                        <option value="multi-family">Multi-Family</option>
+                        <option value="mixed-use">Mixed Use</option>
+                        <option value="commercial">Commercial</option>
+                        <option value="land">Land</option>
+                        <option value="other">Other</option>
+                    </FormSelect>
+                </div>
+            </div>
 
-        <div>
-          <label className="font-medium">Property Type</label>
-          <select
-            value={investment.propertyType || ""}
-            onChange={(e) => handleChange("propertyType", e.target.value)}
-            className="w-full p-2 border rounded"
-          >
-            <option value="">Select Type</option>
-            {propertyTypes.map((type) => (
-              <option key={type} value={type}>{type}</option>
-            ))}
-          </select>
-        </div>
+            {["multi-family", "mixed-use", "commercial"].includes(formData.propertyType) && (
+                <div>
+                    <FormLabel>Number of Units</FormLabel>
+                    <FormInput name="unitCount" type="number" placeholder="e.g., 4" value={formData.unitCount || ''} onChange={handleChange} />
+                </div>
+            )}
 
-        {allowsUnits(investment.propertyType) && (
-          <div>
-            <label className="font-medium">Unit Count</label>
-            <input
-              type="number"
-              value={investment.unitCount || ""}
-              onChange={(e) => handleChange("unitCount", e.target.value)}
-              className="w-full p-2 border rounded"
-            />
-          </div>
-        )}
+            <div>
+                <FormLabel>Property Address</FormLabel>
+                <FormInput name="address" type="text" placeholder="123 Main St, Anytown, USA" value={formData.address} onChange={handleChange} required />
+            </div>
 
-        <div>
-          <label className="font-medium">Address</label>
-          <input
-            type="text"
-            value={investment.address}
-            onChange={(e) => handleChange("address", e.target.value)}
-            className="w-full p-2 border rounded"
-            required
-          />
-        </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <FormLabel>Purchase Price</FormLabel>
+                    <FormInput name="purchasePrice" type="number" placeholder="e.g., 300000" value={formData.purchasePrice || ''} onChange={handleChange} />
+                </div>
+                {formData.type === "flip" && (
+                    <div>
+                        <FormLabel>ARV (After Repair Value)</FormLabel>
+                        <FormInput name="arv" type="number" placeholder="e.g., 450000" value={formData.arv || ''} onChange={handleChange} />
+                    </div>
+                )}
+                {formData.type === "rent" && (
+                    <div>
+                        <FormLabel>Projected Monthly Rent</FormLabel>
+                        <FormInput name="rentEstimate" type="number" placeholder="e.g., 2500" value={formData.rentEstimate || ''} onChange={handleChange} />
+                    </div>
+                )}
+            </div>
+            
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                 <div>
+                    <FormLabel>Bedrooms</FormLabel>
+                    <FormInput name="bedrooms" type="number" placeholder="e.g., 3" value={formData.bedrooms || ''} onChange={handleChange} />
+                </div>
+                 <div>
+                    <FormLabel>Bathrooms</FormLabel>
+                    <FormInput name="bathrooms" type="number" placeholder="e.g., 2" value={formData.bathrooms || ''} onChange={handleChange} />
+                </div>
+                <div>
+                    <FormLabel>Property Size (Sqft)</FormLabel>
+                    <FormInput name="sqft" type="number" placeholder="e.g., 1500" value={formData.sqft || ''} onChange={handleChange} />
+                </div>
+                <div>
+                    <FormLabel>Lot Size (Sqft)</FormLabel>
+                    <FormInput name="lotSize" type="number" placeholder="e.g., 5000" value={formData.lotSize || ''} onChange={handleChange} />
+                </div>
+            </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="font-medium">Bedrooms</label>
-            <input
-              type="number"
-              value={investment.bedrooms || ""}
-              onChange={(e) => handleChange("bedrooms", e.target.value)}
-              className="w-full p-2 border rounded"
-            />
-          </div>
-          <div>
-            <label className="font-medium">Bathrooms</label>
-            <input
-              type="number"
-              value={investment.bathrooms || ""}
-              onChange={(e) => handleChange("bathrooms", e.target.value)}
-              className="w-full p-2 border rounded"
-            />
-          </div>
-        </div>
-
-        <div>
-          <label className="font-medium">Year Built</label>
-          <input
-            type="number"
-            value={investment.yearBuilt || ""}
-            onChange={(e) => handleChange("yearBuilt", e.target.value)}
-            className="w-full p-2 border rounded"
-          />
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="font-medium">Size (Sqft)</label>
-            <input
-              type="number"
-              value={investment.sqft || ""}
-              onChange={(e) => handleChange("sqft", e.target.value)}
-              className="w-full p-2 border rounded"
-            />
-          </div>
-          <div>
-            <label className="font-medium">Lot Size (Sqft)</label>
-            <input
-              type="number"
-              value={investment.lotSize || ""}
-              onChange={(e) => handleChange("lotSize", e.target.value)}
-              className="w-full p-2 border rounded"
-            />
-          </div>
-        </div>
-
-        <div>
-          <label className="font-medium">Purchase Price</label>
-          <input
-            type="number"
-            value={investment.purchasePrice || ""}
-            onChange={(e) => handleChange("purchasePrice", e.target.value)}
-            className="w-full p-2 border rounded"
-          />
-        </div>
-
-        {investment.type === "flip" && (
-          <div>
-            <label className="font-medium">ARV (After Repair Value)</label>
-            <input
-              type="number"
-              value={investment.arv || ""}
-              onChange={(e) => handleChange("arv", e.target.value)}
-              className="w-full p-2 border rounded"
-            />
-          </div>
-        )}
-
-        {investment.type === "rent" && (
-          <div>
-            <label className="font-medium">Projected Monthly Rent</label>
-            <input
-              type="number"
-              value={investment.rentEstimate || ""}
-              onChange={(e) => handleChange("rentEstimate", e.target.value)}
-              className="w-full p-2 border rounded"
-            />
-          </div>
-        )}
-
-        <button
-          type="submit"
-          className="w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-700"
-        >
-          Save Changes
-        </button>
-      </form>
+            <div className="pt-4 flex justify-end">
+                <button
+                type="submit"
+                disabled={isSaving}
+                className="bg-brand-turquoise hover:bg-brand-turquoise-600 text-white font-semibold p-3 rounded-lg w-full md:w-auto disabled:bg-brand-gray-300 disabled:cursor-not-allowed transition-all duration-200"
+                >
+                {isSaving ? "Saving..." : "Save Changes"}
+                </button>
+            </div>
+        </form>
+      </div>
     </div>
   );
 };

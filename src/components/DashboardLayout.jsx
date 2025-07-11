@@ -3,7 +3,7 @@ import { NavLink } from "react-router-dom";
 import LogoutButton from "./LogoutButton";
 import UserInfoBanner from "./UserInfoBanner";
 
-// --- NEW: SVG Icon Components for a high-tech feel ---
+// --- SVG Icon Components (no changes needed here) ---
 
 const HomeIcon = ({ className }) => (
   <svg className={className} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -34,9 +34,6 @@ const PlusCircleIcon = ({ className }) => (
     </svg>
 );
 
-
-// --- NEW: Navigation links configuration for easier management ---
-
 const navLinks = [
   { to: "/dashboard", text: "Dashboard", icon: HomeIcon },
   { to: "/comps", text: "Comps Tool", icon: SearchIcon },
@@ -44,21 +41,22 @@ const navLinks = [
   { to: "/investments/new", text: "Add Investment", icon: PlusCircleIcon },
 ];
 
-// --- Redesigned DashboardLayout Component ---
+// --- Redesigned DashboardLayout Component for Light Theme ---
 
 function DashboardLayout({ children }) {
-  const activeLinkStyle = "bg-brand-slate-300 text-brand-blue font-semibold";
-  const inactiveLinkStyle = "text-brand-dark-300 hover:bg-brand-slate-200 hover:text-white";
+  // NEW: Styles for the light theme with turquoise accents
+  const activeLinkStyle = "bg-brand-turquoise-100 text-brand-turquoise-600 font-semibold";
+  const inactiveLinkStyle = "text-brand-gray-500 hover:bg-brand-gray-100 hover:text-brand-gray-900";
 
   return (
-    <div className="flex min-h-screen bg-brand-slate-300">
-      {/* NEW: Redesigned Sidebar */}
-      <aside className="w-64 bg-brand-slate-200 flex flex-col">
-        <div className="p-6">
-          <h1 className="text-2xl font-bold text-brand-blue tracking-wider">MyPropAI</h1>
+    <div className="flex min-h-screen">
+      {/* NEW: Redesigned Sidebar for Light Theme */}
+      <aside className="w-64 bg-white border-r border-brand-gray-200 flex flex-col">
+        <div className="p-6 border-b border-brand-gray-200">
+          <h1 className="text-2xl font-bold text-brand-turquoise tracking-wider">MyPropAI</h1>
         </div>
 
-        <nav className="flex-1 px-4 space-y-2">
+        <nav className="flex-1 px-4 py-6 space-y-2">
           {navLinks.map((link) => (
             <NavLink
               key={link.to}
@@ -73,12 +71,12 @@ function DashboardLayout({ children }) {
           ))}
         </nav>
 
-        <div className="p-6 mt-auto">
+        <div className="p-4 mt-auto border-t border-brand-gray-200">
           <LogoutButton />
         </div>
       </aside>
 
-      {/* NEW: Redesigned Main Content Area */}
+      {/* Main content area (background color is set on the body in index.css) */}
       <main className="flex-1 flex flex-col">
         <UserInfoBanner />
         <div className="flex-1 p-8 overflow-y-auto">

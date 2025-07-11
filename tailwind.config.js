@@ -5,29 +5,37 @@ module.exports = {
   content: ["./src/**/*.{js,jsx}"],
   theme: {
     extend: {
-      // NEW: Set the "Inter" font as the default sans-serif font for the project.
+      // The "Inter" font is already set up and is perfect for a clean, modern look.
       fontFamily: {
         sans: ['Inter', ...defaultTheme.fontFamily.sans],
       },
-      // NEW: Define the color palette for our modern, high-tech AI theme.
+      // NEW: A professional light theme color palette with a turquoise accent.
       colors: {
-        'brand-blue': '#00BFFF', // A vibrant, electric blue for accents
-        'brand-dark': {
-          '100': '#F0F2F5', // Lightest gray for text on dark backgrounds
-          '200': '#E1E5E9',
-          '300': '#C4CBD2',
-          '400': '#A6B1BC',
-          '500': '#8997A5',
-          '600': '#6B7D8E',
-          '700': '#4E6377',
-          '800': '#304960',
-          '900': '#132F49', // Darkest blue/gray for backgrounds
+        'brand-turquoise': {
+          'DEFAULT': '#14b8a6', // A vibrant, professional turquoise
+          '50': '#f0fdfa',
+          '100': '#ccfbf1',
+          '200': '#99f6e4',
+          '300': '#5eead4',
+          '400': '#2dd4bf',
+          '500': '#14b8a6',
+          '600': '#0d9488',
+          '700': '#0f766e',
+          '800': '#115e59',
+          '900': '#134e4a',
         },
-        'brand-slate': {
-          '100': '#2A3B4D', // For card backgrounds
-          '200': '#212F3C', // For slightly darker elements
-          '300': '#1A242E', // Main background color
-        }
+        'brand-gray': {
+          '50': '#f8fafc',  // Page background
+          '100': '#f1f5f9', // Lighter element background
+          '200': '#e2e8f0', // Borders
+          '300': '#cbd5e1',
+          '400': '#94a3b8',
+          '500': '#64748b', // Secondary text
+          '600': '#475569',
+          '700': '#334155',
+          '800': '#1e293b', // Primary text
+          '900': '#0f172a',
+        },
       }
     },
   },

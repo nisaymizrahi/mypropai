@@ -1,7 +1,7 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 
-// --- NEW: SVG Icon Components for the tool cards ---
+// --- SVG Icon Components (no changes needed here) ---
 
 const SearchIcon = ({ className }) => (
   <svg className={className} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -31,7 +31,6 @@ const CalculatorIcon = ({ className }) => (
 const DashboardPage = () => {
   const navigate = useNavigate();
 
-  // NEW: Added icons to the tools array
   const tools = [
     {
       title: "Comparable Search",
@@ -48,38 +47,39 @@ const DashboardPage = () => {
     {
       title: "ROI Calculator",
       description: "Evaluate the return on investment for a property.",
-      path: "/roi", // Note: This route doesn't exist yet, but we can build it.
+      path: "/roi",
       icon: CalculatorIcon,
     },
   ];
 
   return (
-    // NEW: Removed redundant background and padding classes
     <div>
       <div className="max-w-5xl mx-auto">
-        {/* NEW: Updated title styling for the dark theme */}
-        <h1 className="text-3xl font-bold mb-2 text-brand-dark-100">
+        {/* NEW: Updated title styling for the light theme */}
+        <h1 className="text-3xl font-bold mb-2 text-brand-gray-900">
           Dashboard
         </h1>
-        <p className="text-lg text-brand-dark-400 mb-8">
+        <p className="text-lg text-brand-gray-500 mb-8">
             Welcome to your AI-powered real estate analysis hub.
         </p>
 
-        {/* NEW: Redesigned tool cards with new styles and hover effects */}
+        {/* NEW: Redesigned tool cards for the light theme */}
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {tools.map((tool) => (
             <div
               key={tool.title}
-              className="bg-brand-slate-100 rounded-lg p-6 cursor-pointer border border-brand-dark-800 hover:border-brand-blue hover:scale-[1.02] transition-all duration-200 group"
+              className="bg-white rounded-lg p-6 cursor-pointer border border-brand-gray-200 hover:shadow-lg hover:-translate-y-1 transition-all duration-200 group"
               onClick={() => navigate(tool.path)}
             >
               <div className="flex items-center mb-4">
-                <tool.icon className="h-8 w-8 text-brand-blue mr-4" />
-                <h2 className="text-xl font-semibold text-brand-dark-100 group-hover:text-white">
+                <div className="p-3 bg-brand-turquoise-100 rounded-lg mr-4">
+                    <tool.icon className="h-6 w-6 text-brand-turquoise-600" />
+                </div>
+                <h2 className="text-xl font-semibold text-brand-gray-800">
                   {tool.title}
                 </h2>
               </div>
-              <p className="text-brand-dark-400">{tool.description}</p>
+              <p className="text-brand-gray-500">{tool.description}</p>
             </div>
           ))}
         </div>
