@@ -30,7 +30,7 @@ const LeaseDetailPage = () => {
     const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false);
 
     const fetchLeaseDetails = useCallback(async () => {
-        if (!loading) setLoading(true);
+        setLoading(true); // Always set loading true before fetch
         try {
             const res = await fetch(`${API_BASE_URL}/management/leases/${leaseId}`, {
                 headers: getTokenHeader(),
@@ -45,7 +45,7 @@ const LeaseDetailPage = () => {
         } finally {
             setLoading(false);
         }
-    }, [leaseId, loading]);
+    }, [leaseId]); // ✅ Removed `loading` from dependency array
 
     useEffect(() => {
         fetchLeaseDetails();
@@ -55,7 +55,6 @@ const LeaseDetailPage = () => {
         fetchLeaseDetails();
     };
 
-    // ✅ Block rendering until auth is ready
     if (authLoading) {
         return <LoadingSpinner />;
     }
