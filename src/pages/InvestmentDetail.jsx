@@ -8,9 +8,10 @@ import {
   updateExpense,
   deleteExpense,
   deleteInvestment,
+  deleteBudgetLine, // NEW: Import the delete function
 } from "../utils/api";
 
-// --- NEW: Reusable styled components for this page ---
+// --- Reusable styled components ---
 const FormInput = (props) => (
     <input 
         className="w-full bg-brand-gray-50 border border-brand-gray-300 rounded-md p-2 text-brand-gray-800 placeholder-brand-gray-400 focus:ring-2 focus:ring-brand-turquoise focus:border-brand-turquoise outline-none transition"
@@ -27,20 +28,20 @@ const FormSelect = ({ children, ...props }) => (
     </select>
 );
 
-const PrimaryButton = ({ onClick, children, className = '' }) => (
-    <button onClick={onClick} className={`bg-brand-turquoise hover:bg-brand-turquoise-600 text-white font-semibold px-4 py-2 rounded-md transition ${className}`}>
+const PrimaryButton = ({ onClick, children, className = '', ...props }) => (
+    <button onClick={onClick} className={`bg-brand-turquoise hover:bg-brand-turquoise-600 text-white font-semibold px-4 py-2 rounded-md transition ${className}`} {...props}>
         {children}
     </button>
 );
 
-const SecondaryButton = ({ onClick, children, className = '' }) => (
-     <button onClick={onClick} className={`bg-white hover:bg-brand-gray-100 text-brand-gray-700 font-semibold px-4 py-2 rounded-md border border-brand-gray-300 transition ${className}`}>
+const SecondaryButton = ({ onClick, children, className = '', ...props }) => (
+     <button onClick={onClick} className={`bg-white hover:bg-brand-gray-100 text-brand-gray-700 font-semibold px-4 py-2 rounded-md border border-brand-gray-300 transition ${className}`} {...props}>
         {children}
     </button>
 );
 
-const DangerButton = ({ onClick, children, className = '' }) => (
-    <button onClick={onClick} className={`bg-red-500 hover:bg-red-600 text-white font-semibold px-4 py-2 rounded-md transition ${className}`}>
+const DangerButton = ({ onClick, children, className = '', ...props }) => (
+    <button onClick={onClick} className={`bg-red-500 hover:bg-red-600 text-white font-semibold px-4 py-2 rounded-md transition ${className}`} {...props}>
         {children}
     </button>
 );
@@ -53,9 +54,13 @@ const InvestmentDetail = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const [newBudget, setNewBudget] = useState({ category: "", description: "", amount: "", status: "Not Started" });
+  const [newBudget, setNewBudget] = useState({ category: "", description: "", amount: "" });
   const [newExpense, setNewExpense] = useState({ category: "", label: "", amount: "" });
   const [expandedCategory, setExpandedCategory] = useState(null);
+
+  // --- NEW: State for inline editing of budget items ---
+  const [editingBudgetIndex, setEditingBudgetIndex] = useState(null);
+  const [editingBudgetData, setEditingBudgetData] = useState({ category: '', amount: '' });
 
   useEffect(() => {
     fetchData();
@@ -79,9 +84,44 @@ const InvestmentDetail = () => {
     try {
       await addBudgetLine(id, { ...newBudget, amount: Number(newBudget.amount) });
       await fetchData();
-      setNewBudget({ category: "", description: "", amount: "", status: "Not Started" });
+      setNewBudget({ category: "", description: "", amount: "" });
     } catch (err) {
       console.error("Add budget error:", err);
+    }
+  };
+
+  // --- NEW: Handlers for editing and deleting budget lines ---
+  const handleEditBudgetClick = (index, budgetItem) => {
+    setEditingBudgetIndex(index);
+    setEditingBudgetData({ category: budgetItem.category, amount: budgetItem.amount });
+  };
+
+  const handleCancelEdit = () => {
+    setEditingBudgetIndex(null);
+    setEditingBudgetData({ category: '', amount: '' });
+  };
+
+  const handleSaveBudgetEdit = async (index) => {
+    try {
+        await updateBudgetLine(id, index, {
+            category: editingBudgetData.category,
+            amount: Number(editingBudgetData.amount)
+        });
+        await fetchData();
+        handleCancelEdit(); // Exit edit mode
+    } catch (err) {
+        console.error("Update budget error:", err);
+    }
+  };
+
+  const handleDeleteBudget = async (index) => {
+    if (window.confirm("Are you sure you want to delete this budget category?")) {
+        try {
+            await deleteBudgetLine(id, index);
+            await fetchData();
+        } catch (err) {
+            console.error("Delete budget error:", err);
+        }
     }
   };
 
@@ -177,14 +217,33 @@ const InvestmentDetail = () => {
         {categories.map((cat, idx) => {
           const used = cat.expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
           const expanded = expandedCategory === cat.category;
+          const isEditing = editingBudgetIndex === idx;
+
           return (
             <div key={idx} className="border-t border-brand-gray-200 pt-4">
-              <div className="flex justify-between items-center">
-                <div className="font-semibold text-brand-gray-800">{cat.category} — <span className="text-brand-gray-500">${used.toLocaleString()} / ${cat.amount.toLocaleString()}</span></div>
-                <button className="text-sm text-brand-turquoise hover:underline" onClick={() => setExpandedCategory(expanded ? null : cat.category)}>
-                  {expanded ? "Hide" : "View"}
-                </button>
-              </div>
+              {isEditing ? (
+                // --- NEW: Editing State UI ---
+                <div className="bg-brand-gray-50 p-4 rounded-md">
+                    <div className="flex gap-4 items-end">
+                        <div className="flex-grow"><label className="text-xs text-brand-gray-500">Category</label><FormInput value={editingBudgetData.category} onChange={(e) => setEditingBudgetData({...editingBudgetData, category: e.target.value})} /></div>
+                        <div className="flex-grow"><label className="text-xs text-brand-gray-500">Amount</label><FormInput type="number" value={editingBudgetData.amount} onChange={(e) => setEditingBudgetData({...editingBudgetData, amount: e.target.value})} /></div>
+                        <PrimaryButton onClick={() => handleSaveBudgetEdit(cat.index)}>Save</PrimaryButton>
+                        <SecondaryButton onClick={handleCancelEdit}>Cancel</SecondaryButton>
+                    </div>
+                </div>
+              ) : (
+                // --- Original Display State UI with new buttons ---
+                <div className="flex justify-between items-center">
+                  <div className="font-semibold text-brand-gray-800">{cat.category} — <span className="text-brand-gray-500">${used.toLocaleString()} / ${cat.amount.toLocaleString()}</span></div>
+                  <div className="flex items-center gap-4">
+                    <button className="text-sm text-brand-turquoise hover:underline" onClick={() => setExpandedCategory(expanded ? null : cat.category)}>
+                      {expanded ? "Hide" : "View"} Expenses
+                    </button>
+                    <button onClick={() => handleEditBudgetClick(idx, cat)} className="text-xs text-blue-500 hover:underline">Edit</button>
+                    <button onClick={() => handleDeleteBudget(cat.index)} className="text-xs text-red-500 hover:underline">Delete</button>
+                  </div>
+                </div>
+              )}
               {expanded && (
                 <div className="mt-3 ml-4 pl-4 border-l-2 border-brand-gray-200 space-y-2 text-sm">
                   {cat.expenses.length === 0 && <p className="text-brand-gray-400 italic">No expenses for this category.</p>}
@@ -193,9 +252,7 @@ const InvestmentDetail = () => {
                       <span>{e.label || "Unnamed Expense"}</span>
                       <div className="flex items-center">
                         <span className="text-brand-gray-800">${e.amount?.toLocaleString()}</span>
-                        <button onClick={() => handleDeleteExpense(e.index)} className="ml-4 text-red-400 hover:text-red-600 font-bold">
-                          &times;
-                        </button>
+                        <button onClick={() => handleDeleteExpense(e.index)} className="ml-4 text-red-400 hover:text-red-600 font-bold">&times;</button>
                       </div>
                     </div>
                   ))}

@@ -1,4 +1,4 @@
-import { API_BASE_URL } from '../config'; // NEW: Import from our central config file
+import { API_BASE_URL } from '../config';
 
 // Get token-based headers
 export const getTokenHeader = () => {
@@ -8,7 +8,7 @@ export const getTokenHeader = () => {
   return headers;
 };
 
-// All functions now use the guaranteed correct API_BASE_URL
+// --- Investment Functions ---
 export const createInvestment = async (data) => {
   const res = await fetch(`${API_BASE_URL}/investments`, {
     method: "POST",
@@ -46,6 +46,7 @@ export const deleteInvestment = async (id) => {
     return res.json();
 };
 
+// --- Budget Functions ---
 export const addBudgetLine = async (investmentId, line) => {
   const res = await fetch(`${API_BASE_URL}/investments/${investmentId}/budget`, {
     method: "POST",
@@ -66,6 +67,17 @@ export const updateBudgetLine = async (investmentId, index, updates) => {
   return res.json();
 };
 
+// --- NEW: Function to DELETE a budget line ---
+export const deleteBudgetLine = async (investmentId, index) => {
+  const res = await fetch(`${API_BASE_URL}/investments/${investmentId}/budget/${index}`, {
+    method: "DELETE",
+    headers: getTokenHeader(),
+  });
+  if (!res.ok) throw new Error((await res.json()).message || "Failed to delete budget line");
+  return res.json();
+};
+
+// --- Expense Functions ---
 export const addExpense = async (investmentId, expense) => {
   const res = await fetch(`${API_BASE_URL}/investments/${investmentId}/expenses`, {
     method: "POST",
@@ -95,6 +107,7 @@ export const deleteExpense = async (investmentId, index) => {
   return res.json();
 };
 
+// --- Auth Functions ---
 export const logoutUser = () => {
   localStorage.removeItem("token");
 };
