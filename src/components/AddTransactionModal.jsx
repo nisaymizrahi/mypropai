@@ -23,7 +23,7 @@ const FormLabel = ({ children }) => (
 );
 
 const AddTransactionModal = ({ isOpen, onClose, onSuccess, leaseId }) => {
-  const [entryType, setEntryType] = useState("Payment"); // New entry type field
+  const [entryType, setEntryType] = useState("Payment");
 
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split('T')[0],
@@ -42,14 +42,16 @@ const AddTransactionModal = ({ isOpen, onClose, onSuccess, leaseId }) => {
   };
 
   const handleEntryTypeChange = (e) => {
-    setEntryType(e.target.value);
+    const selected = e.target.value;
+    setEntryType(selected);
     setFormData({
       date: new Date().toISOString().split('T')[0],
-      type: entryType === 'Payment' ? 'Rent Payment' : 'Rent Charge',
+      type: selected === 'Payment' ? 'Rent Payment' : 'Rent Charge',
       description: '',
       amount: '',
       dayOfMonth: ''
     });
+    setError('');
   };
 
   const handleSubmit = async (e) => {
@@ -57,9 +59,16 @@ const AddTransactionModal = ({ isOpen, onClose, onSuccess, leaseId }) => {
 
     const { date, type, description, amount, dayOfMonth } = formData;
 
-    if (!type || !amount || (entryType === 'Recurring Charge' && !dayOfMonth)) {
+    if (!type || !amount) {
       setError('Please complete all required fields.');
       return;
+    }
+
+    if (entryType === 'Recurring Charge') {
+      if (!description || !dayOfMonth || type === 'Rent Payment') {
+        setError("Recurring charges require a description, valid day of month, and must not be a 'Rent Payment'.");
+        return;
+      }
     }
 
     setError('');
@@ -67,7 +76,6 @@ const AddTransactionModal = ({ isOpen, onClose, onSuccess, leaseId }) => {
 
     try {
       if (entryType === 'Recurring Charge') {
-        // Patch recurring charge to lease
         const patchData = {
           recurringCharges: [
             {
@@ -88,9 +96,11 @@ const AddTransactionModal = ({ isOpen, onClose, onSuccess, leaseId }) => {
           body: JSON.stringify(patchData),
         });
 
-        if (!res.ok) throw new Error('Failed to save recurring charge');
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.msg || 'Failed to save recurring charge');
+        }
       } else {
-        // One-time payment or charge
         let finalAmount = Number(amount);
         if (['Rent Charge', 'Late Fee', 'Other Charge'].includes(type)) {
           finalAmount = -Math.abs(finalAmount);
@@ -159,14 +169,14 @@ const AddTransactionModal = ({ isOpen, onClose, onSuccess, leaseId }) => {
           <div>
             <FormLabel>Transaction Type</FormLabel>
             <FormSelect name="type" value={formData.type} onChange={handleChange} required>
-              <option>Rent Payment</option>
-              <option>Rent Charge</option>
-              <option>Late Fee</option>
-              <option>Pet Fee</option>
-              <option>Utility Fee</option>
-              <option>Parking Fee</option>
-              <option>Other Credit</option>
-              <option>Other Charge</option>
+              <option value="Rent Payment">Rent Payment</option>
+              <option value="Rent Charge">Rent Charge</option>
+              <option value="Late Fee">Late Fee</option>
+              <option value="Pet Fee">Pet Fee</option>
+              <option value="Utility Fee">Utility Fee</option>
+              <option value="Parking Fee">Parking Fee</option>
+              <option value="Other Credit">Other Credit</option>
+              <option value="Other Charge">Other Charge</option>
             </FormSelect>
           </div>
 
