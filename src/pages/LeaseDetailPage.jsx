@@ -28,13 +28,6 @@ const LeaseDetailPage = () => {
   const [error, setError] = useState('');
   const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false);
 
-  const [newRecurring, setNewRecurring] = useState({
-    dayOfMonth: '',
-    type: 'Rent Charge',
-    description: '',
-    amount: ''
-  });
-
   const fetchLeaseDetails = useCallback(async () => {
     setLoading(true);
     try {
@@ -57,33 +50,6 @@ const LeaseDetailPage = () => {
 
   const handleTransactionAdded = () => {
     fetchLeaseDetails();
-  };
-
-  const handleAddRecurring = async () => {
-    const patchData = {
-      recurringCharges: [
-        ...(lease.recurringCharges || []),
-        {
-          ...newRecurring,
-          amount: Number(newRecurring.amount)
-        }
-      ]
-    };
-    try {
-      const res = await fetch(`${API_BASE_URL}/management/leases/${leaseId}`, {
-        method: 'PATCH',
-        headers: {
-          ...getTokenHeader(),
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(patchData),
-      });
-      if (!res.ok) throw new Error('Failed to add recurring charge');
-      await fetchLeaseDetails();
-      setNewRecurring({ dayOfMonth: '', type: 'Rent Charge', description: '', amount: '' });
-    } catch (err) {
-      alert(err.message);
-    }
   };
 
   if (authLoading) return <LoadingSpinner />;
@@ -170,72 +136,6 @@ const LeaseDetailPage = () => {
                 <span>Current Balance:</span>
                 <span>${currentBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
               </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Recurring Charges */}
-        <div className="mt-12 bg-white p-6 rounded-lg border border-brand-gray-200 shadow-sm min-h-[200px] overflow-visible">
-          <h2 className="text-xl font-bold text-brand-gray-900 mb-4">Recurring Charges</h2>
-
-          <ul className="space-y-2 mb-6">
-            {(lease.recurringCharges || []).map((rc, idx) => (
-              <li key={idx} className="flex justify-between items-center border-b pb-2">
-                <span className="text-sm text-brand-gray-700">{rc.description} (Every month on day {rc.dayOfMonth})</span>
-                <span className="font-semibold text-brand-gray-800">${(rc.amount / 100).toFixed(2)}</span>
-              </li>
-            ))}
-            {lease.recurringCharges?.length === 0 && (
-              <p className="text-sm text-brand-gray-500">No recurring charges set up yet.</p>
-            )}
-          </ul>
-
-          <div className="flex flex-col space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div>
-                <label className="text-sm font-semibold block mb-1">Day of Month</label>
-                <input type="number" className="border rounded px-3 py-2 w-full"
-                  value={newRecurring.dayOfMonth}
-                  onChange={(e) => setNewRecurring(prev => ({ ...prev, dayOfMonth: Number(e.target.value) }))} />
-              </div>
-
-              <div>
-                <label className="text-sm font-semibold block mb-1">Charge Type</label>
-                <select className="border rounded px-3 py-2 w-full"
-                  value={newRecurring.type}
-                  onChange={(e) => setNewRecurring(prev => ({ ...prev, type: e.target.value }))}>
-                  <option value="Rent Charge">Rent Charge</option>
-                  <option value="Late Fee">Late Fee</option>
-                  <option value="Pet Fee">Pet Fee</option>
-                  <option value="Renters Insurance">Renters Insurance</option>
-                  <option value="Utility Fee">Utility Fee</option>
-                  <option value="Parking Fee">Parking Fee</option>
-                  <option value="Other Charge">Other Charge</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="text-sm font-semibold block mb-1">Description</label>
-                <input type="text" className="border rounded px-3 py-2 w-full"
-                  value={newRecurring.description}
-                  onChange={(e) => setNewRecurring(prev => ({ ...prev, description: e.target.value }))} />
-              </div>
-
-              <div>
-                <label className="text-sm font-semibold block mb-1">Amount (in cents)</label>
-                <input type="number" className="border rounded px-3 py-2 w-full"
-                  value={newRecurring.amount}
-                  onChange={(e) => setNewRecurring(prev => ({ ...prev, amount: e.target.value }))} />
-              </div>
-            </div>
-
-            <div className="pt-2">
-              <button
-                onClick={handleAddRecurring}
-                className="bg-brand-blue text-white font-semibold px-4 py-2 rounded-md hover:bg-brand-blue-dark"
-              >
-                Add Recurring Charge
-              </button>
             </div>
           </div>
         </div>
