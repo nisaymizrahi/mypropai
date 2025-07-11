@@ -1,4 +1,4 @@
-// 🔄 ...all your current imports remain
+// ...imports unchanged
 import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -106,6 +106,7 @@ const LeaseDetailPage = () => {
       />
 
       <div className="max-w-4xl mx-auto">
+        {/* Header */}
         <div className="flex justify-between items-center mb-6">
           <div>
             <h1 className="text-3xl font-bold text-brand-gray-900">Lease Details</h1>
@@ -190,50 +191,55 @@ const LeaseDetailPage = () => {
             )}
           </ul>
 
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-            <div>
-              <label className="text-sm font-semibold block mb-1">Day of Month</label>
-              <input type="number" className="border rounded px-3 py-2 w-full"
-                value={newRecurring.dayOfMonth}
-                onChange={(e) => setNewRecurring(prev => ({ ...prev, dayOfMonth: Number(e.target.value) }))} />
+          {/* Form + Button Container */}
+          <div className="flex flex-col space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div>
+                <label className="text-sm font-semibold block mb-1">Day of Month</label>
+                <input type="number" className="border rounded px-3 py-2 w-full"
+                  value={newRecurring.dayOfMonth}
+                  onChange={(e) => setNewRecurring(prev => ({ ...prev, dayOfMonth: Number(e.target.value) }))} />
+              </div>
+
+              <div>
+                <label className="text-sm font-semibold block mb-1">Charge Type</label>
+                <select className="border rounded px-3 py-2 w-full"
+                  value={newRecurring.type}
+                  onChange={(e) => setNewRecurring(prev => ({ ...prev, type: e.target.value }))}>
+                  <option value="Rent Charge">Rent Charge</option>
+                  <option value="Late Fee">Late Fee</option>
+                  <option value="Pet Fee">Pet Fee</option>
+                  <option value="Renters Insurance">Renters Insurance</option>
+                  <option value="Utility Fee">Utility Fee</option>
+                  <option value="Parking Fee">Parking Fee</option>
+                  <option value="Other Charge">Other Charge</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-sm font-semibold block mb-1">Description</label>
+                <input type="text" className="border rounded px-3 py-2 w-full"
+                  value={newRecurring.description}
+                  onChange={(e) => setNewRecurring(prev => ({ ...prev, description: e.target.value }))} />
+              </div>
+
+              <div>
+                <label className="text-sm font-semibold block mb-1">Amount (in cents)</label>
+                <input type="number" className="border rounded px-3 py-2 w-full"
+                  value={newRecurring.amount}
+                  onChange={(e) => setNewRecurring(prev => ({ ...prev, amount: e.target.value }))} />
+              </div>
             </div>
 
             <div>
-              <label className="text-sm font-semibold block mb-1">Charge Type</label>
-              <select className="border rounded px-3 py-2 w-full"
-                value={newRecurring.type}
-                onChange={(e) => setNewRecurring(prev => ({ ...prev, type: e.target.value }))}>
-                <option value="Rent Charge">Rent Charge</option>
-                <option value="Late Fee">Late Fee</option>
-                <option value="Pet Fee">Pet Fee</option>
-                <option value="Renters Insurance">Renters Insurance</option>
-                <option value="Utility Fee">Utility Fee</option>
-                <option value="Parking Fee">Parking Fee</option>
-                <option value="Other Charge">Other Charge</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="text-sm font-semibold block mb-1">Description</label>
-              <input type="text" className="border rounded px-3 py-2 w-full"
-                value={newRecurring.description}
-                onChange={(e) => setNewRecurring(prev => ({ ...prev, description: e.target.value }))} />
-            </div>
-
-            <div>
-              <label className="text-sm font-semibold block mb-1">Amount (in cents)</label>
-              <input type="number" className="border rounded px-3 py-2 w-full"
-                value={newRecurring.amount}
-                onChange={(e) => setNewRecurring(prev => ({ ...prev, amount: e.target.value }))} />
+              <button
+                onClick={handleAddRecurring}
+                className="bg-brand-blue text-white font-semibold px-4 py-2 rounded-md hover:bg-brand-blue-dark"
+              >
+                Add Recurring Charge
+              </button>
             </div>
           </div>
-
-          <button
-            onClick={handleAddRecurring}
-            className="mt-6 bg-brand-blue text-white font-semibold px-4 py-2 rounded-md hover:bg-brand-blue-dark"
-          >
-            Add Recurring Charge
-          </button>
         </div>
       </div>
     </>
