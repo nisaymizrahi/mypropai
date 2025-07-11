@@ -1,6 +1,6 @@
 import { API_BASE_URL } from '../config';
 
-// Get token-based headers
+// Get token-based headers for JSON data
 export const getTokenHeader = () => {
   const token = localStorage.getItem("token");
   const headers = { "Content-Type": "application/json" };
@@ -67,7 +67,6 @@ export const updateBudgetLine = async (investmentId, index, updates) => {
   return res.json();
 };
 
-// --- NEW: Function to DELETE a budget line ---
 export const deleteBudgetLine = async (investmentId, index) => {
   const res = await fetch(`${API_BASE_URL}/investments/${investmentId}/budget/${index}`, {
     method: "DELETE",
@@ -106,6 +105,26 @@ export const deleteExpense = async (investmentId, index) => {
   if (!res.ok) throw new Error((await res.json()).message || "Failed to delete expense");
   return res.json();
 };
+
+// --- NEW: File Upload Function ---
+export const uploadReceipt = async (file) => {
+    const formData = new FormData();
+    formData.append('receipt', file); // 'receipt' must match the field name in the backend route
+
+    const token = localStorage.getItem("token");
+    const headers = {}; // For file uploads, we don't set Content-Type; the browser does it.
+    if (token) headers.Authorization = `Bearer ${token}`;
+
+    const res = await fetch(`${API_BASE_URL}/uploads/receipt`, {
+        method: 'POST',
+        headers: headers,
+        body: formData,
+    });
+
+    if (!res.ok) throw new Error((await res.json()).message || "File upload failed");
+    return res.json();
+};
+
 
 // --- Auth Functions ---
 export const logoutUser = () => {
