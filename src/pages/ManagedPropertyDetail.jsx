@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { getTokenHeader } from '../utils/api';
 import { API_BASE_URL } from '../config';
 import AddUnitModal from '../components/AddUnitModal';
-import AddLeaseModal from '../components/AddLeaseModal'; // NEW: Import the lease modal
+import AddLeaseModal from '../components/AddLeaseModal';
 
 // --- Reusable Components ---
 
@@ -13,8 +13,8 @@ const LoadingSpinner = () => (
     </div>
 );
 
-// UPDATED: UnitCard now takes a function to handle the button click
-const UnitCard = ({ unit, onAddLeaseClick }) => {
+// FINAL FIX: This component now correctly uses the navigate function.
+const UnitCard = ({ unit, onAddLeaseClick, navigate }) => {
     const isVacant = unit.status === 'Vacant';
     
     return (
@@ -41,12 +41,15 @@ const UnitCard = ({ unit, onAddLeaseClick }) => {
             <div className="mt-auto">
                 {isVacant ? (
                     <button 
-                        onClick={() => onAddLeaseClick(unit._id)} // UPDATED: Trigger the handler
+                        onClick={() => onAddLeaseClick(unit._id)}
                         className="w-full bg-brand-turquoise hover:bg-brand-turquoise-600 text-white font-semibold px-3 py-1.5 rounded-md text-sm transition">
                         Add Tenant & Lease
                     </button>
                 ) : (
-                    <button className="w-full bg-white hover:bg-brand-gray-100 text-brand-gray-700 font-semibold px-3 py-1.5 rounded-md border border-brand-gray-300 text-sm transition">
+                    <button 
+                        // CORRECTED: This now correctly calls navigate
+                        onClick={() => navigate(`/leases/${unit.currentLease._id}`)}
+                        className="w-full bg-white hover:bg-brand-gray-100 text-brand-gray-700 font-semibold px-3 py-1.5 rounded-md border border-brand-gray-300 text-sm transition">
                         View Lease
                     </button>
                 )}
@@ -65,7 +68,6 @@ const ManagedPropertyDetail = () => {
   const [error, setError] = useState('');
 
   const [isAddUnitModalOpen, setIsAddUnitModalOpen] = useState(false);
-  // NEW: State for the lease modal
   const [isAddLeaseModalOpen, setIsAddLeaseModalOpen] = useState(false);
   const [selectedUnitId, setSelectedUnitId] = useState(null);
 
@@ -95,13 +97,11 @@ const ManagedPropertyDetail = () => {
     fetchPropertyDetails();
   };
 
-  // NEW: Handler to open the lease modal for a specific unit
   const handleOpenLeaseModal = (unitId) => {
     setSelectedUnitId(unitId);
     setIsAddLeaseModalOpen(true);
   };
   
-  // NEW: Handler to refresh data after a lease is added
   const handleLeaseAdded = () => {
     fetchPropertyDetails();
   };
@@ -126,7 +126,6 @@ const ManagedPropertyDetail = () => {
             onUnitAdded={handleUnitAdded}
             propertyId={propertyId}
         />
-        {/* NEW: Render the lease modal */}
         <AddLeaseModal
             isOpen={isAddLeaseModalOpen}
             onClose={() => setIsAddLeaseModalOpen(false)}
@@ -166,7 +165,8 @@ const ManagedPropertyDetail = () => {
                     <UnitCard 
                         key={unit._id} 
                         unit={unit} 
-                        onAddLeaseClick={handleOpenLeaseModal} // Pass the handler down
+                        onAddLeaseClick={handleOpenLeaseModal}
+                        navigate={navigate} // Pass the navigate function to the card
                     />
                 ))}
                 <div 
