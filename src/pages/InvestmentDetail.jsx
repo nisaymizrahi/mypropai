@@ -1,5 +1,7 @@
 import React, { useEffect, useState, useMemo, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { jsPDF } from "jspdf";
+import autoTable from 'jspdf-autotable';
 import {
   getInvestment,
   addBudgetLine,
@@ -108,8 +110,45 @@ const FlipAnalysisView = ({ investment, dealData, onChange }) => {
         
         const projectedROI = totalCashNeeded > 0 ? (projectedNetProfit / totalCashNeeded) * 100 : 0;
 
-        return { projectedNetProfit, projectedROI, totalCashNeeded, totalSoftCosts };
+        return { projectedNetProfit, projectedROI, totalCashNeeded, totalSoftCosts, totalBudget, buyingCosts, financingCosts, holdingCosts, sellingCosts };
     }, [investment, dealData]);
+
+    const generatePDF = () => {
+        const doc = new jsPDF();
+        doc.setFontSize(18);
+        doc.text("Fix & Flip Deal Analysis", 14, 22);
+        doc.setFontSize(11);
+        doc.text(`Property: ${investment.address}`, 14, 30);
+
+        autoTable(doc, {
+            startY: 40,
+            head: [['Financial Summary', '']],
+            body: [
+                ['Projected Net Profit', `$${calculations.projectedNetProfit.toLocaleString('en-US', { maximumFractionDigits: 0 })}`],
+                ['Cash-on-Cash ROI', `${calculations.projectedROI.toFixed(1)}%`],
+                ['Total Cash Needed', `$${calculations.totalCashNeeded.toLocaleString('en-US', { maximumFractionDigits: 0 })}`]
+            ],
+            theme: 'striped',
+            headStyles: { fillColor: [20, 184, 166] },
+        });
+
+        autoTable(doc, {
+            startY: doc.lastAutoTable.finalY + 10,
+            head: [['Cost Breakdown', 'Amount']],
+            body: [
+                ['Purchase Price', `$${Number(investment.purchasePrice || 0).toLocaleString()}`],
+                ['Renovation Budget', `$${calculations.totalBudget.toLocaleString()}`],
+                ['Buying Costs', `$${calculations.buyingCosts.toLocaleString()}`],
+                ['Financing Costs', `$${calculations.financingCosts.toLocaleString()}`],
+                ['Holding Costs', `$${calculations.holdingCosts.toLocaleString()}`],
+                ['Selling Costs', `$${calculations.sellingCosts.toLocaleString()}`],
+                [{ content: 'Total Project Cost', styles: { fontStyle: 'bold' } }, { content: `$${(Number(investment.purchasePrice || 0) + calculations.totalBudget + calculations.totalSoftCosts).toLocaleString()}`, styles: { fontStyle: 'bold' } }]
+            ],
+            theme: 'grid',
+        });
+        
+        doc.save(`MyPropAI_Flip_Analysis_${investment.address}.pdf`);
+    };
 
     return (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -141,7 +180,7 @@ const FlipAnalysisView = ({ investment, dealData, onChange }) => {
                         <div><label className="text-xs text-brand-gray-500">Financing Costs (Points, Fees)</label><FormInput name="dealAnalysis.financingCosts" type="number" value={dealData.dealAnalysis.financingCosts || ''} onChange={onChange} placeholder="$" /></div>
                     </div>
                 </div>
-                <PrimaryButton onClick={() => {}} className="w-full">Download Analysis</PrimaryButton>
+                <PrimaryButton onClick={generatePDF} className="w-full">Download Analysis</PrimaryButton>
             </div>
             <div className="md:col-span-2 bg-brand-gray-50 p-6 rounded-lg">
                 <h3 className="text-lg font-semibold text-brand-gray-800 mb-4">Flip Financial Summary</h3>
@@ -153,7 +192,7 @@ const FlipAnalysisView = ({ investment, dealData, onChange }) => {
                 <div className="text-sm space-y-2">
                     <div className="flex justify-between border-b pb-1"><span className="text-brand-gray-500">After Repair Value (ARV)</span><span>+ ${Number(investment.arv || 0).toLocaleString()}</span></div>
                     <div className="flex justify-between"><span className="text-brand-gray-500">Purchase Price</span><span>- ${Number(investment.purchasePrice || 0).toLocaleString()}</span></div>
-                    <div className="flex justify-between"><span className="text-brand-gray-500">Renovation Budget</span><span>- ${((investment.budget || []).reduce((sum, b) => sum + (Number(b.amount) || 0), 0)).toLocaleString()}</span></div>
+                    <div className="flex justify-between"><span className="text-brand-gray-500">Renovation Budget</span><span>- ${calculations.totalBudget.toLocaleString()}</span></div>
                     <div className="flex justify-between border-b pb-1"><span className="text-brand-gray-500">Total Deal Costs</span><span>- ${calculations.totalSoftCosts.toLocaleString()}</span></div>
                     <div className="flex justify-between font-bold text-lg pt-1"><span className="text-brand-gray-800">Projected Net Profit</span><span>${calculations.projectedNetProfit.toLocaleString()}</span></div>
                 </div>
@@ -169,6 +208,7 @@ const RentAnalysisView = ({ investment, dealData, onChange }) => {
         const purchasePrice = Number(investment.purchasePrice) || 0;
         const totalBudget = (investment.budget || []).reduce((sum, b) => sum + (Number(b.amount) || 0), 0);
         const buyingCosts = Number(dealData.dealAnalysis.buyingCosts) || 0;
+        const arv = Number(investment.arv) || 0;
         
         const vacancy = grossRent * ((Number(dealData.rentalAnalysis.vacancyRate) || 0) / 100);
         const repairs = grossRent * ((Number(dealData.rentalAnalysis.repairsMaintenanceRate) || 0) / 100);
@@ -187,13 +227,47 @@ const RentAnalysisView = ({ investment, dealData, onChange }) => {
         const netOperatingIncome = (grossRent - totalOpEx) * 12;
         const monthlyCashFlow = grossRent - totalOpEx - M;
         
-        const capRate = purchasePrice > 0 ? (netOperatingIncome / purchasePrice) * 100 : 0;
+        const capRate = arv > 0 ? (netOperatingIncome / arv) * 100 : 0;
         
         const totalCashToClose = purchasePrice + totalBudget + buyingCosts - (Number(dealData.financingDetails.purchaseLoan?.loanAmount) || 0);
         const cashOnCashROI = totalCashToClose > 0 ? ((monthlyCashFlow * 12) / totalCashToClose) * 100 : 0;
         
-        return { monthlyCashFlow, cashOnCashROI, capRate, monthlyMortgage: M, totalOpEx };
+        return { monthlyCashFlow, cashOnCashROI, capRate, monthlyMortgage: M, totalOpEx, netOperatingIncome };
     }, [investment, dealData]);
+
+    const generatePDF = () => {
+        const doc = new jsPDF();
+        doc.setFontSize(18);
+        doc.text("Fix & Rent Deal Analysis", 14, 22);
+        doc.setFontSize(11);
+        doc.text(`Property: ${investment.address}`, 14, 30);
+
+        autoTable(doc, {
+            startY: 40,
+            head: [['Rental Financial Summary', '']],
+            body: [
+                ['Monthly Cash Flow', `$${calculations.monthlyCashFlow.toFixed(2)}`],
+                ['Cash-on-Cash ROI', `${calculations.cashOnCashROI.toFixed(1)}%`],
+                ['Cap Rate (on ARV)', `${calculations.capRate.toFixed(1)}%`]
+            ],
+            theme: 'striped',
+            headStyles: { fillColor: [20, 184, 166] },
+        });
+
+        autoTable(doc, {
+            startY: doc.lastAutoTable.finalY + 10,
+            head: [['Income & Expenses (Monthly)', 'Amount']],
+            body: [
+                ['Gross Rent', `+ $${Number(investment.rentEstimate || 0).toLocaleString()}`],
+                ['Operating Expenses', `- $${calculations.totalOpEx.toFixed(2)}`],
+                ['Mortgage (P&I)', `- $${calculations.monthlyMortgage.toFixed(2)}`],
+                [{ content: 'Total Monthly Cash Flow', styles: { fontStyle: 'bold' } }, { content: `$${calculations.monthlyCashFlow.toFixed(2)}`, styles: { fontStyle: 'bold' } }]
+            ],
+            theme: 'grid',
+        });
+        
+        doc.save(`MyPropAI_Rent_Analysis_${investment.address}.pdf`);
+    };
 
     return (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -217,14 +291,14 @@ const RentAnalysisView = ({ investment, dealData, onChange }) => {
                         <div><label className="text-xs text-brand-gray-500">Loan Term</label><FormInput name="financingDetails.refinanceLoan.loanTerm" type="number" value={dealData.financingDetails.refinanceLoan?.loanTerm || ''} onChange={onChange} placeholder="Years" /></div>
                     </div>
                 </div>
-                <PrimaryButton onClick={() => {}} className="w-full">Download Analysis</PrimaryButton>
+                <PrimaryButton onClick={generatePDF} className="w-full">Download Analysis</PrimaryButton>
             </div>
             <div className="md:col-span-2 bg-brand-gray-50 p-6 rounded-lg">
                 <h3 className="text-lg font-semibold text-brand-gray-800 mb-4">Rental Financial Summary</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
                     <StatCard title="Monthly Cash Flow" value={`$${calculations.monthlyCashFlow.toFixed(2)}`} tooltip="Monthly Rent - (Total OpEx + Mortgage)" />
                     <StatCard title="Cash-on-Cash ROI" value={`${calculations.cashOnCashROI.toFixed(1)}%`} tooltip="(Annual Cash Flow / Total Cash to Close) * 100" />
-                    <StatCard title="Cap Rate" value={`${calculations.capRate.toFixed(1)}%`} tooltip="(Net Operating Income / Purchase Price) * 100" />
+                    <StatCard title="Cap Rate (on ARV)" value={`${calculations.capRate.toFixed(1)}%`} tooltip="(Net Operating Income / ARV) * 100" />
                 </div>
                  <div className="text-sm space-y-2">
                     <div className="flex justify-between border-b pb-1"><span className="text-brand-gray-500">Gross Monthly Rent</span><span>+ ${Number(investment.rentEstimate || 0).toLocaleString()}</span></div>
