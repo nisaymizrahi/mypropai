@@ -10,7 +10,9 @@ import {
   deleteInvestment,
   deleteBudgetLine,
   uploadReceipt,
+  getTokenHeader, // NEW: Import this function
 } from "../utils/api";
+import { API_BASE_URL } from '../config'; // NEW: Import the base URL
 
 // --- Reusable UI Components ---
 const FormInput = (props) => <input className="w-full bg-brand-gray-50 border border-brand-gray-300 rounded-md p-2 text-brand-gray-800 placeholder-brand-gray-400 focus:ring-2 focus:ring-brand-turquoise focus:border-brand-turquoise outline-none transition" {...props} />;
@@ -19,8 +21,7 @@ const PrimaryButton = ({ onClick, children, className = '', ...props }) => <butt
 const SecondaryButton = ({ onClick, children, className = '', ...props }) => <button onClick={onClick} className={`bg-white hover:bg-brand-gray-100 text-brand-gray-700 font-semibold px-4 py-2 rounded-md border border-brand-gray-300 transition ${className}`} {...props}>{children}</button>;
 const DangerButton = ({ onClick, children, className = '', ...props }) => <button onClick={onClick} className={`bg-red-500 hover:bg-red-600 text-white font-semibold px-4 py-2 rounded-md transition ${className}`} {...props}>{children}</button>;
 
-// --- NEW: Deal Analysis Sub-Components ---
-
+// --- Deal Analysis Sub-Components ---
 const StatCard = ({ title, value, tooltip }) => (
     <div className="bg-brand-gray-50 p-4 rounded-lg border border-brand-gray-200 text-center" title={tooltip}>
         <p className="text-sm text-brand-gray-500">{title}</p>
@@ -44,7 +45,6 @@ const DealAnalysisDashboard = ({ investment, onUpdate }) => {
         }
     };
     
-    // This is a more complex handler for nested objects like sellingCosts
     const handleNestedChange = (e) => {
         const { name, value, type, checked } = e.target;
         const [section, nestedField, field] = name.split('.');
@@ -62,7 +62,6 @@ const DealAnalysisDashboard = ({ investment, onUpdate }) => {
         onUpdate({ dealAnalysis, financingDetails });
     };
 
-    // --- Calculations for the dashboard ---
     const calculations = useMemo(() => {
         const arv = Number(investment.arv) || 0;
         const purchasePrice = Number(investment.purchasePrice) || 0;
@@ -84,7 +83,7 @@ const DealAnalysisDashboard = ({ investment, onUpdate }) => {
         const projectedNetProfit = arv - totalProjectCost;
 
         const loanAmount = Number(financingDetails.loanAmount) || 0;
-        const downPayment = purchasePrice - loanAmount;
+        const downPayment = financingDetails.useFinancing ? purchasePrice - loanAmount : purchasePrice;
         const totalCashNeeded = downPayment + buyingCosts + financingCosts + totalBudget;
         
         const projectedROI = totalCashNeeded > 0 ? (projectedNetProfit / totalCashNeeded) * 100 : 0;
@@ -94,14 +93,12 @@ const DealAnalysisDashboard = ({ investment, onUpdate }) => {
 
     return (
         <div className="bg-white p-6 rounded-lg shadow-sm border border-brand-gray-200 grid grid-cols-1 md:grid-cols-3 gap-8">
-            {/* --- Left Side: Inputs --- */}
             <div className="md:col-span-1 space-y-6">
                 <div>
                     <h3 className="text-lg font-semibold text-brand-gray-800 mb-2">Deal Costs</h3>
                     <div className="space-y-2">
                         <div><label className="text-xs text-brand-gray-500">Buying Costs</label><FormInput name="dealAnalysis.buyingCosts" type="number" value={dealAnalysis.buyingCosts || ''} onChange={handleDealChange} placeholder="$" /></div>
                         <div><label className="text-xs text-brand-gray-500">Financing Costs</label><FormInput name="dealAnalysis.financingCosts" type="number" value={dealAnalysis.financingCosts || ''} onChange={handleDealChange} placeholder="$" /></div>
-                        
                         <div>
                             <label className="text-xs text-brand-gray-500">Selling Costs</label>
                             <div className="flex items-center gap-2">
@@ -112,7 +109,6 @@ const DealAnalysisDashboard = ({ investment, onUpdate }) => {
                                 </FormSelect>
                             </div>
                         </div>
-
                         <div>
                             <label className="text-xs text-brand-gray-500">Holding Costs</label>
                             <div className="flex items-center gap-2">
@@ -130,8 +126,6 @@ const DealAnalysisDashboard = ({ investment, onUpdate }) => {
                 </div>
                 <PrimaryButton onClick={handleSave} className="w-full">Save Analysis</PrimaryButton>
             </div>
-
-            {/* --- Right Side: Summary --- */}
             <div className="md:col-span-2 bg-brand-gray-50 p-6 rounded-lg">
                 <h3 className="text-lg font-semibold text-brand-gray-800 mb-4">Financial Summary</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
@@ -280,7 +274,7 @@ const InvestmentDetail = () => {
   const handleDeleteExpense = async (expenseId) => {
     if (window.confirm("Are you sure you want to delete this expense? This cannot be undone.")) {
         try {
-            // We need a new API function for this. For now, this is a placeholder.
+            // This needs a new API endpoint to delete an expense by its own _id
             // await deleteExpenseById(id, expenseId);
             console.log("Deleting expense... (API function needed)");
             await fetchData();
@@ -297,11 +291,9 @@ const InvestmentDetail = () => {
     }
   };
 
-  // NEW: Handler to save deal analysis and financing data
   const handleUpdateAnalysis = async (updateData) => {
       try {
-          // We need a generic updateInvestment function
-          // For now, let's assume one exists that does a PATCH
+          // FIXED: This now uses the imported functions and will work correctly.
           await fetch(`${API_BASE_URL}/investments/${id}`, {
               method: 'PATCH',
               headers: getTokenHeader(),
@@ -350,7 +342,6 @@ const InvestmentDetail = () => {
         </div>
       </div>
 
-      {/* --- NEW: Deal Analysis Dashboard --- */}
       <DealAnalysisDashboard investment={investment} onUpdate={handleUpdateAnalysis} />
 
       <div className="bg-white p-6 rounded-lg shadow-sm border border-brand-gray-200 space-y-4">
@@ -409,7 +400,7 @@ const InvestmentDetail = () => {
                       </div>
                       <div className="flex items-center">
                         <span className="text-brand-gray-800">${e.amount?.toLocaleString()}</span>
-                        <button onClick={() => handleDeleteExpense(e.index)} className="ml-4 text-red-400 hover:text-red-600 font-bold">&times;</button>
+                        <button onClick={() => handleDeleteExpense(e._id)} className="ml-4 text-red-400 hover:text-red-600 font-bold">&times;</button>
                       </div>
                     </div>
                   ))}
