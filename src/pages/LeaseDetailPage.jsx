@@ -121,8 +121,8 @@ const LeaseDetailPage = () => {
           </button>
         </div>
 
+        {/* Ledger and Tenant Info */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Lease & Tenant Details */}
           <div className="md:col-span-1 space-y-4">
             <div className="bg-white p-4 rounded-lg shadow-sm border border-brand-gray-200">
               <h2 className="text-lg font-semibold text-brand-gray-800 border-b pb-2 mb-2">Lease Terms</h2>
@@ -139,7 +139,7 @@ const LeaseDetailPage = () => {
             </div>
           </div>
 
-          {/* Financial Ledger */}
+          {/* Ledger */}
           <div className="md:col-span-2 bg-white p-4 rounded-lg shadow-sm border border-brand-gray-200">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-lg font-semibold text-brand-gray-800">Financial Ledger</h2>
@@ -174,9 +174,10 @@ const LeaseDetailPage = () => {
           </div>
         </div>
 
-        {/* ✅ Recurring Charges Section */}
-        <div className="mt-12 bg-white p-4 rounded-lg border border-brand-gray-200 shadow-sm">
+        {/* Recurring Charges */}
+        <div className="mt-12 bg-white p-6 rounded-lg border border-brand-gray-200 shadow-sm">
           <h2 className="text-xl font-bold text-brand-gray-900 mb-4">Recurring Charges</h2>
+
           <ul className="space-y-2 mb-6">
             {(lease.recurringCharges || []).map((rc, idx) => (
               <li key={idx} className="flex justify-between items-center border-b pb-2">
@@ -189,26 +190,48 @@ const LeaseDetailPage = () => {
             )}
           </ul>
 
-          {/* Add Recurring Charge Form */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-            <input type="number" className="border rounded px-3 py-2" placeholder="Day of Month (e.g. 1)"
-              value={newRecurring.dayOfMonth}
-              onChange={(e) => setNewRecurring(prev => ({ ...prev, dayOfMonth: Number(e.target.value) }))} />
-            <select className="border rounded px-3 py-2"
-              value={newRecurring.type}
-              onChange={(e) => setNewRecurring(prev => ({ ...prev, type: e.target.value }))}>
-              <option value="Rent Charge">Rent Charge</option>
-              <option value="Late Fee">Late Fee</option>
-              <option value="Other Charge">Other Charge</option>
-            </select>
-            <input type="text" className="border rounded px-3 py-2" placeholder="Description"
-              value={newRecurring.description}
-              onChange={(e) => setNewRecurring(prev => ({ ...prev, description: e.target.value }))} />
-            <input type="number" className="border rounded px-3 py-2" placeholder="Amount (in cents)"
-              value={newRecurring.amount}
-              onChange={(e) => setNewRecurring(prev => ({ ...prev, amount: e.target.value }))} />
+            <div>
+              <label className="text-sm font-semibold block mb-1">Day of Month</label>
+              <input type="number" className="border rounded px-3 py-2 w-full"
+                value={newRecurring.dayOfMonth}
+                onChange={(e) => setNewRecurring(prev => ({ ...prev, dayOfMonth: Number(e.target.value) }))} />
+            </div>
+
+            <div>
+              <label className="text-sm font-semibold block mb-1">Charge Type</label>
+              <select className="border rounded px-3 py-2 w-full"
+                value={newRecurring.type}
+                onChange={(e) => setNewRecurring(prev => ({ ...prev, type: e.target.value }))}>
+                <option value="Rent Charge">Rent Charge</option>
+                <option value="Late Fee">Late Fee</option>
+                <option value="Pet Fee">Pet Fee</option>
+                <option value="Renters Insurance">Renters Insurance</option>
+                <option value="Utility Fee">Utility Fee</option>
+                <option value="Parking Fee">Parking Fee</option>
+                <option value="Other Charge">Other Charge</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="text-sm font-semibold block mb-1">Description</label>
+              <input type="text" className="border rounded px-3 py-2 w-full"
+                value={newRecurring.description}
+                onChange={(e) => setNewRecurring(prev => ({ ...prev, description: e.target.value }))} />
+            </div>
+
+            <div>
+              <label className="text-sm font-semibold block mb-1">Amount (in cents)</label>
+              <input type="number" className="border rounded px-3 py-2 w-full"
+                value={newRecurring.amount}
+                onChange={(e) => setNewRecurring(prev => ({ ...prev, amount: e.target.value }))} />
+            </div>
           </div>
-          <button onClick={handleAddRecurring} className="mt-4 bg-brand-blue text-white font-semibold px-4 py-2 rounded-md hover:bg-brand-blue-dark">
+
+          <button
+            onClick={handleAddRecurring}
+            className="mt-6 bg-brand-blue text-white font-semibold px-4 py-2 rounded-md hover:bg-brand-blue-dark"
+          >
             Add Recurring Charge
           </button>
         </div>
