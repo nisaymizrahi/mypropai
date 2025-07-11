@@ -5,15 +5,12 @@ import { API_BASE_URL } from '../config';
 import AddUnitModal from '../components/AddUnitModal';
 import AddLeaseModal from '../components/AddLeaseModal';
 
-// --- Reusable Components ---
-
 const LoadingSpinner = () => (
     <div className="flex justify-center items-center p-8">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-turquoise"></div>
     </div>
 );
 
-// FINAL FIX: This component now correctly uses the navigate function.
 const UnitCard = ({ unit, onAddLeaseClick, navigate }) => {
     const isVacant = unit.status === 'Vacant';
     
@@ -47,8 +44,8 @@ const UnitCard = ({ unit, onAddLeaseClick, navigate }) => {
                     </button>
                 ) : (
                     <button 
-                        // CORRECTED: This now correctly calls navigate
-                        onClick={() => navigate(`/leases/${unit.currentLease._id}`)}
+                        // ✅ Fixed route to match correct LeaseDetailPage
+                        onClick={() => navigate(`/management/leases/${unit.currentLease._id}`)}
                         className="w-full bg-white hover:bg-brand-gray-100 text-brand-gray-700 font-semibold px-3 py-1.5 rounded-md border border-brand-gray-300 text-sm transition">
                         View Lease
                     </button>
@@ -57,8 +54,6 @@ const UnitCard = ({ unit, onAddLeaseClick, navigate }) => {
         </div>
     );
 };
-
-// --- Main Page Component ---
 
 const ManagedPropertyDetail = () => {
   const { propertyId } = useParams();
@@ -166,7 +161,7 @@ const ManagedPropertyDetail = () => {
                         key={unit._id} 
                         unit={unit} 
                         onAddLeaseClick={handleOpenLeaseModal}
-                        navigate={navigate} // Pass the navigate function to the card
+                        navigate={navigate}
                     />
                 ))}
                 <div 
