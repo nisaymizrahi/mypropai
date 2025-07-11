@@ -1,7 +1,7 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 
-// --- SVG Icon Components (no changes needed here) ---
+// --- SVG Icon Components ---
 
 const SearchIcon = ({ className }) => (
   <svg className={className} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -27,6 +27,15 @@ const CalculatorIcon = ({ className }) => (
     </svg>
 );
 
+// NEW: A dedicated icon for our new Property Management feature
+const HomeDollarIcon = ({ className }) => (
+    <svg className={className} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+        <polyline points="9 22 9 12 15 12 15 22"></polyline>
+        <path d="M12 15s-2-1.5-2-3c0-1.1.9-2 2-2s2 .9 2 2c0 1.5-2 3-2 3z"></path>
+    </svg>
+);
+
 
 const DashboardPage = () => {
   const navigate = useNavigate();
@@ -44,6 +53,13 @@ const DashboardPage = () => {
       path: "/investments",
       icon: BriefcaseIcon,
     },
+    // NEW: The card for our new feature
+    {
+      title: "Property Management",
+      description: "Manage units, tenants, leases, and operating income.",
+      path: "/management",
+      icon: HomeDollarIcon,
+    },
     {
       title: "ROI Calculator",
       description: "Evaluate the return on investment for a property.",
@@ -55,7 +71,6 @@ const DashboardPage = () => {
   return (
     <div>
       <div className="max-w-5xl mx-auto">
-        {/* NEW: Updated title styling for the light theme */}
         <h1 className="text-3xl font-bold mb-2 text-brand-gray-900">
           Dashboard
         </h1>
@@ -63,7 +78,6 @@ const DashboardPage = () => {
             Welcome to your AI-powered real estate analysis hub.
         </p>
 
-        {/* NEW: Redesigned tool cards for the light theme */}
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {tools.map((tool) => (
             <div

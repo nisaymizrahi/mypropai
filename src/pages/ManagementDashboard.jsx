@@ -1,0 +1,136 @@
+import React, { useEffect, useState, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
+import { getTokenHeader } from "../utils/api";
+import { API_BASE_URL } from '../config';
+import PromotePropertyModal from '../components/PromotePropertyModal'; // NEW: Import the modal
+
+const LoadingSpinner = () => (
+    <div className="flex justify-center items-center p-8">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-turquoise"></div>
+    </div>
+);
+
+const ManagementDashboard = () => {
+  const [managedProperties, setManagedProperties] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const navigate = useNavigate();
+
+  // NEW: State to control the modal's visibility
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // NEW: Use useCallback to memoize the fetch function
+  const fetchManagedProperties = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/management`, {
+        headers: getTokenHeader(),
+      });
+
+      if (!res.ok) {
+        throw new Error("Failed to fetch managed properties.");
+      }
+
+      const data = await res.json();
+      setManagedProperties(data);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchManagedProperties();
+  }, [fetchManagedProperties]);
+  
+  // NEW: Handler to be called when a property is successfully promoted
+  const handlePromoteSuccess = () => {
+    // Re-fetch the list to show the newly added property
+    fetchManagedProperties(); 
+  };
+
+  if (loading) {
+    return <LoadingSpinner />;
+  }
+
+  if (error) {
+    return <p className="text-red-500 text-center p-4">{error}</p>;
+  }
+
+  return (
+    <>
+      {/* NEW: Render the modal component */}
+      <PromotePropertyModal 
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onPromoteSuccess={handlePromoteSuccess}
+      />
+
+      <div className="max-w-5xl mx-auto">
+        <div className="flex justify-between items-center mb-6">
+          <div>
+            <h1 className="text-3xl font-bold text-brand-gray-900">
+              Property Management
+            </h1>
+            <p className="text-lg text-brand-gray-500 mt-1">
+              Oversee your portfolio of managed rental properties.
+            </p>
+          </div>
+          <button
+            // NEW: Connect the button to open the modal
+            onClick={() => setIsModalOpen(true)}
+            className="bg-brand-turquoise hover:bg-brand-turquoise-600 text-white font-semibold px-4 py-2 rounded-md transition"
+          >
+            Add Managed Property
+          </button>
+        </div>
+
+        <div className="bg-white shadow-sm rounded-lg border border-brand-gray-200 overflow-hidden">
+          {managedProperties.length > 0 ? (
+            <table className="min-w-full text-sm">
+              <thead className="bg-brand-gray-50 border-b border-brand-gray-200">
+                <tr>
+                  <th className="text-left px-6 py-3 font-semibold text-brand-gray-600">Address</th>
+                  <th className="text-left px-6 py-3 font-semibold text-brand-gray-600">Units</th>
+                  <th className="text-left px-6 py-3 font-semibold text-brand-gray-600">Status</th>
+                  <th className="px-6 py-3"></th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-brand-gray-200">
+                {managedProperties.map((prop) => (
+                  <tr key={prop._id} className="hover:bg-brand-gray-50 transition-colors">
+                    <td className="px-6 py-4 font-medium text-brand-gray-800">{prop.address}</td>
+                    <td className="px-6 py-4 text-brand-gray-600">{prop.units.length}</td>
+                    <td className="px-6 py-4 text-brand-gray-600">
+                      <span className="bg-green-100 text-green-800 text-xs font-medium me-2 px-2.5 py-0.5 rounded-full">
+                        {prop.isActive ? "Active" : "Archived"}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <button
+                        onClick={() => alert(`Maps to detail page for ${prop._id}`)}
+                        className="text-brand-turquoise-600 hover:text-brand-turquoise-700 font-semibold"
+                      >
+                        Manage
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <div className="text-center p-12">
+              <h3 className="text-lg font-medium text-brand-gray-800">No Managed Properties Found</h3>
+              <p className="text-brand-gray-500 mt-1">
+                Click "Add Managed Property" to get started.
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+    </>
+  );
+};
+
+export default ManagementDashboard;

@@ -13,6 +13,9 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import { setTokenCookieFromURL } from "./utils/setTokenFromURL";
 import { AuthProvider } from "./context/AuthContext.js";
 
+// NEW: Import the ManagementDashboard page
+import ManagementDashboard from "./pages/ManagementDashboard";
+
 function App() {
   useEffect(() => {
     setTokenCookieFromURL();
@@ -31,6 +34,18 @@ function App() {
               <ProtectedRoute>
                 <DashboardLayout>
                   <DashboardPage />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* NEW: Add the route for the management dashboard */}
+          <Route
+            path="/management"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <ManagementDashboard />
                 </DashboardLayout>
               </ProtectedRoute>
             }
