@@ -28,10 +28,8 @@ const LeaseDetailPage = () => {
   const [error, setError] = useState('');
   const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('ledger');
-
   const [editTenant, setEditTenant] = useState({});
   const [editLeaseTerms, setEditLeaseTerms] = useState({});
-  const [recurringEditIndex, setRecurringEditIndex] = useState(null);
   const [isRunningCharges, setIsRunningCharges] = useState(false);
 
   const fetchLeaseDetails = useCallback(async () => {
@@ -87,18 +85,34 @@ const LeaseDetailPage = () => {
   };
 
   const handleRecurringDelete = async (index) => {
-    const updated = [...lease.recurringCharges];
-    updated.splice(index, 1);
+    const updated = lease.recurringCharges.filter((_, i) => i !== index);
     try {
       const res = await fetch(`${API_BASE_URL}/management/leases/${leaseId}`, {
         method: 'PATCH',
         headers: {
           ...getTokenHeader(),
-          'Content-Type': 'application/json',
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({ recurringCharges: updated })
       });
-      if (!res.ok) throw new Error('Failed to delete recurring charge');
+      if (!res.ok) throw new Error('Failed to update recurring charges');
+      await fetchLeaseDetails();
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
+  const handleClearAllRecurring = async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/management/leases/${leaseId}`, {
+        method: 'PATCH',
+        headers: {
+          ...getTokenHeader(),
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ recurringCharges: [] })
+      });
+      if (!res.ok) throw new Error('Failed to clear recurring charges');
       await fetchLeaseDetails();
     } catch (err) {
       alert(err.message);
@@ -182,7 +196,6 @@ const LeaseDetailPage = () => {
                   Add Transaction
                 </button>
               </div>
-
               <div className="flow-root">
                 <div className="border-t border-brand-gray-200">
                   {lease.transactions.length > 0 ? (
@@ -192,9 +205,7 @@ const LeaseDetailPage = () => {
                           <p className="font-medium text-brand-gray-800">{t.type}</p>
                           <p className="text-xs text-brand-gray-500">{formatDate(t.date)}</p>
                         </div>
-                        <p className={`font-semibold ${t.amount > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                          {t.amount > 0 ? '+' : ''}${Math.abs(t.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                        </p>
+                        <p className={`font-semibold ${t.amount > 0 ? 'text-green-600' : 'text-red-600'}`}>{t.amount > 0 ? '+' : ''}${Math.abs(t.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
                       </div>
                     ))
                   ) : (
@@ -232,11 +243,7 @@ const LeaseDetailPage = () => {
             <div className="bg-white p-4 rounded-lg border border-brand-gray-200">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-lg font-semibold">Manage Recurring Charges</h2>
-                <button
-                  onClick={handleRunRecurring}
-                  disabled={isRunningCharges}
-                  className="bg-brand-blue text-white font-semibold px-4 py-2 rounded-md hover:bg-brand-blue-dark disabled:opacity-50"
-                >
+                <button onClick={handleRunRecurring} disabled={isRunningCharges} className="bg-brand-blue text-white font-semibold px-4 py-2 rounded-md hover:bg-brand-blue-dark disabled:opacity-50">
                   {isRunningCharges ? 'Running...' : 'Run Charges Now'}
                 </button>
               </div>
@@ -250,6 +257,9 @@ const LeaseDetailPage = () => {
                 </div>
               ))}
               {lease.recurringCharges?.length === 0 && <p className="text-sm text-brand-gray-500">No recurring charges set.</p>}
+              {lease.recurringCharges?.length > 0 && (
+                <button onClick={handleClearAllRecurring} className="mt-4 text-sm text-red-600 underline">Delete All Recurring Charges</button>
+              )}
             </div>
 
             <button onClick={handleSaveSettings} className="bg-brand-turquoise text-white px-6 py-2 rounded-md font-semibold">Save Settings</button>
