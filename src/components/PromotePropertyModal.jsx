@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { getTokenHeader } from '../utils/api';
+// 1. IMPORT THE CORRECT FUNCTION
+import { getAuthHeaders } from '../utils/api';
 import { API_BASE_URL } from '../config';
 
 const LoadingSpinner = () => (
@@ -18,7 +19,8 @@ const PromotePropertyModal = ({ isOpen, onClose, onPromoteSuccess }) => {
     setError('');
     try {
       const res = await fetch(`${API_BASE_URL}/management/unmanaged-properties`, {
-        headers: getTokenHeader(),
+        // 2. USE THE NEW FUNCTION
+        headers: getAuthHeaders(),
       });
       if (!res.ok) {
         throw new Error('Could not fetch properties.');
@@ -48,7 +50,8 @@ const PromotePropertyModal = ({ isOpen, onClose, onPromoteSuccess }) => {
     try {
         const res = await fetch(`${API_BASE_URL}/management/promote/${selected}`, {
             method: 'POST',
-            headers: getTokenHeader(),
+            // 3. USE THE NEW FUNCTION
+            headers: getAuthHeaders(),
         });
         if(!res.ok) {
             const errData = await res.json();

@@ -1,5 +1,6 @@
 import { API_BASE_URL } from '../config';
-import { getTokenHeader } from './api';
+// 1. IMPORT THE CORRECT FUNCTION
+import { getAuthHeaders } from './api';
 
 const fetchAttomComps = async (formData) => {
   const { lat, lng, distance, propertyType, soldInLastMonths } = formData;
@@ -20,7 +21,8 @@ const fetchAttomComps = async (formData) => {
     if (soldInLastMonths) url.searchParams.append("soldInLastMonths", soldInLastMonths);
 
     const res = await fetch(url.toString(), {
-        headers: getTokenHeader() 
+        // 2. USE THE NEW FUNCTION
+        headers: getAuthHeaders() 
     });
 
     if (!res.ok) {

@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { getTokenHeader } from "../utils/api";
+// 1. IMPORT THE CORRECT FUNCTION
+import { getAuthHeaders } from "../utils/api";
 import { API_BASE_URL } from '../config';
 import PromotePropertyModal from '../components/PromotePropertyModal';
 
@@ -19,11 +20,11 @@ const ManagementDashboard = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const fetchManagedProperties = useCallback(async () => {
-    // UPDATED: Reset loading state on each fetch
     setLoading(true);
     try {
       const res = await fetch(`${API_BASE_URL}/management`, {
-        headers: getTokenHeader(),
+        // 2. USE THE NEW FUNCTION
+        headers: getAuthHeaders(),
       });
 
       if (!res.ok) {
@@ -103,7 +104,6 @@ const ManagementDashboard = () => {
                       </span>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      {/* UPDATED: Button now navigates to the detail page */}
                       <button
                         onClick={() => navigate(`/management/${prop._id}`)}
                         className="text-brand-turquoise-600 hover:text-brand-turquoise-700 font-semibold"

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { getTokenHeader } from '../utils/api';
+// 1. IMPORT THE CORRECT FUNCTION
+import { getAuthHeaders } from '../utils/api';
 import { API_BASE_URL } from '../config';
 
 const FormInput = (props) => (
@@ -89,10 +90,8 @@ const AddTransactionModal = ({ isOpen, onClose, onSuccess, leaseId }) => {
 
         const res = await fetch(`${API_BASE_URL}/management/leases/${leaseId}`, {
           method: 'PATCH',
-          headers: {
-            ...getTokenHeader(),
-            'Content-Type': 'application/json'
-          },
+          // 2. USE THE NEW FUNCTION
+          headers: getAuthHeaders(),
           body: JSON.stringify(patchData),
         });
 
@@ -110,7 +109,8 @@ const AddTransactionModal = ({ isOpen, onClose, onSuccess, leaseId }) => {
 
         const res = await fetch(`${API_BASE_URL}/management/leases/${leaseId}/transactions`, {
           method: 'POST',
-          headers: getTokenHeader(),
+          // 3. USE THE NEW FUNCTION
+          headers: getAuthHeaders(),
           body: JSON.stringify({ date, type, description, amount: finalAmount }),
         });
 

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { getInvestment, getTokenHeader } from "../utils/api";
+// 1. IMPORT THE CORRECT FUNCTION
+import { getInvestment, getAuthHeaders } from "../utils/api";
 
 // --- Reusable styled components ---
 const FormInput = (props) => (
@@ -61,7 +62,8 @@ const EditInvestment = () => {
     try {
       const res = await fetch(`https://mypropai-server.onrender.com/api/investments/${id}`, {
         method: "PATCH",
-        headers: getTokenHeader(),
+        // 2. USE THE NEW FUNCTION
+        headers: getAuthHeaders(),
         body: JSON.stringify(formData),
       });
 

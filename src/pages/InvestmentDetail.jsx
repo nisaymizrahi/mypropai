@@ -12,7 +12,8 @@ import {
   deleteInvestment,
   deleteBudgetLine,
   uploadReceipt,
-  getTokenHeader,
+  // 1. IMPORT THE CORRECT FUNCTION
+  getAuthHeaders,
 } from "../utils/api";
 import { API_BASE_URL } from '../config';
 

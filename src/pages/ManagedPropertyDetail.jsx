@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getTokenHeader } from '../utils/api';
+// 1. IMPORT THE CORRECT FUNCTION
+import { getAuthHeaders } from '../utils/api';
 import { API_BASE_URL } from '../config';
 import AddUnitModal from '../components/AddUnitModal';
 import AddLeaseModal from '../components/AddLeaseModal';
@@ -44,7 +45,6 @@ const UnitCard = ({ unit, onAddLeaseClick, navigate }) => {
                     </button>
                 ) : (
                     <button 
-                        // ✅ Fixed route to match correct LeaseDetailPage
                         onClick={() => navigate(`/management/leases/${unit.currentLease._id}`)}
                         className="w-full bg-white hover:bg-brand-gray-100 text-brand-gray-700 font-semibold px-3 py-1.5 rounded-md border border-brand-gray-300 text-sm transition">
                         View Lease
@@ -70,7 +70,8 @@ const ManagedPropertyDetail = () => {
     setLoading(true);
     try {
       const res = await fetch(`${API_BASE_URL}/management/${propertyId}`, {
-        headers: getTokenHeader(),
+        // 2. USE THE NEW FUNCTION
+        headers: getAuthHeaders(),
       });
       if (!res.ok) {
         throw new Error('Failed to fetch property details.');

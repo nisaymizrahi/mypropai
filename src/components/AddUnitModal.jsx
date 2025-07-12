@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { getTokenHeader } from '../utils/api';
+// 1. IMPORT THE CORRECT FUNCTION
+import { getAuthHeaders } from '../utils/api';
 import { API_BASE_URL } from '../config';
 
 const AddUnitModal = ({ isOpen, onClose, onUnitAdded, propertyId }) => {
@@ -29,7 +30,8 @@ const AddUnitModal = ({ isOpen, onClose, onUnitAdded, propertyId }) => {
     try {
       const res = await fetch(`${API_BASE_URL}/management/${propertyId}/units`, {
         method: 'POST',
-        headers: getTokenHeader(),
+        // 2. USE THE NEW FUNCTION
+        headers: getAuthHeaders(),
         body: JSON.stringify(unitData),
       });
 
