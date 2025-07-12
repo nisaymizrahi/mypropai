@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { getTokenHeader, runRecurringCharges } from '../utils/api';
 import { API_BASE_URL } from '../config';
 import AddTransactionModal from '../components/AddTransactionModal';
+import CommunicationTab from '../components/CommunicationTab'; // <-- 1. IMPORT new component
 
 const LoadingSpinner = () => (
   <div className="flex justify-center items-center p-8">
@@ -33,7 +34,8 @@ const LeaseDetailPage = () => {
   const [isRunningCharges, setIsRunningCharges] = useState(false);
 
   const fetchLeaseDetails = useCallback(async () => {
-    setLoading(true);
+    // Keep loading indicator off for re-fetches to feel smoother
+    // setLoading(true); 
     try {
       const res = await fetch(`${API_BASE_URL}/management/leases/${leaseId}`, {
         headers: getTokenHeader(),
@@ -41,6 +43,10 @@ const LeaseDetailPage = () => {
       if (!res.ok) throw new Error('Failed to fetch lease details.');
       const data = await res.json();
       setLease(data);
+      // Ensure communications array exists
+      if (!data.communications) {
+        data.communications = [];
+      }
       setEditTenant({ fullName: data.tenant.fullName, email: data.tenant.email, phone: data.tenant.phone || '' });
       setEditLeaseTerms({
         startDate: data.startDate.split('T')[0],
@@ -56,10 +62,16 @@ const LeaseDetailPage = () => {
   }, [leaseId]);
 
   useEffect(() => {
-    fetchLeaseDetails();
-  }, [fetchLeaseDetails]);
+    if (authenticated) {
+      fetchLeaseDetails();
+    }
+  }, [fetchLeaseDetails, authenticated]);
 
   const handleTransactionAdded = () => {
+    fetchLeaseDetails();
+  };
+  
+  const handleCommunicationsUpdate = () => {
     fetchLeaseDetails();
   };
 
@@ -67,10 +79,7 @@ const LeaseDetailPage = () => {
     try {
       const res = await fetch(`${API_BASE_URL}/management/leases/${leaseId}`, {
         method: 'PATCH',
-        headers: {
-          ...getTokenHeader(),
-          'Content-Type': 'application/json'
-        },
+        headers: { ...getTokenHeader(), 'Content-Type': 'application/json' },
         body: JSON.stringify({
           tenantUpdates: editTenant,
           leaseTermUpdates: editLeaseTerms
@@ -89,10 +98,7 @@ const LeaseDetailPage = () => {
     try {
       const res = await fetch(`${API_BASE_URL}/management/leases/${leaseId}`, {
         method: 'PATCH',
-        headers: {
-          ...getTokenHeader(),
-          'Content-Type': 'application/json'
-        },
+        headers: { ...getTokenHeader(), 'Content-Type': 'application/json' },
         body: JSON.stringify({ recurringCharges: updated })
       });
       if (!res.ok) throw new Error('Failed to update recurring charges');
@@ -106,10 +112,7 @@ const LeaseDetailPage = () => {
     try {
       const res = await fetch(`${API_BASE_URL}/management/leases/${leaseId}`, {
         method: 'PATCH',
-        headers: {
-          ...getTokenHeader(),
-          'Content-Type': 'application/json'
-        },
+        headers: { ...getTokenHeader(), 'Content-Type': 'application/json' },
         body: JSON.stringify({ recurringCharges: [] })
       });
       if (!res.ok) throw new Error('Failed to clear recurring charges');
@@ -132,14 +135,23 @@ const LeaseDetailPage = () => {
     }
   };
 
-  if (authLoading) return <LoadingSpinner />;
+  if (authLoading || loading) return <LoadingSpinner />;
   if (!authenticated) return <Navigate to="/login" />;
-  if (loading) return <LoadingSpinner />;
   if (error) return <p className="text-red-500 text-center p-4">{error}</p>;
   if (!lease) return <p className="text-center p-4">Lease not found.</p>;
 
   const formatDate = (dateString) => new Date(dateString).toLocaleDateString();
   const currentBalance = lease.transactions.reduce((acc, t) => acc + t.amount, 0);
+
+  // Reusable Tab Button Component
+  const TabButton = ({ tabName, label }) => (
+    <button 
+      onClick={() => setActiveTab(tabName)} 
+      className={`px-4 py-2 rounded-md font-semibold ${activeTab === tabName ? 'bg-brand-turquoise text-white' : 'bg-white border border-brand-gray-300 text-brand-gray-700'}`}
+    >
+      {label}
+    </button>
+  );
 
   return (
     <>
@@ -150,7 +162,7 @@ const LeaseDetailPage = () => {
         leaseId={leaseId}
       />
 
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-6xl mx-auto p-4">
         <div className="flex justify-between items-center mb-6">
           <div>
             <h1 className="text-3xl font-bold text-brand-gray-900">Lease Details</h1>
@@ -165,13 +177,16 @@ const LeaseDetailPage = () => {
             &larr; Back to Property
           </button>
         </div>
-
+        
+        {/* <-- 2. ADD TAB BUTTON --> */}
         <div className="flex gap-4 mb-6">
-          <button onClick={() => setActiveTab('ledger')} className={`px-4 py-2 rounded-md font-semibold ${activeTab === 'ledger' ? 'bg-brand-turquoise text-white' : 'bg-white border border-brand-gray-300 text-brand-gray-700'}`}>Ledger</button>
-          <button onClick={() => setActiveTab('settings')} className={`px-4 py-2 rounded-md font-semibold ${activeTab === 'settings' ? 'bg-brand-turquoise text-white' : 'bg-white border border-brand-gray-300 text-brand-gray-700'}`}>Settings</button>
+          <TabButton tabName="ledger" label="Ledger" />
+          <TabButton tabName="communication" label="Communication" />
+          <TabButton tabName="settings" label="Settings" />
         </div>
 
-        {activeTab === 'ledger' ? (
+        {/* <-- 3. ADD CONDITIONAL RENDERING FOR THE NEW TAB --> */}
+        {activeTab === 'ledger' && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="md:col-span-1 space-y-4">
               <div className="bg-white p-4 rounded-lg shadow-sm border border-brand-gray-200">
@@ -199,13 +214,13 @@ const LeaseDetailPage = () => {
               <div className="flow-root">
                 <div className="border-t border-brand-gray-200">
                   {lease.transactions.length > 0 ? (
-                    lease.transactions.sort((a, b) => new Date(b.date) - new Date(a.date)).map(t => (
+                    [...lease.transactions].sort((a, b) => new Date(b.date) - new Date(a.date)).map(t => (
                       <div key={t._id} className="flex justify-between items-center py-3 border-b">
                         <div>
                           <p className="font-medium text-brand-gray-800">{t.type}</p>
                           <p className="text-xs text-brand-gray-500">{formatDate(t.date)}</p>
                         </div>
-                        <p className={`font-semibold ${t.amount > 0 ? 'text-green-600' : 'text-red-600'}`}>{t.amount > 0 ? '+' : ''}${Math.abs(t.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
+                        <p className={`font-semibold ${t.amount >= 0 ? 'text-green-600' : 'text-red-600'}`}>{t.amount >= 0 ? '+' : ''}${Math.abs(t.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
                       </div>
                     ))
                   ) : (
@@ -219,7 +234,13 @@ const LeaseDetailPage = () => {
               </div>
             </div>
           </div>
-        ) : (
+        )}
+        
+        {activeTab === 'communication' && (
+          <CommunicationTab lease={lease} onUpdate={handleCommunicationsUpdate} />
+        )}
+
+        {activeTab === 'settings' && (
           <div className="space-y-6">
             <div className="bg-white p-4 rounded-lg border border-brand-gray-200">
               <h2 className="text-lg font-semibold mb-4">Edit Lease Terms</h2>
