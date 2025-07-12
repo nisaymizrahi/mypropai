@@ -2,14 +2,61 @@ import React, { useState } from 'react';
 import { getTokenHeader } from '../utils/api';
 import { API_BASE_URL } from '../config';
 
+// A small, self-contained component for editing the status of a communication entry.
+const StatusEditor = ({ communication, leaseId, onUpdate }) => {
+  const [currentStatus, setCurrentStatus] = useState(communication.status);
+  const [isUpdating, setIsUpdating] = useState(false);
+
+  const handleStatusChange = async (e) => {
+    const newStatus = e.target.value;
+    setIsUpdating(true);
+    setCurrentStatus(newStatus); // Update the UI immediately for a better user experience.
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/management/leases/${leaseId}/communications/${communication._id}`, {
+        method: 'PATCH',
+        headers: {
+          ...getTokenHeader(),
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status: newStatus }),
+      });
+
+      if (!res.ok) {
+        throw new Error('Failed to update status.');
+      }
+      onUpdate(); // Refresh the parent component's data.
+    } catch (err) {
+      alert(err.message);
+      setCurrentStatus(communication.status); // If the update fails, revert the change.
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  return (
+    <select
+      value={currentStatus}
+      onChange={handleStatusChange}
+      disabled={isUpdating}
+      className="text-xs border border-brand-gray-300 rounded-full px-2 py-0.5"
+      onClick={(e) => e.stopPropagation()} // Prevents other click events from firing.
+    >
+      <option>Not Started</option>
+      <option>In Progress</option>
+      <option>Finished</option>
+      <option>Closed</option>
+    </select>
+  );
+};
+
+
 const CommunicationTab = ({ lease, onUpdate }) => {
   const [subject, setSubject] = useState('');
   const [notes, setNotes] = useState('');
   const [category, setCategory] = useState('General Inquiry');
+  const [file, setFile] = useState(null); // State for the file upload
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // Note: File upload logic will be added in a future step
-  // const [file, setFile] = useState(null);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -19,14 +66,23 @@ const CommunicationTab = ({ lease, onUpdate }) => {
     }
     setIsSubmitting(true);
 
+    // Use FormData to send both text and file data.
+    const formData = new FormData();
+    formData.append('subject', subject);
+    formData.append('notes', notes);
+    formData.append('category', category);
+    if (file) {
+      formData.append('attachment', file);
+    }
+
     try {
       const res = await fetch(`${API_BASE_URL}/management/leases/${lease._id}/communications`, {
         method: 'POST',
         headers: {
           ...getTokenHeader(),
-          'Content-Type': 'application/json',
+          // DO NOT set 'Content-Type'. The browser sets it automatically for FormData.
         },
-        body: JSON.stringify({ subject, notes, category }),
+        body: formData,
       });
 
       if (!res.ok) {
@@ -37,6 +93,10 @@ const CommunicationTab = ({ lease, onUpdate }) => {
       setSubject('');
       setNotes('');
       setCategory('General Inquiry');
+      setFile(null);
+      if (document.getElementById('attachment-file-input')) {
+        document.getElementById('attachment-file-input').value = null;
+      }
       onUpdate(); 
     } catch (err) {
       alert(err.message);
@@ -106,7 +166,16 @@ const CommunicationTab = ({ lease, onUpdate }) => {
               className="mt-1 block w-full border border-brand-gray-300 rounded-md shadow-sm p-2"
             ></textarea>
           </div>
-          {/* File input will be added here */}
+          {/* File input is now active */}
+          <div>
+            <label htmlFor="attachment-file-input" className="block text-sm font-medium text-brand-gray-700">Attachment</label>
+            <input 
+              id="attachment-file-input" 
+              type="file" 
+              onChange={(e) => setFile(e.target.files[0])}
+              className="mt-1 block w-full text-sm text-brand-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-brand-turquoise-100 file:text-brand-turquoise-700 hover:file:bg-brand-turquoise-200" 
+            />
+          </div>
           <button
             type="submit"
             disabled={isSubmitting}
@@ -127,7 +196,18 @@ const CommunicationTab = ({ lease, onUpdate }) => {
                 <div className="flex justify-between items-start">
                   <div>
                     <p className="font-bold text-brand-gray-900">{comm.subject}</p>
-                    <p className="text-sm text-brand-gray-600 mt-1">{comm.notes}</p>
+                    {comm.notes && <p className="text-sm text-brand-gray-600 mt-1">{comm.notes}</p>}
+                    {/* Link to view attachment */}
+                    {comm.attachmentUrl && 
+                      <a 
+                        href={comm.attachmentUrl} 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        className="text-sm text-brand-blue hover:underline mt-2 block font-medium"
+                      >
+                        View Attachment
+                      </a>
+                    }
                   </div>
                   <button 
                     onClick={() => handleDelete(comm._id)}
@@ -137,9 +217,14 @@ const CommunicationTab = ({ lease, onUpdate }) => {
                     X
                   </button>
                 </div>
-                <div className="flex items-center justify-between mt-2 text-xs text-brand-gray-500">
-                  <span>{formatDate(comm.date)}</span>
-                  <span className="font-semibold bg-brand-gray-200 text-brand-gray-700 px-2 py-0.5 rounded-full">{comm.category}</span>
+                <div className="flex items-center justify-between mt-2 pt-2 border-t">
+                  <div className="text-xs text-brand-gray-500">
+                    <span>{formatDate(comm.date)}</span>
+                    <span className="mx-2">|</span>
+                    <span className="font-semibold bg-brand-gray-200 text-brand-gray-700 px-2 py-0.5 rounded-full">{comm.category}</span>
+                  </div>
+                  {/* Editable status component */}
+                  <StatusEditor communication={comm} leaseId={lease._id} onUpdate={onUpdate} />
                 </div>
               </div>
             ))
