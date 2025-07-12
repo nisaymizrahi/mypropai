@@ -1,10 +1,11 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { getTokenHeader, runRecurringCharges } from '../utils/api';
+// 1. IMPORT THE CORRECT FUNCTION
+import { getAuthHeaders, runRecurringCharges } from '../utils/api';
 import { API_BASE_URL } from '../config';
 import AddTransactionModal from '../components/AddTransactionModal';
-import CommunicationTab from '../components/CommunicationTab'; // <-- 1. IMPORT new component
+import CommunicationTab from '../components/CommunicationTab';
 
 const LoadingSpinner = () => (
   <div className="flex justify-center items-center p-8">
@@ -34,16 +35,14 @@ const LeaseDetailPage = () => {
   const [isRunningCharges, setIsRunningCharges] = useState(false);
 
   const fetchLeaseDetails = useCallback(async () => {
-    // Keep loading indicator off for re-fetches to feel smoother
-    // setLoading(true); 
     try {
+      // 2. USE THE NEW FUNCTION
       const res = await fetch(`${API_BASE_URL}/management/leases/${leaseId}`, {
-        headers: getTokenHeader(),
+        headers: getAuthHeaders(),
       });
       if (!res.ok) throw new Error('Failed to fetch lease details.');
       const data = await res.json();
       setLease(data);
-      // Ensure communications array exists
       if (!data.communications) {
         data.communications = [];
       }
@@ -77,9 +76,10 @@ const LeaseDetailPage = () => {
 
   const handleSaveSettings = async () => {
     try {
+      // 3. USE THE NEW FUNCTION
       const res = await fetch(`${API_BASE_URL}/management/leases/${leaseId}`, {
         method: 'PATCH',
-        headers: { ...getTokenHeader(), 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({
           tenantUpdates: editTenant,
           leaseTermUpdates: editLeaseTerms
@@ -96,9 +96,10 @@ const LeaseDetailPage = () => {
   const handleRecurringDelete = async (index) => {
     const updated = lease.recurringCharges.filter((_, i) => i !== index);
     try {
+      // 4. USE THE NEW FUNCTION
       const res = await fetch(`${API_BASE_URL}/management/leases/${leaseId}`, {
         method: 'PATCH',
-        headers: { ...getTokenHeader(), 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ recurringCharges: updated })
       });
       if (!res.ok) throw new Error('Failed to update recurring charges');
@@ -110,9 +111,10 @@ const LeaseDetailPage = () => {
 
   const handleClearAllRecurring = async () => {
     try {
+      // 5. USE THE NEW FUNCTION
       const res = await fetch(`${API_BASE_URL}/management/leases/${leaseId}`, {
         method: 'PATCH',
-        headers: { ...getTokenHeader(), 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ recurringCharges: [] })
       });
       if (!res.ok) throw new Error('Failed to clear recurring charges');
@@ -143,7 +145,6 @@ const LeaseDetailPage = () => {
   const formatDate = (dateString) => new Date(dateString).toLocaleDateString();
   const currentBalance = lease.transactions.reduce((acc, t) => acc + t.amount, 0);
 
-  // Reusable Tab Button Component
   const TabButton = ({ tabName, label }) => (
     <button 
       onClick={() => setActiveTab(tabName)} 
@@ -178,21 +179,19 @@ const LeaseDetailPage = () => {
           </button>
         </div>
         
-        {/* <-- 2. ADD TAB BUTTON --> */}
         <div className="flex gap-4 mb-6">
           <TabButton tabName="ledger" label="Ledger" />
           <TabButton tabName="communication" label="Communication" />
           <TabButton tabName="settings" label="Settings" />
         </div>
 
-        {/* <-- 3. ADD CONDITIONAL RENDERING FOR THE NEW TAB --> */}
         {activeTab === 'ledger' && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="md:col-span-1 space-y-4">
               <div className="bg-white p-4 rounded-lg shadow-sm border border-brand-gray-200">
                 <h2 className="text-lg font-semibold text-brand-gray-800 border-b pb-2 mb-2">Lease Terms</h2>
                 <DetailRow label="Start Date" value={formatDate(lease.startDate)} />
-                <DetailRow label="End Date" value={formatDate(lease.endDate)} />
+                <DetailRow label="End Date" value={formatDate(endDate)} />
                 <DetailRow label="Monthly Rent" value={`$${lease.rentAmount.toLocaleString()}`} />
                 <DetailRow label="Security Deposit" value={`$${lease.securityDeposit.toLocaleString()}`} />
               </div>
