@@ -1,10 +1,20 @@
 import { API_BASE_URL } from '../config';
 
-// Get token-based headers for JSON data
-export const getTokenHeader = () => {
+// ✅ NEW: A flexible function for getting auth headers.
+// It handles both JSON and FormData requests.
+export const getAuthHeaders = (isFormData = false) => {
   const token = localStorage.getItem("token");
-  const headers = { "Content-Type": "application/json" };
-  if (token) headers.Authorization = `Bearer ${token}`;
+  const headers = {};
+
+  // Do NOT set Content-Type for FormData, the browser does it.
+  if (!isFormData) {
+    headers["Content-Type"] = "application/json";
+  }
+
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+  
   return headers;
 };
 
@@ -12,7 +22,7 @@ export const getTokenHeader = () => {
 export const createInvestment = async (data) => {
   const res = await fetch(`${API_BASE_URL}/investments`, {
     method: "POST",
-    headers: getTokenHeader(),
+    headers: getAuthHeaders(), // Use new function
     body: JSON.stringify(data),
   });
   if (!res.ok) throw new Error((await res.json()).message || "Failed to save investment");
@@ -22,7 +32,7 @@ export const createInvestment = async (data) => {
 export const getInvestments = async () => {
   const res = await fetch(`${API_BASE_URL}/investments`, {
     method: "GET",
-    headers: getTokenHeader(),
+    headers: getAuthHeaders(), // Use new function
   });
   if (!res.ok) throw new Error((await res.json()).message || "Failed to load investments");
   return res.json();
@@ -31,7 +41,7 @@ export const getInvestments = async () => {
 export const getInvestment = async (id) => {
   const res = await fetch(`${API_BASE_URL}/investments/${id}`, {
     method: "GET",
-    headers: getTokenHeader(),
+    headers: getAuthHeaders(), // Use new function
   });
   if (!res.ok) throw new Error((await res.json()).message || "Failed to fetch investment");
   return res.json();
@@ -40,7 +50,7 @@ export const getInvestment = async (id) => {
 export const deleteInvestment = async (id) => {
     const res = await fetch(`${API_BASE_URL}/investments/${id}`, {
         method: "DELETE",
-        headers: getTokenHeader(),
+        headers: getAuthHeaders(), // Use new function
     });
     if (!res.ok) throw new Error((await res.json()).message || "Failed to delete investment");
     return res.json();
@@ -50,7 +60,7 @@ export const deleteInvestment = async (id) => {
 export const addBudgetLine = async (investmentId, line) => {
   const res = await fetch(`${API_BASE_URL}/investments/${investmentId}/budget`, {
     method: "POST",
-    headers: getTokenHeader(),
+    headers: getAuthHeaders(), // Use new function
     body: JSON.stringify(line),
   });
   if (!res.ok) throw new Error((await res.json()).message || "Failed to add budget line");
@@ -60,7 +70,7 @@ export const addBudgetLine = async (investmentId, line) => {
 export const updateBudgetLine = async (investmentId, index, updates) => {
   const res = await fetch(`${API_BASE_URL}/investments/${investmentId}/budget/${index}`, {
     method: "PATCH",
-    headers: getTokenHeader(),
+    headers: getAuthHeaders(), // Use new function
     body: JSON.stringify(updates),
   });
   if (!res.ok) throw new Error((await res.json()).message || "Failed to update budget line");
@@ -70,7 +80,7 @@ export const updateBudgetLine = async (investmentId, index, updates) => {
 export const deleteBudgetLine = async (investmentId, index) => {
   const res = await fetch(`${API_BASE_URL}/investments/${investmentId}/budget/${index}`, {
     method: "DELETE",
-    headers: getTokenHeader(),
+    headers: getAuthHeaders(), // Use new function
   });
   if (!res.ok) throw new Error((await res.json()).message || "Failed to delete budget line");
   return res.json();
@@ -80,7 +90,7 @@ export const deleteBudgetLine = async (investmentId, index) => {
 export const addExpense = async (investmentId, expense) => {
   const res = await fetch(`${API_BASE_URL}/investments/${investmentId}/expenses`, {
     method: "POST",
-    headers: getTokenHeader(),
+    headers: getAuthHeaders(), // Use new function
     body: JSON.stringify(expense),
   });
   if (!res.ok) throw new Error((await res.json()).message || "Failed to add expense");
@@ -90,7 +100,7 @@ export const addExpense = async (investmentId, expense) => {
 export const updateExpense = async (investmentId, index, updates) => {
   const res = await fetch(`${API_BASE_URL}/investments/${investmentId}/expenses/${index}`, {
     method: "PATCH",
-    headers: getTokenHeader(),
+    headers: getAuthHeaders(), // Use new function
     body: JSON.stringify(updates),
   });
   if (!res.ok) throw new Error((await res.json()).message || "Failed to update expense");
@@ -100,24 +110,20 @@ export const updateExpense = async (investmentId, index, updates) => {
 export const deleteExpense = async (investmentId, index) => {
   const res = await fetch(`${API_BASE_URL}/investments/${investmentId}/expenses/${index}`, {
     method: "DELETE",
-    headers: getTokenHeader(),
+    headers: getAuthHeaders(), // Use new function
   });
   if (!res.ok) throw new Error((await res.json()).message || "Failed to delete expense");
   return res.json();
 };
 
-// --- NEW: File Upload Function ---
+// --- File Upload Function ---
 export const uploadReceipt = async (file) => {
     const formData = new FormData();
-    formData.append('receipt', file); // 'receipt' must match the field name in the backend route
-
-    const token = localStorage.getItem("token");
-    const headers = {}; // For file uploads, we don't set Content-Type; the browser does it.
-    if (token) headers.Authorization = `Bearer ${token}`;
+    formData.append('receipt', file);
 
     const res = await fetch(`${API_BASE_URL}/uploads/receipt`, {
         method: 'POST',
-        headers: headers,
+        headers: getAuthHeaders(true), // Use new function for FormData
         body: formData,
     });
 
@@ -130,11 +136,12 @@ export const uploadReceipt = async (file) => {
 export const logoutUser = () => {
   localStorage.removeItem("token");
 };
+
 // --- Recurring Charges ---
 export const runRecurringCharges = async () => {
   const res = await fetch(`${API_BASE_URL}/management/recurring/run`, {
     method: 'POST',
-    headers: getTokenHeader()
+    headers: getAuthHeaders() // Use new function
   });
   if (!res.ok) throw new Error((await res.json()).msg || 'Failed to run recurring charges');
   return res.json();

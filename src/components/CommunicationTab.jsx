@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { getTokenHeader } from '../utils/api';
+// 1. Import the new function
+import { getAuthHeaders } from '../utils/api';
 import { API_BASE_URL } from '../config';
 
 // A small, self-contained component for editing the status of a communication entry.
@@ -10,25 +11,23 @@ const StatusEditor = ({ communication, leaseId, onUpdate }) => {
   const handleStatusChange = async (e) => {
     const newStatus = e.target.value;
     setIsUpdating(true);
-    setCurrentStatus(newStatus); // Update the UI immediately for a better user experience.
+    setCurrentStatus(newStatus);
 
     try {
       const res = await fetch(`${API_BASE_URL}/management/leases/${leaseId}/communications/${communication._id}`, {
         method: 'PATCH',
-        headers: {
-          ...getTokenHeader(),
-          'Content-Type': 'application/json',
-        },
+        // 2. Use new function for JSON request
+        headers: getAuthHeaders(),
         body: JSON.stringify({ status: newStatus }),
       });
 
       if (!res.ok) {
         throw new Error('Failed to update status.');
       }
-      onUpdate(); // Refresh the parent component's data.
+      onUpdate();
     } catch (err) {
       alert(err.message);
-      setCurrentStatus(communication.status); // If the update fails, revert the change.
+      setCurrentStatus(communication.status);
     } finally {
       setIsUpdating(false);
     }
@@ -40,7 +39,7 @@ const StatusEditor = ({ communication, leaseId, onUpdate }) => {
       onChange={handleStatusChange}
       disabled={isUpdating}
       className="text-xs border border-brand-gray-300 rounded-full px-2 py-0.5"
-      onClick={(e) => e.stopPropagation()} // Prevents other click events from firing.
+      onClick={(e) => e.stopPropagation()}
     >
       <option>Not Started</option>
       <option>In Progress</option>
@@ -55,7 +54,7 @@ const CommunicationTab = ({ lease, onUpdate }) => {
   const [subject, setSubject] = useState('');
   const [notes, setNotes] = useState('');
   const [category, setCategory] = useState('General Inquiry');
-  const [file, setFile] = useState(null); // State for the file upload
+  const [file, setFile] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (e) => {
@@ -66,7 +65,6 @@ const CommunicationTab = ({ lease, onUpdate }) => {
     }
     setIsSubmitting(true);
 
-    // Use FormData to send both text and file data.
     const formData = new FormData();
     formData.append('subject', subject);
     formData.append('notes', notes);
@@ -78,10 +76,8 @@ const CommunicationTab = ({ lease, onUpdate }) => {
     try {
       const res = await fetch(`${API_BASE_URL}/management/leases/${lease._id}/communications`, {
         method: 'POST',
-        headers: {
-          ...getTokenHeader(),
-          // DO NOT set 'Content-Type'. The browser sets it automatically for FormData.
-        },
+        // 3. Use new function for FormData request
+        headers: getAuthHeaders(true),
         body: formData,
       });
 
@@ -89,7 +85,6 @@ const CommunicationTab = ({ lease, onUpdate }) => {
         throw new Error('Failed to add communication.');
       }
 
-      // Reset form and trigger a data refresh in the parent component
       setSubject('');
       setNotes('');
       setCategory('General Inquiry');
@@ -112,12 +107,13 @@ const CommunicationTab = ({ lease, onUpdate }) => {
     try {
       const res = await fetch(`${API_BASE_URL}/management/leases/${lease._id}/communications/${commId}`, {
         method: 'DELETE',
-        headers: getTokenHeader(),
+        // 4. Use new function for simple delete request
+        headers: getAuthHeaders(),
       });
       if (!res.ok) {
         throw new Error('Failed to delete communication.');
       }
-      onUpdate(); // Refresh data
+      onUpdate();
     } catch (err) {
       alert(err.message);
     }
@@ -127,7 +123,6 @@ const CommunicationTab = ({ lease, onUpdate }) => {
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-      {/* Add Communication Form */}
       <div className="md:col-span-1 bg-white p-4 rounded-lg shadow-sm border border-brand-gray-200">
         <h2 className="text-lg font-semibold text-brand-gray-800 border-b pb-2 mb-4">Add Communication Log</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -166,7 +161,6 @@ const CommunicationTab = ({ lease, onUpdate }) => {
               className="mt-1 block w-full border border-brand-gray-300 rounded-md shadow-sm p-2"
             ></textarea>
           </div>
-          {/* File input is now active */}
           <div>
             <label htmlFor="attachment-file-input" className="block text-sm font-medium text-brand-gray-700">Attachment</label>
             <input 
@@ -186,7 +180,6 @@ const CommunicationTab = ({ lease, onUpdate }) => {
         </form>
       </div>
 
-      {/* Communication History */}
       <div className="md:col-span-2 bg-white p-4 rounded-lg shadow-sm border border-brand-gray-200">
         <h2 className="text-lg font-semibold text-brand-gray-800 mb-4">Communication History</h2>
         <div className="space-y-4">
@@ -197,7 +190,6 @@ const CommunicationTab = ({ lease, onUpdate }) => {
                   <div>
                     <p className="font-bold text-brand-gray-900">{comm.subject}</p>
                     {comm.notes && <p className="text-sm text-brand-gray-600 mt-1">{comm.notes}</p>}
-                    {/* Link to view attachment */}
                     {comm.attachmentUrl && 
                       <a 
                         href={comm.attachmentUrl} 
@@ -223,7 +215,6 @@ const CommunicationTab = ({ lease, onUpdate }) => {
                     <span className="mx-2">|</span>
                     <span className="font-semibold bg-brand-gray-200 text-brand-gray-700 px-2 py-0.5 rounded-full">{comm.category}</span>
                   </div>
-                  {/* Editable status component */}
                   <StatusEditor communication={comm} leaseId={lease._id} onUpdate={onUpdate} />
                 </div>
               </div>
