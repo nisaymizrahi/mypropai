@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { API_BASE_URL } from '../config'; // Assuming you have this config file
+import { API_BASE_URL } from '../config';
 
 const AuthContext = createContext();
 
@@ -27,6 +27,9 @@ export const AuthProvider = ({ children }) => {
         setLoading(false);
         return;
       }
+      
+      // ✅ THIS IS THE FIX: Set loading to true at the start of a check.
+      setLoading(true);
 
       try {
         const res = await fetch(`${API_BASE_URL}/auth/me`, {
@@ -57,13 +60,11 @@ export const AuthProvider = ({ children }) => {
     checkAuth();
   }, [token]);
 
-  // ✅ NEW: Login function
   const login = (newToken) => {
     localStorage.setItem('token', newToken);
     setToken(newToken);
   };
 
-  // ✅ NEW: Logout function
   const logout = () => {
     localStorage.removeItem('token');
     setToken(null);
@@ -73,7 +74,6 @@ export const AuthProvider = ({ children }) => {
 
   return (
     <AuthContext.Provider
-      // ✅ UPDATED: Provide the new login/logout functions
       value={{
         authenticated,
         loading,
