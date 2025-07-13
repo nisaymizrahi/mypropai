@@ -1,11 +1,10 @@
 import { API_BASE_URL } from '../config';
 
-// It handles both JSON and FormData requests.
+// Handles auth headers for the property manager
 export const getAuthHeaders = (isFormData = false) => {
   const token = localStorage.getItem("token");
   const headers = {};
 
-  // Do NOT set Content-Type for FormData, the browser does it.
   if (!isFormData) {
     headers["Content-Type"] = "application/json";
   }
@@ -55,81 +54,143 @@ export const deleteInvestment = async (id) => {
     return res.json();
 };
 
-// --- Budget Functions ---
-export const addBudgetLine = async (investmentId, line) => {
-  const res = await fetch(`${API_BASE_URL}/investments/${investmentId}/budget`, {
-    method: "POST",
-    headers: getAuthHeaders(),
-    body: JSON.stringify(line),
-  });
-  if (!res.ok) throw new Error((await res.json()).message || "Failed to add budget line");
+
+// --- Project Hub API Functions ---
+
+// --- Budget Items ---
+export const getBudgetItems = async (investmentId) => {
+  const res = await fetch(`${API_BASE_URL}/budget-items/investment/${investmentId}`, { headers: getAuthHeaders() });
+  if (!res.ok) throw new Error('Failed to fetch budget items');
   return res.json();
 };
 
-export const updateBudgetLine = async (investmentId, index, updates) => {
-  const res = await fetch(`${API_BASE_URL}/investments/${investmentId}/budget/${index}`, {
-    method: "PATCH",
+export const createBudgetItem = async (data) => {
+  const res = await fetch(`${API_BASE_URL}/budget-items`, {
+    method: 'POST',
     headers: getAuthHeaders(),
-    body: JSON.stringify(updates),
+    body: JSON.stringify(data),
   });
-  if (!res.ok) throw new Error((await res.json()).message || "Failed to update budget line");
+  if (!res.ok) throw new Error('Failed to create budget item');
   return res.json();
 };
 
-export const deleteBudgetLine = async (investmentId, index) => {
-  const res = await fetch(`${API_BASE_URL}/investments/${investmentId}/budget/${index}`, {
-    method: "DELETE",
+export const updateBudgetItem = async (id, data) => {
+  const res = await fetch(`${API_BASE_URL}/budget-items/${id}`, {
+    method: 'PATCH',
     headers: getAuthHeaders(),
+    body: JSON.stringify(data),
   });
-  if (!res.ok) throw new Error((await res.json()).message || "Failed to delete budget line");
+  if (!res.ok) throw new Error('Failed to update budget item');
   return res.json();
 };
 
-// --- Expense Functions ---
-export const addExpense = async (investmentId, expense) => {
-  const res = await fetch(`${API_BASE_URL}/investments/${investmentId}/expenses`, {
-    method: "POST",
+export const deleteBudgetItem = async (id) => {
+  const res = await fetch(`${API_BASE_URL}/budget-items/${id}`, {
+    method: 'DELETE',
     headers: getAuthHeaders(),
-    body: JSON.stringify(expense),
   });
-  if (!res.ok) throw new Error((await res.json()).message || "Failed to add expense");
+  if (!res.ok) throw new Error('Failed to delete budget item');
   return res.json();
 };
 
-export const updateExpense = async (investmentId, index, updates) => {
-  const res = await fetch(`${API_BASE_URL}/investments/${investmentId}/expenses/${index}`, {
-    method: "PATCH",
-    headers: getAuthHeaders(),
-    body: JSON.stringify(updates),
-  });
-  if (!res.ok) throw new Error((await res.json()).message || "Failed to update expense");
+// --- Expenses ---
+export const getExpenses = async (investmentId) => {
+  const res = await fetch(`${API_BASE_URL}/expenses/investment/${investmentId}`, { headers: getAuthHeaders() });
+  if (!res.ok) throw new Error('Failed to fetch expenses');
   return res.json();
 };
 
-export const deleteExpense = async (investmentId, index) => {
-  const res = await fetch(`${API_BASE_URL}/investments/${investmentId}/expenses/${index}`, {
-    method: "DELETE",
-    headers: getAuthHeaders(),
+export const createExpense = async (formData) => {
+  const res = await fetch(`${API_BASE_URL}/expenses`, {
+    method: 'POST',
+    headers: getAuthHeaders(true),
+    body: formData,
   });
-  if (!res.ok) throw new Error((await res.json()).message || "Failed to delete expense");
+  if (!res.ok) throw new Error('Failed to create expense');
   return res.json();
 };
 
-// --- File Upload Function ---
-export const uploadReceipt = async (file) => {
-    const formData = new FormData();
-    formData.append('receipt', file);
+// --- Vendors ---
+export const getVendors = async () => {
+    const res = await fetch(`${API_BASE_URL}/vendors`, { headers: getAuthHeaders() });
+    if (!res.ok) throw new Error('Failed to fetch vendors');
+    return res.json();
+};
 
-    const res = await fetch(`${API_BASE_URL}/uploads/receipt`, {
+export const createVendor = async (data) => {
+    const res = await fetch(`${API_BASE_URL}/vendors`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error('Failed to create vendor');
+    return res.json();
+};
+
+// ✅ ADDED
+export const updateVendor = async (id, data) => {
+    const res = await fetch(`${API_BASE_URL}/vendors/${id}`, {
+        method: 'PATCH',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error('Failed to update vendor');
+    return res.json();
+};
+
+// ✅ ADDED
+export const deleteVendor = async (id) => {
+    const res = await fetch(`${API_BASE_URL}/vendors/${id}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+    });
+    if (!res.ok) throw new Error('Failed to delete vendor');
+    return res.json();
+};
+
+
+// --- Project Tasks ---
+export const getProjectTasks = async (investmentId) => {
+    const res = await fetch(`${API_BASE_URL}/project-tasks/investment/${investmentId}`, { headers: getAuthHeaders() });
+    if (!res.ok) throw new Error('Failed to fetch project tasks');
+    return res.json();
+};
+
+export const createProjectTask = async (data) => {
+    const res = await fetch(`${API_BASE_URL}/project-tasks`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error('Failed to create project task');
+    return res.json();
+};
+
+// --- Project Documents ---
+export const getProjectDocuments = async (investmentId) => {
+    const res = await fetch(`${API_BASE_URL}/documents/investment/${investmentId}`, { headers: getAuthHeaders() });
+    if (!res.ok) throw new Error('Failed to fetch documents');
+    return res.json();
+};
+
+export const uploadProjectDocument = async (formData) => {
+    const res = await fetch(`${API_BASE_URL}/documents`, {
         method: 'POST',
         headers: getAuthHeaders(true),
         body: formData,
     });
-
-    if (!res.ok) throw new Error((await res.json()).message || "File upload failed");
+    if (!res.ok) throw new Error('Failed to upload document');
     return res.json();
 };
 
+export const deleteProjectDocument = async (documentId) => {
+    const res = await fetch(`${API_BASE_URL}/documents/${documentId}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+    });
+    if (!res.ok) throw new Error('Failed to delete document');
+    return res.json();
+};
 
 // --- Auth Functions ---
 export const logoutUser = () => {
@@ -147,11 +208,9 @@ export const runRecurringCharges = async () => {
 };
 
 
-// --- ✅ NEW: Tenant Portal Functions ---
-
-// Function to get headers specifically for tenant requests
+// --- Tenant Portal Functions ---
 const getTenantAuthHeaders = (isFormData = false) => {
-  const token = localStorage.getItem("tenantToken"); // Use the tenant's token
+  const token = localStorage.getItem("tenantToken");
   const headers = {};
 
   if (!isFormData) {
@@ -165,7 +224,6 @@ const getTenantAuthHeaders = (isFormData = false) => {
   return headers;
 };
 
-// Fetch the logged-in tenant's lease details
 export const getTenantLeaseDetails = async () => {
   const res = await fetch(`${API_BASE_URL}/tenant/lease-details`, {
     headers: getTenantAuthHeaders(),
@@ -174,18 +232,16 @@ export const getTenantLeaseDetails = async () => {
   return res.json();
 };
 
-// Submit a communication from the tenant portal
 export const submitTenantCommunication = async (formData) => {
   const res = await fetch(`${API_BASE_URL}/tenant/communications`, {
     method: 'POST',
-    headers: getTenantAuthHeaders(true), // This is a FormData request
+    headers: getTenantAuthHeaders(true),
     body: formData,
   });
   if (!res.ok) throw new Error('Failed to submit request');
   return res.json();
 };
 
-// Logout function for tenants
 export const logoutTenant = () => {
   localStorage.removeItem("tenantToken");
 };
