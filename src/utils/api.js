@@ -110,6 +110,27 @@ export const createExpense = async (formData) => {
   return res.json();
 };
 
+// ✅ ADDED
+export const updateExpense = async (id, data) => {
+    const res = await fetch(`${API_BASE_URL}/expenses/${id}`, {
+        method: 'PATCH',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error('Failed to update expense');
+    return res.json();
+};
+
+// ✅ ADDED
+export const deleteExpense = async (id) => {
+    const res = await fetch(`${API_BASE_URL}/expenses/${id}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+    });
+    if (!res.ok) throw new Error('Failed to delete expense');
+    return res.json();
+};
+
 // --- Vendors ---
 export const getVendors = async () => {
     const res = await fetch(`${API_BASE_URL}/vendors`, { headers: getAuthHeaders() });
@@ -127,7 +148,6 @@ export const createVendor = async (data) => {
     return res.json();
 };
 
-// ✅ ADDED
 export const updateVendor = async (id, data) => {
     const res = await fetch(`${API_BASE_URL}/vendors/${id}`, {
         method: 'PATCH',
@@ -138,7 +158,6 @@ export const updateVendor = async (id, data) => {
     return res.json();
 };
 
-// ✅ ADDED
 export const deleteVendor = async (id) => {
     const res = await fetch(`${API_BASE_URL}/vendors/${id}`, {
         method: 'DELETE',
