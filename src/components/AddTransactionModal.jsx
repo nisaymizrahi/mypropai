@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-// 1. IMPORT THE CORRECT FUNCTION
 import { getAuthHeaders } from '../utils/api';
 import { API_BASE_URL } from '../config';
 
@@ -23,7 +22,8 @@ const FormLabel = ({ children }) => (
   <label className="block text-sm font-medium text-brand-gray-700 mb-1">{children}</label>
 );
 
-const AddTransactionModal = ({ isOpen, onClose, onSuccess, leaseId }) => {
+// 1. ACCEPT THE 'recurringCharges' PROP
+const AddTransactionModal = ({ isOpen, onClose, onSuccess, leaseId, recurringCharges = [] }) => {
   const [entryType, setEntryType] = useState("Payment");
 
   const [formData, setFormData] = useState({
@@ -77,20 +77,23 @@ const AddTransactionModal = ({ isOpen, onClose, onSuccess, leaseId }) => {
 
     try {
       if (entryType === 'Recurring Charge') {
+        // 2. THIS IS THE FIX: Combine old charges with the new one
+        const newCharge = {
+            type,
+            description,
+            amount: Number(amount),
+            dayOfMonth: Number(dayOfMonth)
+        };
+        
+        // Create a new array by spreading the existing charges and adding the new one
+        const updatedCharges = [...recurringCharges, newCharge];
+
         const patchData = {
-          recurringCharges: [
-            {
-              type,
-              description,
-              amount: Number(amount),
-              dayOfMonth: Number(dayOfMonth)
-            }
-          ]
+          recurringCharges: updatedCharges
         };
 
         const res = await fetch(`${API_BASE_URL}/management/leases/${leaseId}`, {
           method: 'PATCH',
-          // 2. USE THE NEW FUNCTION
           headers: getAuthHeaders(),
           body: JSON.stringify(patchData),
         });
@@ -109,7 +112,6 @@ const AddTransactionModal = ({ isOpen, onClose, onSuccess, leaseId }) => {
 
         const res = await fetch(`${API_BASE_URL}/management/leases/${leaseId}/transactions`, {
           method: 'POST',
-          // 3. USE THE NEW FUNCTION
           headers: getAuthHeaders(),
           body: JSON.stringify({ date, type, description, amount: finalAmount }),
         });

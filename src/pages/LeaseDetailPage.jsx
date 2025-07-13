@@ -178,6 +178,8 @@ const LeaseDetailPage = () => {
         onClose={() => setIsTransactionModalOpen(false)}
         onSuccess={handleTransactionAdded}
         leaseId={leaseId}
+        // ✅ PASS THE CURRENT CHARGES TO THE MODAL
+        recurringCharges={lease.recurringCharges || []}
       />
 
       <div className="max-w-6xl mx-auto p-4">
@@ -265,7 +267,6 @@ const LeaseDetailPage = () => {
               <button 
                 onClick={handleSendInvite} 
                 disabled={isSendingInvite}
-                // ✅ UPDATED STYLING
                 className="bg-brand-turquoise hover:bg-brand-turquoise-600 text-white font-semibold px-4 py-2 rounded-md disabled:opacity-50 transition"
               >
                 {isSendingInvite ? 'Sending...' : 'Send Tenant Portal Invitation'}
@@ -299,7 +300,6 @@ const LeaseDetailPage = () => {
             <div className="bg-white p-4 rounded-lg border border-brand-gray-200">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-lg font-semibold">Manage Recurring Charges</h2>
-                {/* ✅ UPDATED STYLING */}
                 <button onClick={handleRunRecurring} disabled={isRunningCharges} className="bg-brand-turquoise text-white font-semibold px-4 py-2 rounded-md hover:bg-brand-turquoise-600 disabled:opacity-50">
                   {isRunningCharges ? 'Running...' : 'Run Charges Now'}
                 </button>
