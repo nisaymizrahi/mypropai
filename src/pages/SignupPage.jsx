@@ -5,7 +5,14 @@ import { useAuth } from '../context/AuthContext';
 
 const SignupPage = () => {
     const navigate = useNavigate();
-    const { login } = useAuth();
+    
+    // --- THIS IS THE DEBUGGING CHANGE ---
+    // We get the full auth object and log it to the console to see what's inside.
+    const auth = useAuth();
+    console.log('Value from useAuth:', auth); 
+    const { login } = auth;
+    // ------------------------------------
+
     const [formData, setFormData] = useState({ name: '', email: '', password: '' });
     const [error, setError] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -39,8 +46,9 @@ const SignupPage = () => {
                 throw new Error(data.message || 'Failed to create account.');
             }
             
-            login(data.token); // Use the login function from AuthContext
-            navigate('/dashboard'); // Redirect to dashboard on successful signup
+            // This is the line that was failing. The console.log will tell us why.
+            login(data.token); 
+            navigate('/dashboard');
 
         } catch (err) {
             setError(err.message);
