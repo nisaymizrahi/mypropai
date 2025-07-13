@@ -3,7 +3,7 @@ import AddBudgetItemModal from './AddBudgetItemModal';
 import BudgetItemRow from './BudgetItemRow';
 import AddExpenseModal from './AddExpenseModal';
 import EditBudgetItemModal from './EditBudgetItemModal';
-import { deleteBudgetItem } from '../utils/api'; // 1. IMPORT THE DELETE FUNCTION
+import { deleteBudgetItem } from '../utils/api';
 
 const PrimaryButton = ({ onClick, children, className = '', ...props }) => <button onClick={onClick} className={`bg-brand-turquoise hover:bg-brand-turquoise-600 text-white font-semibold px-4 py-2 rounded-md transition ${className}`} {...props}>{children}</button>;
 
@@ -14,6 +14,7 @@ const StatCard = ({ title, value, colorClass = 'text-brand-gray-800' }) => (
     </div>
 );
 
+// ✅ UPDATED: The function signature now correctly includes 'vendors'
 const FinancialsTab = ({ investment, budgetItems, expenses, vendors, onUpdate }) => {
     const [isBudgetModalOpen, setIsBudgetModalOpen] = useState(false);
     const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
@@ -38,12 +39,11 @@ const FinancialsTab = ({ investment, budgetItems, expenses, vendors, onUpdate })
         setIsEditModalOpen(true);
     };
 
-    // 2. ADD THE DELETE HANDLER FUNCTION
     const handleDeleteBudgetItem = async (budgetItemId) => {
         if (window.confirm('Are you sure you want to delete this budget category? This will also delete all expenses linked to it.')) {
             try {
                 await deleteBudgetItem(budgetItemId);
-                onUpdate(); // Refresh the data
+                onUpdate();
             } catch (error) {
                 alert(`Failed to delete budget item: ${error.message}`);
             }
@@ -95,7 +95,6 @@ const FinancialsTab = ({ investment, budgetItems, expenses, vendors, onUpdate })
                                     expenses={expenses}
                                     onAddExpense={() => handleOpenExpenseModal(item._id)}
                                     onEdit={() => handleOpenEditModal(item)}
-                                    // 3. PASS THE HANDLER DOWN TO THE ROW
                                     onDelete={() => handleDeleteBudgetItem(item._id)}
                                 />
                             ))
