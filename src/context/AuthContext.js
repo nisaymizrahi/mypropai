@@ -5,31 +5,21 @@ const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
   const [authenticated, setAuthenticated] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true); // Start in a loading state
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(() => localStorage.getItem("token"));
 
   useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const tokenFromUrl = urlParams.get("token");
-
-    if (tokenFromUrl) {
-      localStorage.setItem("token", tokenFromUrl);
-      setToken(tokenFromUrl);
-      window.history.replaceState({}, document.title, window.location.pathname);
-    }
-  }, []);
-
-  useEffect(() => {
     const checkAuth = async () => {
+      // Always set loading to true when this check runs
+      setLoading(true);
+
       if (!token) {
         setAuthenticated(false);
+        setUser(null);
         setLoading(false);
         return;
       }
-      
-      // ✅ THIS IS THE FIX: Set loading to true at the start of a check.
-      setLoading(true);
 
       try {
         const res = await fetch(`${API_BASE_URL}/auth/me`, {
@@ -44,7 +34,8 @@ export const AuthProvider = ({ children }) => {
           setUser(userData);
           setAuthenticated(true);
         } else {
-          throw new Error("Unauthorized");
+          // If token is invalid, clear it
+          throw new Error("Invalid token");
         }
       } catch (err) {
         console.error("Auth check failed:", err);
@@ -78,7 +69,6 @@ export const AuthProvider = ({ children }) => {
         authenticated,
         loading,
         user,
-        token,
         login,
         logout,
       }}
