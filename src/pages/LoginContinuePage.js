@@ -1,59 +1,37 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { API_BASE_URL } from '../config'; // NEW: Import from our central config file
 
 const LoadingSpinner = () => (
-    <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-brand-blue mb-6"></div>
+    <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-brand-turquoise"></div>
 );
 
 const LoginContinuePage = () => {
   const navigate = useNavigate();
-  const { setToken, setAuthenticated, setUser } = useAuth();
-  const [status, setStatus] = useState("Finalizing login...");
+  // 1. Get the new 'login' function from our context
+  const { login } = useAuth();
 
   useEffect(() => {
+    // 2. Get the token from the URL
     const token = new URLSearchParams(window.location.search).get("token");
 
     if (token) {
-      localStorage.setItem("token", token);
-      setToken(token);
-
-      const verifyToken = async () => {
-        try {
-          const res = await fetch(`${API_BASE_URL}/auth/me`, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-
-          if (res.ok) {
-            const userData = await res.json();
-            setUser(userData);
-            setAuthenticated(true);
-            setStatus("Success! Redirecting to your dashboard...");
-            setTimeout(() => navigate("/dashboard"), 1500);
-          } else {
-            throw new Error("Authentication failed.");
-          }
-        } catch (err) {
-          console.error("Auth verification failed:", err);
-          setStatus("Login failed. Please try again.");
-          setTimeout(() => navigate("/login"), 2000);
-        }
-      };
-      verifyToken();
+      // 3. Call the login function to save the token and trigger auth state update
+      login(token);
+      // 4. Redirect to the dashboard immediately
+      navigate("/dashboard");
     } else {
-      setStatus("No token found. Redirecting to login...");
-      setTimeout(() => navigate("/login"), 1500);
+      // If no token is found, go back to the login page
+      navigate("/login");
     }
     
-    window.history.replaceState({}, document.title, "/login-continue");
+  }, [login, navigate]);
 
-  }, [navigate, setAuthenticated, setToken, setUser]);
-
+  // This page will only be visible for a moment during the redirect
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-brand-slate-300 text-center p-4">
       <LoadingSpinner />
-      <h1 className="text-2xl font-bold text-brand-dark-100">{status}</h1>
+      <h1 className="text-2xl font-bold text-brand-dark-100">Finalizing login...</h1>
     </div>
   );
 };
