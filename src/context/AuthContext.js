@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
+import { API_BASE_URL } from '../config'; // Assuming you have this config file
 
 const AuthContext = createContext();
 
@@ -8,7 +9,6 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(() => localStorage.getItem("token"));
 
-  // ✅ Handle token from URL (Google login)
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const tokenFromUrl = urlParams.get("token");
@@ -20,7 +20,6 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
-  // ✅ Check token on load or token change
   useEffect(() => {
     const checkAuth = async () => {
       if (!token) {
@@ -30,7 +29,7 @@ export const AuthProvider = ({ children }) => {
       }
 
       try {
-        const res = await fetch("https://mypropai-server.onrender.com/api/auth/me", {
+        const res = await fetch(`${API_BASE_URL}/auth/me`, {
           method: "GET",
           headers: {
             Authorization: `Bearer ${token}`,
@@ -46,9 +45,10 @@ export const AuthProvider = ({ children }) => {
         }
       } catch (err) {
         console.error("Auth check failed:", err);
-        setAuthenticated(false);
         localStorage.removeItem("token");
         setToken(null);
+        setUser(null);
+        setAuthenticated(false);
       } finally {
         setLoading(false);
       }
@@ -57,16 +57,30 @@ export const AuthProvider = ({ children }) => {
     checkAuth();
   }, [token]);
 
+  // ✅ NEW: Login function
+  const login = (newToken) => {
+    localStorage.setItem('token', newToken);
+    setToken(newToken);
+  };
+
+  // ✅ NEW: Logout function
+  const logout = () => {
+    localStorage.removeItem('token');
+    setToken(null);
+    setUser(null);
+    setAuthenticated(false);
+  };
+
   return (
     <AuthContext.Provider
+      // ✅ UPDATED: Provide the new login/logout functions
       value={{
         authenticated,
         loading,
         user,
         token,
-        setToken,
-        setUser,
-        setAuthenticated,
+        login,
+        logout,
       }}
     >
       {children}
