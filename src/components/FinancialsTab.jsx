@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+// ✅ IMPORT STATEMENTS CORRECTED
 import AddBudgetItemModal from './AddBudgetItemModal';
 import BudgetItemRow from './BudgetItemRow';
 import AddExpenseModal from './AddExpenseModal';
@@ -14,7 +15,6 @@ const StatCard = ({ title, value, colorClass = 'text-brand-gray-800' }) => (
     </div>
 );
 
-// ✅ UPDATED: The function signature now correctly includes 'vendors'
 const FinancialsTab = ({ investment, budgetItems, expenses, vendors, onUpdate }) => {
     const [isBudgetModalOpen, setIsBudgetModalOpen] = useState(false);
     const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
