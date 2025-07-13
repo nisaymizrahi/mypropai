@@ -45,7 +45,8 @@ const AddExpenseModal = ({ isOpen, onClose, onSuccess, investmentId, budgetItemI
     e.preventDefault();
     setError('');
     
-    if (!description || !amount) {
+    // ✅ THIS IS THE FIX: Check formData.description and formData.amount
+    if (!formData.description || !formData.amount) {
         setError('Description and Amount are required.');
         return;
     }
