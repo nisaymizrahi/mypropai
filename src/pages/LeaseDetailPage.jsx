@@ -265,7 +265,8 @@ const LeaseDetailPage = () => {
               <button 
                 onClick={handleSendInvite} 
                 disabled={isSendingInvite}
-                className="bg-brand-blue text-white font-semibold px-4 py-2 rounded-md hover:bg-brand-blue-dark disabled:opacity-50 transition"
+                // ✅ UPDATED STYLING
+                className="bg-brand-turquoise hover:bg-brand-turquoise-600 text-white font-semibold px-4 py-2 rounded-md disabled:opacity-50 transition"
               >
                 {isSendingInvite ? 'Sending...' : 'Send Tenant Portal Invitation'}
               </button>
@@ -276,7 +277,6 @@ const LeaseDetailPage = () => {
               )}
             </div>
             
-            {/* ✅ RESTORED: Edit Lease Terms Card */}
             <div className="bg-white p-4 rounded-lg border border-brand-gray-200">
               <h2 className="text-lg font-semibold mb-4">Edit Lease Terms</h2>
               <div className="grid grid-cols-2 gap-4">
@@ -287,7 +287,6 @@ const LeaseDetailPage = () => {
               </div>
             </div>
 
-            {/* ✅ RESTORED: Edit Tenant Information Card */}
             <div className="bg-white p-4 rounded-lg border border-brand-gray-200">
               <h2 className="text-lg font-semibold mb-4">Edit Tenant Information</h2>
               <div className="grid grid-cols-2 gap-4">
@@ -297,11 +296,11 @@ const LeaseDetailPage = () => {
               </div>
             </div>
 
-            {/* ✅ RESTORED: Manage Recurring Charges Card */}
             <div className="bg-white p-4 rounded-lg border border-brand-gray-200">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-lg font-semibold">Manage Recurring Charges</h2>
-                <button onClick={handleRunRecurring} disabled={isRunningCharges} className="bg-brand-blue text-white font-semibold px-4 py-2 rounded-md hover:bg-brand-blue-dark disabled:opacity-50">
+                {/* ✅ UPDATED STYLING */}
+                <button onClick={handleRunRecurring} disabled={isRunningCharges} className="bg-brand-turquoise text-white font-semibold px-4 py-2 rounded-md hover:bg-brand-turquoise-600 disabled:opacity-50">
                   {isRunningCharges ? 'Running...' : 'Run Charges Now'}
                 </button>
               </div>
@@ -320,7 +319,6 @@ const LeaseDetailPage = () => {
               )}
             </div>
 
-            {/* ✅ RESTORED: Save Settings Button */}
             <button onClick={handleSaveSettings} className="bg-brand-turquoise text-white px-6 py-2 rounded-md font-semibold">Save Settings</button>
           </div>
         )}
