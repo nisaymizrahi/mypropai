@@ -110,7 +110,6 @@ export const createExpense = async (formData) => {
   return res.json();
 };
 
-// ✅ ADDED
 export const updateExpense = async (id, data) => {
     const res = await fetch(`${API_BASE_URL}/expenses/${id}`, {
         method: 'PATCH',
@@ -121,7 +120,6 @@ export const updateExpense = async (id, data) => {
     return res.json();
 };
 
-// ✅ ADDED
 export const deleteExpense = async (id) => {
     const res = await fetch(`${API_BASE_URL}/expenses/${id}`, {
         method: 'DELETE',
@@ -212,6 +210,17 @@ export const deleteProjectDocument = async (documentId) => {
 };
 
 // --- Auth Functions ---
+// ✅ ADDED
+export const loginUser = async (email, password) => {
+    const res = await fetch(`${API_BASE_URL}/auth/login`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ email, password }),
+    });
+    if (!res.ok) throw new Error((await res.json()).message || "Failed to log in");
+    return res.json();
+};
+
 export const logoutUser = () => {
   localStorage.removeItem("token");
 };

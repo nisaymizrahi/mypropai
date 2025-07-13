@@ -1,6 +1,9 @@
-import React from "react";
+import React, { useState } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import { loginUser } from '../utils/api';
+import { API_BASE_URL } from '../config';
 
-// SVG Icon for the Google login button
 const GoogleIcon = () => (
     <svg className="w-5 h-5 mr-3" viewBox="0 0 48 48">
         <path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8c-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4C12.955 4 4 12.955 4 24s8.955 20 20 20s20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z"></path>
@@ -10,29 +13,80 @@ const GoogleIcon = () => (
     </svg>
 );
 
-
 const LoginPage = () => {
+  const navigate = useNavigate();
+  const { login } = useAuth();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const handleGoogleLogin = () => {
-    // FINAL FIX: This is the one and only correct URL.
-    // It is hardcoded to prevent any other issues.
-    const authUrl = "https://mypropai-server.onrender.com/api/auth/google";
-    window.location.href = authUrl;
+    window.location.href = `${API_BASE_URL}/auth/google`;
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    setIsSubmitting(true);
+    try {
+      const data = await loginUser(email, password);
+      login(data.token);
+      navigate('/dashboard');
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-brand-slate-300 p-4">
-      <div className="w-full max-w-md bg-brand-slate-200 p-8 rounded-lg shadow-2xl border border-brand-dark-800 text-center">
-        <h1 className="text-3xl font-bold text-brand-blue tracking-wider mb-2">MyPropAI</h1>
-        <p className="text-brand-dark-300 mb-8">
-          Your AI-Powered Real Estate Investment Co-Pilot
-        </p>
+    <div className="flex items-center justify-center min-h-screen bg-gray-50">
+      <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-lg shadow-md">
+        <div className="text-center">
+          <h2 className="text-3xl font-bold text-gray-900">Welcome Back</h2>
+          <p className="mt-2 text-sm text-gray-600">
+            Don't have an account?{' '}
+            <Link to="/signup" className="font-medium text-brand-turquoise hover:text-brand-turquoise-500">
+              Sign Up
+            </Link>
+          </p>
+        </div>
+
         <button
           onClick={handleGoogleLogin}
-          className="w-full inline-flex items-center justify-center bg-white text-gray-700 font-medium px-6 py-3 rounded-lg hover:bg-gray-200 transition-colors duration-200 shadow-md"
+          type="button"
+          className="w-full flex justify-center items-center py-2 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
         >
           <GoogleIcon />
-          Sign in with Google
+          Sign In with Google
         </button>
+
+        <div className="relative">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-gray-300" />
+          </div>
+          <div className="relative flex justify-center text-sm">
+            <span className="px-2 bg-white text-gray-500">Or continue with</span>
+          </div>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium">Email Address</label>
+            <input name="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full mt-1 p-2 border rounded-md" required />
+          </div>
+          <div>
+            <label className="block text-sm font-medium">Password</label>
+            <input name="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full mt-1 p-2 border rounded-md" required />
+          </div>
+          
+          {error && <p className="text-sm text-red-600">{error}</p>}
+          
+          <button type="submit" disabled={isSubmitting} className="w-full bg-brand-turquoise text-white py-2 rounded-md font-semibold hover:bg-brand-turquoise-600 disabled:bg-opacity-50">
+            {isSubmitting ? 'Logging In...' : 'Log In'}
+          </button>
+        </form>
       </div>
     </div>
   );

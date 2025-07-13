@@ -20,8 +20,9 @@ import InvitePage from "./pages/InvitePage";
 import TenantLoginPage from "./pages/TenantLoginPage";
 import TenantDashboard from "./pages/TenantDashboard";
 import TenantProtectedRoute from "./components/TenantProtectedRoute";
-// 1. IMPORT THE NEW HOMEPAGE
 import Homepage from "./pages/Homepage";
+// 1. IMPORT THE NEW SIGNUP PAGE
+import SignupPage from "./pages/SignupPage";
 
 
 function App() {
@@ -39,6 +40,9 @@ function App() {
           <Route path="/login-continue" element={<LoginContinuePage />} />
           <Route path="/invite/:token" element={<InvitePage />} />
           <Route path="/tenant-login" element={<TenantLoginPage />} />
+          {/* 2. ADD THE NEW SIGNUP ROUTE */}
+          <Route path="/signup" element={<SignupPage />} />
+
 
           {/* --- Protected Tenant Route --- */}
           <Route
@@ -150,7 +154,6 @@ function App() {
             }
           />
 
-          {/* 2. UPDATE CATCH-ALL ROUTE TO REDIRECT TO HOMEPAGE */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Router>
