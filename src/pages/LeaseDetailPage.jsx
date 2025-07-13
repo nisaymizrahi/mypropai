@@ -1,7 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-// 1. IMPORT THE CORRECT FUNCTION
 import { getAuthHeaders, runRecurringCharges } from '../utils/api';
 import { API_BASE_URL } from '../config';
 import AddTransactionModal from '../components/AddTransactionModal';
@@ -36,7 +35,6 @@ const LeaseDetailPage = () => {
 
   const fetchLeaseDetails = useCallback(async () => {
     try {
-      // 2. USE THE NEW FUNCTION
       const res = await fetch(`${API_BASE_URL}/management/leases/${leaseId}`, {
         headers: getAuthHeaders(),
       });
@@ -76,7 +74,6 @@ const LeaseDetailPage = () => {
 
   const handleSaveSettings = async () => {
     try {
-      // 3. USE THE NEW FUNCTION
       const res = await fetch(`${API_BASE_URL}/management/leases/${leaseId}`, {
         method: 'PATCH',
         headers: getAuthHeaders(),
@@ -96,7 +93,6 @@ const LeaseDetailPage = () => {
   const handleRecurringDelete = async (index) => {
     const updated = lease.recurringCharges.filter((_, i) => i !== index);
     try {
-      // 4. USE THE NEW FUNCTION
       const res = await fetch(`${API_BASE_URL}/management/leases/${leaseId}`, {
         method: 'PATCH',
         headers: getAuthHeaders(),
@@ -111,7 +107,6 @@ const LeaseDetailPage = () => {
 
   const handleClearAllRecurring = async () => {
     try {
-      // 5. USE THE NEW FUNCTION
       const res = await fetch(`${API_BASE_URL}/management/leases/${leaseId}`, {
         method: 'PATCH',
         headers: getAuthHeaders(),
@@ -191,7 +186,8 @@ const LeaseDetailPage = () => {
               <div className="bg-white p-4 rounded-lg shadow-sm border border-brand-gray-200">
                 <h2 className="text-lg font-semibold text-brand-gray-800 border-b pb-2 mb-2">Lease Terms</h2>
                 <DetailRow label="Start Date" value={formatDate(lease.startDate)} />
-                <DetailRow label="End Date" value={formatDate(endDate)} />
+                {/* ✅ THIS IS THE FIX */}
+                <DetailRow label="End Date" value={formatDate(lease.endDate)} />
                 <DetailRow label="Monthly Rent" value={`$${lease.rentAmount.toLocaleString()}`} />
                 <DetailRow label="Security Deposit" value={`$${lease.securityDeposit.toLocaleString()}`} />
               </div>

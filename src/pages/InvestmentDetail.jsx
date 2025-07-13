@@ -12,7 +12,6 @@ import {
   deleteInvestment,
   deleteBudgetLine,
   uploadReceipt,
-  // 1. IMPORT THE CORRECT FUNCTION
   getAuthHeaders,
 } from "../utils/api";
 import { API_BASE_URL } from '../config';
@@ -60,7 +59,7 @@ const DealAnalysisDashboard = ({ investment, onUpdate }) => {
         const updatedValue = type === 'checkbox' ? checked : (type === 'number' ? Number(value) : value);
 
         setDealData(prev => {
-            const newState = JSON.parse(JSON.stringify(prev)); // Deep copy for nested objects
+            const newState = JSON.parse(JSON.stringify(prev));
             let current = newState;
             for (let i = 0; i < keys.length - 1; i++) {
                 if (!current[keys[i]]) current[keys[i]] = {};
@@ -462,7 +461,8 @@ const InvestmentDetail = () => {
       try {
           await fetch(`${API_BASE_URL}/investments/${id}`, {
               method: 'PATCH',
-              headers: getTokenHeader(),
+              // ✅ THIS IS THE FIX
+              headers: getAuthHeaders(),
               body: JSON.stringify(updateData)
           });
           // We optimistically update the local state, but refetch to be safe.
