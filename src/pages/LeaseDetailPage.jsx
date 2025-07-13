@@ -32,8 +32,6 @@ const LeaseDetailPage = () => {
   const [editTenant, setEditTenant] = useState({});
   const [editLeaseTerms, setEditLeaseTerms] = useState({});
   const [isRunningCharges, setIsRunningCharges] = useState(false);
-  
-  // 1. ADD STATE FOR THE INVITE BUTTON
   const [isSendingInvite, setIsSendingInvite] = useState(false);
   const [inviteStatus, setInviteStatus] = useState('');
 
@@ -136,7 +134,6 @@ const LeaseDetailPage = () => {
     }
   };
   
-  // 2. ADD HANDLER FUNCTION FOR THE BUTTON
   const handleSendInvite = async () => {
       setIsSendingInvite(true);
       setInviteStatus('');
@@ -206,7 +203,6 @@ const LeaseDetailPage = () => {
         </div>
 
         {activeTab === 'ledger' && (
-          // ... Ledger JSX remains the same
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="md:col-span-1 space-y-4">
               <div className="bg-white p-4 rounded-lg shadow-sm border border-brand-gray-200">
@@ -261,7 +257,6 @@ const LeaseDetailPage = () => {
 
         {activeTab === 'settings' && (
           <div className="space-y-6">
-            {/* 3. ADD THE NEW UI BLOCK FOR SENDING INVITES */}
             <div className="bg-white p-4 rounded-lg border border-brand-gray-200">
               <h2 className="text-lg font-semibold mb-2">Tenant Portal Access</h2>
               <p className="text-sm text-brand-gray-600 mb-4">
@@ -280,22 +275,52 @@ const LeaseDetailPage = () => {
                 </p>
               )}
             </div>
-
+            
+            {/* ✅ RESTORED: Edit Lease Terms Card */}
             <div className="bg-white p-4 rounded-lg border border-brand-gray-200">
               <h2 className="text-lg font-semibold mb-4">Edit Lease Terms</h2>
-              {/* ... lease term inputs ... */}
+              <div className="grid grid-cols-2 gap-4">
+                <input type="date" value={editLeaseTerms.startDate} onChange={e => setEditLeaseTerms(p => ({ ...p, startDate: e.target.value }))} className="border p-2 rounded" />
+                <input type="date" value={editLeaseTerms.endDate} onChange={e => setEditLeaseTerms(p => ({ ...p, endDate: e.target.value }))} className="border p-2 rounded" />
+                <input type="number" value={editLeaseTerms.rentAmount} onChange={e => setEditLeaseTerms(p => ({ ...p, rentAmount: e.target.value }))} className="border p-2 rounded" placeholder="Monthly Rent" />
+                <input type="number" value={editLeaseTerms.securityDeposit} onChange={e => setEditLeaseTerms(p => ({ ...p, securityDeposit: e.target.value }))} className="border p-2 rounded" placeholder="Security Deposit" />
+              </div>
             </div>
 
+            {/* ✅ RESTORED: Edit Tenant Information Card */}
             <div className="bg-white p-4 rounded-lg border border-brand-gray-200">
               <h2 className="text-lg font-semibold mb-4">Edit Tenant Information</h2>
-              {/* ... tenant info inputs ... */}
+              <div className="grid grid-cols-2 gap-4">
+                <input type="text" value={editTenant.fullName} onChange={e => setEditTenant(p => ({ ...p, fullName: e.target.value }))} className="border p-2 rounded" placeholder="Full Name" />
+                <input type="email" value={editTenant.email} onChange={e => setEditTenant(p => ({ ...p, email: e.target.value }))} className="border p-2 rounded" placeholder="Email" />
+                <input type="text" value={editTenant.phone} onChange={e => setEditTenant(p => ({ ...p, phone: e.target.value }))} className="border p-2 rounded" placeholder="Phone" />
+              </div>
             </div>
 
+            {/* ✅ RESTORED: Manage Recurring Charges Card */}
             <div className="bg-white p-4 rounded-lg border border-brand-gray-200">
-              <h2 className="text-lg font-semibold">Manage Recurring Charges</h2>
-              {/* ... recurring charges UI ... */}
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-lg font-semibold">Manage Recurring Charges</h2>
+                <button onClick={handleRunRecurring} disabled={isRunningCharges} className="bg-brand-blue text-white font-semibold px-4 py-2 rounded-md hover:bg-brand-blue-dark disabled:opacity-50">
+                  {isRunningCharges ? 'Running...' : 'Run Charges Now'}
+                </button>
+              </div>
+              {lease.recurringCharges?.map((rc, idx) => (
+                <div key={idx} className="flex justify-between items-center border-b py-2">
+                  <div>
+                    <p className="text-sm font-medium">{rc.description}</p>
+                    <p className="text-xs text-brand-gray-500">{rc.type}, Day {rc.dayOfMonth} - ${rc.amount / 100}</p>
+                  </div>
+                  <button onClick={() => handleRecurringDelete(idx)} className="text-red-600 hover:underline text-sm">Delete</button>
+                </div>
+              ))}
+              {lease.recurringCharges?.length === 0 && <p className="text-sm text-brand-gray-500">No recurring charges set.</p>}
+              {lease.recurringCharges?.length > 0 && (
+                <button onClick={handleClearAllRecurring} className="mt-4 text-sm text-red-600 underline">Delete All Recurring Charges</button>
+              )}
             </div>
 
+            {/* ✅ RESTORED: Save Settings Button */}
             <button onClick={handleSaveSettings} className="bg-brand-turquoise text-white px-6 py-2 rounded-md font-semibold">Save Settings</button>
           </div>
         )}
