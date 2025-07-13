@@ -18,9 +18,10 @@ import ManagedPropertyDetail from "./pages/ManagedPropertyDetail";
 import LeaseDetailPage from "./pages/LeaseDetailPage";
 import InvitePage from "./pages/InvitePage";
 import TenantLoginPage from "./pages/TenantLoginPage";
-// 1. IMPORT THE NEW TENANT DASHBOARD AND PROTECTED ROUTE
 import TenantDashboard from "./pages/TenantDashboard";
 import TenantProtectedRoute from "./components/TenantProtectedRoute";
+// 1. IMPORT THE NEW HOMEPAGE
+import Homepage from "./pages/Homepage";
 
 
 function App() {
@@ -32,15 +33,14 @@ function App() {
     <AuthProvider>
       <Router>
         <Routes>
-          {/* --- Public Manager Routes --- */}
+          {/* --- Public Routes --- */}
+          <Route path="/" element={<Homepage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/login-continue" element={<LoginContinuePage />} />
-          
-          {/* --- Public Tenant Routes --- */}
           <Route path="/invite/:token" element={<InvitePage />} />
           <Route path="/tenant-login" element={<TenantLoginPage />} />
 
-          {/* 3. ADD THE PROTECTED ROUTE FOR THE TENANT DASHBOARD */}
+          {/* --- Protected Tenant Route --- */}
           <Route
             path="/tenant-dashboard"
             element={
@@ -150,7 +150,8 @@ function App() {
             }
           />
 
-          <Route path="*" element={<Navigate to="/login" replace />} />
+          {/* 2. UPDATE CATCH-ALL ROUTE TO REDIRECT TO HOMEPAGE */}
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Router>
     </AuthProvider>
