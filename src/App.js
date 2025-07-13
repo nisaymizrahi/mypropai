@@ -15,7 +15,13 @@ import { AuthProvider } from "./context/AuthContext.js";
 
 import ManagementDashboard from "./pages/ManagementDashboard";
 import ManagedPropertyDetail from "./pages/ManagedPropertyDetail";
-import LeaseDetailPage from "./pages/LeaseDetailPage"; // Lease Detail Page
+import LeaseDetailPage from "./pages/LeaseDetailPage";
+import InvitePage from "./pages/InvitePage";
+import TenantLoginPage from "./pages/TenantLoginPage";
+// 1. IMPORT THE NEW TENANT DASHBOARD AND PROTECTED ROUTE
+import TenantDashboard from "./pages/TenantDashboard";
+import TenantProtectedRoute from "./components/TenantProtectedRoute";
+
 
 function App() {
   useEffect(() => {
@@ -26,9 +32,25 @@ function App() {
     <AuthProvider>
       <Router>
         <Routes>
+          {/* --- Public Manager Routes --- */}
           <Route path="/login" element={<LoginPage />} />
           <Route path="/login-continue" element={<LoginContinuePage />} />
+          
+          {/* --- Public Tenant Routes --- */}
+          <Route path="/invite/:token" element={<InvitePage />} />
+          <Route path="/tenant-login" element={<TenantLoginPage />} />
 
+          {/* 3. ADD THE PROTECTED ROUTE FOR THE TENANT DASHBOARD */}
+          <Route
+            path="/tenant-dashboard"
+            element={
+              <TenantProtectedRoute>
+                <TenantDashboard />
+              </TenantProtectedRoute>
+            }
+          />
+
+          {/* --- Protected Manager Routes --- */}
           <Route
             path="/dashboard"
             element={
@@ -62,7 +84,6 @@ function App() {
             }
           />
 
-          {/* ✅ FIXED: Lease detail route now correctly under /management/leases/:leaseId */}
           <Route
             path="/management/leases/:leaseId"
             element={
