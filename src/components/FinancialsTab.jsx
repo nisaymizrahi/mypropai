@@ -1,9 +1,8 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import AddBudgetItemModal from './AddBudgetItemModal';
 import BudgetItemRow from './BudgetItemRow';
-import AddExpenseModal from './AddExpenseModal';
 import EditBudgetItemModal from './EditBudgetItemModal';
-import EditExpenseModal from './EditExpenseModal'; // 1. IMPORT THE EDIT EXPENSE MODAL
+import EditExpenseModal from './EditExpenseModal';
 import { deleteBudgetItem, deleteExpense, createExpense } from '../utils/api';
 
 // This is the AddExpenseModal code moved from its own file
@@ -89,7 +88,6 @@ const FinancialsTab = ({ investment, budgetItems, expenses, vendors, onUpdate })
     const [selectedBudgetItemId, setSelectedBudgetItemId] = useState(null);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [editingBudgetItem, setEditingBudgetItem] = useState(null);
-    // 2. ADD STATE FOR EDITING/DELETING EXPENSES
     const [isEditExpenseModalOpen, setIsEditExpenseModalOpen] = useState(false);
     const [editingExpense, setEditingExpense] = useState(null);
 
@@ -121,7 +119,6 @@ const FinancialsTab = ({ investment, budgetItems, expenses, vendors, onUpdate })
         }
     };
 
-    // 3. ADD HANDLERS FOR EDITING/DELETING EXPENSES
     const handleOpenEditExpenseModal = (expense) => {
         setEditingExpense(expense);
         setIsEditExpenseModalOpen(true);
@@ -141,9 +138,11 @@ const FinancialsTab = ({ investment, budgetItems, expenses, vendors, onUpdate })
     return (
         <>
             <AddBudgetItemModal isOpen={isBudgetModalOpen} onClose={() => setIsBudgetModalOpen(false)} onSuccess={onUpdate} investmentId={investment._id} />
+            
+            {/* ✅ THIS IS THE FIX: Using the component defined within this file */}
             <AddExpenseModal_Component isOpen={isExpenseModalOpen} onClose={() => setIsExpenseModalOpen(false)} onSuccess={onUpdate} investmentId={investment._id} budgetItemId={selectedBudgetItemId} vendors={vendors} />
+            
             <EditBudgetItemModal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} onSuccess={onUpdate} budgetItem={editingBudgetItem} />
-            {/* 4. RENDER THE EDIT EXPENSE MODAL */}
             <EditExpenseModal isOpen={isEditExpenseModalOpen} onClose={() => setIsEditExpenseModalOpen(false)} onSuccess={onUpdate} expense={editingExpense} vendors={vendors} />
 
             <div className="space-y-6">
@@ -169,7 +168,6 @@ const FinancialsTab = ({ investment, budgetItems, expenses, vendors, onUpdate })
                                     onAddExpense={() => handleOpenExpenseModal(item._id)}
                                     onEdit={() => handleOpenEditModal(item)}
                                     onDelete={() => handleDeleteBudgetItem(item._id)}
-                                    // 5. PASS THE NEW HANDLERS DOWN TO THE ROW
                                     onEditExpense={handleOpenEditExpenseModal}
                                     onDeleteExpense={handleDeleteExpense}
                                 />
