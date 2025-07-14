@@ -14,7 +14,6 @@ import ScheduleTab from "../components/ScheduleTab";
 import DashboardTab from "../components/DashboardTab";
 import DocumentsTab from "../components/DocumentsTab";
 import TeamTab from "../components/TeamTab";
-import DealPerformanceTab from "../components/DealPerformanceTab"; // ✅ Corrected import
 
 // --- Reusable UI Components ---
 const PrimaryButton = ({ onClick, children, className = '', ...props }) => <button onClick={onClick} className={`bg-brand-turquoise hover:bg-brand-turquoise-600 text-white font-semibold px-4 py-2 rounded-md transition ${className}`} {...props}>{children}</button>;
@@ -52,6 +51,7 @@ const InvestmentDetail = () => {
 
   const fetchData = useCallback(async () => {
     try {
+      setLoading(true);
       const [
         investmentData, 
         budgetData, 
@@ -125,7 +125,6 @@ const InvestmentDetail = () => {
       <div className="bg-white p-2 rounded-lg shadow-sm border border-brand-gray-200 flex items-center space-x-2 overflow-x-auto">
         <TabButton tabName="dashboard" label="Dashboard" />
         <TabButton tabName="financials" label="Financials" />
-        <TabButton tabName="performance" label="Performance" />
         <TabButton tabName="schedule" label="Schedule" />
         <TabButton tabName="documents" label="Documents" />
         <TabButton tabName="team" label="Team" />
@@ -148,14 +147,6 @@ const InvestmentDetail = () => {
                 expenses={expenses} 
                 vendors={vendors}
                 onUpdate={fetchData}
-            />
-        }
-        {activeTab === 'performance' &&
-            // ✅ Corrected Component Name
-            <DealPerformanceTab
-                investment={investment}
-                budgetItems={budgetItems}
-                expenses={expenses}
             />
         }
         {activeTab === 'schedule' && 
