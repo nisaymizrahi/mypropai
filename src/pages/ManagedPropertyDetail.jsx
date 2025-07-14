@@ -6,7 +6,7 @@ import AddUnitModal from '../components/AddUnitModal';
 import AddLeaseModal from '../components/AddLeaseModal';
 import MaintenanceTab from '../components/MaintenanceTab';
 import OperatingExpensesTab from '../components/OperatingExpensesTab';
-import RentalPerformanceTab from '../components/RentalPerformanceTab'; // 1. IMPORT THE NEW TAB
+import RentalPerformanceTab from '../components/RentalPerformanceTab';
 
 const LoadingSpinner = () => (
     <div className="flex justify-center items-center p-8">
@@ -71,6 +71,12 @@ const ManagedPropertyDetail = () => {
   const [activeTab, setActiveTab] = useState('units');
   const [tickets, setTickets] = useState([]);
   const [operatingExpenses, setOperatingExpenses] = useState([]);
+
+  // ✅ THIS FUNCTION IS NOW CORRECTLY DEFINED AND IN SCOPE
+  const handleOpenLeaseModal = (unitId) => {
+    setSelectedUnitId(unitId);
+    setIsAddLeaseModalOpen(true);
+  };
 
   const fetchPropertyDetails = useCallback(async () => {
     setLoading(true);
@@ -166,7 +172,6 @@ const ManagedPropertyDetail = () => {
             )}
 
             {activeTab === 'performance' && (
-                // 2. USE THE REAL COMPONENT AND PASS PROPS
                 <RentalPerformanceTab
                     property={property}
                     operatingExpenses={operatingExpenses}
