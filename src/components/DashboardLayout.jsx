@@ -34,7 +34,6 @@ const PlusCircleIcon = ({ className }) => (
     </svg>
 );
 
-// NEW: Added the Property Management icon here
 const HomeDollarIcon = ({ className }) => (
     <svg className={className} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
@@ -43,13 +42,25 @@ const HomeDollarIcon = ({ className }) => (
     </svg>
 );
 
+// 1. ADD A NEW CALCULATOR ICON
+const CalculatorIcon = ({ className }) => (
+    <svg className={className} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect>
+        <line x1="8" y1="6" x2="16" y2="6"></line>
+        <line x1="16" y1="14" x2="8" y2="14"></line>
+        <line x1="16" y1="18" x2="8" y2="18"></line>
+        <line x1="10" y1="10" x2="14" y2="10"></line>
+    </svg>
+);
 
-// UPDATED: Added the new management link to the navigation array
+
+// 2. ADD THE NEW LINK TO THE NAVIGATION ARRAY
 const navLinks = [
   { to: "/dashboard", text: "Dashboard", icon: HomeIcon },
   { to: "/comps", text: "Comps Tool", icon: SearchIcon },
   { to: "/investments", text: "My Investments", icon: BriefcaseIcon },
   { to: "/management", text: "Management", icon: HomeDollarIcon },
+  { to: "/tools", text: "Financial Tools", icon: CalculatorIcon },
   { to: "/investments/new", text: "Add Investment", icon: PlusCircleIcon },
 ];
 

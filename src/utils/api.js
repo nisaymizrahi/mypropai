@@ -16,8 +16,15 @@ export const getAuthHeaders = (isFormData = false) => {
   return headers;
 };
 
+// --- Dashboard Functions ---
+export const getDashboardSummary = async () => {
+    const res = await fetch(`${API_BASE_URL}/dashboard/summary`, { headers: getAuthHeaders() });
+    if (!res.ok) throw new Error('Failed to fetch dashboard summary');
+    return res.json();
+};
+
 // --- Investment Functions ---
-// ... (All investment functions remain the same) ...
+// ... functions remain the same ...
 export const createInvestment = async (data) => {
   const res = await fetch(`${API_BASE_URL}/investments`, { method: "POST", headers: getAuthHeaders(), body: JSON.stringify(data) });
   if (!res.ok) throw new Error((await res.json()).message || "Failed to save investment");
@@ -43,7 +50,7 @@ export const deleteInvestment = async (id) => {
 // --- Project Hub API Functions ---
 
 // --- Budget Items ---
-// ... (All budget item functions remain the same) ...
+// ... functions remain the same ...
 export const getBudgetItems = async (investmentId) => {
   const res = await fetch(`${API_BASE_URL}/budget-items/investment/${investmentId}`, { headers: getAuthHeaders() });
   if (!res.ok) throw new Error('Failed to fetch budget items');
@@ -66,7 +73,7 @@ export const deleteBudgetItem = async (id) => {
 };
 
 // --- Expenses ---
-// ... (All expense functions remain the same) ...
+// ... functions remain the same ...
 export const getExpenses = async (investmentId) => {
   const res = await fetch(`${API_BASE_URL}/expenses/investment/${investmentId}`, { headers: getAuthHeaders() });
   if (!res.ok) throw new Error('Failed to fetch expenses');
@@ -89,7 +96,7 @@ export const deleteExpense = async (id) => {
 };
 
 // --- Vendors ---
-// ... (All vendor functions remain the same) ...
+// ... functions remain the same ...
 export const getVendors = async () => {
     const res = await fetch(`${API_BASE_URL}/vendors`, { headers: getAuthHeaders() });
     if (!res.ok) throw new Error('Failed to fetch vendors');
@@ -112,7 +119,7 @@ export const deleteVendor = async (id) => {
 };
 
 // --- Project Tasks ---
-// ... (All project task functions remain the same) ...
+// ... functions remain the same ...
 export const getProjectTasks = async (investmentId) => {
     const res = await fetch(`${API_BASE_URL}/project-tasks/investment/${investmentId}`, { headers: getAuthHeaders() });
     if (!res.ok) throw new Error('Failed to fetch project tasks');
@@ -125,7 +132,7 @@ export const createProjectTask = async (data) => {
 };
 
 // --- Project Documents ---
-// ... (All project document functions remain the same) ...
+// ... functions remain the same ...
 export const getProjectDocuments = async (investmentId) => {
     const res = await fetch(`${API_BASE_URL}/documents/investment/${investmentId}`, { headers: getAuthHeaders() });
     if (!res.ok) throw new Error('Failed to fetch documents');
@@ -142,6 +149,7 @@ export const deleteProjectDocument = async (documentId) => {
     return res.json();
 };
 
+
 // --- Auth Functions ---
 export const loginUser = async (email, password) => {
     const res = await fetch(`${API_BASE_URL}/auth/login`, {
@@ -152,7 +160,6 @@ export const loginUser = async (email, password) => {
     if (!res.ok) throw new Error((await res.json()).message || "Failed to log in");
     return res.json();
 };
-
 export const logoutUser = async () => {
   try {
     await fetch(`${API_BASE_URL}/auth/logout`, {
@@ -165,8 +172,6 @@ export const logoutUser = async () => {
     localStorage.removeItem("token");
   }
 };
-
-// ✅ ADDED: Update user profile
 export const updateUserProfile = async (profileData) => {
     const res = await fetch(`${API_BASE_URL}/auth/me/update`, {
         method: 'PATCH',
@@ -176,8 +181,6 @@ export const updateUserProfile = async (profileData) => {
     if (!res.ok) throw new Error((await res.json()).message || "Failed to update profile");
     return res.json();
 };
-
-// ✅ ADDED: Change user password
 export const changePassword = async (passwordData) => {
     const res = await fetch(`${API_BASE_URL}/auth/change-password`, {
         method: 'POST',
@@ -190,7 +193,7 @@ export const changePassword = async (passwordData) => {
 
 
 // --- Recurring Charges ---
-// ... (Recurring charges function remains the same) ...
+// ... function remains the same ...
 export const runRecurringCharges = async () => {
   const res = await fetch(`${API_BASE_URL}/management/recurring/run`, { method: 'POST', headers: getAuthHeaders() });
   if (!res.ok) throw new Error((await res.json()).msg || 'Failed to run recurring charges');
@@ -199,7 +202,7 @@ export const runRecurringCharges = async () => {
 
 
 // --- Tenant Portal Functions ---
-// ... (All tenant portal functions remain the same) ...
+// ... functions remain the same ...
 const getTenantAuthHeaders = (isFormData = false) => {
   const token = localStorage.getItem("tenantToken");
   const headers = {};

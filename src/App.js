@@ -22,8 +22,9 @@ import TenantDashboard from "./pages/TenantDashboard";
 import TenantProtectedRoute from "./components/TenantProtectedRoute";
 import Homepage from "./pages/Homepage";
 import SignupPage from "./pages/SignupPage";
-// 1. IMPORT THE NEW ACCOUNT CENTER PAGE
 import AccountCenter from "./pages/AccountCenter";
+// 1. IMPORT THE NEW FINANCIAL TOOLS PAGE
+import FinancialToolsPage from "./pages/FinancialToolsPage";
 
 
 function App() {
@@ -66,13 +67,24 @@ function App() {
             }
           />
           
-          {/* 2. ADD THE NEW ACCOUNT CENTER ROUTE */}
           <Route
             path="/account"
             element={
               <ProtectedRoute>
                 <DashboardLayout>
                   <AccountCenter />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* 2. ADD THE NEW FINANCIAL TOOLS ROUTE */}
+          <Route
+            path="/tools"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <FinancialToolsPage />
                 </DashboardLayout>
               </ProtectedRoute>
             }

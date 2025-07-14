@@ -1,103 +1,114 @@
-import React from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '../context/AuthContext';
+import { getDashboardSummary } from '../utils/api';
+import { Link } from 'react-router-dom';
 
-// --- SVG Icon Components ---
+const LoadingSpinner = () => <div className="flex justify-center items-center p-16"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-turquoise"></div></div>;
 
-const SearchIcon = ({ className }) => (
-  <svg className={className} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="11" cy="11" r="8"></circle>
-    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-  </svg>
+const StatCard = ({ title, value, linkTo }) => (
+    <Link to={linkTo} className="block bg-white p-6 rounded-lg shadow-sm border hover:shadow-md transition">
+        <p className="text-sm font-medium text-brand-gray-500">{title}</p>
+        <p className="text-3xl font-bold text-brand-gray-800 mt-1">{value}</p>
+    </Link>
 );
-
-const BriefcaseIcon = ({ className }) => (
-    <svg className={className} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
-        <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
-    </svg>
-);
-
-const CalculatorIcon = ({ className }) => (
-    <svg className={className} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect>
-        <line x1="8" y1="6" x2="16" y2="6"></line>
-        <line x1="16" y1="14" x2="16" y2="18"></line>
-        <line x1="12" y1="10" x2="12" y2="18"></line>
-        <line x1="8" y1="10" x2="8" y2="18"></line>
-    </svg>
-);
-
-// NEW: A dedicated icon for our new Property Management feature
-const HomeDollarIcon = ({ className }) => (
-    <svg className={className} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
-        <polyline points="9 22 9 12 15 12 15 22"></polyline>
-        <path d="M12 15s-2-1.5-2-3c0-1.1.9-2 2-2s2 .9 2 2c0 1.5-2 3-2 3z"></path>
-    </svg>
-);
-
 
 const DashboardPage = () => {
-  const navigate = useNavigate();
+  const { user } = useAuth();
+  const [summary, setSummary] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  const tools = [
-    {
-      title: "Comparable Search",
-      description: "Find sales comps by address, filters, and radius.",
-      path: "/comps",
-      icon: SearchIcon,
-    },
-    {
-      title: "Investment Tracker",
-      description: "Add and manage fix & flip or rental properties.",
-      path: "/investments",
-      icon: BriefcaseIcon,
-    },
-    // NEW: The card for our new feature
-    {
-      title: "Property Management",
-      description: "Manage units, tenants, leases, and operating income.",
-      path: "/management",
-      icon: HomeDollarIcon,
-    },
-    {
-      title: "ROI Calculator",
-      description: "Evaluate the return on investment for a property.",
-      path: "/roi",
-      icon: CalculatorIcon,
-    },
-  ];
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        const summaryData = await getDashboardSummary();
+        setSummary(summaryData);
+      } catch (err) {
+        setError(err.message || 'Could not load dashboard data.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
+
+  if (loading) return <LoadingSpinner />;
+  if (error) return <p className="text-red-500 text-center">{error}</p>;
+  if (!summary) return <p className="text-center">No summary data available.</p>;
+
+  const { kpis, recentActivity, actionItems } = summary;
 
   return (
-    <div>
-      <div className="max-w-5xl mx-auto">
-        <h1 className="text-3xl font-bold mb-2 text-brand-gray-900">
-          Dashboard
-        </h1>
-        <p className="text-lg text-brand-gray-500 mb-8">
-            Welcome to your AI-powered real estate analysis hub.
-        </p>
-
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {tools.map((tool) => (
-            <div
-              key={tool.title}
-              className="bg-white rounded-lg p-6 cursor-pointer border border-brand-gray-200 hover:shadow-lg hover:-translate-y-1 transition-all duration-200 group"
-              onClick={() => navigate(tool.path)}
-            >
-              <div className="flex items-center mb-4">
-                <div className="p-3 bg-brand-turquoise-100 rounded-lg mr-4">
-                    <tool.icon className="h-6 w-6 text-brand-turquoise-600" />
-                </div>
-                <h2 className="text-xl font-semibold text-brand-gray-800">
-                  {tool.title}
-                </h2>
-              </div>
-              <p className="text-brand-gray-500">{tool.description}</p>
-            </div>
-          ))}
+    <div className="space-y-8">
+        <div>
+            <h1 className="text-3xl font-bold text-brand-gray-900">
+              Welcome back, {user?.name || ''}!
+            </h1>
+            <p className="text-lg text-brand-gray-500 mt-1">
+                Here's a snapshot of your portfolio.
+            </p>
         </div>
-      </div>
+
+        {/* KPI Section */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            <StatCard 
+                title="Portfolio Value" 
+                value={`$${kpis.portfolioValue.toLocaleString()}`}
+                linkTo="/investments"
+            />
+            <StatCard 
+                title="Active Projects" 
+                value={kpis.activeProjects}
+                linkTo="/investments"
+            />
+            <StatCard 
+                title="Gross Monthly Rent" 
+                value={`$${kpis.monthlyRent.toLocaleString()}`}
+                linkTo="/management"
+            />
+             <StatCard 
+                title="Occupancy Rate" 
+                value={`${kpis.occupancyRate.toFixed(0)}%`}
+                linkTo="/management"
+            />
+        </div>
+
+        {/* Action Items & Recent Activity */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Action Items */}
+            <div className="bg-white p-6 rounded-lg shadow-sm border">
+                <h3 className="text-xl font-semibold text-brand-gray-800 mb-4">Action Items</h3>
+                <div className="space-y-3">
+                    {actionItems.tasks.length > 0 ? (
+                        actionItems.tasks.map(task => (
+                            <div key={task._id} className="text-sm p-2 bg-yellow-50 rounded-md">
+                                <p className="font-semibold text-yellow-800">Upcoming Task:</p>
+                                <p className="text-yellow-700">{task.title} - Due: {new Date(task.endDate).toLocaleDateString()}</p>
+                            </div>
+                        ))
+                    ) : (
+                        <p className="text-sm text-brand-gray-500">No upcoming task deadlines.</p>
+                    )}
+                </div>
+            </div>
+            {/* Recent Activity */}
+            <div className="bg-white p-6 rounded-lg shadow-sm border">
+                <h3 className="text-xl font-semibold text-brand-gray-800 mb-4">Recent Expenses</h3>
+                <div className="space-y-2">
+                     {recentActivity.expenses.length > 0 ? (
+                        recentActivity.expenses.map(expense => (
+                            <div key={expense._id} className="flex justify-between items-center text-sm border-b pb-2">
+                                <span>{expense.description}</span>
+                                <span className="font-semibold">${expense.amount.toLocaleString()}</span>
+                            </div>
+                        ))
+                    ) : (
+                        <p className="text-sm text-brand-gray-500">No recent expenses.</p>
+                    )}
+                </div>
+            </div>
+        </div>
     </div>
   );
 };
