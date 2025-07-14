@@ -11,14 +11,18 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     const checkAuth = async () => {
+      console.log('%c[AUTH] Starting auth check...', 'color: blue');
       setLoading(true);
+
       if (!token) {
+        console.log('[AUTH] No token found. Setting as logged out.');
         setAuthenticated(false);
         setUser(null);
         setLoading(false);
         return;
       }
 
+      console.log('[AUTH] Token found, verifying with server...');
       try {
         const res = await fetch(`${API_BASE_URL}/auth/me`, {
           headers: { Authorization: `Bearer ${token}` },
@@ -26,18 +30,20 @@ export const AuthProvider = ({ children }) => {
 
         if (res.ok) {
           const userData = await res.json();
+          console.log('%c[AUTH] Token verification SUCCESSFUL.', 'color: green', { user: userData });
           setUser(userData);
           setAuthenticated(true);
         } else {
           throw new Error("Invalid token");
         }
       } catch (err) {
-        console.error("Auth check failed:", err);
+        console.error('%c[AUTH] Token verification FAILED.', 'color: red', err);
         localStorage.removeItem("token");
         setToken(null);
         setUser(null);
         setAuthenticated(false);
       } finally {
+        console.log('[AUTH] Auth check finished.');
         setLoading(false);
       }
     };
@@ -46,11 +52,13 @@ export const AuthProvider = ({ children }) => {
   }, [token]);
 
   const login = (newToken) => {
+    console.log('%c[AUTH] Login function called. Setting new token.', 'color: purple');
     localStorage.setItem('token', newToken);
     setToken(newToken);
   };
 
   const logout = () => {
+    console.log('%c[AUTH] Logout function called. Clearing token.', 'color: orange');
     localStorage.removeItem('token');
     setToken(null);
   };
