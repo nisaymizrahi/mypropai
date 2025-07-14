@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { getAuthHeaders, getMaintenanceTickets, getOperatingExpenses, getVendors } from '../utils/api';
+import { useParams, useNavigate, Link } from 'react-router-dom';
+import { getAuthHeaders, getMaintenanceTickets, getOperatingExpenses, getVendors, getArchivedLeases } from '../utils/api'; // 1. IMPORT
 import { API_BASE_URL } from '../config';
 import AddUnitModal from '../components/AddUnitModal';
 import AddLeaseModal from '../components/AddLeaseModal';
@@ -64,6 +64,37 @@ const UnitCard = ({ unit, onAddLeaseClick, navigate }) => {
     );
 };
 
+// 2. CREATE THE NEW TAB COMPONENT
+const LeaseHistoryTab = ({ leases }) => (
+    <div className="bg-white p-6 rounded-lg shadow-sm border">
+        <h3 className="text-xl font-semibold text-brand-gray-800 mb-4">Archived Lease History</h3>
+        <div className="overflow-x-auto">
+            <table className="min-w-full text-sm">
+                <thead className="bg-brand-gray-50">
+                    <tr>
+                        <th className="text-left p-3 font-semibold">Unit</th>
+                        <th className="text-left p-3 font-semibold">Tenant</th>
+                        <th className="text-left p-3 font-semibold">Lease End Date</th>
+                    </tr>
+                </thead>
+                <tbody className="divide-y">
+                    {leases.length > 0 ? leases.map(lease => (
+                        <tr key={lease._id} className="hover:bg-brand-gray-50">
+                            <td className="p-3 font-medium">{lease.unit?.name || 'N/A'}</td>
+                            <td className="p-3">{lease.tenant?.fullName || 'N/A'}</td>
+                            <td className="p-3">{new Date(lease.endDate).toLocaleDateString()}</td>
+                        </tr>
+                    )) : (
+                        <tr>
+                            <td colSpan="3" className="text-center p-8 text-brand-gray-500">No archived leases for this property.</td>
+                        </tr>
+                    )}
+                </tbody>
+            </table>
+        </div>
+    </div>
+);
+
 const ManagedPropertyDetail = () => {
   const { propertyId } = useParams();
   const navigate = useNavigate();
@@ -78,7 +109,8 @@ const ManagedPropertyDetail = () => {
   const [activeTab, setActiveTab] = useState('units');
   const [tickets, setTickets] = useState([]);
   const [operatingExpenses, setOperatingExpenses] = useState([]);
-  const [vendors, setVendors] = useState([]); // Add state for vendors
+  const [vendors, setVendors] = useState([]);
+  const [archivedLeases, setArchivedLeases] = useState([]); // 3. ADD STATE
 
   const handleOpenLeaseModal = (unitId) => {
     setSelectedUnitId(unitId);
@@ -88,12 +120,13 @@ const ManagedPropertyDetail = () => {
   const fetchPropertyDetails = useCallback(async () => {
     setLoading(true);
     try {
-      // Fetch all data, including vendors
-      const [propertyRes, ticketsData, expensesData, vendorsData] = await Promise.all([
+      // 4. FETCH ALL DATA
+      const [propertyRes, ticketsData, expensesData, vendorsData, archivedLeasesData] = await Promise.all([
           fetch(`${API_BASE_URL}/management/${propertyId}`, { headers: getAuthHeaders() }),
           getMaintenanceTickets(propertyId),
           getOperatingExpenses(propertyId),
-          getVendors()
+          getVendors(),
+          getArchivedLeases(propertyId)
       ]);
 
       if (!propertyRes.ok) {
@@ -103,7 +136,8 @@ const ManagedPropertyDetail = () => {
       setProperty(propertyData);
       setTickets(ticketsData);
       setOperatingExpenses(expensesData);
-      setVendors(vendorsData); // Set vendors state
+      setVendors(vendorsData);
+      setArchivedLeases(archivedLeasesData);
 
     } catch (err) {
       setError(err.message);
@@ -149,6 +183,7 @@ const ManagedPropertyDetail = () => {
                 <TabButton tabName="maintenance" label="Maintenance" />
                 <TabButton tabName="expenses" label="Expenses" />
                 <TabButton tabName="performance" label="Performance" />
+                <TabButton tabName="history" label="Lease History" />
             </div>
 
             {activeTab === 'units' && (
@@ -187,6 +222,10 @@ const ManagedPropertyDetail = () => {
                     property={property}
                     operatingExpenses={operatingExpenses}
                 />
+            )}
+
+            {activeTab === 'history' && (
+                <LeaseHistoryTab leases={archivedLeases} />
             )}
         </div>
     </>

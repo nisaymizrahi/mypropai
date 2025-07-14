@@ -167,7 +167,6 @@ export const getUnitDetails = async (unitId) => {
     if (!res.ok) throw new Error('Failed to fetch unit details');
     return res.json();
 };
-
 export const runRecurringCharges = async () => {
   const res = await fetch(`${API_BASE_URL}/management/recurring/run`, { method: 'POST', headers: getAuthHeaders() });
   if (!res.ok) throw new Error((await res.json()).msg || 'Failed to run recurring charges');
@@ -204,29 +203,33 @@ export const createOperatingExpense = async (formData) => {
     return res.json();
 };
 export const updateListingDetails = async (unitId, data) => {
-    const res = await fetch(`${API_BASE_URL}/management/units/${unitId}/listing`, {
-        method: 'PATCH',
-        headers: getAuthHeaders(),
-        body: JSON.stringify(data)
-    });
+    const res = await fetch(`${API_BASE_URL}/management/units/${unitId}/listing`, { method: 'PATCH', headers: getAuthHeaders(), body: JSON.stringify(data) });
     if (!res.ok) throw new Error('Failed to update listing details');
     return res.json();
 };
 export const addListingPhotos = async (unitId, formData) => {
-    const res = await fetch(`${API_BASE_URL}/management/units/${unitId}/listing/photos`, {
-        method: 'POST',
-        headers: getAuthHeaders(true),
-        body: formData
-    });
+    const res = await fetch(`${API_BASE_URL}/management/units/${unitId}/listing/photos`, { method: 'POST', headers: getAuthHeaders(true), body: formData });
     if (!res.ok) throw new Error('Failed to upload photos');
     return res.json();
 };
 export const deleteListingPhoto = async (unitId, photoId) => {
-    const res = await fetch(`${API_BASE_URL}/management/units/${unitId}/listing/photos/${photoId}`, {
-        method: 'DELETE',
-        headers: getAuthHeaders()
-    });
+    const res = await fetch(`${API_BASE_URL}/management/units/${unitId}/listing/photos/${photoId}`, { method: 'DELETE', headers: getAuthHeaders() });
     if (!res.ok) throw new Error('Failed to delete photo');
+    return res.json();
+};
+// ✅ ADDED
+export const archiveLease = async (leaseId) => {
+    const res = await fetch(`${API_BASE_URL}/management/leases/${leaseId}/archive`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+    });
+    if (!res.ok) throw new Error('Failed to archive lease');
+    return res.json();
+};
+// ✅ ADDED
+export const getArchivedLeases = async (propertyId) => {
+    const res = await fetch(`${API_BASE_URL}/management/property/${propertyId}/archived-leases`, { headers: getAuthHeaders() });
+    if (!res.ok) throw new Error('Failed to fetch archived leases');
     return res.json();
 };
 
