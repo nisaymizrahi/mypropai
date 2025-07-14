@@ -210,7 +210,6 @@ export const deleteProjectDocument = async (documentId) => {
 };
 
 // --- Auth Functions ---
-// ✅ ADDED
 export const loginUser = async (email, password) => {
     const res = await fetch(`${API_BASE_URL}/auth/login`, {
         method: 'POST',
@@ -221,8 +220,21 @@ export const loginUser = async (email, password) => {
     return res.json();
 };
 
-export const logoutUser = () => {
-  localStorage.removeItem("token");
+// ✅ UPDATED: This function now securely logs out the user.
+export const logoutUser = async () => {
+  try {
+    // Tell the backend to blocklist the token
+    await fetch(`${API_BASE_URL}/auth/logout`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+    });
+  } catch (error) {
+    // Even if the backend call fails, we still want to log the user out on the frontend.
+    console.error('Logout API call failed, proceeding with client-side logout.', error);
+  } finally {
+    // Always remove the token from local storage
+    localStorage.removeItem("token");
+  }
 };
 
 // --- Recurring Charges ---
