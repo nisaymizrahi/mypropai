@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import toast from 'react-hot-toast'; // 1. IMPORT TOAST
 import { useAuth } from '../context/AuthContext';
 import { updateUserProfile, changePassword } from '../utils/api';
 
@@ -7,12 +8,10 @@ const AccountCenter = () => {
     
     // State for the profile form
     const [profileData, setProfileData] = useState({ name: '', email: '' });
-    const [profileMessage, setProfileMessage] = useState('');
     const [isProfileSaving, setIsProfileSaving] = useState(false);
 
     // State for the password form
     const [passwordData, setPasswordData] = useState({ currentPassword: '', newPassword: '' });
-    const [passwordMessage, setPasswordMessage] = useState('');
     const [isPasswordSaving, setIsPasswordSaving] = useState(false);
 
     useEffect(() => {
@@ -32,12 +31,13 @@ const AccountCenter = () => {
     const handleProfileSubmit = async (e) => {
         e.preventDefault();
         setIsProfileSaving(true);
-        setProfileMessage('');
         try {
             await updateUserProfile(profileData);
-            setProfileMessage('Profile updated successfully!');
+            // 2. USE TOAST FOR SUCCESS
+            toast.success('Profile updated successfully!');
         } catch (error) {
-            setProfileMessage(error.message || 'Failed to update profile.');
+            // 3. USE TOAST FOR ERROR
+            toast.error(error.message || 'Failed to update profile.');
         } finally {
             setIsProfileSaving(false);
         }
@@ -46,13 +46,12 @@ const AccountCenter = () => {
     const handlePasswordSubmit = async (e) => {
         e.preventDefault();
         setIsPasswordSaving(true);
-        setPasswordMessage('');
         try {
             const data = await changePassword(passwordData);
-            setPasswordMessage(data.message);
+            toast.success(data.message);
             setPasswordData({ currentPassword: '', newPassword: '' }); // Clear fields
         } catch (error) {
-            setPasswordMessage(error.message || 'Failed to change password.');
+            toast.error(error.message || 'Failed to change password.');
         } finally {
             setIsPasswordSaving(false);
         }
@@ -80,7 +79,7 @@ const AccountCenter = () => {
                             <input name="email" type="email" value={profileData.email} onChange={handleProfileChange} className="mt-1 block w-full border rounded-md p-2"/>
                         </div>
                     </div>
-                    {profileMessage && <p className={`text-sm ${profileMessage.includes('success') ? 'text-green-600' : 'text-red-600'}`}>{profileMessage}</p>}
+                    {/* 4. REMOVED THE OLD MESSAGE ELEMENT */}
                     <div className="text-right">
                         <button type="submit" disabled={isProfileSaving} className="bg-brand-turquoise text-white px-4 py-2 rounded-md disabled:opacity-50">
                             {isProfileSaving ? 'Saving...' : 'Save Profile'}
@@ -103,7 +102,7 @@ const AccountCenter = () => {
                             <input name="newPassword" type="password" value={passwordData.newPassword} onChange={handlePasswordChange} className="mt-1 block w-full border rounded-md p-2"/>
                         </div>
                     </div>
-                    {passwordMessage && <p className={`text-sm ${passwordMessage.includes('success') ? 'text-green-600' : 'text-red-600'}`}>{passwordMessage}</p>}
+                    {/* 4. REMOVED THE OLD MESSAGE ELEMENT */}
                     <div className="text-right">
                         <button type="submit" disabled={isPasswordSaving} className="bg-brand-turquoise text-white px-4 py-2 rounded-md disabled:opacity-50">
                             {isPasswordSaving ? 'Saving...' : 'Change Password'}

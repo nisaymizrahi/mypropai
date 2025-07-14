@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { getInvestments } from "../utils/api";
+import EmptyState from "../components/EmptyState"; // 1. IMPORT THE NEW COMPONENT
 
 const MyInvestments = () => {
   const [investments, setInvestments] = useState([]);
@@ -51,39 +52,43 @@ const MyInvestments = () => {
       <div className="bg-white shadow-sm rounded-lg border border-brand-gray-200 overflow-hidden">
         {investments.length > 0 ? (
             <table className="min-w-full text-sm">
-            <thead className="bg-brand-gray-50 border-b border-brand-gray-200">
-                <tr>
-                <th className="text-left px-6 py-3 font-semibold text-brand-gray-600">Address</th>
-                <th className="text-left px-6 py-3 font-semibold text-brand-gray-600">Type</th>
-                <th className="text-left px-6 py-3 font-semibold text-brand-gray-600">Purchase Price</th>
-                <th className="text-left px-6 py-3 font-semibold text-brand-gray-600">Property Size</th>
-                <th className="px-6 py-3"></th>
-                </tr>
-            </thead>
-            <tbody className="divide-y divide-brand-gray-200">
-                {investments.map((inv) => (
-                <tr key={inv._id} className="hover:bg-brand-gray-50 transition-colors">
-                    <td className="px-6 py-4 font-medium text-brand-gray-800">{inv.address}</td>
-                    <td className="px-6 py-4 text-brand-gray-600 capitalize">{inv.type}</td>
-                    <td className="px-6 py-4 text-brand-gray-600">${inv.purchasePrice?.toLocaleString() || "N/A"}</td>
-                    <td className="px-6 py-4 text-brand-gray-600">{inv.sqft ? `${inv.sqft.toLocaleString()} sqft` : "—"}</td>
-                    <td className="px-6 py-4 text-right">
-                    <Link
-                        to={`/investments/${inv._id}`}
-                        className="text-brand-turquoise-600 hover:text-brand-turquoise-700 font-semibold"
-                    >
-                        View Details
-                    </Link>
-                    </td>
-                </tr>
-                ))}
-            </tbody>
+                <thead className="bg-brand-gray-50 border-b border-brand-gray-200">
+                    <tr>
+                    <th className="text-left px-6 py-3 font-semibold text-brand-gray-600">Address</th>
+                    <th className="text-left px-6 py-3 font-semibold text-brand-gray-600">Type</th>
+                    <th className="text-left px-6 py-3 font-semibold text-brand-gray-600">Purchase Price</th>
+                    <th className="text-left px-6 py-3 font-semibold text-brand-gray-600">Property Size</th>
+                    <th className="px-6 py-3"></th>
+                    </tr>
+                </thead>
+                <tbody className="divide-y divide-brand-gray-200">
+                    {investments.map((inv) => (
+                    <tr key={inv._id} className="hover:bg-brand-gray-50 transition-colors">
+                        <td className="px-6 py-4 font-medium text-brand-gray-800">{inv.address}</td>
+                        <td className="px-6 py-4 text-brand-gray-600 capitalize">{inv.type}</td>
+                        <td className="px-6 py-4 text-brand-gray-600">${inv.purchasePrice?.toLocaleString() || "N/A"}</td>
+                        <td className="px-6 py-4 text-brand-gray-600">{inv.sqft ? `${inv.sqft.toLocaleString()} sqft` : "—"}</td>
+                        <td className="px-6 py-4 text-right">
+                        <Link
+                            to={`/investments/${inv._id}`}
+                            className="text-brand-turquoise-600 hover:text-brand-turquoise-700 font-semibold"
+                        >
+                            View Details
+                        </Link>
+                        </td>
+                    </tr>
+                    ))}
+                </tbody>
             </table>
         ) : (
-            <div className="text-center p-12">
-                <h3 className="text-lg font-medium text-brand-gray-800">No Investments Found</h3>
-                <p className="text-brand-gray-500 mt-1">Get started by adding your first property.</p>
-            </div>
+            // 2. USE THE NEW EMPTY STATE COMPONENT
+            <EmptyState
+                icon="🏡"
+                title="No Investments Yet"
+                message="Get started by adding your first property to analyze and track."
+                buttonText="Add New Investment"
+                onButtonClick={() => navigate('/investments/new')}
+            />
         )}
       </div>
     </div>

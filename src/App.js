@@ -1,5 +1,6 @@
 import React, { useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import { Toaster } from 'react-hot-toast'; // 1. IMPORT THE TOASTER
 import DashboardLayout from "./components/DashboardLayout";
 import DashboardPage from "./pages/DashboardPage";
 import CompsTool from "./pages/CompsTool";
@@ -23,7 +24,6 @@ import TenantProtectedRoute from "./components/TenantProtectedRoute";
 import Homepage from "./pages/Homepage";
 import SignupPage from "./pages/SignupPage";
 import AccountCenter from "./pages/AccountCenter";
-// 1. IMPORT THE NEW FINANCIAL TOOLS PAGE
 import FinancialToolsPage from "./pages/FinancialToolsPage";
 
 
@@ -35,6 +35,9 @@ function App() {
   return (
     <AuthProvider>
       <Router>
+        {/* 2. ADD THE TOASTER COMPONENT HERE */}
+        <Toaster position="top-right" reverseOrder={false} />
+
         <Routes>
           {/* --- Public Routes --- */}
           <Route path="/" element={<Homepage />} />
@@ -78,7 +81,6 @@ function App() {
             }
           />
 
-          {/* 2. ADD THE NEW FINANCIAL TOOLS ROUTE */}
           <Route
             path="/tools"
             element={

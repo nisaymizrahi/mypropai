@@ -7,6 +7,7 @@ import AddLeaseModal from '../components/AddLeaseModal';
 import MaintenanceTab from '../components/MaintenanceTab';
 import OperatingExpensesTab from '../components/OperatingExpensesTab';
 import RentalPerformanceTab from '../components/RentalPerformanceTab';
+import ListingTab from '../components/ListingTab'; // 1. IMPORT THE NEW TAB
 
 const LoadingSpinner = () => (
     <div className="flex justify-center items-center p-8">
@@ -72,14 +73,13 @@ const ManagedPropertyDetail = () => {
   const [tickets, setTickets] = useState([]);
   const [operatingExpenses, setOperatingExpenses] = useState([]);
 
-  // ✅ THIS FUNCTION IS NOW CORRECTLY DEFINED AND IN SCOPE
   const handleOpenLeaseModal = (unitId) => {
     setSelectedUnitId(unitId);
     setIsAddLeaseModalOpen(true);
   };
 
   const fetchPropertyDetails = useCallback(async () => {
-    setLoading(true);
+    // We don't set loading to true on every refetch for a smoother experience
     try {
       const [propertyRes, ticketsData, expensesData] = await Promise.all([
           fetch(`${API_BASE_URL}/management/${propertyId}`, { headers: getAuthHeaders() }),
@@ -134,13 +134,16 @@ const ManagedPropertyDetail = () => {
                 </div>
             </div>
             
+            {/* 2. ADD THE NEW TAB BUTTON */}
             <div className="flex gap-4 mb-6 border-b">
                 <TabButton tabName="units" label="Units" />
+                <TabButton tabName="listing" label="Listing" />
                 <TabButton tabName="maintenance" label="Maintenance" />
                 <TabButton tabName="expenses" label="Expenses" />
                 <TabButton tabName="performance" label="Performance" />
             </div>
 
+            {/* 3. CONDITIONALLY RENDER THE ACTIVE TAB */}
             {activeTab === 'units' && (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                     {property.units && property.units.map(unit => (
@@ -153,6 +156,13 @@ const ManagedPropertyDetail = () => {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {activeTab === 'listing' && (
+                <ListingTab
+                    property={property}
+                    onUpdate={fetchPropertyDetails}
+                />
             )}
 
             {activeTab === 'maintenance' && (

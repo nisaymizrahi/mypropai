@@ -187,8 +187,6 @@ export const deleteMaintenanceTicket = async (ticketId) => {
     if (!res.ok) throw new Error('Failed to delete maintenance ticket');
     return res.json();
 };
-
-// ✅ ADDED: Operating Expense Functions
 export const getOperatingExpenses = async (propertyId) => {
     const res = await fetch(`${API_BASE_URL}/operating-expenses/property/${propertyId}`, { headers: getAuthHeaders() });
     if (!res.ok) throw new Error('Failed to fetch operating expenses');
@@ -197,6 +195,33 @@ export const getOperatingExpenses = async (propertyId) => {
 export const createOperatingExpense = async (formData) => {
     const res = await fetch(`${API_BASE_URL}/operating-expenses`, { method: 'POST', headers: getAuthHeaders(true), body: formData });
     if (!res.ok) throw new Error('Failed to create operating expense');
+    return res.json();
+};
+export const updateListingDetails = async (propertyId, data) => {
+    const res = await fetch(`${API_BASE_URL}/management/${propertyId}/listing`, { method: 'PATCH', headers: getAuthHeaders(), body: JSON.stringify(data) });
+    if (!res.ok) throw new Error('Failed to update listing details');
+    return res.json();
+};
+export const addListingPhotos = async (propertyId, formData) => {
+    const res = await fetch(`${API_BASE_URL}/management/${propertyId}/listing/photos`, { method: 'POST', headers: getAuthHeaders(true), body: formData });
+    if (!res.ok) throw new Error('Failed to upload photos');
+    return res.json();
+};
+export const deleteListingPhoto = async (propertyId, photoId) => {
+    const res = await fetch(`${API_BASE_URL}/management/${propertyId}/listing/photos/${photoId}`, { method: 'DELETE', headers: getAuthHeaders() });
+    if (!res.ok) throw new Error('Failed to delete photo');
+    return res.json();
+};
+
+
+// --- AI Tool Functions ---
+export const generateAIDescription = async (data) => {
+    const res = await fetch(`${API_BASE_URL}/ai-tools/generate-description`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error((await res.json()).msg || 'Failed to generate AI description');
     return res.json();
 };
 
