@@ -21,8 +21,9 @@ import TenantLoginPage from "./pages/TenantLoginPage";
 import TenantDashboard from "./pages/TenantDashboard";
 import TenantProtectedRoute from "./components/TenantProtectedRoute";
 import Homepage from "./pages/Homepage";
-// 1. IMPORT THE NEW SIGNUP PAGE
 import SignupPage from "./pages/SignupPage";
+// 1. IMPORT THE NEW ACCOUNT CENTER PAGE
+import AccountCenter from "./pages/AccountCenter";
 
 
 function App() {
@@ -40,7 +41,6 @@ function App() {
           <Route path="/login-continue" element={<LoginContinuePage />} />
           <Route path="/invite/:token" element={<InvitePage />} />
           <Route path="/tenant-login" element={<TenantLoginPage />} />
-          {/* 2. ADD THE NEW SIGNUP ROUTE */}
           <Route path="/signup" element={<SignupPage />} />
 
 
@@ -61,6 +61,18 @@ function App() {
               <ProtectedRoute>
                 <DashboardLayout>
                   <DashboardPage />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          
+          {/* 2. ADD THE NEW ACCOUNT CENTER ROUTE */}
+          <Route
+            path="/account"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <AccountCenter />
                 </DashboardLayout>
               </ProtectedRoute>
             }
