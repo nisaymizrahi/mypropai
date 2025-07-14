@@ -120,7 +120,7 @@ const ManagedPropertyDetail = () => {
   if (!property) return <p className="text-center p-4">Property not found.</p>;
 
   const TabButton = ({ tabName, label }) => (
-    <button onClick={() => setActiveTab(tabName)} className={`px-4 py-2 rounded-md font-semibold ${activeTab === tabName ? 'bg-brand-turquoise text-white' : 'bg-white border border-brand-gray-300 text-brand-gray-700'}`}>{label}</button>
+    <button onClick={() => setActiveTab(tabName)} className={`flex-shrink-0 px-4 py-2 rounded-md font-semibold ${activeTab === tabName ? 'bg-brand-turquoise text-white' : 'bg-white border border-brand-gray-300 text-brand-gray-700'}`}>{label}</button>
   );
 
   return (
@@ -129,18 +129,20 @@ const ManagedPropertyDetail = () => {
         <AddLeaseModal isOpen={isAddLeaseModalOpen} onClose={() => setIsAddLeaseModalOpen(false)} onSuccess={handleLeaseAdded} unitId={selectedUnitId} propertyId={propertyId} />
 
         <div className="max-w-7xl mx-auto">
-            <div className="flex justify-between items-center mb-6">
+            {/* ✅ UPDATED: Header now stacks on mobile */}
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold">{property.address}</h1>
+                    <h1 className="text-2xl sm:text-3xl font-bold">{property.address}</h1>
                     <p className="text-lg text-brand-gray-500 mt-1">Management Dashboard</p>
                 </div>
-                <div className="flex items-center gap-2">
-                    <button onClick={() => setIsAddUnitModalOpen(true)} className="bg-brand-turquoise hover:bg-brand-turquoise-600 text-white font-semibold px-4 py-2 rounded-md transition">Add Unit</button>
-                    <button onClick={() => navigate('/management')} className="bg-white hover:bg-brand-gray-100 text-brand-gray-700 font-semibold px-4 py-2 rounded-md border border-brand-gray-300 transition">&larr; Back to All Properties</button>
+                <div className="flex items-center gap-2 w-full sm:w-auto">
+                    <button onClick={() => setIsAddUnitModalOpen(true)} className="flex-1 bg-brand-turquoise hover:bg-brand-turquoise-600 text-white font-semibold px-4 py-2 rounded-md transition">Add Unit</button>
+                    <button onClick={() => navigate('/management')} className="flex-1 bg-white hover:bg-brand-gray-100 text-brand-gray-700 font-semibold px-4 py-2 rounded-md border border-brand-gray-300 transition">Back</button>
                 </div>
             </div>
             
-            <div className="flex gap-4 mb-6 border-b">
+            {/* ✅ UPDATED: Tab navigation is now horizontally scrollable on mobile */}
+            <div className="flex gap-2 mb-6 border-b overflow-x-auto pb-2">
                 <TabButton tabName="units" label="Units" />
                 <TabButton tabName="maintenance" label="Maintenance" />
                 <TabButton tabName="expenses" label="Expenses" />

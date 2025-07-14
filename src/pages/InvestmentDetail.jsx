@@ -106,7 +106,7 @@ const InvestmentDetail = () => {
   const TabButton = ({ tabName, label }) => (
     <button
       onClick={() => setActiveTab(tabName)}
-      className={`px-3 py-2 font-semibold text-sm rounded-md ${activeTab === tabName ? 'bg-brand-turquoise text-white' : 'text-brand-gray-600 hover:bg-brand-gray-100'}`}
+      className={`flex-shrink-0 px-3 py-2 font-semibold text-sm rounded-md ${activeTab === tabName ? 'bg-brand-turquoise text-white' : 'text-brand-gray-600 hover:bg-brand-gray-100'}`}
     >
       {label}
     </button>
@@ -114,14 +114,18 @@ const InvestmentDetail = () => {
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">
-      <div className="flex justify-between items-center">
+      {/* ✅ UPDATED: Header now stacks on mobile */}
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
         <div>
-            <h1 className="text-3xl font-bold text-brand-gray-900">Project Hub</h1>
-            <p className="text-brand-gray-500">{investment.address}</p>
+            <h1 className="text-2xl sm:text-3xl font-bold text-brand-gray-900">Project Hub</h1>
+            <p className="text-base sm:text-lg text-brand-gray-500 mt-1">{investment.address}</p>
         </div>
-        <SecondaryButton onClick={() => navigate(`/investments/${id}/edit`)}>Edit Property Details</SecondaryButton>
+        <SecondaryButton onClick={() => navigate(`/investments/${id}/edit`)} className="w-full sm:w-auto">
+            Edit Property Details
+        </SecondaryButton>
       </div>
 
+      {/* ✅ UPDATED: Tab navigation is now horizontally scrollable on mobile */}
       <div className="bg-white p-2 rounded-lg shadow-sm border border-brand-gray-200 flex items-center space-x-2 overflow-x-auto">
         <TabButton tabName="dashboard" label="Dashboard" />
         <TabButton tabName="financials" label="Financials" />
