@@ -1,10 +1,12 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-// 1. IMPORT THE CORRECT FUNCTION
-import { getAuthHeaders } from '../utils/api';
+import { getAuthHeaders, getMaintenanceTickets, getOperatingExpenses } from '../utils/api';
 import { API_BASE_URL } from '../config';
 import AddUnitModal from '../components/AddUnitModal';
 import AddLeaseModal from '../components/AddLeaseModal';
+import MaintenanceTab from '../components/MaintenanceTab';
+import OperatingExpensesTab from '../components/OperatingExpensesTab';
+import RentalPerformanceTab from '../components/RentalPerformanceTab'; // 1. IMPORT THE NEW TAB
 
 const LoadingSpinner = () => (
     <div className="flex justify-center items-center p-8">
@@ -66,18 +68,27 @@ const ManagedPropertyDetail = () => {
   const [isAddLeaseModalOpen, setIsAddLeaseModalOpen] = useState(false);
   const [selectedUnitId, setSelectedUnitId] = useState(null);
 
+  const [activeTab, setActiveTab] = useState('units');
+  const [tickets, setTickets] = useState([]);
+  const [operatingExpenses, setOperatingExpenses] = useState([]);
+
   const fetchPropertyDetails = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/management/${propertyId}`, {
-        // 2. USE THE NEW FUNCTION
-        headers: getAuthHeaders(),
-      });
-      if (!res.ok) {
+      const [propertyRes, ticketsData, expensesData] = await Promise.all([
+          fetch(`${API_BASE_URL}/management/${propertyId}`, { headers: getAuthHeaders() }),
+          getMaintenanceTickets(propertyId),
+          getOperatingExpenses(propertyId)
+      ]);
+
+      if (!propertyRes.ok) {
         throw new Error('Failed to fetch property details.');
       }
-      const data = await res.json();
-      setProperty(data);
+      const propertyData = await propertyRes.json();
+      setProperty(propertyData);
+      setTickets(ticketsData);
+      setOperatingExpenses(expensesData);
+
     } catch (err) {
       setError(err.message);
     } finally {
@@ -89,92 +100,78 @@ const ManagedPropertyDetail = () => {
     fetchPropertyDetails();
   }, [fetchPropertyDetails]);
 
-  const handleUnitAdded = () => {
-    fetchPropertyDetails();
-  };
-
-  const handleOpenLeaseModal = (unitId) => {
-    setSelectedUnitId(unitId);
-    setIsAddLeaseModalOpen(true);
-  };
+  const handleUnitAdded = () => fetchPropertyDetails();
+  const handleLeaseAdded = () => fetchPropertyDetails();
   
-  const handleLeaseAdded = () => {
-    fetchPropertyDetails();
-  };
+  if (loading) return <LoadingSpinner />;
+  if (error) return <p className="text-red-500 text-center p-4">{error}</p>;
+  if (!property) return <p className="text-center p-4">Property not found.</p>;
 
-  if (loading) {
-    return <LoadingSpinner />;
-  }
-
-  if (error) {
-    return <p className="text-red-500 text-center p-4">{error}</p>;
-  }
-
-  if (!property) {
-    return <p className="text-center p-4">Property not found.</p>;
-  }
+  const TabButton = ({ tabName, label }) => (
+    <button onClick={() => setActiveTab(tabName)} className={`px-4 py-2 rounded-md font-semibold ${activeTab === tabName ? 'bg-brand-turquoise text-white' : 'bg-white border border-brand-gray-300 text-brand-gray-700'}`}>{label}</button>
+  );
 
   return (
     <>
-        <AddUnitModal
-            isOpen={isAddUnitModalOpen}
-            onClose={() => setIsAddUnitModalOpen(false)}
-            onUnitAdded={handleUnitAdded}
-            propertyId={propertyId}
-        />
-        <AddLeaseModal
-            isOpen={isAddLeaseModalOpen}
-            onClose={() => setIsAddLeaseModalOpen(false)}
-            onSuccess={handleLeaseAdded}
-            unitId={selectedUnitId}
-            propertyId={propertyId}
-        />
+        <AddUnitModal isOpen={isAddUnitModalOpen} onClose={() => setIsAddUnitModalOpen(false)} onUnitAdded={handleUnitAdded} propertyId={propertyId} />
+        <AddLeaseModal isOpen={isAddLeaseModalOpen} onClose={() => setIsAddLeaseModalOpen(false)} onSuccess={handleLeaseAdded} unitId={selectedUnitId} propertyId={propertyId} />
 
         <div className="max-w-7xl mx-auto">
             <div className="flex justify-between items-center mb-6">
                 <div>
-                    <h1 className="text-3xl font-bold text-brand-gray-900">
-                        {property.address}
-                    </h1>
-                    <p className="text-lg text-brand-gray-500 mt-1">
-                        Management Dashboard
-                    </p>
+                    <h1 className="text-3xl font-bold">{property.address}</h1>
+                    <p className="text-lg text-brand-gray-500 mt-1">Management Dashboard</p>
                 </div>
                 <div className="flex items-center gap-2">
-                    <button
-                        onClick={() => setIsAddUnitModalOpen(true)}
-                        className="bg-brand-turquoise hover:bg-brand-turquoise-600 text-white font-semibold px-4 py-2 rounded-md transition"
-                    >
-                        Add Unit
-                    </button>
-                    <button
-                        onClick={() => navigate('/management')}
-                        className="bg-white hover:bg-brand-gray-100 text-brand-gray-700 font-semibold px-4 py-2 rounded-md border border-brand-gray-300 transition"
-                    >
-                        &larr; Back to All Properties
-                    </button>
+                    <button onClick={() => setIsAddUnitModalOpen(true)} className="bg-brand-turquoise hover:bg-brand-turquoise-600 text-white font-semibold px-4 py-2 rounded-md transition">Add Unit</button>
+                    <button onClick={() => navigate('/management')} className="bg-white hover:bg-brand-gray-100 text-brand-gray-700 font-semibold px-4 py-2 rounded-md border border-brand-gray-300 transition">&larr; Back to All Properties</button>
                 </div>
+            </div>
+            
+            <div className="flex gap-4 mb-6 border-b">
+                <TabButton tabName="units" label="Units" />
+                <TabButton tabName="maintenance" label="Maintenance" />
+                <TabButton tabName="expenses" label="Expenses" />
+                <TabButton tabName="performance" label="Performance" />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {property.units && property.units.map(unit => (
-                    <UnitCard 
-                        key={unit._id} 
-                        unit={unit} 
-                        onAddLeaseClick={handleOpenLeaseModal}
-                        navigate={navigate}
-                    />
-                ))}
-                <div 
-                    onClick={() => setIsAddUnitModalOpen(true)}
-                    className="bg-white rounded-lg border-2 border-dashed border-brand-gray-300 flex items-center justify-center text-brand-gray-400 hover:border-brand-turquoise hover:text-brand-turquoise cursor-pointer transition min-h-[150px]"
-                >
-                    <div className="text-center">
-                        <span className="text-4xl font-light">+</span>
-                        <p className="font-semibold">Add New Unit</p>
+            {activeTab === 'units' && (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    {property.units && property.units.map(unit => (
+                        <UnitCard key={unit._id} unit={unit} onAddLeaseClick={handleOpenLeaseModal} navigate={navigate} />
+                    ))}
+                    <div onClick={() => setIsAddUnitModalOpen(true)} className="bg-white rounded-lg border-2 border-dashed border-brand-gray-300 flex items-center justify-center text-brand-gray-400 hover:border-brand-turquoise hover:text-brand-turquoise cursor-pointer transition min-h-[150px]">
+                        <div className="text-center">
+                            <span className="text-4xl font-light">+</span>
+                            <p className="font-semibold">Add New Unit</p>
+                        </div>
                     </div>
                 </div>
-            </div>
+            )}
+
+            {activeTab === 'maintenance' && (
+                <MaintenanceTab 
+                    tickets={tickets}
+                    property={property}
+                    onUpdate={fetchPropertyDetails}
+                />
+            )}
+            
+            {activeTab === 'expenses' && (
+                <OperatingExpensesTab
+                    propertyId={propertyId}
+                    expenses={operatingExpenses}
+                    onUpdate={fetchPropertyDetails}
+                />
+            )}
+
+            {activeTab === 'performance' && (
+                // 2. USE THE REAL COMPONENT AND PASS PROPS
+                <RentalPerformanceTab
+                    property={property}
+                    operatingExpenses={operatingExpenses}
+                />
+            )}
         </div>
     </>
   );

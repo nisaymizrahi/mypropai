@@ -14,7 +14,8 @@ import ScheduleTab from "../components/ScheduleTab";
 import DashboardTab from "../components/DashboardTab";
 import DocumentsTab from "../components/DocumentsTab";
 import TeamTab from "../components/TeamTab";
-import PerformanceTab from "../components/PerformanceTab"; // 1. IMPORT THE NEW TAB COMPONENT
+// 1. UPDATE THE IMPORT TO USE THE NEW FILE NAME
+import DealPerformanceTab from "../components/DealPerformanceTab"; 
 
 // --- Reusable UI Components ---
 const PrimaryButton = ({ onClick, children, className = '', ...props }) => <button onClick={onClick} className={`bg-brand-turquoise hover:bg-brand-turquoise-600 text-white font-semibold px-4 py-2 rounded-md transition ${className}`} {...props}>{children}</button>;
@@ -125,7 +126,6 @@ const InvestmentDetail = () => {
       <div className="bg-white p-2 rounded-lg shadow-sm border border-brand-gray-200 flex items-center space-x-2 overflow-x-auto">
         <TabButton tabName="dashboard" label="Dashboard" />
         <TabButton tabName="financials" label="Financials" />
-        {/* 2. ADD THE NEW TAB BUTTON */}
         <TabButton tabName="performance" label="Performance" />
         <TabButton tabName="schedule" label="Schedule" />
         <TabButton tabName="documents" label="Documents" />
@@ -151,9 +151,9 @@ const InvestmentDetail = () => {
                 onUpdate={fetchData}
             />
         }
-        {/* 3. ADD THE RENDER LOGIC FOR THE NEW TAB */}
         {activeTab === 'performance' &&
-            <PerformanceTab
+            // 2. UPDATE THE COMPONENT NAME BEING RENDERED
+            <DealPerformanceTab
                 investment={investment}
                 budgetItems={budgetItems}
                 expenses={expenses}
