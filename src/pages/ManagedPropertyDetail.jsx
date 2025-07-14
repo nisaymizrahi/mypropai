@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getAuthHeaders, getMaintenanceTickets, getOperatingExpenses } from '../utils/api';
+import { getAuthHeaders, getMaintenanceTickets, getOperatingExpenses, getVendors } from '../utils/api';
 import { API_BASE_URL } from '../config';
 import AddUnitModal from '../components/AddUnitModal';
 import AddLeaseModal from '../components/AddLeaseModal';
@@ -78,6 +78,7 @@ const ManagedPropertyDetail = () => {
   const [activeTab, setActiveTab] = useState('units');
   const [tickets, setTickets] = useState([]);
   const [operatingExpenses, setOperatingExpenses] = useState([]);
+  const [vendors, setVendors] = useState([]); // Add state for vendors
 
   const handleOpenLeaseModal = (unitId) => {
     setSelectedUnitId(unitId);
@@ -87,10 +88,12 @@ const ManagedPropertyDetail = () => {
   const fetchPropertyDetails = useCallback(async () => {
     setLoading(true);
     try {
-      const [propertyRes, ticketsData, expensesData] = await Promise.all([
+      // Fetch all data, including vendors
+      const [propertyRes, ticketsData, expensesData, vendorsData] = await Promise.all([
           fetch(`${API_BASE_URL}/management/${propertyId}`, { headers: getAuthHeaders() }),
           getMaintenanceTickets(propertyId),
-          getOperatingExpenses(propertyId)
+          getOperatingExpenses(propertyId),
+          getVendors()
       ]);
 
       if (!propertyRes.ok) {
@@ -100,6 +103,7 @@ const ManagedPropertyDetail = () => {
       setProperty(propertyData);
       setTickets(ticketsData);
       setOperatingExpenses(expensesData);
+      setVendors(vendorsData); // Set vendors state
 
     } catch (err) {
       setError(err.message);
@@ -129,7 +133,6 @@ const ManagedPropertyDetail = () => {
         <AddLeaseModal isOpen={isAddLeaseModalOpen} onClose={() => setIsAddLeaseModalOpen(false)} onSuccess={handleLeaseAdded} unitId={selectedUnitId} propertyId={propertyId} />
 
         <div className="max-w-7xl mx-auto">
-            {/* ✅ UPDATED: Header now stacks on mobile */}
             <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 gap-4">
                 <div>
                     <h1 className="text-2xl sm:text-3xl font-bold">{property.address}</h1>
@@ -141,7 +144,6 @@ const ManagedPropertyDetail = () => {
                 </div>
             </div>
             
-            {/* ✅ UPDATED: Tab navigation is now horizontally scrollable on mobile */}
             <div className="flex gap-2 mb-6 border-b overflow-x-auto pb-2">
                 <TabButton tabName="units" label="Units" />
                 <TabButton tabName="maintenance" label="Maintenance" />
@@ -167,6 +169,7 @@ const ManagedPropertyDetail = () => {
                 <MaintenanceTab 
                     tickets={tickets}
                     property={property}
+                    vendors={vendors} 
                     onUpdate={fetchPropertyDetails}
                 />
             )}
