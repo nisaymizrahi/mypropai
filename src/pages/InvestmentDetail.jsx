@@ -13,7 +13,8 @@ import FinancialsTab from "../components/FinancialsTab";
 import ScheduleTab from "../components/ScheduleTab";
 import DashboardTab from "../components/DashboardTab";
 import DocumentsTab from "../components/DocumentsTab";
-import TeamTab from "../components/TeamTab"; // 1. IMPORT THE NEW TEAM TAB
+import TeamTab from "../components/TeamTab";
+import PerformanceTab from "../components/PerformanceTab"; // 1. IMPORT THE NEW TAB COMPONENT
 
 // --- Reusable UI Components ---
 const PrimaryButton = ({ onClick, children, className = '', ...props }) => <button onClick={onClick} className={`bg-brand-turquoise hover:bg-brand-turquoise-600 text-white font-semibold px-4 py-2 rounded-md transition ${className}`} {...props}>{children}</button>;
@@ -51,8 +52,6 @@ const InvestmentDetail = () => {
 
   const fetchData = useCallback(async () => {
     try {
-      // We don't need to set loading to true on every refetch for a smoother UX
-      // setLoading(true); 
       const [
         investmentData, 
         budgetData, 
@@ -115,7 +114,6 @@ const InvestmentDetail = () => {
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">
-      {/* --- Header --- */}
       <div className="flex justify-between items-center">
         <div>
             <h1 className="text-3xl font-bold text-brand-gray-900">Project Hub</h1>
@@ -124,17 +122,17 @@ const InvestmentDetail = () => {
         <SecondaryButton onClick={() => navigate(`/investments/${id}/edit`)}>Edit Property Details</SecondaryButton>
       </div>
 
-      {/* --- Tab Navigation --- */}
       <div className="bg-white p-2 rounded-lg shadow-sm border border-brand-gray-200 flex items-center space-x-2 overflow-x-auto">
         <TabButton tabName="dashboard" label="Dashboard" />
         <TabButton tabName="financials" label="Financials" />
+        {/* 2. ADD THE NEW TAB BUTTON */}
+        <TabButton tabName="performance" label="Performance" />
         <TabButton tabName="schedule" label="Schedule" />
         <TabButton tabName="documents" label="Documents" />
         <TabButton tabName="team" label="Team" />
         <TabButton tabName="settings" label="Settings" />
       </div>
 
-      {/* --- Tab Content --- */}
       <div>
         {activeTab === 'dashboard' && 
             <DashboardTab 
@@ -153,6 +151,14 @@ const InvestmentDetail = () => {
                 onUpdate={fetchData}
             />
         }
+        {/* 3. ADD THE RENDER LOGIC FOR THE NEW TAB */}
+        {activeTab === 'performance' &&
+            <PerformanceTab
+                investment={investment}
+                budgetItems={budgetItems}
+                expenses={expenses}
+            />
+        }
         {activeTab === 'schedule' && 
             <ScheduleTab 
                 investment={investment}
@@ -168,7 +174,6 @@ const InvestmentDetail = () => {
                 onUpdate={fetchData}
             />
         }
-        {/* 2. USE THE REAL COMPONENT AND PASS PROPS */}
         {activeTab === 'team' && 
             <TeamTab 
                 vendors={vendors} 
@@ -180,7 +185,5 @@ const InvestmentDetail = () => {
     </div>
   );
 };
-
-// I've removed the debounce function from here as it wasn't being used in this file.
 
 export default InvestmentDetail;
