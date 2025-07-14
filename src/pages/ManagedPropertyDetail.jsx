@@ -7,7 +7,6 @@ import AddLeaseModal from '../components/AddLeaseModal';
 import MaintenanceTab from '../components/MaintenanceTab';
 import OperatingExpensesTab from '../components/OperatingExpensesTab';
 import RentalPerformanceTab from '../components/RentalPerformanceTab';
-import ListingTab from '../components/ListingTab'; // 1. IMPORT THE NEW TAB
 
 const LoadingSpinner = () => (
     <div className="flex justify-center items-center p-8">
@@ -39,13 +38,20 @@ const UnitCard = ({ unit, onAddLeaseClick, navigate }) => {
                 )}
             </div>
 
-            <div className="mt-auto">
+            <div className="mt-auto space-y-2">
                 {isVacant ? (
-                    <button 
-                        onClick={() => onAddLeaseClick(unit._id)}
-                        className="w-full bg-brand-turquoise hover:bg-brand-turquoise-600 text-white font-semibold px-3 py-1.5 rounded-md text-sm transition">
-                        Add Tenant & Lease
-                    </button>
+                    <>
+                        <button 
+                            onClick={() => navigate(`/management/units/${unit._id}/listing`)}
+                            className="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold px-3 py-1.5 rounded-md text-sm transition">
+                            Manage Listing
+                        </button>
+                        <button 
+                            onClick={() => onAddLeaseClick(unit._id)}
+                            className="w-full bg-brand-turquoise hover:bg-brand-turquoise-600 text-white font-semibold px-3 py-1.5 rounded-md text-sm transition">
+                            Add Tenant & Lease
+                        </button>
+                    </>
                 ) : (
                     <button 
                         onClick={() => navigate(`/management/leases/${unit.currentLease._id}`)}
@@ -79,7 +85,7 @@ const ManagedPropertyDetail = () => {
   };
 
   const fetchPropertyDetails = useCallback(async () => {
-    // We don't set loading to true on every refetch for a smoother experience
+    setLoading(true);
     try {
       const [propertyRes, ticketsData, expensesData] = await Promise.all([
           fetch(`${API_BASE_URL}/management/${propertyId}`, { headers: getAuthHeaders() }),
@@ -134,16 +140,13 @@ const ManagedPropertyDetail = () => {
                 </div>
             </div>
             
-            {/* 2. ADD THE NEW TAB BUTTON */}
             <div className="flex gap-4 mb-6 border-b">
                 <TabButton tabName="units" label="Units" />
-                <TabButton tabName="listing" label="Listing" />
                 <TabButton tabName="maintenance" label="Maintenance" />
                 <TabButton tabName="expenses" label="Expenses" />
                 <TabButton tabName="performance" label="Performance" />
             </div>
 
-            {/* 3. CONDITIONALLY RENDER THE ACTIVE TAB */}
             {activeTab === 'units' && (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                     {property.units && property.units.map(unit => (
@@ -156,13 +159,6 @@ const ManagedPropertyDetail = () => {
                         </div>
                     </div>
                 </div>
-            )}
-
-            {activeTab === 'listing' && (
-                <ListingTab
-                    property={property}
-                    onUpdate={fetchPropertyDetails}
-                />
             )}
 
             {activeTab === 'maintenance' && (

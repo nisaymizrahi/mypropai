@@ -162,6 +162,12 @@ export const changePassword = async (passwordData) => {
 
 
 // --- Property Management Functions ---
+export const getUnitDetails = async (unitId) => {
+    const res = await fetch(`${API_BASE_URL}/management/units/${unitId}`, { headers: getAuthHeaders() });
+    if (!res.ok) throw new Error('Failed to fetch unit details');
+    return res.json();
+};
+
 export const runRecurringCharges = async () => {
   const res = await fetch(`${API_BASE_URL}/management/recurring/run`, { method: 'POST', headers: getAuthHeaders() });
   if (!res.ok) throw new Error((await res.json()).msg || 'Failed to run recurring charges');
@@ -197,18 +203,29 @@ export const createOperatingExpense = async (formData) => {
     if (!res.ok) throw new Error('Failed to create operating expense');
     return res.json();
 };
-export const updateListingDetails = async (propertyId, data) => {
-    const res = await fetch(`${API_BASE_URL}/management/${propertyId}/listing`, { method: 'PATCH', headers: getAuthHeaders(), body: JSON.stringify(data) });
+export const updateListingDetails = async (unitId, data) => {
+    const res = await fetch(`${API_BASE_URL}/management/units/${unitId}/listing`, {
+        method: 'PATCH',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(data)
+    });
     if (!res.ok) throw new Error('Failed to update listing details');
     return res.json();
 };
-export const addListingPhotos = async (propertyId, formData) => {
-    const res = await fetch(`${API_BASE_URL}/management/${propertyId}/listing/photos`, { method: 'POST', headers: getAuthHeaders(true), body: formData });
+export const addListingPhotos = async (unitId, formData) => {
+    const res = await fetch(`${API_BASE_URL}/management/units/${unitId}/listing/photos`, {
+        method: 'POST',
+        headers: getAuthHeaders(true),
+        body: formData
+    });
     if (!res.ok) throw new Error('Failed to upload photos');
     return res.json();
 };
-export const deleteListingPhoto = async (propertyId, photoId) => {
-    const res = await fetch(`${API_BASE_URL}/management/${propertyId}/listing/photos/${photoId}`, { method: 'DELETE', headers: getAuthHeaders() });
+export const deleteListingPhoto = async (unitId, photoId) => {
+    const res = await fetch(`${API_BASE_URL}/management/units/${unitId}/listing/photos/${photoId}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders()
+    });
     if (!res.ok) throw new Error('Failed to delete photo');
     return res.json();
 };

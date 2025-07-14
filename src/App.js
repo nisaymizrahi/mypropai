@@ -1,6 +1,6 @@
 import React, { useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
-import { Toaster } from 'react-hot-toast'; // 1. IMPORT THE TOASTER
+import { Toaster } from 'react-hot-toast';
 import DashboardLayout from "./components/DashboardLayout";
 import DashboardPage from "./pages/DashboardPage";
 import CompsTool from "./pages/CompsTool";
@@ -25,6 +25,8 @@ import Homepage from "./pages/Homepage";
 import SignupPage from "./pages/SignupPage";
 import AccountCenter from "./pages/AccountCenter";
 import FinancialToolsPage from "./pages/FinancialToolsPage";
+// 1. IMPORT THE NEW UNIT LISTING PAGE
+import UnitListingPage from "./pages/UnitListingPage";
 
 
 function App() {
@@ -35,7 +37,6 @@ function App() {
   return (
     <AuthProvider>
       <Router>
-        {/* 2. ADD THE TOASTER COMPONENT HERE */}
         <Toaster position="top-right" reverseOrder={false} />
 
         <Routes>
@@ -120,6 +121,18 @@ function App() {
               <ProtectedRoute>
                 <DashboardLayout>
                   <LeaseDetailPage />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          
+          {/* 2. ADD THE NEW UNIT LISTING ROUTE */}
+          <Route
+            path="/management/units/:unitId/listing"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <UnitListingPage />
                 </DashboardLayout>
               </ProtectedRoute>
             }
