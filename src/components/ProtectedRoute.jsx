@@ -11,13 +11,15 @@ const LoadingSpinner = () => (
 const ProtectedRoute = ({ children }) => {
   const { authenticated, loading } = useAuth();
 
-  // While the context is checking the token, show a loading spinner.
   if (loading) {
     return <LoadingSpinner />;
   }
 
-  // After checking, if the user is authenticated, show the page. Otherwise, redirect to login.
-  return authenticated ? children : <Navigate to="/login" replace />;
+  if (!authenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return children;
 };
 
 export default ProtectedRoute;

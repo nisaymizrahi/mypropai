@@ -8,24 +8,29 @@ const LoadingSpinner = () => (
 
 const LoginContinuePage = () => {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, authenticated, loading } = useAuth();
 
   useEffect(() => {
-    // Get the token from the URL query string
-    const token = new URLSearchParams(window.location.search).get("token");
-
-    if (token) {
-      // 1. Save the token using our context function.
-      login(token);
-      // 2. Immediately navigate to the dashboard. The ProtectedRoute will handle the loading state.
-      navigate("/dashboard", { replace: true });
-    } else {
-      // If no token is found for any reason, go back to the login page.
-      navigate("/login", { replace: true });
+    // Check for the token in the URL only once
+    const tokenInUrl = new URLSearchParams(window.location.search).get("token");
+    if (tokenInUrl && !localStorage.getItem('token')) {
+        login(tokenInUrl);
     }
-  }, [login, navigate]); // The effect runs only once when the component loads
+  }, [login]);
 
-  // This page is only visible for a brief moment during the redirect.
+
+  useEffect(() => {
+    // This separate effect handles navigation based on the auth state
+    if (!loading) {
+      if (authenticated) {
+        navigate('/dashboard', { replace: true });
+      } else {
+        // If there was no token or the token was invalid, go to login
+        navigate('/login', { replace: true });
+      }
+    }
+  }, [loading, authenticated, navigate]);
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100 text-center p-4">
       <LoadingSpinner />
