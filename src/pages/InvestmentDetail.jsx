@@ -14,8 +14,7 @@ import ScheduleTab from "../components/ScheduleTab";
 import DashboardTab from "../components/DashboardTab";
 import DocumentsTab from "../components/DocumentsTab";
 import TeamTab from "../components/TeamTab";
-// 1. UPDATE THE IMPORT TO USE THE NEW FILE NAME
-import DealPerformanceTab from "../components/DealPerformanceTab"; 
+import DealPerformanceTab from "../components/DealPerformanceTab"; // ✅ Corrected import
 
 // --- Reusable UI Components ---
 const PrimaryButton = ({ onClick, children, className = '', ...props }) => <button onClick={onClick} className={`bg-brand-turquoise hover:bg-brand-turquoise-600 text-white font-semibold px-4 py-2 rounded-md transition ${className}`} {...props}>{children}</button>;
@@ -152,7 +151,7 @@ const InvestmentDetail = () => {
             />
         }
         {activeTab === 'performance' &&
-            // 2. UPDATE THE COMPONENT NAME BEING RENDERED
+            // ✅ Corrected Component Name
             <DealPerformanceTab
                 investment={investment}
                 budgetItems={budgetItems}
