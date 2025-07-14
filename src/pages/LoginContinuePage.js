@@ -8,35 +8,28 @@ const LoadingSpinner = () => (
 
 const LoginContinuePage = () => {
   const navigate = useNavigate();
-  const { login, authenticated } = useAuth();
+  const { login } = useAuth();
 
   useEffect(() => {
-    // If user is already authenticated, send them to the dashboard.
-    if (authenticated) {
-        navigate('/dashboard');
-        return;
-    }
-
+    // Get the token from the URL query string
     const token = new URLSearchParams(window.location.search).get("token");
 
     if (token) {
-      // Call the login function to save the token. The context's own
-      // useEffect will then fire, authenticate the user, and this
-      // component will re-render, hitting the 'if (authenticated)' block above.
+      // 1. Save the token using our context function.
       login(token);
-      // Remove the token from the URL for cleanliness
-      window.history.replaceState({}, document.title, "/login-continue");
+      // 2. Immediately navigate to the dashboard. The ProtectedRoute will handle the loading state.
+      navigate("/dashboard", { replace: true });
     } else {
-      // If no token, go back to the login page
-      navigate("/login");
+      // If no token is found for any reason, go back to the login page.
+      navigate("/login", { replace: true });
     }
-    
-  }, [login, navigate, authenticated]);
+  }, [login, navigate]); // The effect runs only once when the component loads
 
+  // This page is only visible for a brief moment during the redirect.
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-brand-slate-300 text-center p-4">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100 text-center p-4">
       <LoadingSpinner />
-      <h1 className="text-2xl font-bold text-brand-dark-100">Finalizing login...</h1>
+      <h1 className="text-xl font-semibold text-gray-700">Finalizing login...</h1>
     </div>
   );
 };
