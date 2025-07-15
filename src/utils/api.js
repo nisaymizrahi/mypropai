@@ -52,7 +52,15 @@ export const analyzeLeadComps = async (leadId, filters) => {
     if (!res.ok) throw new Error((await res.json()).msg || 'Failed to analyze comps');
     return res.json();
 };
-
+export const updateLead = async (id, data) => {
+    const res = await fetch(`${API_BASE_URL}/leads/${id}`, {
+        method: 'PATCH',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error('Failed to update lead');
+    return res.json();
+};
 
 // --- Investment Functions ---
 export const createInvestment = async (data) => {
@@ -164,7 +172,6 @@ export const deleteProjectDocument = async (documentId) => {
     return res.json();
 };
 
-
 // --- Auth Functions ---
 export const loginUser = async (email, password) => {
     const res = await fetch(`${API_BASE_URL}/auth/login`, { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify({ email, password }) });
@@ -200,7 +207,6 @@ export const createStripeConnectAccount = async () => {
     if (!res.ok) throw new Error('Failed to create Stripe Connect account link');
     return res.json();
 };
-
 
 // --- Property Management Functions ---
 export const getUnitDetails = async (unitId) => {
@@ -269,7 +275,6 @@ export const getArchivedLeases = async (propertyId) => {
     return res.json();
 };
 
-
 // --- AI Tool Functions ---
 export const generateAIDescription = async (data) => {
     const res = await fetch(`${API_BASE_URL}/ai-tools/generate-description`, {
@@ -281,13 +286,12 @@ export const generateAIDescription = async (data) => {
     return res.json();
 };
 
-
 // --- Tenant Portal Functions ---
 const getTenantAuthHeaders = (isFormData = false) => {
   const token = localStorage.getItem("tenantToken");
   const headers = {};
-  if (!isFormData) { headers["Content-Type"] = "application/json"; }
-  if (token) { headers.Authorization = `Bearer ${token}`; }
+  if (!isFormData) headers["Content-Type"] = "application/json";
+  if (token) headers.Authorization = `Bearer ${token}`;
   return headers;
 };
 export const getTenantLeaseDetails = async () => {
