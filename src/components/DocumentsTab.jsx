@@ -38,7 +38,8 @@ const UploadForm = ({ onUpload, isUploading, setIsUploading }) => {
       await onUpload(formData);
       setDisplayName('');
       setFile(null);
-      document.getElementById('doc-input')?.value = '';
+      const input = document.getElementById('doc-input');  // ✅ FIXED
+      if (input) input.value = '';
     } catch (err) {
       setError(err.message || 'Upload failed');
     } finally {
@@ -85,7 +86,7 @@ const UnitDocuments = ({ unit, sharedDocs, onRefresh }) => {
   return (
     <div className="bg-white border rounded-lg shadow-sm p-4 space-y-4">
       <h4 className="text-lg font-bold text-brand-gray-800">{unit.name}</h4>
-      <UploadForm onUpload={handleUpload} />
+      <UploadForm onUpload={handleUpload} isUploading={false} setIsUploading={() => {}} />
       {relevantDocs.length > 0 ? (
         <ul className="space-y-1">{relevantDocs.map(doc => <DocumentCard key={doc._id} doc={doc} onDelete={handleDelete} />)}</ul>
       ) : (
