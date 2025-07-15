@@ -214,10 +214,7 @@ export const changePassword = async (passwordData) => {
 
 // --- Stripe Functions ---
 export const createStripeConnectAccount = async () => {
-    const res = await fetch(`${API_BASE_URL}/stripe/create-connect-account`, {
-        method: 'POST',
-        headers: getAuthHeaders()
-    });
+    const res = await fetch(`${API_BASE_URL}/stripe/create-connect-account`, { method: 'POST', headers: getAuthHeaders() });
     if (!res.ok) throw new Error('Failed to create Stripe Connect account link');
     return res.json();
 };
@@ -303,46 +300,10 @@ export const updateInspection = async (id, data) => {
     if (!res.ok) throw new Error('Failed to update inspection');
     return res.json();
 };
-
-// --- AI Tool Functions ---
-export const generateAIDescription = async (data) => {
-    const res = await fetch(`${API_BASE_URL}/ai-tools/generate-description`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify(data),
-    });
-    if (!res.ok) throw new Error((await res.json()).msg || 'Failed to generate AI description');
+export const getProjectDocuments = async (investmentId) => {
+    const res = await fetch(`${API_BASE_URL}/documents/investment/${investmentId}`, { headers: getAuthHeaders() });
+    if (!res.ok) throw new Error('Failed to fetch documents');
     return res.json();
-};
-
-
-// --- Tenant Portal Functions ---
-const getTenantAuthHeaders = (isFormData = false) => {
-  const token = localStorage.getItem("tenantToken");
-  const headers = {};
-  if (!isFormData) headers["Content-Type"] = "application/json";
-  if (token) headers.Authorization = `Bearer ${token}`;
-  return headers;
-};
-export const getTenantLeaseDetails = async () => {
-  const res = await fetch(`${API_BASE_URL}/tenant/lease-details`, { headers: getTenantAuthHeaders() });
-  if (!res.ok) throw new Error('Failed to fetch lease details');
-  return res.json();
-};
-export const submitTenantCommunication = async (formData) => {
-  const res = await fetch(`${API_BASE_URL}/tenant/communications`, { method: 'POST', headers: getTenantAuthHeaders(true), body: formData });
-  if (!res.ok) throw new Error('Failed to submit request');
-  return res.json();
-};
-export const logoutTenant = () => {
-  localStorage.removeItem("tenantToken");
-};
-export const getUnitDocuments = async (unitId) => {
-  const res = await fetch(`${API_BASE_URL}/management/units/${unitId}/documents`, {
-    headers: getAuthHeaders()
-  });
-  if (!res.ok) throw new Error('Failed to fetch documents');
-  return res.json();
 };
 export const uploadUnitDocument = async (unitId, formData) => {
   const res = await fetch(`${API_BASE_URL}/management/units/${unitId}/documents`, {
@@ -383,5 +344,47 @@ export const deletePropertyDocument = async (docId) => {
     headers: getAuthHeaders()
   });
   if (!res.ok) throw new Error('Failed to delete property document');
+  return res.json();
+};
+
+
+// --- AI Tool Functions ---
+export const generateAIDescription = async (data) => {
+    const res = await fetch(`${API_BASE_URL}/ai-tools/generate-description`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error((await res.json()).msg || 'Failed to generate AI description');
+    return res.json();
+};
+
+
+// --- Tenant Portal Functions ---
+const getTenantAuthHeaders = (isFormData = false) => {
+  const token = localStorage.getItem("tenantToken");
+  const headers = {};
+  if (!isFormData) headers["Content-Type"] = "application/json";
+  if (token) headers.Authorization = `Bearer ${token}`;
+  return headers;
+};
+export const getTenantLeaseDetails = async () => {
+  const res = await fetch(`${API_BASE_URL}/tenant/lease-details`, { headers: getTenantAuthHeaders() });
+  if (!res.ok) throw new Error('Failed to fetch lease details');
+  return res.json();
+};
+export const submitTenantCommunication = async (formData) => {
+  const res = await fetch(`${API_BASE_URL}/tenant/communications`, { method: 'POST', headers: getTenantAuthHeaders(true), body: formData });
+  if (!res.ok) throw new Error('Failed to submit request');
+  return res.json();
+};
+export const logoutTenant = () => {
+  localStorage.removeItem("tenantToken");
+};
+export const getUnitDocuments = async (unitId) => {
+  const res = await fetch(`${API_BASE_URL}/management/units/${unitId}/documents`, {
+    headers: getAuthHeaders()
+  });
+  if (!res.ok) throw new Error('Failed to fetch documents');
   return res.json();
 };
