@@ -186,6 +186,7 @@ export const createProjectTask = async (data) => {
     return res.json();
 };
 
+
 // --- Auth Functions ---
 export const loginUser = async (email, password) => {
     const res = await fetch(`${API_BASE_URL}/auth/login`, { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify({ email, password }) });
@@ -305,6 +306,14 @@ export const getProjectDocuments = async (investmentId) => {
     if (!res.ok) throw new Error('Failed to fetch documents');
     return res.json();
 };
+// ✅ ADDED a new section for all document management functions to fix the bug
+export const getUnitDocuments = async (unitId) => {
+  const res = await fetch(`${API_BASE_URL}/management/units/${unitId}/documents`, {
+    headers: getAuthHeaders()
+  });
+  if (!res.ok) throw new Error('Failed to fetch documents');
+  return res.json();
+};
 export const uploadUnitDocument = async (unitId, formData) => {
   const res = await fetch(`${API_BASE_URL}/management/units/${unitId}/documents`, {
     method: 'POST',
@@ -380,11 +389,4 @@ export const submitTenantCommunication = async (formData) => {
 };
 export const logoutTenant = () => {
   localStorage.removeItem("tenantToken");
-};
-export const getUnitDocuments = async (unitId) => {
-  const res = await fetch(`${API_BASE_URL}/management/units/${unitId}/documents`, {
-    headers: getAuthHeaders()
-  });
-  if (!res.ok) throw new Error('Failed to fetch documents');
-  return res.json();
 };
