@@ -12,7 +12,7 @@ export const getAuthHeaders = (isFormData = false) => {
   if (token) {
     headers.Authorization = `Bearer ${token}`;
   }
-  
+
   return headers;
 };
 
@@ -170,6 +170,36 @@ export const createProjectTask = async (data) => {
     if (!res.ok) throw new Error('Failed to create project task');
     return res.json();
 };
+export const getProjectDocuments = async (investmentId) => {
+    const res = await fetch(`${API_BASE_URL}/documents/investment/${investmentId}`, { headers: getAuthHeaders() });
+    if (!res.ok) throw new Error('Failed to fetch documents');
+    return res.json();
+};
+export const uploadProjectDocument = async (formData) => {
+    const res = await fetch(`${API_BASE_URL}/documents`, { method: 'POST', headers: getAuthHeaders(true), body: formData });
+    if (!res.ok) throw new Error('Failed to upload document');
+    return res.json();
+};
+export const deleteProjectDocument = async (documentId) => {
+    const res = await fetch(`${API_BASE_URL}/documents/${documentId}`, { method: 'DELETE', headers: getAuthHeaders() });
+    if (!res.ok) throw new Error('Failed to delete document');
+    return res.json();
+};
+export const getBidsForLead = async (leadId) => {
+    const res = await fetch(`${API_BASE_URL}/bids/lead/${leadId}`, { headers: getAuthHeaders() });
+    if (!res.ok) throw new Error('Failed to fetch bids');
+    return res.json();
+};
+export const importBid = async (formData) => {
+    const res = await fetch(`${API_BASE_URL}/bids/import`, { method: 'POST', headers: getAuthHeaders(true), body: formData });
+    if (!res.ok) throw new Error((await res.json()).msg || 'Failed to import bid');
+    return res.json();
+};
+export const deleteBid = async (bidId) => {
+    const res = await fetch(`${API_BASE_URL}/bids/${bidId}`, { method: 'DELETE', headers: getAuthHeaders() });
+    if (!res.ok) throw new Error('Failed to delete bid');
+    return res.json();
+};
 
 // --- Auth Functions ---
 export const loginUser = async (email, password) => {
@@ -178,13 +208,7 @@ export const loginUser = async (email, password) => {
     return res.json();
 };
 export const logoutUser = async () => {
-  try {
-    await fetch(`${API_BASE_URL}/auth/logout`, { method: 'POST', headers: getAuthHeaders() });
-  } catch (error) {
-    console.error('Logout API call failed, proceeding with client-side logout.', error);
-  } finally {
-    localStorage.removeItem("token");
-  }
+  try { await fetch(`${API_BASE_URL}/auth/logout`, { method: 'POST', headers: getAuthHeaders() }); } catch (error) { console.error('Logout API call failed, proceeding with client-side logout.', error); } finally { localStorage.removeItem("token"); }
 };
 export const updateUserProfile = async (profileData) => {
     const res = await fetch(`${API_BASE_URL}/auth/me/update`, { method: 'PATCH', headers: getAuthHeaders(), body: JSON.stringify(profileData) });
@@ -199,10 +223,7 @@ export const changePassword = async (passwordData) => {
 
 // --- Stripe Functions ---
 export const createStripeConnectAccount = async () => {
-    const res = await fetch(`${API_BASE_URL}/stripe/create-connect-account`, {
-        method: 'POST',
-        headers: getAuthHeaders()
-    });
+    const res = await fetch(`${API_BASE_URL}/stripe/create-connect-account`, { method: 'POST', headers: getAuthHeaders() });
     if (!res.ok) throw new Error('Failed to create Stripe Connect account link');
     return res.json();
 };
@@ -273,37 +294,20 @@ export const getArchivedLeases = async (propertyId) => {
     if (!res.ok) throw new Error('Failed to fetch archived leases');
     return res.json();
 };
-
-// --- Document Management Functions (Unit & Property Level) ---
-export const getUnitDocuments = async (unitId) => {
-  const res = await fetch(`${API_BASE_URL}/management/units/${unitId}/documents`, { headers: getAuthHeaders() });
-  if (!res.ok) throw new Error('Failed to fetch documents');
-  return res.json();
+export const getInspectionsForProperty = async (propertyId) => {
+    const res = await fetch(`${API_BASE_URL}/inspections/property/${propertyId}`, { headers: getAuthHeaders() });
+    if (!res.ok) throw new Error('Failed to fetch inspections');
+    return res.json();
 };
-export const uploadUnitDocument = async (unitId, formData) => {
-  const res = await fetch(`${API_BASE_URL}/management/units/${unitId}/documents`, { method: 'POST', headers: getAuthHeaders(true), body: formData });
-  if (!res.ok) throw new Error('Failed to upload document');
-  return res.json();
+export const createInspection = async (data) => {
+    const res = await fetch(`${API_BASE_URL}/inspections`, { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify(data) });
+    if (!res.ok) throw new Error('Failed to create inspection');
+    return res.json();
 };
-export const deleteUnitDocument = async (docId) => {
-  const res = await fetch(`${API_BASE_URL}/management/documents/${docId}`, { method: 'DELETE', headers: getAuthHeaders() });
-  if (!res.ok) throw new Error('Failed to delete document');
-  return res.json();
-};
-export const getPropertyDocuments = async (propertyId) => {
-  const res = await fetch(`${API_BASE_URL}/management/property/${propertyId}/documents`, { headers: getAuthHeaders() });
-  if (!res.ok) throw new Error('Failed to fetch property documents');
-  return res.json();
-};
-export const uploadPropertyDocument = async (propertyId, formData) => {
-  const res = await fetch(`${API_BASE_URL}/management/property/${propertyId}/documents`, { method: 'POST', headers: getAuthHeaders(true), body: formData });
-  if (!res.ok) throw new Error('Failed to upload property document');
-  return res.json();
-};
-export const deletePropertyDocument = async (docId) => {
-  const res = await fetch(`${API_BASE_URL}/management/documents/${docId}`, { method: 'DELETE', headers: getAuthHeaders() });
-  if (!res.ok) throw new Error('Failed to delete property document');
-  return res.json();
+export const updateInspection = async (id, data) => {
+    const res = await fetch(`${API_BASE_URL}/inspections/${id}`, { method: 'PATCH', headers: getAuthHeaders(), body: JSON.stringify(data) });
+    if (!res.ok) throw new Error('Failed to update inspection');
+    return res.json();
 };
 
 
@@ -333,7 +337,7 @@ export const getTenantLeaseDetails = async () => {
   return res.json();
 };
 export const submitTenantCommunication = async (formData) => {
-  const res = await fetch(`${API_BASE_URL}/tenant/communications`, { method: 'POST', headers: getTenantAuthHeaders(true), body: formData });
+  const res = await fetch(`${API_BASE_URL}/tenant/communications`, { method: 'POST', headers: getAuthHeaders(true), body: formData });
   if (!res.ok) throw new Error('Failed to submit request');
   return res.json();
 };
