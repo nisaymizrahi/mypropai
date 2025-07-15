@@ -333,3 +333,30 @@ export const deleteUnitDocument = async (docId) => {
   if (!res.ok) throw new Error('Failed to delete document');
   return res.json();
 };
+// --- Property-Level Documents (New) ---
+export const getPropertyDocuments = async (propertyId) => {
+  const res = await fetch(`${API_BASE_URL}/management/property/${propertyId}/documents`, {
+    headers: getAuthHeaders()
+  });
+  if (!res.ok) throw new Error('Failed to fetch property documents');
+  return res.json();
+};
+
+export const uploadPropertyDocument = async (propertyId, formData) => {
+  const res = await fetch(`${API_BASE_URL}/management/property/${propertyId}/documents`, {
+    method: 'POST',
+    headers: getAuthHeaders(true),
+    body: formData
+  });
+  if (!res.ok) throw new Error('Failed to upload property document');
+  return res.json();
+};
+
+export const deletePropertyDocument = async (docId) => {
+  const res = await fetch(`${API_BASE_URL}/management/documents/${docId}`, {
+    method: 'DELETE',
+    headers: getAuthHeaders()
+  });
+  if (!res.ok) throw new Error('Failed to delete property document');
+  return res.json();
+};
