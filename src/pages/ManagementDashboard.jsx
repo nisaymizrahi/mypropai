@@ -1,14 +1,13 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-// 1. IMPORT THE CORRECT FUNCTION
 import { getAuthHeaders } from "../utils/api";
 import { API_BASE_URL } from '../config';
 import PromotePropertyModal from '../components/PromotePropertyModal';
 
 const LoadingSpinner = () => (
-    <div className="flex justify-center items-center p-8">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-turquoise"></div>
-    </div>
+  <div className="flex justify-center items-center p-8">
+    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-turquoise"></div>
+  </div>
 );
 
 const ManagementDashboard = () => {
@@ -23,14 +22,10 @@ const ManagementDashboard = () => {
     setLoading(true);
     try {
       const res = await fetch(`${API_BASE_URL}/management`, {
-        // 2. USE THE NEW FUNCTION
         headers: getAuthHeaders(),
       });
 
-      if (!res.ok) {
-        throw new Error("Failed to fetch managed properties.");
-      }
-
+      if (!res.ok) throw new Error("Failed to fetch managed properties.");
       const data = await res.json();
       setManagedProperties(data);
     } catch (err) {
@@ -43,29 +38,39 @@ const ManagementDashboard = () => {
   useEffect(() => {
     fetchManagedProperties();
   }, [fetchManagedProperties]);
-  
-  const handlePromoteSuccess = () => {
-    fetchManagedProperties(); 
+
+  const handlePromoteSuccess = () => fetchManagedProperties();
+
+  const getPortfolioSummary = () => {
+    const totalUnits = managedProperties.reduce((acc, prop) => acc + prop.units.length, 0);
+    const totalOccupied = managedProperties.reduce((acc, prop) => (
+      acc + prop.units.filter(u => u.currentLease).length
+    ), 0);
+    const totalVacant = totalUnits - totalOccupied;
+
+    return {
+      totalProperties: managedProperties.length,
+      totalUnits,
+      totalOccupied,
+      totalVacant,
+    };
   };
 
-  if (loading) {
-    return <LoadingSpinner />;
-  }
+  const summary = getPortfolioSummary();
 
-  if (error) {
-    return <p className="text-red-500 text-center p-4">{error}</p>;
-  }
+  if (loading) return <LoadingSpinner />;
+  if (error) return <p className="text-red-500 text-center p-4">{error}</p>;
 
   return (
     <>
-      <PromotePropertyModal 
+      <PromotePropertyModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onPromoteSuccess={handlePromoteSuccess}
       />
 
-      <div className="max-w-5xl mx-auto">
-        <div className="flex justify-between items-center mb-6">
+      <div className="max-w-6xl mx-auto space-y-8">
+        <div className="flex justify-between items-center">
           <div>
             <h1 className="text-3xl font-bold text-brand-gray-900">
               Property Management
@@ -82,6 +87,33 @@ const ManagementDashboard = () => {
           </button>
         </div>
 
+        {/* 🔢 Portfolio Summary */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="bg-white border rounded-xl p-4 shadow-sm">
+            <h3 className="text-sm text-brand-gray-500">Properties</h3>
+            <p className="text-2xl font-bold text-brand-gray-800">{summary.totalProperties}</p>
+          </div>
+          <div className="bg-white border rounded-xl p-4 shadow-sm">
+            <h3 className="text-sm text-brand-gray-500">Total Units</h3>
+            <p className="text-2xl font-bold text-brand-gray-800">{summary.totalUnits}</p>
+          </div>
+          <div className="bg-white border rounded-xl p-4 shadow-sm">
+            <h3 className="text-sm text-brand-gray-500">Occupied Units</h3>
+            <p className="text-2xl font-bold text-green-700">{summary.totalOccupied}</p>
+          </div>
+          <div className="bg-white border rounded-xl p-4 shadow-sm">
+            <h3 className="text-sm text-brand-gray-500">Vacant Units</h3>
+            <p className="text-2xl font-bold text-red-600">{summary.totalVacant}</p>
+          </div>
+        </div>
+
+        {/* 📊 Charts Section (Placeholder for future visualizations) */}
+        <div className="bg-white rounded-xl p-6 border shadow-sm">
+          <h3 className="text-lg font-semibold text-brand-gray-800 mb-2">Portfolio Trends</h3>
+          <p className="text-brand-gray-500 text-sm">Add charts here: rent collected, occupancy %, etc.</p>
+        </div>
+
+        {/* 📋 Property Table */}
         <div className="bg-white shadow-sm rounded-lg border border-brand-gray-200 overflow-hidden">
           {managedProperties.length > 0 ? (
             <table className="min-w-full text-sm">
@@ -99,7 +131,7 @@ const ManagementDashboard = () => {
                     <td className="px-6 py-4 font-medium text-brand-gray-800">{prop.address}</td>
                     <td className="px-6 py-4 text-brand-gray-600">{prop.units.length}</td>
                     <td className="px-6 py-4 text-brand-gray-600">
-                      <span className="bg-green-100 text-green-800 text-xs font-medium me-2 px-2.5 py-0.5 rounded-full">
+                      <span className={`text-xs font-medium px-2.5 py-0.5 rounded-full ${prop.isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}`}>
                         {prop.isActive ? "Active" : "Archived"}
                       </span>
                     </td>
