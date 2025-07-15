@@ -12,7 +12,7 @@ export const getAuthHeaders = (isFormData = false) => {
   if (token) {
     headers.Authorization = `Bearer ${token}`;
   }
-
+  
   return headers;
 };
 
@@ -43,6 +43,15 @@ export const getLeadDetails = async (leadId) => {
     if (!res.ok) throw new Error('Failed to fetch lead details');
     return res.json();
 };
+export const analyzeLeadComps = async (leadId, filters) => {
+    const res = await fetch(`${API_BASE_URL}/leads/${leadId}/analyze-comps`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(filters),
+    });
+    if (!res.ok) throw new Error((await res.json()).msg || 'Failed to analyze comps');
+    return res.json();
+};
 export const updateLead = async (id, data) => {
     const res = await fetch(`${API_BASE_URL}/leads/${id}`, {
         method: 'PATCH',
@@ -65,13 +74,19 @@ export const getLeadSummary = async () => {
     if (!res.ok) throw new Error('Failed to fetch lead summary');
     return res.json();
 };
-export const analyzeLeadComps = async (leadId, filters) => {
-    const res = await fetch(`${API_BASE_URL}/leads/${leadId}/analyze-comps`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify(filters),
-    });
-    if (!res.ok) throw new Error((await res.json()).msg || 'Failed to analyze comps');
+export const getBidsForLead = async (leadId) => {
+    const res = await fetch(`${API_BASE_URL}/bids/lead/${leadId}`, { headers: getAuthHeaders() });
+    if (!res.ok) throw new Error('Failed to fetch bids');
+    return res.json();
+};
+export const importBid = async (formData) => {
+    const res = await fetch(`${API_BASE_URL}/bids/import`, { method: 'POST', headers: getAuthHeaders(true), body: formData });
+    if (!res.ok) throw new Error((await res.json()).msg || 'Failed to import bid');
+    return res.json();
+};
+export const deleteBid = async (bidId) => {
+    const res = await fetch(`${API_BASE_URL}/bids/${bidId}`, { method: 'DELETE', headers: getAuthHeaders() });
+    if (!res.ok) throw new Error('Failed to delete bid');
     return res.json();
 };
 
@@ -185,21 +200,7 @@ export const deleteProjectDocument = async (documentId) => {
     if (!res.ok) throw new Error('Failed to delete document');
     return res.json();
 };
-export const getBidsForLead = async (leadId) => {
-    const res = await fetch(`${API_BASE_URL}/bids/lead/${leadId}`, { headers: getAuthHeaders() });
-    if (!res.ok) throw new Error('Failed to fetch bids');
-    return res.json();
-};
-export const importBid = async (formData) => {
-    const res = await fetch(`${API_BASE_URL}/bids/import`, { method: 'POST', headers: getAuthHeaders(true), body: formData });
-    if (!res.ok) throw new Error((await res.json()).msg || 'Failed to import bid');
-    return res.json();
-};
-export const deleteBid = async (bidId) => {
-    const res = await fetch(`${API_BASE_URL}/bids/${bidId}`, { method: 'DELETE', headers: getAuthHeaders() });
-    if (!res.ok) throw new Error('Failed to delete bid');
-    return res.json();
-};
+
 
 // --- Auth Functions ---
 export const loginUser = async (email, password) => {
@@ -208,7 +209,13 @@ export const loginUser = async (email, password) => {
     return res.json();
 };
 export const logoutUser = async () => {
-  try { await fetch(`${API_BASE_URL}/auth/logout`, { method: 'POST', headers: getAuthHeaders() }); } catch (error) { console.error('Logout API call failed, proceeding with client-side logout.', error); } finally { localStorage.removeItem("token"); }
+  try {
+    await fetch(`${API_BASE_URL}/auth/logout`, { method: 'POST', headers: getAuthHeaders() });
+  } catch (error) {
+    console.error('Logout API call failed, proceeding with client-side logout.', error);
+  } finally {
+    localStorage.removeItem("token");
+  }
 };
 export const updateUserProfile = async (profileData) => {
     const res = await fetch(`${API_BASE_URL}/auth/me/update`, { method: 'PATCH', headers: getAuthHeaders(), body: JSON.stringify(profileData) });
@@ -309,7 +316,6 @@ export const updateInspection = async (id, data) => {
     if (!res.ok) throw new Error('Failed to update inspection');
     return res.json();
 };
-
 
 // --- AI Tool Functions ---
 export const generateAIDescription = async (data) => {
