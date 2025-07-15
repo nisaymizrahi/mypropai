@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getLeads, updateLead, createLead } from '../utils/api';
+import { getLeads, updateLead, createLead, getLeadSummary } from '../utils/api';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 
 const AddLeadModal = ({ isOpen, onClose, onSuccess }) => {
@@ -44,30 +44,47 @@ const AddLeadModal = ({ isOpen, onClose, onSuccess }) => {
     );
 };
 
+// New Stat Card component for the dashboard KPIs
+const StatCard = ({ title, value }) => (
+    <div className="bg-white p-4 rounded-lg shadow-sm border">
+        <p className="text-sm font-medium text-brand-gray-500">{title}</p>
+        <p className="mt-1 text-3xl font-semibold text-brand-gray-900">{value}</p>
+    </div>
+);
+
+
 const LeadsPage = () => {
     const navigate = useNavigate();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [columns, setColumns] = useState(null);
+    const [summary, setSummary] = useState(null);
     const [loading, setLoading] = useState(true);
 
     const columnOrder = ['Potential', 'Analyzing', 'Offer Made', 'Under Contract', 'Closed - Won', 'Closed - Lost'];
 
     const fetchData = async () => {
         try {
-            const leads = await getLeads();
+            // Fetch both lists and summary data in parallel
+            const [leadsData, summaryData] = await Promise.all([
+                getLeads(),
+                getLeadSummary()
+            ]);
+            
+            setSummary(summaryData);
+
             const initialColumns = columnOrder.reduce((acc, col) => {
                 acc[col] = { id: col, title: col, leads: [] };
                 return acc;
             }, {});
 
-            leads.forEach(lead => {
+            leadsData.forEach(lead => {
                 if (initialColumns[lead.status]) {
                     initialColumns[lead.status].leads.push(lead);
                 }
             });
             setColumns(initialColumns);
         } catch (error) {
-            console.error("Failed to fetch leads", error);
+            console.error("Failed to fetch leads data", error);
         } finally {
             setLoading(false);
         }
@@ -81,7 +98,7 @@ const LeadsPage = () => {
         const { source, destination, draggableId } = result;
         if (!destination) return;
 
-        // Optimistic UI update
+        // Optimistic UI update logic...
         const sourceColumn = columns[source.droppableId];
         const destColumn = columns[destination.droppableId];
         const sourceLeads = [...sourceColumn.leads];
@@ -98,14 +115,15 @@ const LeadsPage = () => {
             newColumns[destination.droppableId] = { ...destColumn, leads: destLeads };
         }
         setColumns(newColumns);
-
-        // API call to update the lead's status
+        
         try {
             await updateLead(draggableId, { status: destination.droppableId });
+            // Refetch summary data after a status change to update KPIs
+            const summaryData = await getLeadSummary();
+            setSummary(summaryData);
         } catch (error) {
             console.error("Failed to update lead status", error);
-            // Revert UI on failure if needed
-            fetchData();
+            fetchData(); // Revert on failure
         }
     };
     
@@ -114,35 +132,50 @@ const LeadsPage = () => {
     return (
         <>
             <AddLeadModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onSuccess={fetchData} />
-            <div className="max-w-7xl mx-auto">
-                <div className="flex justify-between items-center mb-6">
+            <div className="max-w-7xl mx-auto space-y-6">
+                <div className="flex justify-between items-center">
                     <div>
-                        <h1 className="text-3xl font-bold text-brand-gray-900">Leads Pipeline</h1>
-                        <p className="text-lg text-brand-gray-500 mt-1">Track potential deals from start to finish.</p>
+                        <h1 className="text-3xl font-bold text-brand-gray-900">Leads Dashboard</h1>
+                        <p className="text-lg text-brand-gray-500 mt-1">Your deal pipeline at a glance.</p>
                     </div>
                     <button onClick={() => setIsModalOpen(true)} className="bg-brand-turquoise text-white font-semibold px-4 py-2 rounded-md">
                         + Add New Lead
                     </button>
                 </div>
+
+                {/* KPI Header */}
+                {summary && (
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <StatCard title="Total Active Leads" value={summary.totalLeads} />
+                        <StatCard title="Analyzing" value={summary.analyzingCount} />
+                        <StatCard title="Under Contract" value={summary.underContractCount} />
+                        <StatCard title="Closing Ratio" value={`${summary.closingRatio.toFixed(1)}%`} />
+                    </div>
+                )}
+                
+                {/* Kanban Board */}
                 <DragDropContext onDragEnd={handleOnDragEnd}>
-                    <div className="flex gap-4 overflow-x-auto pb-4">
+                    {/* UPDATED: This now uses a responsive grid instead of flex scroll */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
                         {columnOrder.map(columnId => {
                             const column = columns[columnId];
                             return (
                                 <Droppable key={column.id} droppableId={column.id}>
                                     {(provided) => (
-                                        <div ref={provided.innerRef} {...provided.droppableProps} className="bg-gray-100 rounded-lg p-3 w-72 flex-shrink-0">
+                                        <div ref={provided.innerRef} {...provided.droppableProps} className="bg-gray-100 rounded-lg p-3">
                                             <h3 className="font-semibold mb-3">{column.title} ({column.leads.length})</h3>
-                                            {column.leads.map((lead, index) => (
-                                                <Draggable key={lead._id} draggableId={lead._id} index={index}>
-                                                    {(provided) => (
-                                                        <div ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps} className="bg-white p-3 mb-3 rounded-md shadow-sm border" onClick={() => navigate(`/leads/${lead._id}`)}>
-                                                            <p className="font-medium">{lead.address}</p>
-                                                        </div>
-                                                    )}
-                                                </Draggable>
-                                            ))}
-                                            {provided.placeholder}
+                                            <div className="space-y-3 min-h-[100px]">
+                                                {column.leads.map((lead, index) => (
+                                                    <Draggable key={lead._id} draggableId={lead._id} index={index}>
+                                                        {(provided) => (
+                                                            <div ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps} className="bg-white p-3 rounded-md shadow-sm border cursor-pointer hover:bg-gray-50" onClick={() => navigate(`/leads/${lead._id}`)}>
+                                                                <p className="font-medium text-sm">{lead.address}</p>
+                                                            </div>
+                                                        )}
+                                                    </Draggable>
+                                                ))}
+                                                {provided.placeholder}
+                                            </div>
                                         </div>
                                     )}
                                 </Droppable>

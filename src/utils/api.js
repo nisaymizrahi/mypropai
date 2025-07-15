@@ -61,6 +61,12 @@ export const updateLead = async (id, data) => {
     if (!res.ok) throw new Error('Failed to update lead');
     return res.json();
 };
+export const getLeadSummary = async () => {
+    const res = await fetch(`${API_BASE_URL}/leads/summary`, { headers: getAuthHeaders() });
+    if (!res.ok) throw new Error('Failed to fetch lead summary');
+    return res.json();
+};
+
 
 // --- Investment Functions ---
 export const createInvestment = async (data) => {
@@ -172,6 +178,7 @@ export const deleteProjectDocument = async (documentId) => {
     return res.json();
 };
 
+
 // --- Auth Functions ---
 export const loginUser = async (email, password) => {
     const res = await fetch(`${API_BASE_URL}/auth/login`, { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify({ email, password }) });
@@ -275,6 +282,7 @@ export const getArchivedLeases = async (propertyId) => {
     return res.json();
 };
 
+
 // --- AI Tool Functions ---
 export const generateAIDescription = async (data) => {
     const res = await fetch(`${API_BASE_URL}/ai-tools/generate-description`, {
@@ -285,6 +293,7 @@ export const generateAIDescription = async (data) => {
     if (!res.ok) throw new Error((await res.json()).msg || 'Failed to generate AI description');
     return res.json();
 };
+
 
 // --- Tenant Portal Functions ---
 const getTenantAuthHeaders = (isFormData = false) => {
@@ -314,7 +323,6 @@ export const getUnitDocuments = async (unitId) => {
   if (!res.ok) throw new Error('Failed to fetch documents');
   return res.json();
 };
-
 export const uploadUnitDocument = async (unitId, formData) => {
   const res = await fetch(`${API_BASE_URL}/management/units/${unitId}/documents`, {
     method: 'POST',
@@ -324,7 +332,6 @@ export const uploadUnitDocument = async (unitId, formData) => {
   if (!res.ok) throw new Error('Failed to upload document');
   return res.json();
 };
-
 export const deleteUnitDocument = async (docId) => {
   const res = await fetch(`${API_BASE_URL}/management/documents/${docId}`, {
     method: 'DELETE',
@@ -333,7 +340,6 @@ export const deleteUnitDocument = async (docId) => {
   if (!res.ok) throw new Error('Failed to delete document');
   return res.json();
 };
-// --- Property-Level Documents (New) ---
 export const getPropertyDocuments = async (propertyId) => {
   const res = await fetch(`${API_BASE_URL}/management/property/${propertyId}/documents`, {
     headers: getAuthHeaders()
@@ -341,7 +347,6 @@ export const getPropertyDocuments = async (propertyId) => {
   if (!res.ok) throw new Error('Failed to fetch property documents');
   return res.json();
 };
-
 export const uploadPropertyDocument = async (propertyId, formData) => {
   const res = await fetch(`${API_BASE_URL}/management/property/${propertyId}/documents`, {
     method: 'POST',
@@ -351,7 +356,6 @@ export const uploadPropertyDocument = async (propertyId, formData) => {
   if (!res.ok) throw new Error('Failed to upload property document');
   return res.json();
 };
-
 export const deletePropertyDocument = async (docId) => {
   const res = await fetch(`${API_BASE_URL}/management/documents/${docId}`, {
     method: 'DELETE',
