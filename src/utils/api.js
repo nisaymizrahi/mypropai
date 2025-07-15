@@ -307,3 +307,29 @@ export const submitTenantCommunication = async (formData) => {
 export const logoutTenant = () => {
   localStorage.removeItem("tenantToken");
 };
+export const getUnitDocuments = async (unitId) => {
+  const res = await fetch(`${API_BASE_URL}/management/units/${unitId}/documents`, {
+    headers: getAuthHeaders()
+  });
+  if (!res.ok) throw new Error('Failed to fetch documents');
+  return res.json();
+};
+
+export const uploadUnitDocument = async (unitId, formData) => {
+  const res = await fetch(`${API_BASE_URL}/management/units/${unitId}/documents`, {
+    method: 'POST',
+    headers: getAuthHeaders(true),
+    body: formData
+  });
+  if (!res.ok) throw new Error('Failed to upload document');
+  return res.json();
+};
+
+export const deleteUnitDocument = async (docId) => {
+  const res = await fetch(`${API_BASE_URL}/management/documents/${docId}`, {
+    method: 'DELETE',
+    headers: getAuthHeaders()
+  });
+  if (!res.ok) throw new Error('Failed to delete document');
+  return res.json();
+};
