@@ -25,8 +25,10 @@ import Homepage from "./pages/Homepage";
 import SignupPage from "./pages/SignupPage";
 import AccountCenter from "./pages/AccountCenter";
 import FinancialToolsPage from "./pages/FinancialToolsPage";
-// 1. IMPORT THE NEW UNIT LISTING PAGE
 import UnitListingPage from "./pages/UnitListingPage";
+import LeadsPage from "./pages/LeadsPage";
+// 1. IMPORT THE NEW LEAD DETAIL PAGE
+import LeadDetailPage from "./pages/LeadDetailPage";
 
 
 function App() {
@@ -94,6 +96,29 @@ function App() {
           />
 
           <Route
+            path="/leads"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <LeadsPage />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          
+          {/* 2. ADD THE NEW LEAD DETAIL ROUTE */}
+          <Route
+            path="/leads/:id"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <LeadDetailPage />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
             path="/management"
             element={
               <ProtectedRoute>
@@ -126,7 +151,6 @@ function App() {
             }
           />
           
-          {/* 2. ADD THE NEW UNIT LISTING ROUTE */}
           <Route
             path="/management/units/:unitId/listing"
             element={

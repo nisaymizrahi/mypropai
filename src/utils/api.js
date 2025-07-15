@@ -23,6 +23,37 @@ export const getDashboardSummary = async () => {
     return res.json();
 };
 
+// --- Leads & Comps Functions ---
+export const getLeads = async () => {
+    const res = await fetch(`${API_BASE_URL}/leads`, { headers: getAuthHeaders() });
+    if (!res.ok) throw new Error('Failed to fetch leads');
+    return res.json();
+};
+export const createLead = async (data) => {
+    const res = await fetch(`${API_BASE_URL}/leads`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error((await res.json()).msg || 'Failed to create lead');
+    return res.json();
+};
+export const getLeadDetails = async (leadId) => {
+    const res = await fetch(`${API_BASE_URL}/leads/${leadId}`, { headers: getAuthHeaders() });
+    if (!res.ok) throw new Error('Failed to fetch lead details');
+    return res.json();
+};
+export const analyzeLeadComps = async (leadId, filters) => {
+    const res = await fetch(`${API_BASE_URL}/leads/${leadId}/analyze-comps`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(filters),
+    });
+    if (!res.ok) throw new Error((await res.json()).msg || 'Failed to analyze comps');
+    return res.json();
+};
+
+
 // --- Investment Functions ---
 export const createInvestment = async (data) => {
   const res = await fetch(`${API_BASE_URL}/investments`, { method: "POST", headers: getAuthHeaders(), body: JSON.stringify(data) });
@@ -160,6 +191,16 @@ export const changePassword = async (passwordData) => {
     return res.json();
 };
 
+// --- Stripe Functions ---
+export const createStripeConnectAccount = async () => {
+    const res = await fetch(`${API_BASE_URL}/stripe/create-connect-account`, {
+        method: 'POST',
+        headers: getAuthHeaders()
+    });
+    if (!res.ok) throw new Error('Failed to create Stripe Connect account link');
+    return res.json();
+};
+
 
 // --- Property Management Functions ---
 export const getUnitDetails = async (unitId) => {
@@ -217,16 +258,11 @@ export const deleteListingPhoto = async (unitId, photoId) => {
     if (!res.ok) throw new Error('Failed to delete photo');
     return res.json();
 };
-// ✅ ADDED
 export const archiveLease = async (leaseId) => {
-    const res = await fetch(`${API_BASE_URL}/management/leases/${leaseId}/archive`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-    });
+    const res = await fetch(`${API_BASE_URL}/management/leases/${leaseId}/archive`, { method: 'POST', headers: getAuthHeaders() });
     if (!res.ok) throw new Error('Failed to archive lease');
     return res.json();
 };
-// ✅ ADDED
 export const getArchivedLeases = async (propertyId) => {
     const res = await fetch(`${API_BASE_URL}/management/property/${propertyId}/archived-leases`, { headers: getAuthHeaders() });
     if (!res.ok) throw new Error('Failed to fetch archived leases');
