@@ -43,15 +43,6 @@ export const getLeadDetails = async (leadId) => {
     if (!res.ok) throw new Error('Failed to fetch lead details');
     return res.json();
 };
-export const analyzeLeadComps = async (leadId, filters) => {
-    const res = await fetch(`${API_BASE_URL}/leads/${leadId}/analyze-comps`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify(filters),
-    });
-    if (!res.ok) throw new Error((await res.json()).msg || 'Failed to analyze comps');
-    return res.json();
-};
 export const updateLead = async (id, data) => {
     const res = await fetch(`${API_BASE_URL}/leads/${id}`, {
         method: 'PATCH',
@@ -72,6 +63,15 @@ export const deleteLead = async (id) => {
 export const getLeadSummary = async () => {
     const res = await fetch(`${API_BASE_URL}/leads/summary`, { headers: getAuthHeaders() });
     if (!res.ok) throw new Error('Failed to fetch lead summary');
+    return res.json();
+};
+export const analyzeLeadComps = async (leadId, filters) => {
+    const res = await fetch(`${API_BASE_URL}/leads/${leadId}/analyze-comps`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(filters),
+    });
+    if (!res.ok) throw new Error((await res.json()).msg || 'Failed to analyze comps');
     return res.json();
 };
 export const getBidsForLead = async (leadId) => {
@@ -228,12 +228,6 @@ export const changePassword = async (passwordData) => {
     return res.json();
 };
 
-// --- Stripe Functions ---
-export const createStripeConnectAccount = async () => {
-    const res = await fetch(`${API_BASE_URL}/stripe/create-connect-account`, { method: 'POST', headers: getAuthHeaders() });
-    if (!res.ok) throw new Error('Failed to create Stripe Connect account link');
-    return res.json();
-};
 
 // --- Property Management Functions ---
 export const getUnitDetails = async (unitId) => {
@@ -317,6 +311,7 @@ export const updateInspection = async (id, data) => {
     return res.json();
 };
 
+
 // --- AI Tool Functions ---
 export const generateAIDescription = async (data) => {
     const res = await fetch(`${API_BASE_URL}/ai-tools/generate-description`, {
@@ -343,10 +338,58 @@ export const getTenantLeaseDetails = async () => {
   return res.json();
 };
 export const submitTenantCommunication = async (formData) => {
-  const res = await fetch(`${API_BASE_URL}/tenant/communications`, { method: 'POST', headers: getAuthHeaders(true), body: formData });
+  const res = await fetch(`${API_BASE_URL}/tenant/communications`, { method: 'POST', headers: getTenantAuthHeaders(true), body: formData });
   if (!res.ok) throw new Error('Failed to submit request');
   return res.json();
 };
 export const logoutTenant = () => {
   localStorage.removeItem("tenantToken");
+};
+export const getUnitDocuments = async (unitId) => {
+  const res = await fetch(`${API_BASE_URL}/management/units/${unitId}/documents`, {
+    headers: getAuthHeaders()
+  });
+  if (!res.ok) throw new Error('Failed to fetch documents');
+  return res.json();
+};
+export const uploadUnitDocument = async (unitId, formData) => {
+  const res = await fetch(`${API_BASE_URL}/management/units/${unitId}/documents`, {
+    method: 'POST',
+    headers: getAuthHeaders(true),
+    body: formData
+  });
+  if (!res.ok) throw new Error('Failed to upload document');
+  return res.json();
+};
+export const deleteUnitDocument = async (docId) => {
+  const res = await fetch(`${API_BASE_URL}/management/documents/${docId}`, {
+    method: 'DELETE',
+    headers: getAuthHeaders()
+  });
+  if (!res.ok) throw new Error('Failed to delete document');
+  return res.json();
+};
+export const getPropertyDocuments = async (propertyId) => {
+  const res = await fetch(`${API_BASE_URL}/management/property/${propertyId}/documents`, {
+    headers: getAuthHeaders()
+  });
+  if (!res.ok) throw new Error('Failed to fetch property documents');
+  return res.json();
+};
+export const uploadPropertyDocument = async (propertyId, formData) => {
+  const res = await fetch(`${API_BASE_URL}/management/property/${propertyId}/documents`, {
+    method: 'POST',
+    headers: getAuthHeaders(true),
+    body: formData
+  });
+  if (!res.ok) throw new Error('Failed to upload property document');
+  return res.json();
+};
+export const deletePropertyDocument = async (docId) => {
+  const res = await fetch(`${API_BASE_URL}/management/documents/${docId}`, {
+    method: 'DELETE',
+    headers: getAuthHeaders()
+  });
+  if (!res.ok) throw new Error('Failed to delete property document');
+  return res.json();
 };
