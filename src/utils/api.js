@@ -396,3 +396,11 @@ export const updateApplicationStatus = async (applicationId, status) => {
   if (!res.ok) throw new Error('Failed to update application status');
   return res.json();
 };
+export const initiateScreening = async (applicationId) => {
+  const res = await fetch(`${API_BASE_URL}/applications/${applicationId}/initiate-screening`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) throw new Error('Failed to initiate screening');
+  return res.json();
+};
