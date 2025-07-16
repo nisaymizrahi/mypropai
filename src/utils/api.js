@@ -379,3 +379,11 @@ export const submitTenantCommunication = async (formData) => {
 export const logoutTenant = () => {
   localStorage.removeItem("token");
 };
+// --- Application Functions ---
+export const getApplicationDetails = async (applicationId) => {
+  const res = await fetch(`${API_BASE_URL}/applications/${applicationId}`, {
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) throw new Error('Failed to fetch application details');
+  return res.json();
+};
