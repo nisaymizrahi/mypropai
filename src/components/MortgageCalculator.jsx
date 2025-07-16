@@ -9,7 +9,7 @@ const CalcInput = ({ label, name, value, onChange, placeholder, type = 'number',
 
 const MortgageCalculator = () => {
     const [inputs, setInputs] = useState({ loanAmount: '300000', interestRate: '7', loanTerm: '30' });
-    const handleChange = (e) => { setInputs(prev => ({ ...prev, [name]: e.target.value })); };
+    const handleChange = (e) => { setInputs(prev => ({ ...prev, [e.target.name]: e.target.value })); };
     const calculations = useMemo(() => {
         const P = Number(inputs.loanAmount) || 0;
         const r = (Number(inputs.interestRate) / 100) / 12;
@@ -44,3 +44,5 @@ const MortgageCalculator = () => {
         </div>
     );
 };
+
+export default MortgageCalculator; // ✅ THIS LINE WAS MISSING

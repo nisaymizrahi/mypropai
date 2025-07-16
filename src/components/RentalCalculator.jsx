@@ -3,13 +3,21 @@ import React, { useState, useMemo } from 'react';
 const CalcInput = ({ label, name, value, onChange, placeholder, type = 'number', step = "0.01" }) => (
     <div>
         <label className="block text-sm font-medium text-gray-600">{label}</label>
-        <input type={type} name={name} value={value} onChange={onChange} placeholder={placeholder} step={step} className="mt-1 block w-full border border-gray-300 rounded-md p-2 shadow-sm"/>
+        <input 
+            type={type}
+            name={name}
+            value={value}
+            onChange={onChange}
+            placeholder={placeholder}
+            step={step}
+            className="mt-1 block w-full border border-gray-300 rounded-md p-2 shadow-sm"
+        />
     </div>
 );
 
 const RentalCalculator = () => {
     const [inputs, setInputs] = useState({ purchasePrice: '', downPaymentPercent: '25', interestRate: '7', loanTerm: '30', grossMonthlyRent: '', propertyTaxes: '', insurance: '', vacancyRate: '5', repairsRate: '5', managementRate: '8' });
-    const handleChange = (e) => { setInputs(prev => ({ ...prev, [name]: e.target.value })); };
+    const handleChange = (e) => { setInputs(prev => ({ ...prev, [e.target.name]: e.target.value })); };
     const calculations = useMemo(() => {
         const p = (name) => Number(inputs[name]) || 0;
         const downPaymentAmount = p('purchasePrice') * (p('downPaymentPercent') / 100);
@@ -65,3 +73,5 @@ const RentalCalculator = () => {
         </div>
     );
 };
+
+export default RentalCalculator; // ✅ THIS LINE WAS MISSING

@@ -14,14 +14,9 @@ const CalcInput = ({ label, name, value, onChange, placeholder, type = 'number' 
     </div>
 );
 
-const FlipAnalyzer = ({ investment, budgetItems, expenses }) => {
+const FlipAnalyzer = () => {
     const [inputs, setInputs] = useState({ purchasePrice: '', arv: '', renovationCosts: '', buyingCosts: '', holdingCosts: '', sellingCosts: '', loanAmount: '', loanPoints: '', otherLoanFees: '' });
-    
-    // This is a correction from previous versions, using the component's state
-    const handleChange = (e) => {
-        setInputs(prev => ({ ...prev, [e.target.name]: e.target.value }));
-    };
-    
+    const handleChange = (e) => { setInputs(prev => ({ ...prev, [e.target.name]: e.target.value })); };
     const calculations = useMemo(() => {
         const p = (name) => Number(inputs[name]) || 0;
         const totalFinancingCosts = (p('loanAmount') * (p('loanPoints') / 100)) + p('otherLoanFees');
@@ -79,4 +74,4 @@ const FlipAnalyzer = ({ investment, budgetItems, expenses }) => {
     );
 };
 
-export default FlipAnalyzer; // ✅ This line was missing
+export default FlipAnalyzer; // ✅ THIS LINE WAS MISSING
