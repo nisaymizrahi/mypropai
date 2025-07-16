@@ -387,3 +387,12 @@ export const getApplicationDetails = async (applicationId) => {
   if (!res.ok) throw new Error('Failed to fetch application details');
   return res.json();
 };
+export const updateApplicationStatus = async (applicationId, status) => {
+  const res = await fetch(`${API_BASE_URL}/applications/${applicationId}`, {
+    method: 'PATCH',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ status }),
+  });
+  if (!res.ok) throw new Error('Failed to update application status');
+  return res.json();
+};
