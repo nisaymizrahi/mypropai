@@ -2,28 +2,25 @@ import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import { updateUserProfile, changePassword, createStripeConnectAccount } from '../utils/api';
-import { useLocation } from 'react-router-dom';
+import { useLocation, Link } from 'react-router-dom';
 
 const AccountCenter = () => {
     const { user, loading } = useAuth();
     const location = useLocation();
     
-    // State for the profile form
     const [profileData, setProfileData] = useState({ name: '', email: '' });
     const [isProfileSaving, setIsProfileSaving] = useState(false);
 
-    // State for the password form
     const [passwordData, setPasswordData] = useState({ currentPassword: '', newPassword: '' });
     const [isPasswordSaving, setIsPasswordSaving] = useState(false);
     
-    // State for Stripe connection
     const [isConnecting, setIsConnecting] = useState(false);
 
     useEffect(() => {
         if (user) {
             setProfileData({ name: user.name, email: user.email });
         }
-        // Check for the redirect parameter from Stripe
+        
         const queryParams = new URLSearchParams(location.search);
         if (queryParams.get('stripe_success')) {
             toast.success("Stripe account connected successfully!");
@@ -65,12 +62,11 @@ const AccountCenter = () => {
         }
     };
 
-    // Handler for the Stripe Connect button
     const handleStripeConnect = async () => {
         setIsConnecting(true);
         try {
             const { url } = await createStripeConnectAccount();
-            window.location.href = url; // Redirect user to Stripe's onboarding page
+            window.location.href = url;
         } catch (error) {
             toast.error("Could not connect to Stripe. Please try again.");
             setIsConnecting(false);
@@ -87,7 +83,24 @@ const AccountCenter = () => {
             
             {/* Profile Information Card */}
             <div className="bg-white p-6 rounded-lg shadow-sm border">
-                {/* ... (Profile form remains the same) ... */}
+                <h2 className="text-xl font-semibold mb-4">Profile Information</h2>
+                <form onSubmit={handleProfileSubmit} className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-medium">Full Name</label>
+                            <input name="name" type="text" value={profileData.name || ''} onChange={handleProfileChange} className="mt-1 block w-full border rounded-md p-2"/>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium">Email Address</label>
+                            <input name="email" type="email" value={profileData.email || ''} onChange={handleProfileChange} className="mt-1 block w-full border rounded-md p-2"/>
+                        </div>
+                    </div>
+                    <div className="text-right">
+                        <button type="submit" disabled={isProfileSaving} className="bg-brand-turquoise text-white font-semibold px-4 py-2 rounded-md disabled:opacity-50">
+                            {isProfileSaving ? 'Saving...' : 'Save Profile'}
+                        </button>
+                    </div>
+                </form>
             </div>
 
             {/* Payments & Billing Card */}
@@ -103,7 +116,7 @@ const AccountCenter = () => {
                         <p className="text-sm text-brand-gray-600 mb-4">
                             Connect your own Stripe account to securely accept payments for application fees and rental income directly into your bank account.
                         </p>
-                        <button onClick={handleStripeConnect} disabled={isConnecting} className="bg-blue-600 text-white font-semibold px-4 py-2 rounded-md disabled:opacity-50">
+                        <button onClick={handleStripeConnect} disabled={isConnecting} className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded-md disabled:opacity-50">
                             {isConnecting ? 'Connecting...' : 'Connect with Stripe'}
                         </button>
                     </div>
@@ -112,7 +125,24 @@ const AccountCenter = () => {
 
             {/* Change Password Card */}
             <div className="bg-white p-6 rounded-lg shadow-sm border">
-                {/* ... (Change password form remains the same) ... */}
+                <h2 className="text-xl font-semibold mb-4">Change Password</h2>
+                <form onSubmit={handlePasswordSubmit} className="space-y-4">
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-medium">Current Password</label>
+                            <input name="currentPassword" type="password" value={passwordData.currentPassword} onChange={handlePasswordChange} className="mt-1 block w-full border rounded-md p-2"/>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium">New Password</label>
+                            <input name="newPassword" type="password" value={passwordData.newPassword} onChange={handlePasswordChange} className="mt-1 block w-full border rounded-md p-2"/>
+                        </div>
+                    </div>
+                    <div className="text-right">
+                        <button type="submit" disabled={isPasswordSaving} className="bg-brand-turquoise text-white font-semibold px-4 py-2 rounded-md disabled:opacity-50">
+                            {isPasswordSaving ? 'Saving...' : 'Change Password'}
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
     );
