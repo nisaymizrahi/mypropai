@@ -404,3 +404,37 @@ export const initiateScreening = async (applicationId) => {
   if (!res.ok) throw new Error('Failed to initiate screening');
   return res.json();
 };
+export const submitApplication = async (data) => {
+  const res = await fetch(`${API_BASE_URL}/applications/submit`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error('Failed to submit application');
+  return res.json();
+};
+
+export const createApplicationPaymentIntent = async (applicationId) => {
+  const res = await fetch(`${API_BASE_URL}/applications/${applicationId}/create-payment-intent`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) throw new Error('Failed to create payment intent');
+  return res.json();
+};
+
+export const getPublicApplicationDetails = async (unitId) => {
+  const res = await fetch(`${API_BASE_URL}/applications/public/${unitId}`, {
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) throw new Error('Failed to fetch application details');
+  return res.json();
+};
+
+export const getApplicationsForProperty = async (propertyId) => {
+  const res = await fetch(`${API_BASE_URL}/applications/property/${propertyId}`, {
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) throw new Error('Failed to fetch property applications');
+  return res.json();
+};
