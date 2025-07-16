@@ -185,6 +185,22 @@ export const createProjectTask = async (data) => {
     if (!res.ok) throw new Error('Failed to create project task');
     return res.json();
 };
+export const getProjectDocuments = async (investmentId) => {
+    const res = await fetch(`${API_BASE_URL}/documents/investment/${investmentId}`, { headers: getAuthHeaders() });
+    if (!res.ok) throw new Error('Failed to fetch documents');
+    return res.json();
+};
+export const uploadProjectDocument = async (formData) => {
+    const res = await fetch(`${API_BASE_URL}/documents`, { method: 'POST', headers: getAuthHeaders(true), body: formData });
+    if (!res.ok) throw new Error('Failed to upload document');
+    return res.json();
+};
+export const deleteProjectDocument = async (documentId) => {
+    const res = await fetch(`${API_BASE_URL}/documents/${documentId}`, { method: 'DELETE', headers: getAuthHeaders() });
+    if (!res.ok) throw new Error('Failed to delete document');
+    return res.json();
+};
+
 
 // --- Auth Functions ---
 export const loginUser = async (email, password) => {
@@ -214,7 +230,10 @@ export const changePassword = async (passwordData) => {
 
 // --- Stripe Functions ---
 export const createStripeConnectAccount = async () => {
-    const res = await fetch(`${API_BASE_URL}/stripe/create-connect-account`, { method: 'POST', headers: getAuthHeaders() });
+    const res = await fetch(`${API_BASE_URL}/stripe/create-connect-account`, {
+        method: 'POST',
+        headers: getAuthHeaders()
+    });
     if (!res.ok) throw new Error('Failed to create Stripe Connect account link');
     return res.json();
 };
@@ -352,6 +371,30 @@ export const deletePropertyDocument = async (docId) => {
   });
   if (!res.ok) throw new Error('Failed to delete property document');
   return res.json();
+};
+
+// --- Application Functions ---
+export const getPublicApplicationDetails = async (unitId) => {
+    const res = await fetch(`${API_BASE_URL}/applications/public/${unitId}`);
+    if (!res.ok) throw new Error('Failed to get application details');
+    return res.json();
+};
+export const submitApplication = async (data) => {
+    const res = await fetch(`${API_BASE_URL}/applications/submit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error((await res.json()).msg || 'Failed to submit application');
+    return res.json();
+};
+export const createApplicationPaymentIntent = async (applicationId) => {
+    const res = await fetch(`${API_BASE_URL}/applications/${applicationId}/create-payment-intent`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+    });
+    if (!res.ok) throw new Error('Failed to create payment intent');
+    return res.json();
 };
 
 

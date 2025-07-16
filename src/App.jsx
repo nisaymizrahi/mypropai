@@ -28,6 +28,9 @@ import FinancialToolsPage from "./pages/FinancialToolsPage";
 import UnitListingPage from "./pages/UnitListingPage";
 import LeadsPage from "./pages/LeadsPage";
 import LeadDetailPage from "./pages/LeadDetailPage";
+import ApplicationFormPage from "./pages/ApplicationFormPage";
+// 1. IMPORT THE NEW APPLICATION DETAIL PAGE
+import ApplicationDetailPage from "./pages/ApplicationDetailPage";
 
 
 function App() {
@@ -48,6 +51,7 @@ function App() {
           <Route path="/invite/:token" element={<InvitePage />} />
           <Route path="/tenant-login" element={<TenantLoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
+          <Route path="/apply/:unitId" element={<ApplicationFormPage />} />
 
 
           {/* --- Protected Tenant Route --- */}
@@ -155,6 +159,18 @@ function App() {
               <ProtectedRoute>
                 <DashboardLayout>
                   <UnitListingPage />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* 2. ADD THE NEW APPLICATION DETAIL ROUTE */}
+          <Route
+            path="/applications/:id"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <ApplicationDetailPage />
                 </DashboardLayout>
               </ProtectedRoute>
             }
