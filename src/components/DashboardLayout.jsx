@@ -1,8 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { NavLink, Link } from "react-router-dom";
 import UserInfoBanner from "./UserInfoBanner";
 
-// --- SVG Icon Components (No changes needed here) ---
+// --- SVG Icon Components ---
 const HomeIcon = ({ className }) => ( <svg className={className} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg> );
 const SearchIcon = ({ className }) => ( <svg className={className} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg> );
 const BriefcaseIcon = ({ className }) => ( <svg className={className} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg> );
@@ -21,7 +21,6 @@ const navLinks = [
   { to: "/investments/new", text: "Add Investment", icon: PlusCircleIcon },
 ];
 
-// Reusable Nav Item Component for the new sidebar
 const NavItem = ({ to, icon: Icon, text, isExpanded }) => {
     const activeClass = "bg-brand-turquoise-100 text-brand-turquoise-600";
     const inactiveClass = "text-gray-600 hover:bg-gray-100 hover:text-gray-900";
@@ -40,7 +39,7 @@ function DashboardLayout({ children }) {
 
   return (
     <div className="flex min-h-screen">
-      {/* --- Desktop Sidebar --- */}
+      {/* Desktop Sidebar */}
       <aside 
         onMouseEnter={() => setIsSidebarExpanded(true)}
         onMouseLeave={() => setIsSidebarExpanded(false)}
@@ -59,37 +58,32 @@ function DashboardLayout({ children }) {
         </nav>
       </aside>
 
-      {/* --- Main Content Area --- */}
+      {/* Main Content Area */}
       <div className="flex-1 flex flex-col">
-        {/* --- Top Header (for all screen sizes) --- */}
         <header className="bg-white border-b border-gray-200">
             <div className="flex items-center justify-between px-4 h-16">
-                {/* Mobile Menu Button (visible on small screens) */}
                 <div className="lg:hidden">
                     <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="p-2 rounded-md hover:bg-gray-100">
                         <MenuIcon className="h-6 w-6" />
                     </button>
                 </div>
-                {/* User Info Banner now lives inside the main header */}
                 <div className="flex-1 flex justify-end">
                     <UserInfoBanner />
                 </div>
             </div>
+            {isMobileMenuOpen && (
+                <nav className="lg:hidden border-b bg-white">
+                    <div className="px-2 pt-2 pb-3 space-y-1">
+                        {navLinks.map((link) => (
+                            <NavLink key={link.to} to={link.to} onClick={() => setIsMobileMenuOpen(false)} className={({ isActive }) => `flex items-center px-3 py-2 rounded-md text-base font-medium ${isActive ? 'bg-brand-turquoise-100 text-brand-turquoise-600' : 'text-gray-600 hover:bg-gray-100'}`}>
+                                <link.icon className="h-6 w-6 mr-3" />
+                                <span>{link.text}</span>
+                            </NavLink>
+                        ))}
+                    </div>
+                </nav>
+            )}
         </header>
-
-        {/* --- Mobile Dropdown Menu --- */}
-        {isMobileMenuOpen && (
-            <nav className="lg:hidden border-b bg-white">
-                <div className="px-2 pt-2 pb-3 space-y-1">
-                    {navLinks.map((link) => (
-                        <NavLink key={link.to} to={link.to} onClick={() => setIsMobileMenuOpen(false)} className={({ isActive }) => `flex items-center px-3 py-2 rounded-md text-base font-medium ${isActive ? 'bg-brand-turquoise-100 text-brand-turquoise-600' : 'text-gray-600 hover:bg-gray-100'}`}>
-                            <link.icon className="h-6 w-6 mr-3" />
-                            <span>{link.text}</span>
-                        </NavLink>
-                    ))}
-                </div>
-            </nav>
-        )}
         
         <main className="flex-1 p-4 md:p-8 overflow-y-auto bg-gray-50">
           {children}
