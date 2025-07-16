@@ -13,6 +13,7 @@ import LoginContinuePage from "./pages/LoginContinuePage";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { setTokenCookieFromURL } from "./utils/setTokenFromURL";
 import { AuthProvider } from "./context/AuthContext";
+import ApplicationsPage from "./pages/ApplicationsPage";
 
 import ManagementDashboard from "./pages/ManagementDashboard";
 import ManagedPropertyDetail from "./pages/ManagedPropertyDetail";
@@ -229,7 +230,19 @@ function App() {
                 </DashboardLayout>
               </ProtectedRoute>
             }
+            
           />
+          <Route
+  path="/applications"
+  element={
+    <ProtectedRoute>
+      <DashboardLayout>
+        <ApplicationsPage />
+      </DashboardLayout>
+    </ProtectedRoute>
+  }
+/>
+
 
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
