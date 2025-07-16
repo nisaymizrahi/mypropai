@@ -1,10 +1,9 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { getBidsForLead, importBid, deleteBid } from '../utils/api';
 import toast from 'react-hot-toast';
-import BidDetailModal from './BidDetailModal'; 
-import BidComparisonTable from './BidComparisonTable'; // 1. IMPORT THE NEW COMPONENT
+import BidDetailModal from './BidDetailModal';
 
-const BidsTab = ({ leadId, onUpdate }) => {
+const BidsTab = ({ leadId }) => {
     const [bids, setBids] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
@@ -51,7 +50,7 @@ const BidsTab = ({ leadId, onUpdate }) => {
             toast.success('Bid imported successfully!', { id: toastId });
             setFileToUpload(null);
             document.getElementById('bid-upload-input').value = null;
-            fetchBids(); 
+            fetchBids();
         } catch (err) {
             toast.error(err.message || 'Failed to import bid.', { id: toastId });
         } finally {
@@ -88,7 +87,7 @@ const BidsTab = ({ leadId, onUpdate }) => {
                 <div className="bg-white p-6 rounded-lg shadow-sm border">
                     <h3 className="text-xl font-semibold text-brand-gray-800 mb-4">Import Contractor Bid</h3>
                     <p className="text-sm text-brand-gray-600 mb-4">
-                        Upload a contractor's estimate (PDF or image). The AI will read the file, extract the line items, and add it to the comparison table below.
+                        Upload an estimate (PDF or image). The AI will read it, extract the line items, and add it to the list below.
                     </p>
                     <div className="flex items-center gap-4">
                         <input id="bid-upload-input" type="file" onChange={handleFileChange} className="block w-full text-sm text-brand-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-brand-turquoise-100 file:text-brand-turquoise-700 hover:file:bg-brand-turquoise-200"/>
@@ -99,15 +98,25 @@ const BidsTab = ({ leadId, onUpdate }) => {
                 </div>
 
                 <div className="bg-white p-6 rounded-lg shadow-sm border">
-                     <h3 className="text-xl font-semibold text-brand-gray-800 mb-4">Bid Comparison</h3>
+                     <h3 className="text-xl font-semibold text-brand-gray-800 mb-4">Uploaded Bids</h3>
+                     <div className="space-y-3">
                         {loading ? <p>Loading bids...</p> : error ? <p className="text-red-500">{error}</p> : (
-                            bids.length > 0 ? (
-                                // 2. USE THE NEW COMPARISON TABLE
-                                <BidComparisonTable bids={bids} />
-                            ) : (
+                            bids.length > 0 ? bids.map(bid => (
+                                <div key={bid._id} className="flex justify-between items-center p-4 border rounded-lg hover:shadow-sm">
+                                    <div>
+                                        <p className="font-semibold">{bid.contractorName || 'Unknown Contractor'}</p>
+                                        <p className="text-sm text-gray-500">Total: <span className="font-mono">${bid.totalAmount.toLocaleString()}</span></p>
+                                    </div>
+                                    <div className="space-x-4">
+                                        <button onClick={() => handleViewDetails(bid)} className="font-semibold text-brand-turquoise hover:underline">View Details</button>
+                                        <button onClick={() => handleDelete(bid._id)} className="text-red-500 hover:underline text-sm font-semibold">Delete</button>
+                                    </div>
+                                </div>
+                            )) : (
                                 <p className="text-center text-brand-gray-500 py-8">No bids have been imported for this lead yet.</p>
                             )
                         )}
+                     </div>
                 </div>
             </div>
         </>
