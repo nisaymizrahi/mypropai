@@ -150,15 +150,14 @@ const LeadsPage = () => {
                 )}
                 
                 <DragDropContext onDragEnd={handleOnDragEnd}>
-                    {/* UPDATED: Styling for Kanban board columns and cards */}
                     <div className="flex gap-4 overflow-x-auto pb-4">
                         {columnOrder.map(columnId => {
                             const column = columns[columnId];
                             return (
                                 <Droppable key={column.id} droppableId={column.id}>
                                     {(provided) => (
-                                        <div ref={provided.innerRef} {...provided.droppableProps} className="bg-gray-100 rounded-lg p-3 w-72 flex-shrink-0">
-                                            <h3 className="font-semibold mb-3 px-1">{column.title} ({column.leads.length})</h3>
+                                        <div ref={provided.innerRef} {...provided.droppableProps} className="bg-gray-200 rounded-lg p-3 w-72 flex-shrink-0">
+                                            <h3 className="font-semibold mb-3 px-1 text-gray-700">{column.title} ({column.leads.length})</h3>
                                             <div className="space-y-3 min-h-[100px]">
                                                 {column.leads.map((lead, index) => (
                                                     <Draggable key={lead._id} draggableId={lead._id} index={index}>
