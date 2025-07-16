@@ -201,7 +201,6 @@ export const deleteProjectDocument = async (documentId) => {
     return res.json();
 };
 
-
 // --- Auth Functions ---
 export const loginUser = async (email, password) => {
     const res = await fetch(`${API_BASE_URL}/auth/login`, { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify({ email, password }) });
@@ -230,10 +229,7 @@ export const changePassword = async (passwordData) => {
 
 // --- Stripe Functions ---
 export const createStripeConnectAccount = async () => {
-    const res = await fetch(`${API_BASE_URL}/stripe/create-connect-account`, {
-        method: 'POST',
-        headers: getAuthHeaders()
-    });
+    const res = await fetch(`${API_BASE_URL}/stripe/create-connect-account`, { method: 'POST', headers: getAuthHeaders() });
     if (!res.ok) throw new Error('Failed to create Stripe Connect account link');
     return res.json();
 };
@@ -319,11 +315,6 @@ export const updateInspection = async (id, data) => {
     if (!res.ok) throw new Error('Failed to update inspection');
     return res.json();
 };
-export const getProjectDocuments = async (investmentId) => {
-    const res = await fetch(`${API_BASE_URL}/documents/investment/${investmentId}`, { headers: getAuthHeaders() });
-    if (!res.ok) throw new Error('Failed to fetch documents');
-    return res.json();
-};
 export const getUnitDocuments = async (unitId) => {
   const res = await fetch(`${API_BASE_URL}/management/units/${unitId}/documents`, {
     headers: getAuthHeaders()
@@ -373,31 +364,6 @@ export const deletePropertyDocument = async (docId) => {
   return res.json();
 };
 
-// --- Application Functions ---
-export const getPublicApplicationDetails = async (unitId) => {
-    const res = await fetch(`${API_BASE_URL}/applications/public/${unitId}`);
-    if (!res.ok) throw new Error('Failed to get application details');
-    return res.json();
-};
-export const submitApplication = async (data) => {
-    const res = await fetch(`${API_BASE_URL}/applications/submit`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-    });
-    if (!res.ok) throw new Error((await res.json()).msg || 'Failed to submit application');
-    return res.json();
-};
-export const createApplicationPaymentIntent = async (applicationId) => {
-    const res = await fetch(`${API_BASE_URL}/applications/${applicationId}/create-payment-intent`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-    });
-    if (!res.ok) throw new Error('Failed to create payment intent');
-    return res.json();
-};
-
-
 // --- AI Tool Functions ---
 export const generateAIDescription = async (data) => {
     const res = await fetch(`${API_BASE_URL}/ai-tools/generate-description`, {
@@ -424,10 +390,10 @@ export const getTenantLeaseDetails = async () => {
   return res.json();
 };
 export const submitTenantCommunication = async (formData) => {
-  const res = await fetch(`${API_BASE_URL}/tenant/communications`, { method: 'POST', headers: getTenantAuthHeaders(true), body: formData });
+  const res = await fetch(`${API_BASE_URL}/tenant/communications`, { method: 'POST', headers: getAuthHeaders(true), body: formData });
   if (!res.ok) throw new Error('Failed to submit request');
   return res.json();
 };
 export const logoutTenant = () => {
-  localStorage.removeItem("tenantToken");
+  localStorage.removeItem("token");
 };
