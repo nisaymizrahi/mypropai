@@ -22,7 +22,6 @@ const navLinks = [
 ];
 
 const NavItem = ({ to, icon: Icon, text, isExpanded, onClick }) => {
-    // ✅ THIS IS THE FIX: Variables are now defined inside the component that uses them.
     const activeLinkStyle = "bg-brand-turquoise-100 text-brand-turquoise-600 font-semibold";
     const inactiveLinkStyle = "text-gray-600 hover:bg-gray-100 hover:text-gray-900";
 
@@ -37,6 +36,18 @@ const NavItem = ({ to, icon: Icon, text, isExpanded, onClick }) => {
 function DashboardLayout({ children }) {
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const mobileMenuRef = useRef(null);
+
+  // ✅ ADDED: This effect handles closing the menu if you click outside of it
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (mobileMenuRef.current && !mobileMenuRef.current.contains(event.target)) {
+        setIsMobileMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   return (
     <div className="flex min-h-screen bg-gray-50">
@@ -62,30 +73,32 @@ function DashboardLayout({ children }) {
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col">
         <header className="bg-white border-b border-gray-200 sticky top-0 z-20">
-            <div className="flex items-center justify-between px-4 h-16">
-                <div className="lg:hidden">
-                    <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="p-2 rounded-md hover:bg-gray-100">
-                        {isMobileMenuOpen ? <CloseIcon className="h-6 w-6" /> : <MenuIcon className="h-6 w-6" />}
-                    </button>
-                </div>
-                <div className="flex-1 flex justify-end">
-                    <UserInfoBanner />
-                </div>
-            </div>
-            {isMobileMenuOpen && (
-                <nav className="lg:hidden border-b bg-white">
-                    <div className="px-2 pt-2 pb-3 space-y-1">
-                        {navLinks.map((link) => (
-                            <NavItem 
-                                key={link.to} 
-                                {...link} 
-                                isExpanded={true} // Always expanded in mobile dropdown
-                                onClick={() => setIsMobileMenuOpen(false)}
-                            />
-                        ))}
+            <div ref={mobileMenuRef} className="relative">
+                <div className="flex items-center justify-between px-4 h-16">
+                    <div className="lg:hidden">
+                        <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="p-2 rounded-md hover:bg-gray-100">
+                            {isMobileMenuOpen ? <CloseIcon className="h-6 w-6" /> : <MenuIcon className="h-6 w-6" />}
+                        </button>
                     </div>
-                </nav>
-            )}
+                    <div className="flex-1 flex justify-end">
+                        <UserInfoBanner />
+                    </div>
+                </div>
+                {isMobileMenuOpen && (
+                    <nav className="lg:hidden border-b bg-white absolute w-full shadow-lg">
+                        <div className="px-2 pt-2 pb-3 space-y-1">
+                            {navLinks.map((link) => (
+                                <NavItem 
+                                    key={link.to} 
+                                    {...link} 
+                                    isExpanded={true} // Always expanded in mobile dropdown
+                                    onClick={() => setIsMobileMenuOpen(false)}
+                                />
+                            ))}
+                        </div>
+                    </nav>
+                )}
+            </div>
         </header>
         
         <main className="flex-1 p-4 md:p-8 overflow-y-auto">

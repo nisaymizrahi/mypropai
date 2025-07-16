@@ -12,7 +12,7 @@ import LoginPage from "./pages/LoginPage";
 import LoginContinuePage from "./pages/LoginContinuePage";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { setTokenCookieFromURL } from "./utils/setTokenFromURL";
-import { AuthProvider } from "./context/AuthContext.js";
+import { AuthProvider } from "./context/AuthContext";
 
 import ManagementDashboard from "./pages/ManagementDashboard";
 import ManagedPropertyDetail from "./pages/ManagedPropertyDetail";
@@ -27,7 +27,6 @@ import AccountCenter from "./pages/AccountCenter";
 import FinancialToolsPage from "./pages/FinancialToolsPage";
 import UnitListingPage from "./pages/UnitListingPage";
 import LeadsPage from "./pages/LeadsPage";
-// 1. IMPORT THE NEW LEAD DETAIL PAGE
 import LeadDetailPage from "./pages/LeadDetailPage";
 
 
@@ -106,7 +105,6 @@ function App() {
             }
           />
           
-          {/* 2. ADD THE NEW LEAD DETAIL ROUTE */}
           <Route
             path="/leads/:id"
             element={
