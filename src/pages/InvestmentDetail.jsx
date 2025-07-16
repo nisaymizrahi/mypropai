@@ -14,18 +14,19 @@ import ScheduleTab from "../components/ScheduleTab";
 import DashboardTab from "../components/DashboardTab";
 import DocumentsTab from "../components/DocumentsTab";
 import TeamTab from "../components/TeamTab";
+import DealPerformanceTab from "../components/DealPerformanceTab";
 
 // --- Reusable UI Components ---
 const PrimaryButton = ({ onClick, children, className = '', ...props }) => <button onClick={onClick} className={`bg-brand-turquoise hover:bg-brand-turquoise-600 text-white font-semibold px-4 py-2 rounded-md transition ${className}`} {...props}>{children}</button>;
-const SecondaryButton = ({ onClick, children, className = '', ...props }) => <button onClick={onClick} className={`bg-white hover:bg-brand-gray-100 text-brand-gray-700 font-semibold px-4 py-2 rounded-md border border-brand-gray-300 transition ${className}`} {...props}>{children}</button>;
-const DangerButton = ({ onClick, children, className = '', ...props }) => <button onClick={onClick} className={`bg-red-500 hover:bg-red-600 text-white font-semibold px-4 py-2 rounded-md transition ${className}`} {...props}>{children}</button>;
+const SecondaryButton = ({ onClick, children, className = '', ...props }) => <button onClick={onClick} className={`bg-white hover:bg-gray-100 text-gray-700 font-semibold px-4 py-2 rounded-md border border-gray-300 transition ${className}`} {...props}>{children}</button>;
+const DangerButton = ({ onClick, children, className = '', ...props }) => <button onClick={onClick} className={`bg-red-600 hover:bg-red-700 text-white font-semibold px-4 py-2 rounded-md transition ${className}`} {...props}>{children}</button>;
 const LoadingSpinner = () => <div className="flex justify-center items-center p-16"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-turquoise"></div></div>;
 
 // --- Tab Components ---
 const SettingsTab = ({ onDelete }) => (
-    <div className="bg-white p-6 rounded-lg shadow-sm border border-brand-gray-200">
-        <h3 className="text-lg font-semibold text-brand-gray-800 mb-4">Project Settings</h3>
-        <p className="text-sm text-brand-gray-600 mb-4">
+    <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+        <h3 className="text-lg font-semibold text-gray-800 mb-4">Project Settings</h3>
+        <p className="text-sm text-gray-600 mb-4">
             Deleting a project is permanent and cannot be undone. This will remove all associated budget items, expenses, and other data.
         </p>
         <DangerButton onClick={onDelete}>Delete This Investment Project</DangerButton>
@@ -100,13 +101,13 @@ const InvestmentDetail = () => {
   };
 
   if (loading) return <LoadingSpinner />;
-  if (error) return <div className="p-6 text-red-600 text-center">{error}</div>;
+  if (error) return <div className="p-6 text-red-500 text-center">{error}</div>;
   if (!investment) return null;
 
   const TabButton = ({ tabName, label }) => (
     <button
       onClick={() => setActiveTab(tabName)}
-      className={`flex-shrink-0 px-3 py-2 font-semibold text-sm rounded-md ${activeTab === tabName ? 'bg-brand-turquoise text-white' : 'text-brand-gray-600 hover:bg-brand-gray-100'}`}
+      className={`flex-shrink-0 px-3 py-2 font-semibold text-sm rounded-md ${activeTab === tabName ? 'bg-brand-turquoise text-white' : 'text-gray-600 hover:bg-gray-100'}`}
     >
       {label}
     </button>
@@ -114,11 +115,11 @@ const InvestmentDetail = () => {
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">
-      {/* ✅ UPDATED: Header now stacks on mobile */}
+      {/* ✅ UPDATED: Header now stacks on mobile and uses new theme styles */}
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
         <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-brand-gray-900">Project Hub</h1>
-            <p className="text-base sm:text-lg text-brand-gray-500 mt-1">{investment.address}</p>
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Project Hub</h1>
+            <p className="text-base sm:text-lg text-gray-500 mt-1">{investment.address}</p>
         </div>
         <SecondaryButton onClick={() => navigate(`/investments/${id}/edit`)} className="w-full sm:w-auto">
             Edit Property Details
@@ -126,9 +127,10 @@ const InvestmentDetail = () => {
       </div>
 
       {/* ✅ UPDATED: Tab navigation is now horizontally scrollable on mobile */}
-      <div className="bg-white p-2 rounded-lg shadow-sm border border-brand-gray-200 flex items-center space-x-2 overflow-x-auto">
+      <div className="bg-white p-2 rounded-lg shadow-sm border border-gray-200 flex items-center space-x-2 overflow-x-auto">
         <TabButton tabName="dashboard" label="Dashboard" />
         <TabButton tabName="financials" label="Financials" />
+        <TabButton tabName="performance" label="Performance" />
         <TabButton tabName="schedule" label="Schedule" />
         <TabButton tabName="documents" label="Documents" />
         <TabButton tabName="team" label="Team" />
@@ -151,6 +153,13 @@ const InvestmentDetail = () => {
                 expenses={expenses} 
                 vendors={vendors}
                 onUpdate={fetchData}
+            />
+        }
+        {activeTab === 'performance' &&
+            <DealPerformanceTab
+                investment={investment}
+                budgetItems={budgetItems}
+                expenses={expenses}
             />
         }
         {activeTab === 'schedule' && 

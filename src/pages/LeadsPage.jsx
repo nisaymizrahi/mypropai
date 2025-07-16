@@ -44,11 +44,11 @@ const AddLeadModal = ({ isOpen, onClose, onSuccess }) => {
     );
 };
 
-// New Stat Card component for the dashboard KPIs
+// Redesigned Stat Card
 const StatCard = ({ title, value }) => (
-    <div className="bg-white p-4 rounded-lg shadow-sm border">
-        <p className="text-sm font-medium text-brand-gray-500">{title}</p>
-        <p className="mt-1 text-3xl font-semibold text-brand-gray-900">{value}</p>
+    <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+        <p className="text-sm font-medium text-gray-500">{title}</p>
+        <p className="mt-1 text-3xl font-semibold text-gray-900">{value}</p>
     </div>
 );
 
@@ -64,7 +64,6 @@ const LeadsPage = () => {
 
     const fetchData = async () => {
         try {
-            // Fetch both lists and summary data in parallel
             const [leadsData, summaryData] = await Promise.all([
                 getLeads(),
                 getLeadSummary()
@@ -98,7 +97,6 @@ const LeadsPage = () => {
         const { source, destination, draggableId } = result;
         if (!destination) return;
 
-        // Optimistic UI update logic...
         const sourceColumn = columns[source.droppableId];
         const destColumn = columns[destination.droppableId];
         const sourceLeads = [...sourceColumn.leads];
@@ -118,12 +116,11 @@ const LeadsPage = () => {
         
         try {
             await updateLead(draggableId, { status: destination.droppableId });
-            // Refetch summary data after a status change to update KPIs
             const summaryData = await getLeadSummary();
             setSummary(summaryData);
         } catch (error) {
             console.error("Failed to update lead status", error);
-            fetchData(); // Revert on failure
+            fetchData();
         }
     };
     
@@ -133,17 +130,16 @@ const LeadsPage = () => {
         <>
             <AddLeadModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onSuccess={fetchData} />
             <div className="max-w-7xl mx-auto space-y-6">
-                <div className="flex justify-between items-center">
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
                     <div>
-                        <h1 className="text-3xl font-bold text-brand-gray-900">Leads Dashboard</h1>
-                        <p className="text-lg text-brand-gray-500 mt-1">Your deal pipeline at a glance.</p>
+                        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Leads Dashboard</h1>
+                        <p className="text-lg text-gray-500 mt-1">Your deal pipeline at a glance.</p>
                     </div>
-                    <button onClick={() => setIsModalOpen(true)} className="bg-brand-turquoise text-white font-semibold px-4 py-2 rounded-md">
+                    <button onClick={() => setIsModalOpen(true)} className="bg-brand-turquoise text-white font-semibold px-4 py-2 rounded-md w-full sm:w-auto">
                         + Add New Lead
                     </button>
                 </div>
 
-                {/* KPI Header */}
                 {summary && (
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <StatCard title="Total Active Leads" value={summary.totalLeads} />
@@ -153,23 +149,22 @@ const LeadsPage = () => {
                     </div>
                 )}
                 
-                {/* Kanban Board */}
                 <DragDropContext onDragEnd={handleOnDragEnd}>
-                    {/* UPDATED: This now uses a responsive grid instead of flex scroll */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                    {/* UPDATED: Styling for Kanban board columns and cards */}
+                    <div className="flex gap-4 overflow-x-auto pb-4">
                         {columnOrder.map(columnId => {
                             const column = columns[columnId];
                             return (
                                 <Droppable key={column.id} droppableId={column.id}>
                                     {(provided) => (
-                                        <div ref={provided.innerRef} {...provided.droppableProps} className="bg-gray-100 rounded-lg p-3">
-                                            <h3 className="font-semibold mb-3">{column.title} ({column.leads.length})</h3>
+                                        <div ref={provided.innerRef} {...provided.droppableProps} className="bg-gray-100 rounded-lg p-3 w-72 flex-shrink-0">
+                                            <h3 className="font-semibold mb-3 px-1">{column.title} ({column.leads.length})</h3>
                                             <div className="space-y-3 min-h-[100px]">
                                                 {column.leads.map((lead, index) => (
                                                     <Draggable key={lead._id} draggableId={lead._id} index={index}>
                                                         {(provided) => (
-                                                            <div ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps} className="bg-white p-3 rounded-md shadow-sm border cursor-pointer hover:bg-gray-50" onClick={() => navigate(`/leads/${lead._id}`)}>
-                                                                <p className="font-medium text-sm">{lead.address}</p>
+                                                            <div ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps} className="bg-white p-3 rounded-md shadow-sm border cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate(`/leads/${lead._id}`)}>
+                                                                <p className="font-medium text-sm text-gray-800">{lead.address}</p>
                                                             </div>
                                                         )}
                                                     </Draggable>

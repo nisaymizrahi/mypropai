@@ -1,12 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import {
-  getAuthHeaders,
-  getMaintenanceTickets,
-  getOperatingExpenses,
-  getVendors,
-  getArchivedLeases
-} from '../utils/api';
+import { useParams, useNavigate, Link } from 'react-router-dom';
+import { getAuthHeaders, getMaintenanceTickets, getOperatingExpenses, getVendors, getArchivedLeases, getUnitDocuments } from '../utils/api';
 import { API_BASE_URL } from '../config';
 import AddUnitModal from '../components/AddUnitModal';
 import AddLeaseModal from '../components/AddLeaseModal';
@@ -16,26 +10,27 @@ import RentalPerformanceTab from '../components/RentalPerformanceTab';
 import DocumentsTab from '../components/DocumentsTab';
 
 const LoadingSpinner = () => (
-  <div className="flex justify-center items-center p-8">
-    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-turquoise"></div>
-  </div>
+    <div className="flex justify-center items-center p-8">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-turquoise"></div>
+    </div>
 );
 
+// ✅ REDESIGNED UnitCard
 const UnitCard = ({ unit, onAddLeaseClick, navigate }) => {
   const isVacant = unit.status === 'Vacant';
-
+  
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-brand-gray-200 p-4 flex flex-col">
+    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 flex flex-col hover:shadow-md transition-shadow">
       <div className="flex justify-between items-start mb-2">
-        <h3 className="font-bold text-brand-gray-800">{unit.name}</h3>
+        <h3 className="font-bold text-gray-800">{unit.name}</h3>
         <span className={`text-xs font-bold px-2 py-1 rounded-full ${isVacant ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}`}>
           {unit.status}
         </span>
       </div>
 
-      <div className="text-sm text-brand-gray-600 flex-grow space-y-2 mb-4">
+      <div className="text-sm text-gray-600 flex-grow space-y-2 mb-4">
         {isVacant ? (
-          <p className="italic text-brand-gray-400">This unit is currently vacant.</p>
+          <p className="italic text-gray-400">This unit is currently vacant.</p>
         ) : (
           <div>
             <p><strong>Tenant:</strong> {unit.currentLease?.tenant?.fullName || 'N/A'}</p>
@@ -48,24 +43,15 @@ const UnitCard = ({ unit, onAddLeaseClick, navigate }) => {
       <div className="mt-auto space-y-2">
         {isVacant ? (
           <>
-            <button
-              onClick={() => navigate(`/management/units/${unit._id}/listing`)}
-              className="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold px-3 py-1.5 rounded-md text-sm transition"
-            >
+            <button onClick={() => navigate(`/management/units/${unit._id}/listing`)} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold px-3 py-1.5 rounded-md text-sm transition">
               Manage Listing
             </button>
-            <button
-              onClick={() => onAddLeaseClick(unit._id)}
-              className="w-full bg-brand-turquoise hover:bg-brand-turquoise-600 text-white font-semibold px-3 py-1.5 rounded-md text-sm transition"
-            >
+            <button onClick={() => onAddLeaseClick(unit._id)} className="w-full bg-brand-turquoise hover:bg-brand-turquoise-600 text-white font-semibold px-3 py-1.5 rounded-md text-sm transition">
               Add Tenant & Lease
             </button>
           </>
         ) : (
-          <button
-            onClick={() => navigate(`/management/leases/${unit.currentLease._id}`)}
-            className="w-full bg-white hover:bg-brand-gray-100 text-brand-gray-700 font-semibold px-3 py-1.5 rounded-md border border-brand-gray-300 text-sm transition"
-          >
+          <button onClick={() => navigate(`/management/leases/${unit.currentLease._id}`)} className="w-full bg-white hover:bg-gray-100 text-gray-700 font-semibold px-3 py-1.5 rounded-md border border-gray-300 text-sm transition">
             View Lease
           </button>
         )}
@@ -74,45 +60,34 @@ const UnitCard = ({ unit, onAddLeaseClick, navigate }) => {
   );
 };
 
+// ✅ REDESIGNED LeaseHistoryTab
 const LeaseHistoryTab = ({ leases }) => (
-  <div className="bg-white p-6 rounded-lg shadow-sm border">
-    <h3 className="text-xl font-semibold text-brand-gray-800 mb-4">Archived Lease History</h3>
+  <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+    <h3 className="text-xl font-semibold text-gray-800 mb-4">Archived Lease History</h3>
     <div className="overflow-x-auto">
       <table className="min-w-full text-sm">
-        <thead className="bg-brand-gray-50">
+        <thead className="bg-gray-50">
           <tr>
-            <th className="text-left p-3 font-semibold">Unit</th>
-            <th className="text-left p-3 font-semibold">Tenant</th>
-            <th className="text-left p-3 font-semibold">Lease End Date</th>
+            <th className="text-left p-3 font-semibold text-gray-600">Unit</th>
+            <th className="text-left p-3 font-semibold text-gray-600">Tenant</th>
+            <th className="text-left p-3 font-semibold text-gray-600">Lease End Date</th>
           </tr>
         </thead>
-        <tbody className="divide-y">
+        <tbody className="divide-y divide-gray-200">
           {leases.length > 0 ? leases.map(lease => (
-            <tr key={lease._id} className="hover:bg-brand-gray-50">
-              <td className="p-3 font-medium">{lease.unit?.name || 'N/A'}</td>
-              <td className="p-3">{lease.tenant?.fullName || 'N/A'}</td>
-              <td className="p-3">{new Date(lease.endDate).toLocaleDateString()}</td>
+            <tr key={lease._id} className="hover:bg-gray-50">
+              <td className="p-3 font-medium text-gray-800">{lease.unit?.name || 'N/A'}</td>
+              <td className="p-3 text-gray-600">{lease.tenant?.fullName || 'N/A'}</td>
+              <td className="p-3 text-gray-600">{new Date(lease.endDate).toLocaleDateString()}</td>
             </tr>
           )) : (
             <tr>
-              <td colSpan="3" className="text-center p-8 text-brand-gray-500">No archived leases for this property.</td>
+              <td colSpan="3" className="text-center p-8 text-gray-500">No archived leases for this property.</td>
             </tr>
           )}
         </tbody>
       </table>
     </div>
-  </div>
-);
-
-const PropertyInfoTab = ({ property }) => (
-  <div className="bg-white p-6 rounded-lg shadow-sm border space-y-4">
-    <h3 className="text-xl font-semibold text-brand-gray-800">Property Information</h3>
-    <p><strong>Address:</strong> {property.address}</p>
-    <p><strong>Estimated Value:</strong> ${property.financials?.currentValue?.toLocaleString() || 'N/A'}</p>
-    <h4 className="mt-4 font-semibold text-brand-gray-700">Mortgage Info</h4>
-    <p><strong>Loan Amount:</strong> ${property.financials?.mortgage?.loanAmount?.toLocaleString() || 'N/A'}</p>
-    <p><strong>Interest Rate:</strong> {property.financials?.mortgage?.interestRate || 'N/A'}%</p>
-    <p><strong>Loan Term:</strong> {property.financials?.mortgage?.loanTerm || 'N/A'} years</p>
   </div>
 );
 
@@ -132,6 +107,7 @@ const ManagedPropertyDetail = () => {
   const [operatingExpenses, setOperatingExpenses] = useState([]);
   const [vendors, setVendors] = useState([]);
   const [archivedLeases, setArchivedLeases] = useState([]);
+  const [documents, setDocuments] = useState([]); // Added documents state
 
   const handleOpenLeaseModal = (unitId) => {
     setSelectedUnitId(unitId);
@@ -152,7 +128,6 @@ const ManagedPropertyDetail = () => {
       if (!propertyRes.ok) {
         throw new Error('Failed to fetch property details.');
       }
-
       const propertyData = await propertyRes.json();
       setProperty(propertyData);
       setTickets(ticketsData);
@@ -180,11 +155,11 @@ const ManagedPropertyDetail = () => {
   const TabButton = ({ tabName, label }) => (
     <button
       onClick={() => setActiveTab(tabName)}
-      className={`flex-shrink-0 px-4 py-2 rounded-md font-semibold ${
-        activeTab === tabName
-          ? 'bg-brand-turquoise text-white'
-          : 'bg-white border border-brand-gray-300 text-brand-gray-700'
-      }`}
+      className={`flex-shrink-0 px-4 py-3 text-sm font-semibold border-b-2 transition-colors
+        ${activeTab === tabName
+          ? 'border-brand-turquoise text-brand-turquoise'
+          : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+        }`}
     >
       {label}
     </button>
@@ -198,74 +173,45 @@ const ManagedPropertyDetail = () => {
       <div className="max-w-7xl mx-auto">
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 gap-4">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold">{property.address}</h1>
-            <p className="text-lg text-brand-gray-500 mt-1">Management Dashboard</p>
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">{property.address}</h1>
+            <p className="text-lg text-gray-500 mt-1">Management Hub</p>
           </div>
           <div className="flex items-center gap-2 w-full sm:w-auto">
             <button onClick={() => setIsAddUnitModalOpen(true)} className="flex-1 bg-brand-turquoise hover:bg-brand-turquoise-600 text-white font-semibold px-4 py-2 rounded-md transition">Add Unit</button>
-            <button onClick={() => navigate('/management')} className="flex-1 bg-white hover:bg-brand-gray-100 text-brand-gray-700 font-semibold px-4 py-2 rounded-md border border-brand-gray-300 transition">Back</button>
+            <button onClick={() => navigate('/management')} className="flex-1 bg-white hover:bg-gray-100 text-gray-700 font-semibold px-4 py-2 rounded-md border border-gray-300 transition">Back to Properties</button>
           </div>
         </div>
 
-        <div className="flex gap-2 mb-6 border-b overflow-x-auto pb-2">
+        <div className="flex gap-2 sm:gap-6 border-b border-gray-200 overflow-x-auto">
           <TabButton tabName="units" label="Units" />
           <TabButton tabName="maintenance" label="Maintenance" />
           <TabButton tabName="expenses" label="Expenses" />
           <TabButton tabName="performance" label="Performance" />
-          <TabButton tabName="info" label="Property Info" />
           <TabButton tabName="documents" label="Documents" />
           <TabButton tabName="history" label="Lease History" />
         </div>
 
-        {activeTab === 'units' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {property.units && property.units.map(unit => (
-              <UnitCard key={unit._id} unit={unit} onAddLeaseClick={handleOpenLeaseModal} navigate={navigate} />
-            ))}
-            <div onClick={() => setIsAddUnitModalOpen(true)} className="bg-white rounded-lg border-2 border-dashed border-brand-gray-300 flex items-center justify-center text-brand-gray-400 hover:border-brand-turquoise hover:text-brand-turquoise cursor-pointer transition min-h-[150px]">
-              <div className="text-center">
-                <span className="text-4xl font-light">+</span>
-                <p className="font-semibold">Add New Unit</p>
+        <div className="mt-6">
+            {activeTab === 'units' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {property.units && property.units.map(unit => (
+                  <UnitCard key={unit._id} unit={unit} onAddLeaseClick={handleOpenLeaseModal} navigate={navigate} />
+                ))}
+                <div onClick={() => setIsAddUnitModalOpen(true)} className="bg-white rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center text-gray-400 hover:border-brand-turquoise hover:text-brand-turquoise cursor-pointer transition min-h-[200px]">
+                  <div className="text-center">
+                    <span className="text-4xl font-light">+</span>
+                    <p className="font-semibold">Add New Unit</p>
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'maintenance' && (
-          <MaintenanceTab
-            tickets={tickets}
-            property={property}
-            vendors={vendors}
-            onUpdate={fetchPropertyDetails}
-          />
-        )}
-
-        {activeTab === 'expenses' && (
-          <OperatingExpensesTab
-            propertyId={propertyId}
-            expenses={operatingExpenses}
-            onUpdate={fetchPropertyDetails}
-          />
-        )}
-
-        {activeTab === 'performance' && (
-          <RentalPerformanceTab
-            property={property}
-            operatingExpenses={operatingExpenses}
-          />
-        )}
-
-        {activeTab === 'info' && (
-          <PropertyInfoTab property={property} />
-        )}
-
-        {activeTab === 'documents' && (
-          <DocumentsTab property={property} />
-        )}
-
-        {activeTab === 'history' && (
-          <LeaseHistoryTab leases={archivedLeases} />
-        )}
+            )}
+            
+            {activeTab === 'maintenance' && (<MaintenanceTab tickets={tickets} property={property} vendors={vendors} onUpdate={fetchPropertyDetails} />)}
+            {activeTab === 'expenses' && (<OperatingExpensesTab propertyId={propertyId} expenses={operatingExpenses} onUpdate={fetchPropertyDetails} />)}
+            {activeTab === 'performance' && (<RentalPerformanceTab property={property} operatingExpenses={operatingExpenses} />)}
+            {activeTab === 'documents' && (<DocumentsTab property={property} />)}
+            {activeTab === 'history' && (<LeaseHistoryTab leases={archivedLeases} />)}
+        </div>
       </div>
     </>
   );
