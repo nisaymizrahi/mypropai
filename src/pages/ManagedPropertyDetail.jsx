@@ -5,8 +5,7 @@ import {
     getMaintenanceTickets, 
     getOperatingExpenses, 
     getVendors, 
-    getArchivedLeases,
-    getApplicationsForProperty // 1. IMPORT
+    getArchivedLeases 
 } from '../utils/api';
 import { API_BASE_URL } from '../config';
 import AddUnitModal from '../components/AddUnitModal';
@@ -14,7 +13,6 @@ import AddLeaseModal from '../components/AddLeaseModal';
 import MaintenanceTab from '../components/MaintenanceTab';
 import OperatingExpensesTab from '../components/OperatingExpensesTab';
 import RentalPerformanceTab from '../components/RentalPerformanceTab';
-import ApplicantsTab from '../components/ApplicantsTab'; // 2. IMPORT
 
 const LoadingSpinner = () => (
     <div className="flex justify-center items-center p-8">
@@ -23,54 +21,75 @@ const LoadingSpinner = () => (
 );
 
 const UnitCard = ({ unit, onAddLeaseClick, navigate }) => {
-    const isVacant = unit.status === 'Vacant';
-    
-    return (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 flex flex-col">
-            <div className="flex justify-between items-start mb-2">
-                <h3 className="font-bold text-gray-800">{unit.name}</h3>
-                <span className={`text-xs font-bold px-2 py-1 rounded-full ${isVacant ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}`}>
-                    {unit.status}
-                </span>
-            </div>
-            
-            <div className="text-sm text-gray-600 flex-grow space-y-2 mb-4">
-                {isVacant ? (
-                    <p className="italic text-gray-400">This unit is currently vacant.</p>
-                ) : (
-                    <div>
-                        <p><strong>Tenant:</strong> {unit.currentLease?.tenant?.fullName || 'N/A'}</p>
-                        <p><strong>Rent:</strong> ${unit.currentLease?.rentAmount?.toLocaleString() || 'N/A'}</p>
-                        <p><strong>Lease Ends:</strong> {unit.currentLease?.endDate ? new Date(unit.currentLease.endDate).toLocaleDateString() : 'N/A'}</p>
-                    </div>
-                )}
-            </div>
-
-            <div className="mt-auto space-y-2">
-                {isVacant ? (
-                    <>
-                        <Link to={`/apply/${unit._id}`} target="_blank" className="text-center w-full bg-gray-600 hover:bg-gray-700 text-white font-semibold px-3 py-1.5 rounded-md text-sm transition">
-                            Get Application Link
-                        </Link>
-                        <button onClick={() => onAddLeaseClick(unit._id)} className="w-full bg-brand-turquoise hover:bg-brand-turquoise-600 text-white font-semibold px-3 py-1.5 rounded-md text-sm transition">
-                            Add Tenant & Lease
-                        </button>
-                    </>
-                ) : (
-                    <button onClick={() => navigate(`/management/leases/${unit.currentLease._id}`)} className="w-full bg-white hover:bg-gray-100 text-gray-700 font-semibold px-3 py-1.5 rounded-md border border-gray-300 text-sm transition">
-                        View Lease
-                    </button>
-                )}
-            </div>
-        </div>
-    );
+  const isVacant = unit.status === 'Vacant';
+  
+  return (
+    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 flex flex-col hover:shadow-md transition-shadow">
+      <div className="flex justify-between items-start mb-2">
+        <h3 className="font-bold text-gray-800">{unit.name}</h3>
+        <span className={`text-xs font-bold px-2 py-1 rounded-full ${isVacant ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}`}>
+          {unit.status}
+        </span>
+      </div>
+      <div className="text-sm text-gray-600 flex-grow space-y-2 mb-4">
+        {isVacant ? (
+          <p className="italic text-gray-400">This unit is currently vacant.</p>
+        ) : (
+          <div>
+            <p><strong>Tenant:</strong> {unit.currentLease?.tenant?.fullName || 'N/A'}</p>
+            <p><strong>Rent:</strong> ${unit.currentLease?.rentAmount?.toLocaleString() || 'N/A'}</p>
+            <p><strong>Lease Ends:</strong> {unit.currentLease?.endDate ? new Date(unit.currentLease.endDate).toLocaleDateString() : 'N/A'}</p>
+          </div>
+        )}
+      </div>
+      <div className="mt-auto space-y-2">
+        {isVacant ? (
+          <>
+            <button onClick={() => navigate(`/management/units/${unit._id}/listing`)} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold px-3 py-1.5 rounded-md text-sm transition">
+              Manage Listing
+            </button>
+            <button onClick={() => onAddLeaseClick(unit._id)} className="w-full bg-brand-turquoise hover:bg-brand-turquoise-600 text-white font-semibold px-3 py-1.5 rounded-md text-sm transition">
+              Add Tenant & Lease
+            </button>
+          </>
+        ) : (
+          <button onClick={() => navigate(`/management/leases/${unit.currentLease._id}`)} className="w-full bg-white hover:bg-gray-100 text-gray-700 font-semibold px-3 py-1.5 rounded-md border border-gray-300 text-sm transition">
+            View Lease
+          </button>
+        )}
+      </div>
+    </div>
+  );
 };
 
 const LeaseHistoryTab = ({ leases }) => (
-    <div className="bg-white p-6 rounded-lg shadow-sm border">
-        <h3 className="text-xl font-semibold text-gray-800 mb-4">Archived Lease History</h3>
-        {/* ... table content ... */}
+  <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+    <h3 className="text-xl font-semibold text-gray-800 mb-4">Archived Lease History</h3>
+    <div className="overflow-x-auto">
+      <table className="min-w-full text-sm">
+        <thead className="bg-gray-50">
+          <tr>
+            <th className="text-left p-3 font-semibold text-gray-600">Unit</th>
+            <th className="text-left p-3 font-semibold text-gray-600">Tenant</th>
+            <th className="text-left p-3 font-semibold text-gray-600">Lease End Date</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-gray-200">
+          {leases.length > 0 ? leases.map(lease => (
+            <tr key={lease._id} className="hover:bg-gray-50">
+              <td className="p-3 font-medium text-gray-800">{lease.unit?.name || 'N/A'}</td>
+              <td className="p-3 text-gray-600">{lease.tenant?.fullName || 'N/A'}</td>
+              <td className="p-3 text-gray-600">{new Date(lease.endDate).toLocaleDateString()}</td>
+            </tr>
+          )) : (
+            <tr>
+              <td colSpan="3" className="text-center p-8 text-gray-500">No archived leases for this property.</td>
+            </tr>
+          )}
+        </tbody>
+      </table>
     </div>
+  </div>
 );
 
 const ManagedPropertyDetail = () => {
@@ -79,17 +98,14 @@ const ManagedPropertyDetail = () => {
   const [property, setProperty] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-
   const [isAddUnitModalOpen, setIsAddUnitModalOpen] = useState(false);
   const [isAddLeaseModalOpen, setIsAddLeaseModalOpen] = useState(false);
   const [selectedUnitId, setSelectedUnitId] = useState(null);
-
   const [activeTab, setActiveTab] = useState('units');
   const [tickets, setTickets] = useState([]);
   const [operatingExpenses, setOperatingExpenses] = useState([]);
   const [vendors, setVendors] = useState([]);
   const [archivedLeases, setArchivedLeases] = useState([]);
-  const [applications, setApplications] = useState([]); // 3. ADD STATE
 
   const handleOpenLeaseModal = (unitId) => {
     setSelectedUnitId(unitId);
@@ -97,16 +113,15 @@ const ManagedPropertyDetail = () => {
   };
 
   const fetchPropertyDetails = useCallback(async () => {
-    // setLoading(true); // Don't show full page loader on every refetch
+    setLoading(true);
     try {
-      // 4. FETCH ALL DATA
-      const [propertyRes, ticketsData, expensesData, vendorsData, archivedLeasesData, applicationsData] = await Promise.all([
-          fetch(`${API_BASE_URL}/management/property/${propertyId}`, { headers: getAuthHeaders() }),
-          getMaintenanceTickets(propertyId),
-          getOperatingExpenses(propertyId),
-          getVendors(),
-          getArchivedLeases(propertyId),
-          getApplicationsForProperty(propertyId)
+      // ✅ REMOVED the call for applications to prevent the build error
+      const [propertyRes, ticketsData, expensesData, vendorsData, archivedLeasesData] = await Promise.all([
+        fetch(`${API_BASE_URL}/management/property/${propertyId}`, { headers: getAuthHeaders() }),
+        getMaintenanceTickets(propertyId),
+        getOperatingExpenses(propertyId),
+        getVendors(),
+        getArchivedLeases(propertyId)
       ]);
 
       if (!propertyRes.ok) {
@@ -118,8 +133,6 @@ const ManagedPropertyDetail = () => {
       setOperatingExpenses(expensesData);
       setVendors(vendorsData);
       setArchivedLeases(archivedLeasesData);
-      setApplications(applicationsData);
-
     } catch (err) {
       setError(err.message);
     } finally {
@@ -163,7 +176,7 @@ const ManagedPropertyDetail = () => {
 
         <div className="flex gap-2 sm:gap-6 border-b border-gray-200 overflow-x-auto">
           <TabButton tabName="units" label="Units" />
-          <TabButton tabName="applicants" label="Applicants" />
+          {/* ✅ REMOVED Applicants tab for now */}
           <TabButton tabName="maintenance" label="Maintenance" />
           <TabButton tabName="expenses" label="Expenses" />
           <TabButton tabName="performance" label="Performance" />
@@ -182,7 +195,6 @@ const ManagedPropertyDetail = () => {
               </div>
             )}
             
-            {activeTab === 'applicants' && (<ApplicantsTab propertyId={propertyId} applications={applications} />)}
             {activeTab === 'maintenance' && (<MaintenanceTab tickets={tickets} property={property} vendors={vendors} onUpdate={fetchPropertyDetails} />)}
             {activeTab === 'expenses' && (<OperatingExpensesTab propertyId={propertyId} expenses={operatingExpenses} onUpdate={fetchPropertyDetails} />)}
             {activeTab === 'performance' && (<RentalPerformanceTab property={property} operatingExpenses={operatingExpenses} />)}
