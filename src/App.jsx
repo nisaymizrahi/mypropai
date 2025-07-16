@@ -14,6 +14,7 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import { setTokenCookieFromURL } from "./utils/setTokenFromURL";
 import { AuthProvider } from "./context/AuthContext";
 import ApplicationsPage from "./pages/ApplicationsPage";
+import SendApplicationPage from "./pages/SendApplicationPage";
 
 import ManagementDashboard from "./pages/ManagementDashboard";
 import ManagedPropertyDetail from "./pages/ManagedPropertyDetail";
@@ -209,6 +210,16 @@ function App() {
               </ProtectedRoute>
             }
           />
+            <Route
+  path="/applications/send"
+  element={
+    <ProtectedRoute>
+      <DashboardLayout>
+        <SendApplicationPage />
+      </DashboardLayout>
+    </ProtectedRoute>
+  }
+/>
 
           <Route
             path="/investments/:id"
