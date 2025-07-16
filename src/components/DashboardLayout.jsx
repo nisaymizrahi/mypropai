@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { NavLink, Link } from "react-router-dom";
 import UserInfoBanner from "./UserInfoBanner";
 
-// ✅ ADDED: All SVG Icon Components
+// --- SVG Icon Components ---
 const HomeIcon = ({ className }) => ( <svg className={className} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg> );
 const TargetIcon = ({ className }) => ( <svg className={className} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg> );
 const BriefcaseIcon = ({ className }) => ( <svg className={className} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg> );
@@ -11,7 +11,6 @@ const CalculatorIcon = ({ className }) => ( <svg className={className} xmlns="ht
 const PlusCircleIcon = ({ className }) => ( <svg className={className} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg> );
 const MenuIcon = ({ className }) => ( <svg className={className} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" /></svg> );
 const CloseIcon = ({ className }) => ( <svg className={className} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg> );
-
 
 const navLinks = [
   { to: "/dashboard", text: "Dashboard", icon: HomeIcon },
@@ -22,12 +21,13 @@ const navLinks = [
   { to: "/investments/new", text: "Add Investment", icon: PlusCircleIcon },
 ];
 
-const NavItem = ({ to, icon: Icon, text, isExpanded }) => {
-    const activeClass = "bg-brand-turquoise-100 text-brand-turquoise-600";
-    const inactiveClass = "text-gray-600 hover:bg-gray-100 hover:text-gray-900";
-    
+const NavItem = ({ to, icon: Icon, text, isExpanded, onClick }) => {
+    // ✅ THIS IS THE FIX: Variables are now defined inside the component that uses them.
+    const activeLinkStyle = "bg-brand-turquoise-100 text-brand-turquoise-600 font-semibold";
+    const inactiveLinkStyle = "text-gray-600 hover:bg-gray-100 hover:text-gray-900";
+
     return (
-        <NavLink to={to} className={({ isActive }) => `flex items-center p-2 rounded-lg transition-colors duration-200 ${isActive ? activeClass : inactiveClass}`}>
+        <NavLink to={to} onClick={onClick} className={({ isActive }) => `flex items-center p-2 rounded-lg transition-colors duration-200 ${isActive ? activeLinkStyle : inactiveLinkStyle}`}>
             <Icon className="h-6 w-6 flex-shrink-0" />
             <span className={`overflow-hidden transition-all ${isExpanded ? 'w-40 ml-3' : 'w-0'}`}>{text}</span>
         </NavLink>
@@ -76,10 +76,12 @@ function DashboardLayout({ children }) {
                 <nav className="lg:hidden border-b bg-white">
                     <div className="px-2 pt-2 pb-3 space-y-1">
                         {navLinks.map((link) => (
-                            <NavLink key={link.to} to={link.to} onClick={() => setIsMobileMenuOpen(false)} className={({ isActive }) => `flex items-center px-3 py-2 rounded-md text-base font-medium ${isActive ? activeClass : inactiveClass}`}>
-                                <link.icon className="h-6 w-6 mr-3" />
-                                <span>{link.text}</span>
-                            </NavLink>
+                            <NavItem 
+                                key={link.to} 
+                                {...link} 
+                                isExpanded={true} // Always expanded in mobile dropdown
+                                onClick={() => setIsMobileMenuOpen(false)}
+                            />
                         ))}
                     </div>
                 </nav>
