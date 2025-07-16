@@ -17,9 +17,11 @@ const navLinks = [
   { to: "/leads", text: "Leads", icon: TargetIcon },
   { to: "/investments", text: "Investments", icon: BriefcaseIcon },
   { to: "/management", text: "Management", icon: HomeDollarIcon },
+  { to: "/applications", text: "Applications", icon: BriefcaseIcon }, // ✅ NEW
   { to: "/tools", text: "Financial Tools", icon: CalculatorIcon },
   { to: "/investments/new", text: "Add Investment", icon: PlusCircleIcon },
 ];
+
 
 const NavItem = ({ to, icon: Icon, text, isExpanded, onClick }) => {
     const activeLinkStyle = "bg-brand-turquoise-100 text-brand-turquoise-600 font-semibold";
