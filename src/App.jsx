@@ -15,6 +15,7 @@ import { setTokenCookieFromURL } from "./utils/setTokenFromURL";
 import { AuthProvider } from "./context/AuthContext";
 import ApplicationsPage from "./pages/ApplicationsPage";
 import SendApplicationPage from "./pages/SendApplicationPage";
+import ApplicationSuccessPage from "./pages/ApplicationSuccessPage";
 
 import ManagementDashboard from "./pages/ManagementDashboard";
 import ManagedPropertyDetail from "./pages/ManagedPropertyDetail";
@@ -220,6 +221,8 @@ function App() {
     </ProtectedRoute>
   }
 />
+          <Route path="/apply/success" element={<ApplicationSuccessPage />} />
+
 
           <Route
             path="/investments/:id"

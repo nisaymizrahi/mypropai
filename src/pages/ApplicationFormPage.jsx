@@ -64,7 +64,8 @@ const ApplicationFormPage = () => {
         ...formData
       };
       await submitApplication(payload);
-      toast.success("Application submitted!");
+      window.location.href = "/apply/success";
+
     } catch (err) {
       toast.error(err.message || "Failed to submit application");
     }
