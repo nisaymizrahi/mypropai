@@ -13,7 +13,7 @@ const SendApplicationPage = () => {
     const fetchUnits = async () => {
       const baseURL = import.meta.env.VITE_API_BASE_URL || 'https://mypropai-server.onrender.com';
       try {
-        const res = await fetch(`${baseURL}/management/units/vacant`, {
+        const res = await fetch(`${baseURL}/api/management/units/vacant`, {
           headers: getAuthHeaders()
         });
         if (!res.ok) throw new Error('Response not OK');
