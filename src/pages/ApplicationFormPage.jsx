@@ -1,144 +1,159 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { useParams } from 'react-router-dom';
-import { getPublicApplicationDetails, submitApplication, createApplicationPaymentIntent } from '../utils/api';
+import React, { useEffect, useState } from 'react';
+import { useParams, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
-
-const LoadingSpinner = () => <div className="flex justify-center items-center p-16"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-turquoise"></div></div>;
+import { submitApplication } from '../utils/api';
 
 const ApplicationFormPage = () => {
-    const { unitId } = useParams();
-    const [unitInfo, setUnitInfo] = useState(null);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState('');
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    const [submissionSuccess, setSubmissionSuccess] = useState(false);
+  const { unitId } = useParams();
+  const [searchParams] = useSearchParams();
+  const isNoUnit = searchParams.get("noUnit") === "true";
 
-    const [applicantInfo, setApplicantInfo] = useState({ fullName: '', email: '', phone: '' });
-    const [residenceHistory, setResidenceHistory] = useState([{ address: '', rentAmount: '', duration: '', reasonForLeaving: '' }]);
-    const [employmentHistory, setEmploymentHistory] = useState([{ employer: '', position: '', monthlyIncome: '', duration: '' }]);
+  const [unitInfo, setUnitInfo] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [formData, setFormData] = useState({
+    applicantInfo: {
+      fullName: '',
+      email: '',
+      phone: '',
+      dateOfBirth: '',
+    },
+    residenceHistory: [{ address: '', rentAmount: '', duration: '' }],
+    employmentHistory: [{ employer: '', position: '', monthlyIncome: '' }],
+    agree: false,
+  });
 
-    useEffect(() => {
-        const fetchUnitInfo = async () => {
-            try {
-                const data = await getPublicApplicationDetails(unitId);
-                setUnitInfo(data);
-            } catch (err) {
-                setError('Could not load application details. The link may be invalid.');
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchUnitInfo();
-    }, [unitId]);
-    
-    // Handlers for dynamic form sections
-    const handleHistoryChange = (index, event, type) => {
-        const list = type === 'residence' ? [...residenceHistory] : [...employmentHistory];
-        list[index][event.target.name] = event.target.value;
-        type === 'residence' ? setResidenceHistory(list) : setEmploymentHistory(list);
+  useEffect(() => {
+    const fetchUnitInfo = async () => {
+      if (!unitId || isNoUnit) {
+        setLoading(false);
+        return;
+      }
+      try {
+        const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/applications/public/${unitId}`);
+        const data = await res.json();
+        setUnitInfo(data);
+      } catch {
+        toast.error("Could not load unit info");
+      } finally {
+        setLoading(false);
+      }
     };
+    fetchUnitInfo();
+  }, [unitId, isNoUnit]);
 
-    const addHistoryItem = (type) => {
-        const newItem = type === 'residence' ? { address: '', rentAmount: '', duration: '', reasonForLeaving: '' } : { employer: '', position: '', monthlyIncome: '', duration: '' };
-        type === 'residence' ? setResidenceHistory([...residenceHistory, newItem]) : setEmploymentHistory([...employmentHistory, newItem]);
-    };
-    
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        setIsSubmitting(true);
-        toast.loading('Submitting application...');
-        
-        const applicationData = {
-            unitId,
-            applicantInfo,
-            residenceHistory,
-            employmentHistory
-        };
+  const handleChange = (section, index, key, value) => {
+    const updated = [...formData[section]];
+    updated[index][key] = value;
+    setFormData(prev => ({ ...prev, [section]: updated }));
+  };
 
-        try {
-            const newApplication = await submitApplication(applicationData);
-            
-            // Step 2: Simulate creating the payment intent
-            await createApplicationPaymentIntent(newApplication._id);
-            
-            toast.dismiss();
-            toast.success('Application submitted successfully!');
-            setSubmissionSuccess(true);
-        } catch (err) {
-            toast.dismiss();
-            toast.error(err.message || "Failed to submit application.");
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
-    
-    if (loading) return <LoadingSpinner />;
-    if (error) return <div className="text-center p-8 text-red-600">{error}</div>;
+  const handleApplicantChange = (key, value) => {
+    setFormData(prev => ({
+      ...prev,
+      applicantInfo: { ...prev.applicantInfo, [key]: value }
+    }));
+  };
 
-    if (submissionSuccess) {
-        return (
-            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-                <div className="max-w-xl mx-auto text-center bg-white p-10 rounded-lg shadow-md">
-                    <h1 className="text-3xl font-bold text-brand-turquoise mb-4">Thank You!</h1>
-                    <p className="text-gray-600">Your application has been submitted successfully. The property manager will review your information and be in touch shortly regarding the next steps for payment and screening.</p>
-                </div>
-            </div>
-        );
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!formData.agree) return toast.error("You must agree to the terms");
+
+    try {
+      const payload = {
+        unitId: isNoUnit ? null : unitId,
+        ...formData
+      };
+      await submitApplication(payload);
+      toast.success("Application submitted!");
+    } catch (err) {
+      toast.error(err.message || "Failed to submit application");
     }
+  };
 
-    return (
-        <div className="min-h-screen bg-gray-50 py-12 px-4">
-            <div className="max-w-3xl mx-auto">
-                <h1 className="text-3xl font-bold text-center text-gray-900">Rental Application</h1>
-                <p className="text-center text-gray-600 mt-2">For: {unitInfo?.address} - {unitInfo?.unitName}</p>
-                
-                <form onSubmit={handleSubmit} className="mt-8 bg-white p-8 rounded-lg shadow-md space-y-8">
-                    {/* Applicant Info */}
-                    <section>
-                        <h2 className="text-xl font-semibold border-b pb-2 mb-4">Personal Information</h2>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div><label className="block text-sm font-medium">Full Name</label><input type="text" value={applicantInfo.fullName} onChange={(e) => setApplicantInfo({...applicantInfo, fullName: e.target.value})} required className="mt-1 p-2 w-full border rounded-md"/></div>
-                            <div><label className="block text-sm font-medium">Email Address</label><input type="email" value={applicantInfo.email} onChange={(e) => setApplicantInfo({...applicantInfo, email: e.target.value})} required className="mt-1 p-2 w-full border rounded-md"/></div>
-                            <div><label className="block text-sm font-medium">Phone Number</label><input type="tel" value={applicantInfo.phone} onChange={(e) => setApplicantInfo({...applicantInfo, phone: e.target.value})} required className="mt-1 p-2 w-full border rounded-md"/></div>
-                        </div>
-                    </section>
+  if (loading) return <p className="p-4">Loading...</p>;
 
-                    {/* Residence History */}
-                    <section>
-                        <h2 className="text-xl font-semibold border-b pb-2 mb-4">Residence History</h2>
-                        {residenceHistory.map((residence, index) => (
-                             <div key={index} className="space-y-2 border-b last:border-b-0 pb-4 mb-4">
-                                <h3 className="font-semibold text-sm">Previous Residence #{index + 1}</h3>
-                                <input name="address" value={residence.address} onChange={(e) => handleHistoryChange(index, e, 'residence')} placeholder="Address" className="p-2 w-full border rounded-md" />
-                                <input name="rentAmount" type="number" value={residence.rentAmount} onChange={(e) => handleHistoryChange(index, e, 'residence')} placeholder="Monthly Rent" className="p-2 w-full border rounded-md" />
-                                <input name="duration" value={residence.duration} onChange={(e) => handleHistoryChange(index, e, 'residence')} placeholder="Duration (e.g., 2 years)" className="p-2 w-full border rounded-md" />
-                             </div>
-                        ))}
-                    </section>
+  return (
+    <div className="max-w-3xl mx-auto space-y-6 p-4">
+      <h1 className="text-2xl font-bold">
+        {isNoUnit ? "Rental Application" : `Apply to ${unitInfo?.unitName}`}
+      </h1>
+      {unitInfo && (
+        <>
+          <p className="text-gray-600">{unitInfo.address}</p>
+          <p className="text-sm text-gray-500">Application Fee: ${unitInfo.applicationFee}</p>
+        </>
+      )}
 
-                    {/* Employment History */}
-                    <section>
-                        <h2 className="text-xl font-semibold border-b pb-2 mb-4">Employment History</h2>
-                        {employmentHistory.map((job, index) => (
-                            <div key={index} className="space-y-2 border-b last:border-b-0 pb-4 mb-4">
-                               <h3 className="font-semibold text-sm">Employer #{index + 1}</h3>
-                               <input name="employer" value={job.employer} onChange={(e) => handleHistoryChange(index, e, 'employment')} placeholder="Employer" className="p-2 w-full border rounded-md" />
-                               <input name="position" value={job.position} onChange={(e) => handleHistoryChange(index, e, 'employment')} placeholder="Position" className="p-2 w-full border rounded-md" />
-                               <input name="monthlyIncome" type="number" value={job.monthlyIncome} onChange={(e) => handleHistoryChange(index, e, 'employment')} placeholder="Gross Monthly Income" className="p-2 w-full border rounded-md" />
-                            </div>
-                        ))}
-                    </section>
-                    
-                    <div className="pt-6 border-t">
-                         <p className="text-xs text-gray-500 mb-4">By submitting this application, you authorize the property manager to conduct a background and credit check. An application fee of ${unitInfo?.applicationFee || '0'} will be required after submission.</p>
-                         <button type="submit" disabled={isSubmitting} className="w-full bg-brand-turquoise text-white font-bold py-3 px-4 rounded-md disabled:opacity-50">
-                             {isSubmitting ? 'Submitting...' : 'Submit Application'}
-                         </button>
-                    </div>
-                </form>
-            </div>
+      <form onSubmit={handleSubmit} className="space-y-6">
+
+        <div className="space-y-2">
+          <h2 className="font-semibold">Applicant Info</h2>
+          {['fullName', 'email', 'phone', 'dateOfBirth'].map(field => (
+            <input
+              key={field}
+              type={field === 'dateOfBirth' ? 'date' : 'text'}
+              placeholder={field.replace(/([A-Z])/g, ' $1')}
+              value={formData.applicantInfo[field]}
+              onChange={e => handleApplicantChange(field, e.target.value)}
+              className="w-full border p-2 rounded"
+              required
+            />
+          ))}
         </div>
-    );
+
+        <div className="space-y-2">
+          <h2 className="font-semibold">Residence History</h2>
+          {formData.residenceHistory.map((item, i) => (
+            <div key={i} className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              {['address', 'rentAmount', 'duration'].map(key => (
+                <input
+                  key={key}
+                  type={key === 'rentAmount' ? 'number' : 'text'}
+                  placeholder={key}
+                  value={item[key]}
+                  onChange={e => handleChange('residenceHistory', i, key, e.target.value)}
+                  className="border p-2 rounded"
+                  required
+                />
+              ))}
+            </div>
+          ))}
+        </div>
+
+        <div className="space-y-2">
+          <h2 className="font-semibold">Employment History</h2>
+          {formData.employmentHistory.map((item, i) => (
+            <div key={i} className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              {['employer', 'position', 'monthlyIncome'].map(key => (
+                <input
+                  key={key}
+                  type={key === 'monthlyIncome' ? 'number' : 'text'}
+                  placeholder={key}
+                  value={item[key]}
+                  onChange={e => handleChange('employmentHistory', i, key, e.target.value)}
+                  className="border p-2 rounded"
+                  required
+                />
+              ))}
+            </div>
+          ))}
+        </div>
+
+        <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={formData.agree}
+            onChange={(e) => setFormData(prev => ({ ...prev, agree: e.target.checked }))}
+          />
+          I certify the above info is accurate and agree to future screening.
+        </label>
+
+        <button type="submit" className="bg-green-600 text-white px-4 py-2 rounded shadow hover:bg-green-700">
+          Submit Application
+        </button>
+      </form>
+    </div>
+  );
 };
 
 export default ApplicationFormPage;
