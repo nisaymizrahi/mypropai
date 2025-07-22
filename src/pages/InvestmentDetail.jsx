@@ -15,12 +15,10 @@ import DashboardTab from "../components/DashboardTab";
 import DocumentsTab from "../components/DocumentsTab";
 import TeamTab from "../components/TeamTab";
 import DealPerformanceTab from "../components/DealPerformanceTab";
+import DealCalculatorTab from "../components/DealCalculatorTab";
+import StatusBadge from "../components/StatusBadge";
+import TimelineTab from "../components/TimelineTab";
 
-const PrimaryButton = ({ onClick, children, className = '', ...props }) => (
-  <button onClick={onClick} className={`bg-brand-turquoise hover:bg-brand-turquoise-600 text-white font-semibold px-4 py-2 rounded-md transition ${className}`} {...props}>
-    {children}
-  </button>
-);
 const SecondaryButton = ({ onClick, children, className = '', ...props }) => (
   <button onClick={onClick} className={`bg-white hover:bg-gray-100 text-gray-700 font-semibold px-4 py-2 rounded-md border border-gray-300 transition ${className}`} {...props}>
     {children}
@@ -65,7 +63,7 @@ const InvestmentDetail = () => {
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const [activeTab, setActiveTab] = useState("dashboard");
 
   const fetchData = useCallback(async () => {
     try {
@@ -141,57 +139,21 @@ const InvestmentDetail = () => {
         </SecondaryButton>
       </div>
 
-      {/* Cover Image + Status */}
+      {/* Cover Image + Clickable Status */}
       {investment.coverImage && (
         <img src={investment.coverImage} alt="Property" className="w-full h-64 object-cover rounded-lg border" />
       )}
-      {investment.status && (
-        <span className="inline-block bg-gray-100 text-gray-800 text-sm font-medium px-3 py-1 rounded-md border border-gray-300">
-          {investment.status}
-        </span>
-      )}
-
-      {/* Summary Metrics */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatBox label="Purchase Price" value={`$${investment.purchasePrice?.toLocaleString() || '—'}`} />
-        <StatBox label="ARV" value={`$${investment.arv?.toLocaleString() || '—'}`} />
-        <StatBox label="Rent Est." value={`$${investment.rentEstimate?.toLocaleString() || '—'}`} />
-        <StatBox label="Progress" value={`${investment.progress || 0}%`} />
+      <div className="mt-2">
+        <StatusBadge investment={investment} onUpdate={fetchData} />
       </div>
 
-      {/* Refinance Info */}
-      {investment.refinanceDetails && (
-        <div className="bg-white border p-4 rounded-lg shadow-sm">
-          <h3 className="text-lg font-semibold text-brand-gray-800 mb-2">Refinance Details</h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-            <StatBox label="New Loan" value={`$${investment.refinanceDetails.newLoanAmount || 0}`} />
-            <StatBox label="Rate" value={`${investment.refinanceDetails.newInterestRate || 0}%`} />
-            <StatBox label="Term" value={`${investment.refinanceDetails.newLoanTerm || 0} yrs`} />
-            <StatBox label="New ARV" value={`$${investment.refinanceDetails.newArv || 0}`} />
-          </div>
-        </div>
-      )}
-
-      {/* Inspection Section */}
-      {investment.inspectionNotes && (
-        <div className="bg-white p-6 rounded-lg border shadow-sm space-y-4">
-          <h3 className="text-xl font-semibold text-brand-gray-800">Inspection Summary</h3>
-          <p className="text-sm text-brand-gray-600 whitespace-pre-line">{investment.inspectionNotes.summary}</p>
-
-          {(investment.inspectionNotes.issues || []).length > 0 && (
-            <div className="mt-4 space-y-2">
-              {investment.inspectionNotes.issues.map((item, idx) => (
-                <div key={idx} className="flex justify-between items-center text-sm border-b pb-1">
-                  <span>{item.title}</span>
-                  <span className={`text-xs font-medium px-2 py-1 rounded ${item.severity === 'Critical' ? 'bg-red-100 text-red-700' : item.severity === 'Medium' ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-green-700'}`}>
-                    {item.severity}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+      {/* Summary Stats */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <StatBox label="Purchase Price" value={`$${investment.purchasePrice?.toLocaleString() || "—"}`} />
+        <StatBox label="ARV" value={`$${investment.arv?.toLocaleString() || "—"}`} />
+        <StatBox label="Rent Est." value={`$${investment.rentEstimate?.toLocaleString() || "—"}`} />
+        <StatBox label="Progress" value={`${investment.progress || 0}%`} />
+      </div>
 
       {/* Tabs */}
       <div className="bg-white p-2 rounded-lg shadow-sm border border-gray-200 flex items-center space-x-2 overflow-x-auto">
@@ -201,17 +163,24 @@ const InvestmentDetail = () => {
         <TabButton tabName="schedule" label="Schedule" />
         <TabButton tabName="documents" label="Documents" />
         <TabButton tabName="team" label="Team" />
+        <TabButton tabName="timeline" label="Timeline" />
+        <TabButton tabName="dealcalc" label="Deal Calculator" />
         <TabButton tabName="settings" label="Settings" />
+
       </div>
 
+      {/* Tab Views */}
       <div>
-        {activeTab === 'dashboard' && <DashboardTab investment={investment} budgetItems={budgetItems} expenses={expenses} tasks={tasks} />}
-        {activeTab === 'financials' && <FinancialsTab investment={investment} budgetItems={budgetItems} expenses={expenses} vendors={vendors} onUpdate={fetchData} />}
-        {activeTab === 'performance' && <DealPerformanceTab investment={investment} budgetItems={budgetItems} expenses={expenses} />}
-        {activeTab === 'schedule' && <ScheduleTab investment={investment} tasks={tasks} vendors={vendors} onUpdate={fetchData} />}
-        {activeTab === 'documents' && <DocumentsTab property={investment} />}
-        {activeTab === 'team' && <TeamTab vendors={vendors} onUpdate={fetchData} />}
-        {activeTab === 'settings' && <SettingsTab onDelete={handleDeleteInvestment} />}
+        {activeTab === "dashboard" && <DashboardTab investment={investment} budgetItems={budgetItems} expenses={expenses} tasks={tasks} />}
+        {activeTab === "financials" && <FinancialsTab investment={investment} budgetItems={budgetItems} expenses={expenses} vendors={vendors} onUpdate={fetchData} />}
+        {activeTab === "timeline" && <TimelineTab investment={investment} />}
+
+        {activeTab === "performance" && <DealPerformanceTab investment={investment} budgetItems={budgetItems} expenses={expenses} />}
+        {activeTab === "schedule" && <ScheduleTab investment={investment} tasks={tasks} vendors={vendors} onUpdate={fetchData} />}
+        {activeTab === "documents" && <DocumentsTab property={investment} />}
+        {activeTab === "team" && <TeamTab vendors={vendors} onUpdate={fetchData} />}
+        {activeTab === "dealcalc" && <DealCalculatorTab investment={investment} />}
+        {activeTab === "settings" && <SettingsTab onDelete={handleDeleteInvestment} />}
       </div>
     </div>
   );
