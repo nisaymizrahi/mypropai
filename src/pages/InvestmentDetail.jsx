@@ -16,7 +16,6 @@ import DocumentsTab from "../components/DocumentsTab";
 import TeamTab from "../components/TeamTab";
 import DealPerformanceTab from "../components/DealPerformanceTab";
 
-// Reusable
 const PrimaryButton = ({ onClick, children, className = '', ...props }) => (
   <button onClick={onClick} className={`bg-brand-turquoise hover:bg-brand-turquoise-600 text-white font-semibold px-4 py-2 rounded-md transition ${className}`} {...props}>
     {children}
@@ -37,6 +36,7 @@ const LoadingSpinner = () => (
     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-turquoise"></div>
   </div>
 );
+
 const StatBox = ({ label, value }) => (
   <div className="text-sm text-brand-gray-600">
     <div className="font-medium text-brand-gray-400">{label}</div>
@@ -130,7 +130,7 @@ const InvestmentDetail = () => {
 
   return (
     <div className="max-w-7xl mx-auto space-y-6 px-4">
-      {/* Header + Summary */}
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Project Hub</h1>
@@ -141,7 +141,17 @@ const InvestmentDetail = () => {
         </SecondaryButton>
       </div>
 
-      {/* Summary panel */}
+      {/* Cover Image + Status */}
+      {investment.coverImage && (
+        <img src={investment.coverImage} alt="Property" className="w-full h-64 object-cover rounded-lg border" />
+      )}
+      {investment.status && (
+        <span className="inline-block bg-gray-100 text-gray-800 text-sm font-medium px-3 py-1 rounded-md border border-gray-300">
+          {investment.status}
+        </span>
+      )}
+
+      {/* Summary Metrics */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <StatBox label="Purchase Price" value={`$${investment.purchasePrice?.toLocaleString() || '—'}`} />
         <StatBox label="ARV" value={`$${investment.arv?.toLocaleString() || '—'}`} />
@@ -149,7 +159,41 @@ const InvestmentDetail = () => {
         <StatBox label="Progress" value={`${investment.progress || 0}%`} />
       </div>
 
-      {/* Tab nav */}
+      {/* Refinance Info */}
+      {investment.refinanceDetails && (
+        <div className="bg-white border p-4 rounded-lg shadow-sm">
+          <h3 className="text-lg font-semibold text-brand-gray-800 mb-2">Refinance Details</h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+            <StatBox label="New Loan" value={`$${investment.refinanceDetails.newLoanAmount || 0}`} />
+            <StatBox label="Rate" value={`${investment.refinanceDetails.newInterestRate || 0}%`} />
+            <StatBox label="Term" value={`${investment.refinanceDetails.newLoanTerm || 0} yrs`} />
+            <StatBox label="New ARV" value={`$${investment.refinanceDetails.newArv || 0}`} />
+          </div>
+        </div>
+      )}
+
+      {/* Inspection Section */}
+      {investment.inspectionNotes && (
+        <div className="bg-white p-6 rounded-lg border shadow-sm space-y-4">
+          <h3 className="text-xl font-semibold text-brand-gray-800">Inspection Summary</h3>
+          <p className="text-sm text-brand-gray-600 whitespace-pre-line">{investment.inspectionNotes.summary}</p>
+
+          {(investment.inspectionNotes.issues || []).length > 0 && (
+            <div className="mt-4 space-y-2">
+              {investment.inspectionNotes.issues.map((item, idx) => (
+                <div key={idx} className="flex justify-between items-center text-sm border-b pb-1">
+                  <span>{item.title}</span>
+                  <span className={`text-xs font-medium px-2 py-1 rounded ${item.severity === 'Critical' ? 'bg-red-100 text-red-700' : item.severity === 'Medium' ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-green-700'}`}>
+                    {item.severity}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Tabs */}
       <div className="bg-white p-2 rounded-lg shadow-sm border border-gray-200 flex items-center space-x-2 overflow-x-auto">
         <TabButton tabName="dashboard" label="Dashboard" />
         <TabButton tabName="financials" label="Financials" />
@@ -160,54 +204,14 @@ const InvestmentDetail = () => {
         <TabButton tabName="settings" label="Settings" />
       </div>
 
-      {/* Tab content */}
       <div>
-        {activeTab === 'dashboard' &&
-          <DashboardTab
-            investment={investment}
-            budgetItems={budgetItems}
-            expenses={expenses}
-            tasks={tasks}
-          />
-        }
-        {activeTab === 'financials' &&
-          <FinancialsTab
-            investment={investment}
-            budgetItems={budgetItems}
-            expenses={expenses}
-            vendors={vendors}
-            onUpdate={fetchData}
-          />
-        }
-        {activeTab === 'performance' &&
-          <DealPerformanceTab
-            investment={investment}
-            budgetItems={budgetItems}
-            expenses={expenses}
-          />
-        }
-        {activeTab === 'schedule' &&
-          <ScheduleTab
-            investment={investment}
-            tasks={tasks}
-            vendors={vendors}
-            onUpdate={fetchData}
-          />
-        }
-        {activeTab === 'documents' &&
-          <DocumentsTab
-            property={investment}
-          />
-        }
-        {activeTab === 'team' &&
-          <TeamTab
-            vendors={vendors}
-            onUpdate={fetchData}
-          />
-        }
-        {activeTab === 'settings' &&
-          <SettingsTab onDelete={handleDeleteInvestment} />
-        }
+        {activeTab === 'dashboard' && <DashboardTab investment={investment} budgetItems={budgetItems} expenses={expenses} tasks={tasks} />}
+        {activeTab === 'financials' && <FinancialsTab investment={investment} budgetItems={budgetItems} expenses={expenses} vendors={vendors} onUpdate={fetchData} />}
+        {activeTab === 'performance' && <DealPerformanceTab investment={investment} budgetItems={budgetItems} expenses={expenses} />}
+        {activeTab === 'schedule' && <ScheduleTab investment={investment} tasks={tasks} vendors={vendors} onUpdate={fetchData} />}
+        {activeTab === 'documents' && <DocumentsTab property={investment} />}
+        {activeTab === 'team' && <TeamTab vendors={vendors} onUpdate={fetchData} />}
+        {activeTab === 'settings' && <SettingsTab onDelete={handleDeleteInvestment} />}
       </div>
     </div>
   );
