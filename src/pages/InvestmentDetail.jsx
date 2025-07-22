@@ -16,36 +16,53 @@ import DocumentsTab from "../components/DocumentsTab";
 import TeamTab from "../components/TeamTab";
 import DealPerformanceTab from "../components/DealPerformanceTab";
 
-// --- Reusable UI Components ---
-const PrimaryButton = ({ onClick, children, className = '', ...props }) => <button onClick={onClick} className={`bg-brand-turquoise hover:bg-brand-turquoise-600 text-white font-semibold px-4 py-2 rounded-md transition ${className}`} {...props}>{children}</button>;
-const SecondaryButton = ({ onClick, children, className = '', ...props }) => <button onClick={onClick} className={`bg-white hover:bg-gray-100 text-gray-700 font-semibold px-4 py-2 rounded-md border border-gray-300 transition ${className}`} {...props}>{children}</button>;
-const DangerButton = ({ onClick, children, className = '', ...props }) => <button onClick={onClick} className={`bg-red-600 hover:bg-red-700 text-white font-semibold px-4 py-2 rounded-md transition ${className}`} {...props}>{children}</button>;
-const LoadingSpinner = () => <div className="flex justify-center items-center p-16"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-turquoise"></div></div>;
-
-// --- Tab Components ---
-const SettingsTab = ({ onDelete }) => (
-    <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-        <h3 className="text-lg font-semibold text-gray-800 mb-4">Project Settings</h3>
-        <p className="text-sm text-gray-600 mb-4">
-            Deleting a project is permanent and cannot be undone. This will remove all associated budget items, expenses, and other data.
-        </p>
-        <DangerButton onClick={onDelete}>Delete This Investment Project</DangerButton>
-    </div>
+// Reusable
+const PrimaryButton = ({ onClick, children, className = '', ...props }) => (
+  <button onClick={onClick} className={`bg-brand-turquoise hover:bg-brand-turquoise-600 text-white font-semibold px-4 py-2 rounded-md transition ${className}`} {...props}>
+    {children}
+  </button>
+);
+const SecondaryButton = ({ onClick, children, className = '', ...props }) => (
+  <button onClick={onClick} className={`bg-white hover:bg-gray-100 text-gray-700 font-semibold px-4 py-2 rounded-md border border-gray-300 transition ${className}`} {...props}>
+    {children}
+  </button>
+);
+const DangerButton = ({ onClick, children, className = '', ...props }) => (
+  <button onClick={onClick} className={`bg-red-600 hover:bg-red-700 text-white font-semibold px-4 py-2 rounded-md transition ${className}`} {...props}>
+    {children}
+  </button>
+);
+const LoadingSpinner = () => (
+  <div className="flex justify-center items-center p-16">
+    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-turquoise"></div>
+  </div>
+);
+const StatBox = ({ label, value }) => (
+  <div className="text-sm text-brand-gray-600">
+    <div className="font-medium text-brand-gray-400">{label}</div>
+    <div className="text-lg font-semibold text-brand-gray-800">{value}</div>
+  </div>
 );
 
+const SettingsTab = ({ onDelete }) => (
+  <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+    <h3 className="text-lg font-semibold text-gray-800 mb-4">Project Settings</h3>
+    <p className="text-sm text-gray-600 mb-4">
+      Deleting a project is permanent and cannot be undone. This will remove all associated budget items, expenses, and other data.
+    </p>
+    <DangerButton onClick={onDelete}>Delete This Investment Project</DangerButton>
+  </div>
+);
 
-// --- Main Investment Detail Page Component ---
 const InvestmentDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  
   const [investment, setInvestment] = useState(null);
   const [budgetItems, setBudgetItems] = useState([]);
   const [expenses, setExpenses] = useState([]);
   const [tasks, setTasks] = useState([]);
   const [vendors, setVendors] = useState([]);
   const [documents, setDocuments] = useState([]);
-
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -54,8 +71,8 @@ const InvestmentDetail = () => {
     try {
       setLoading(true);
       const [
-        investmentData, 
-        budgetData, 
+        investmentData,
+        budgetData,
         expenseData,
         taskData,
         vendorData,
@@ -68,14 +85,12 @@ const InvestmentDetail = () => {
         getVendors(),
         getProjectDocuments(id),
       ]);
-      
       setInvestment(investmentData);
       setBudgetItems(budgetData);
       setExpenses(expenseData);
       setTasks(taskData);
       setVendors(vendorData);
       setDocuments(documentData);
-
     } catch (err) {
       console.error(err);
       setError("Failed to load project data.");
@@ -90,13 +105,13 @@ const InvestmentDetail = () => {
 
   const handleDeleteInvestment = async () => {
     if (window.confirm("Are you sure you want to delete this entire investment? This action cannot be undone.")) {
-        try {
-            await deleteInvestment(id);
-            navigate("/investments");
-        } catch (err) { 
-            console.error("Delete investment error:", err); 
-            setError("Failed to delete investment."); 
-        }
+      try {
+        await deleteInvestment(id);
+        navigate("/investments");
+      } catch (err) {
+        console.error("Delete investment error:", err);
+        setError("Failed to delete investment.");
+      }
     }
   };
 
@@ -114,19 +129,27 @@ const InvestmentDetail = () => {
   );
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6">
-      {/* ✅ UPDATED: Header now stacks on mobile and uses new theme styles */}
+    <div className="max-w-7xl mx-auto space-y-6 px-4">
+      {/* Header + Summary */}
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
         <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Project Hub</h1>
-            <p className="text-base sm:text-lg text-gray-500 mt-1">{investment.address}</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Project Hub</h1>
+          <p className="text-base sm:text-lg text-gray-500 mt-1">{investment.address}</p>
         </div>
         <SecondaryButton onClick={() => navigate(`/investments/${id}/edit`)} className="w-full sm:w-auto">
-            Edit Property Details
+          Edit Property Details
         </SecondaryButton>
       </div>
 
-      {/* ✅ UPDATED: Tab navigation is now horizontally scrollable on mobile */}
+      {/* Summary panel */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <StatBox label="Purchase Price" value={`$${investment.purchasePrice?.toLocaleString() || '—'}`} />
+        <StatBox label="ARV" value={`$${investment.arv?.toLocaleString() || '—'}`} />
+        <StatBox label="Rent Est." value={`$${investment.rentEstimate?.toLocaleString() || '—'}`} />
+        <StatBox label="Progress" value={`${investment.progress || 0}%`} />
+      </div>
+
+      {/* Tab nav */}
       <div className="bg-white p-2 rounded-lg shadow-sm border border-gray-200 flex items-center space-x-2 overflow-x-auto">
         <TabButton tabName="dashboard" label="Dashboard" />
         <TabButton tabName="financials" label="Financials" />
@@ -137,53 +160,54 @@ const InvestmentDetail = () => {
         <TabButton tabName="settings" label="Settings" />
       </div>
 
+      {/* Tab content */}
       <div>
-        {activeTab === 'dashboard' && 
-            <DashboardTab 
-                investment={investment}
-                budgetItems={budgetItems}
-                expenses={expenses}
-                tasks={tasks}
-            />
+        {activeTab === 'dashboard' &&
+          <DashboardTab
+            investment={investment}
+            budgetItems={budgetItems}
+            expenses={expenses}
+            tasks={tasks}
+          />
         }
-        {activeTab === 'financials' && 
-            <FinancialsTab 
-                investment={investment}
-                budgetItems={budgetItems} 
-                expenses={expenses} 
-                vendors={vendors}
-                onUpdate={fetchData}
-            />
+        {activeTab === 'financials' &&
+          <FinancialsTab
+            investment={investment}
+            budgetItems={budgetItems}
+            expenses={expenses}
+            vendors={vendors}
+            onUpdate={fetchData}
+          />
         }
         {activeTab === 'performance' &&
-            <DealPerformanceTab
-                investment={investment}
-                budgetItems={budgetItems}
-                expenses={expenses}
-            />
+          <DealPerformanceTab
+            investment={investment}
+            budgetItems={budgetItems}
+            expenses={expenses}
+          />
         }
-        {activeTab === 'schedule' && 
-            <ScheduleTab 
-                investment={investment}
-                tasks={tasks} 
-                vendors={vendors}
-                onUpdate={fetchData}
-            />
+        {activeTab === 'schedule' &&
+          <ScheduleTab
+            investment={investment}
+            tasks={tasks}
+            vendors={vendors}
+            onUpdate={fetchData}
+          />
         }
-        {activeTab === 'documents' && 
-            <DocumentsTab 
-                investmentId={investment._id}
-                documents={documents}
-                onUpdate={fetchData}
-            />
+        {activeTab === 'documents' &&
+          <DocumentsTab
+            property={investment}
+          />
         }
-        {activeTab === 'team' && 
-            <TeamTab 
-                vendors={vendors} 
-                onUpdate={fetchData}
-            />
+        {activeTab === 'team' &&
+          <TeamTab
+            vendors={vendors}
+            onUpdate={fetchData}
+          />
         }
-        {activeTab === 'settings' && <SettingsTab onDelete={handleDeleteInvestment} />}
+        {activeTab === 'settings' &&
+          <SettingsTab onDelete={handleDeleteInvestment} />
+        }
       </div>
     </div>
   );
