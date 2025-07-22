@@ -438,3 +438,12 @@ export const getApplicationsForProperty = async (propertyId) => {
   if (!res.ok) throw new Error('Failed to fetch property applications');
   return res.json();
 };
+export const generateAIReport = async (investmentId) => {
+  const res = await fetch(`${process.env.REACT_APP_API_URL}/api/investments/generate-report/${investmentId}`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+  });
+
+  if (!res.ok) throw new Error("Failed to generate AI report");
+  return res.json();
+};
