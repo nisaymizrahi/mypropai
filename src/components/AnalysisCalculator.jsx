@@ -1,255 +1,228 @@
-import React, { useState, useMemo, useEffect, useRef } from "react";
+import React, { useRef, useState } from "react";
 import { generateAIReport } from "../utils/api";
 import html2pdf from "html2pdf.js";
-import { Chart, registerables } from "chart.js";
+import { Chart, ArcElement, BarElement, CategoryScale, LinearScale } from "chart.js";
 
-Chart.register(...registerables);
+Chart.register(ArcElement, BarElement, CategoryScale, LinearScale);
 
-const AnalysisCalculator = ({ investment, totalRehabCost }) => {
-  const [inputs, setInputs] = useState({
-    purchasePrice: investment.purchasePrice || 0,
-    buyClosingCost: 0,
-    buyClosingIsPercent: true,
-    loanAmount: 0,
-    interestRate: 8,
-    loanTerm: 12,
-    loanPoints: 1,
-    holdingMonths: 6,
-    taxes: 0,
-    insurance: 0,
-    utilities: 0,
-    otherMonthly: 0,
-    arv: investment.arv || 0,
-    sellClosingCost: 0,
-    sellClosingIsPercent: true,
-  });
+const AnalysisCalculator = ({ investment }) => {
+  const [aiSummary, setAISummary] = useState(null);
+  const [loadingAI, setLoadingAI] = useState(false);
+  const chartRef = useRef();
+  const exportRef = useRef();
 
-  const [aiSummary, setAISummary] = useState("");
-  const [aiLoading, setAiLoading] = useState(false);
-  const summaryRef = useRef(null);
+  const {
+    purchasePrice,
+    arv,
+    buyClosingCost,
+    buyClosingIsPercent,
+    loanAmount,
+    interestRate,
+    loanTerm,
+    loanPoints,
+    holdingMonths,
+    taxes,
+    insurance,
+    utilities,
+    otherMonthly,
+    sellClosingCost,
+    sellClosingIsPercent,
+  } = investment;
 
-  const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setInputs((prev) => ({
-      ...prev,
-      [name]: type === "checkbox" ? checked : parseFloat(value || 0),
-    }));
-  };
+  const totalBudget = investment.totalBudget || 0; // Can be injected in the future
 
-  const calc = useMemo(() => {
-    const {
-      purchasePrice,
-      buyClosingCost,
-      buyClosingIsPercent,
-      loanAmount,
-      interestRate,
-      loanTerm,
-      loanPoints,
-      holdingMonths,
-      taxes,
-      insurance,
-      utilities,
-      otherMonthly,
-      arv,
-      sellClosingCost,
-      sellClosingIsPercent,
-    } = inputs;
+  const calcBuyingCost =
+    buyClosingIsPercent && buyClosingCost
+      ? (purchasePrice * buyClosingCost) / 100
+      : buyClosingCost || 0;
 
-    const buyClosing = buyClosingIsPercent ? (purchasePrice * buyClosingCost) / 100 : buyClosingCost;
-    const sellClosing = sellClosingIsPercent ? (arv * sellClosingCost) / 100 : sellClosingCost;
-    const pointsCost = (loanPoints / 100) * loanAmount;
-    const financeInterest = (loanAmount * (interestRate / 100)) * (loanTerm / 12);
-    const totalFinance = pointsCost + financeInterest;
-    const totalHolding = (taxes + insurance + utilities + otherMonthly) * holdingMonths;
-    const totalCost = purchasePrice + buyClosing + totalRehabCost + totalFinance + totalHolding + sellClosing;
-    const netProfit = arv - totalCost;
-    const cashInvested = totalCost - loanAmount;
-    const roi = cashInvested > 0 ? (netProfit / cashInvested) * 100 : 0;
-    const annualRoi = roi * (12 / holdingMonths);
-    const profitPerMonth = netProfit / holdingMonths;
-    const breakEvenARV = totalCost;
+  const calcFinanceCost =
+    loanAmount && interestRate && loanTerm
+      ? ((loanAmount * (interestRate / 100)) / 12) * loanTerm + (loanPoints / 100) * loanAmount
+      : 0;
 
-    return {
-      buyClosing,
-      sellClosing,
-      pointsCost,
-      financeInterest,
-      totalFinance,
-      totalHolding,
-      totalCost,
-      netProfit,
-      cashInvested,
-      roi,
-      annualRoi,
-      profitPerMonth,
-      breakEvenARV,
-    };
-  }, [inputs, totalRehabCost]);
+  const calcHoldingCost =
+    (Number(taxes || 0) +
+      Number(insurance || 0) +
+      Number(utilities || 0) +
+      Number(otherMonthly || 0)) * (holdingMonths || 0);
 
-  useEffect(() => {
-    const pie = document.getElementById("costPieChart");
-    if (pie) {
-      new Chart(pie, {
-        type: "pie",
-        data: {
-          labels: ["Purchase", "Buy Closing", "Rehab", "Finance", "Holding", "Sell Closing"],
-          datasets: [
-            {
-              data: [
-                inputs.purchasePrice,
-                calc.buyClosing,
-                totalRehabCost,
-                calc.totalFinance,
-                calc.totalHolding,
-                calc.sellClosing,
-              ],
-              backgroundColor: ["#14b8a6", "#4ade80", "#60a5fa", "#facc15", "#fb923c", "#f87171"],
-            },
-          ],
-        },
-      });
-    }
+  const calcSellCost =
+    sellClosingIsPercent && sellClosingCost
+      ? (arv * sellClosingCost) / 100
+      : sellClosingCost || 0;
 
-    const bar = document.getElementById("roiBarChart");
-    if (bar) {
-      new Chart(bar, {
-        type: "bar",
-        data: {
-          labels: ["ROI", "Annual ROI"],
-          datasets: [
-            {
-              data: [calc.roi.toFixed(1), calc.annualRoi.toFixed(1)],
-              backgroundColor: ["#3b82f6", "#6366f1"],
-            },
-          ],
-        },
-        options: {
-          responsive: true,
-          scales: {
-            y: {
-              beginAtZero: true,
-              ticks: {
-                callback: (val) => `${val}%`,
-              },
-            },
-          },
-        },
-      });
-    }
-  }, [calc]);
+  const totalCost =
+    Number(purchasePrice || 0) +
+    calcBuyingCost +
+    totalBudget +
+    calcFinanceCost +
+    calcHoldingCost;
+
+  const profit = Number(arv || 0) - totalCost - calcSellCost;
+  const cashInvested = totalCost - loanAmount;
+  const roi = ((profit / cashInvested) * 100) || 0;
+  const annualizedROI = roi / ((holdingMonths || 1) / 12);
+
+  const breakevenARV = totalCost + calcSellCost;
 
   const handleExportPDF = () => {
-    const element = summaryRef.current;
-    if (element) {
-      html2pdf().set({ filename: "deal-summary.pdf" }).from(element).save();
-    }
+    html2pdf().from(exportRef.current).save("Deal-Analysis-Report.pdf");
   };
 
-  const handleGenerateSummary = async () => {
+  const handleGenerateAI = async () => {
     try {
-      setAiLoading(true);
-      const result = await generateAIReport(investment._id);
-      setAISummary(result.summary || "AI summary not available.");
+      setLoadingAI(true);
+      const res = await generateAIReport(investment._id);
+      setAISummary(res.summary);
     } catch (err) {
-      console.error("AI Summary Error:", err);
       setAISummary("AI summary not available.");
     } finally {
-      setAiLoading(false);
+      setLoadingAI(false);
     }
   };
 
   return (
-    <div ref={summaryRef} className="bg-white border rounded-lg p-6 shadow-sm space-y-6 mt-10">
-      <h3 className="text-xl font-bold text-brand-gray-800">📊 Deal Analysis Calculator</h3>
+    <div className="space-y-8">
+      <div ref={exportRef} className="bg-white p-6 rounded-lg shadow-sm border border-brand-gray-200">
+        <h2 className="text-2xl font-bold text-brand-gray-900 mb-4">Deal Analysis Summary</h2>
 
-      {/* Inputs Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {[
-          { label: "Purchase Price", name: "purchasePrice" },
-          { label: "Buy Closing Costs", name: "buyClosingCost" },
-          { label: "Holding Period (Months)", name: "holdingMonths" },
-          { label: "Loan Amount", name: "loanAmount" },
-          { label: "Interest Rate (%)", name: "interestRate" },
-          { label: "Term (Months)", name: "loanTerm" },
-          { label: "Points (%)", name: "loanPoints" },
-          { label: "Taxes (Monthly)", name: "taxes" },
-          { label: "Insurance (Monthly)", name: "insurance" },
-          { label: "Utilities (Monthly)", name: "utilities" },
-          { label: "Other Monthly Costs", name: "otherMonthly" },
-          { label: "ARV (Sale Price)", name: "arv" },
-          { label: "Sell Closing Costs", name: "sellClosingCost" },
-        ].map(({ label, name }) => (
-          <div key={name}>
-            <label className="block text-sm font-medium">{label}</label>
-            <input
-              type="number"
-              name={name}
-              value={inputs[name]}
-              onChange={handleChange}
-              className="w-full border rounded-md p-2"
-            />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="space-y-2 text-sm">
+            <div className="flex justify-between">
+              <span>Purchase Price</span>
+              <span>${purchasePrice?.toLocaleString() || "—"}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Buy Closing Costs</span>
+              <span>${calcBuyingCost.toLocaleString()}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Total Rehab Cost</span>
+              <span>${totalBudget.toLocaleString()}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Financing Cost</span>
+              <span>${calcFinanceCost.toLocaleString()}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Holding Cost</span>
+              <span>${calcHoldingCost.toLocaleString()}</span>
+            </div>
+            <div className="flex justify-between border-t pt-2 font-semibold">
+              <span>Total Project Cost</span>
+              <span>${totalCost.toLocaleString()}</span>
+            </div>
           </div>
-        ))}
-      </div>
 
-      {/* Summary Table */}
-      <div className="overflow-x-auto">
-        <table className="w-full mt-6 text-sm border-t">
-          <thead>
-            <tr className="bg-gray-50 text-left">
-              <th className="p-2 font-semibold">Metric</th>
-              <th className="p-2 font-semibold">Value</th>
-            </tr>
-          </thead>
-          <tbody>
-            {[
-              ["Total Rehab Cost", `$${totalRehabCost.toLocaleString()}`],
-              ["Total Finance Cost", `$${calc.totalFinance.toLocaleString()}`],
-              ["Total Holding Cost", `$${calc.totalHolding.toLocaleString()}`],
-              ["Total Project Cost", `$${calc.totalCost.toLocaleString()}`],
-              ["Net Profit", `$${calc.netProfit.toLocaleString()}`],
-              ["Cash Invested", `$${calc.cashInvested.toLocaleString()}`],
-              ["ROI", `${calc.roi.toFixed(1)}%`],
-              ["Annualized ROI", `${calc.annualRoi.toFixed(1)}%`],
-              ["Profit per Month", `$${calc.profitPerMonth.toFixed(0)}`],
-              ["Break-even ARV", `$${calc.breakEvenARV.toLocaleString()}`],
-            ].map(([label, val], idx) => (
-              <tr key={idx} className={idx % 2 ? "bg-gray-50" : ""}>
-                <td className="p-2">{label}</td>
-                <td className="p-2 font-medium">{val}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Charts */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6">
-        <div>
-          <h4 className="text-md font-semibold mb-2">📈 Cost Breakdown</h4>
-          <canvas id="costPieChart" />
-        </div>
-        <div>
-          <h4 className="text-md font-semibold mb-2">📊 ROI Comparison</h4>
-          <canvas id="roiBarChart" />
+          <div className="space-y-2 text-sm">
+            <div className="flex justify-between">
+              <span>Projected ARV</span>
+              <span>${arv?.toLocaleString() || "—"}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Sell Closing Costs</span>
+              <span>${calcSellCost.toLocaleString()}</span>
+            </div>
+            <div className="flex justify-between font-semibold">
+              <span>Net Profit</span>
+              <span>${profit.toLocaleString()}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Cash Invested</span>
+              <span>${cashInvested.toLocaleString()}</span>
+            </div>
+            <div className="flex justify-between text-green-700 font-semibold">
+              <span>ROI</span>
+              <span>{roi.toFixed(1)}%</span>
+            </div>
+            <div className="flex justify-between text-indigo-700 font-semibold">
+              <span>Annualized ROI</span>
+              <span>{annualizedROI.toFixed(1)}%</span>
+            </div>
+            <div className="flex justify-between text-gray-600 text-xs pt-2 border-t">
+              <span>Breakeven ARV</span>
+              <span>${breakevenARV.toLocaleString()}</span>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* AI + PDF */}
-      <div className="flex flex-wrap gap-4 pt-6">
-        <button onClick={handleGenerateSummary} className="bg-blue-600 text-white px-4 py-2 rounded-md">
-          {aiLoading ? "Generating..." : "🧠 Generate AI Deal Summary"}
+      {/* Buttons */}
+      <div className="flex gap-4">
+        <button onClick={handleExportPDF} className="bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 rounded-md">
+          Export to PDF
         </button>
-        <button onClick={handleExportPDF} className="bg-brand-turquoise text-white px-4 py-2 rounded-md">
-          📤 Export to PDF
+        <button
+          onClick={handleGenerateAI}
+          disabled={loadingAI}
+          className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-md"
+        >
+          {loadingAI ? "Generating..." : "Generate AI Deal Summary"}
         </button>
       </div>
 
       {aiSummary && (
-        <div className="bg-gray-100 border p-4 mt-4 rounded-md text-sm whitespace-pre-wrap">
-          {aiSummary}
+        <div className="bg-brand-gray-50 p-4 rounded-lg border text-sm text-brand-gray-800">
+          <h3 className="font-semibold mb-2">AI Deal Summary</h3>
+          <p>{aiSummary}</p>
         </div>
       )}
+
+      {/* Charts */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div>
+          <h3 className="text-lg font-semibold mb-2">Cost Breakdown</h3>
+          <canvas
+            ref={(el) => {
+              if (el) {
+                new Chart(el, {
+                  type: "pie",
+                  data: {
+                    labels: ["Buy Costs", "Rehab", "Finance", "Holding"],
+                    datasets: [
+                      {
+                        data: [calcBuyingCost, totalBudget, calcFinanceCost, calcHoldingCost],
+                        backgroundColor: ["#14b8a6", "#4f46e5", "#f59e0b", "#ef4444"],
+                      },
+                    ],
+                  },
+                  options: { responsive: true, plugins: { legend: { position: "bottom" } } },
+                });
+              }
+            }}
+          />
+        </div>
+
+        <div>
+          <h3 className="text-lg font-semibold mb-2">Profit vs ROI</h3>
+          <canvas
+            ref={(el) => {
+              if (el) {
+                new Chart(el, {
+                  type: "bar",
+                  data: {
+                    labels: ["Profit", "ROI %", "Annual ROI %"],
+                    datasets: [
+                      {
+                        label: "Value",
+                        data: [profit, roi, annualizedROI],
+                        backgroundColor: ["#22c55e", "#2563eb", "#9333ea"],
+                      },
+                    ],
+                  },
+                  options: {
+                    responsive: true,
+                    scales: {
+                      y: { beginAtZero: true },
+                    },
+                  },
+                });
+              }
+            }}
+          />
+        </div>
+      </div>
     </div>
   );
 };
