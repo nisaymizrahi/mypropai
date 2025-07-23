@@ -1,185 +1,100 @@
-import React, { useMemo, useState, useEffect } from 'react';
-import AddBudgetItemModal from './AddBudgetItemModal';
-import BudgetItemRow from './BudgetItemRow';
-import EditBudgetItemModal from './EditBudgetItemModal';
-import EditExpenseModal from './EditExpenseModal';
-import { deleteBudgetItem, deleteExpense, createExpense } from '../utils/api';
-
-// This is the AddExpenseModal code moved from its own file
-const AddExpenseModal_Component = ({ isOpen, onClose, onSuccess, investmentId, budgetItemId, vendors = [] }) => {
-  const [formData, setFormData] = useState({ description: '', amount: '', vendor: '', date: new Date().toISOString().split('T')[0], notes: '' });
-  const [receiptFile, setReceiptFile] = useState(null);
-  const [error, setError] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  useEffect(() => {
-    if (isOpen) {
-        setFormData({ description: '', amount: '', vendor: '', date: new Date().toISOString().split('T')[0], notes: '' });
-        setReceiptFile(null);
-        setError('');
-    }
-  }, [isOpen, budgetItemId]);
-  const handleChange = (e) => setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
-  const handleFileChange = (e) => setReceiptFile(e.target.files[0]);
-  const handleClose = () => onClose();
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!formData.description || !formData.amount) {
-      setError('Description and Amount are required.');
-      return;
-    }
-    setIsSubmitting(true);
-    setError('');
-    const expenseData = new FormData();
-    expenseData.append('investmentId', investmentId);
-    expenseData.append('budgetItemId', budgetItemId);
-    expenseData.append('description', formData.description);
-    expenseData.append('amount', formData.amount);
-    expenseData.append('date', formData.date);
-    if(formData.vendor) expenseData.append('vendor', formData.vendor);
-    if(formData.notes) expenseData.append('notes', formData.notes);
-    if(receiptFile) expenseData.append('receipt', receiptFile);
-    try {
-      await createExpense(expenseData);
-      onSuccess();
-      handleClose();
-    } catch (err) {
-      setError(err.message || 'An error occurred.');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-  if (!isOpen) return null;
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
-      <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-lg space-y-4">
-        <h2 className="text-xl font-bold">Add Expense</h2>
-        <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div><label className="block text-sm font-medium">Description</label><input name="description" type="text" value={formData.description} onChange={handleChange} className="mt-1 block w-full border rounded-md p-2" required /></div>
-                <div><label className="block text-sm font-medium">Amount</label><input name="amount" type="number" value={formData.amount} onChange={handleChange} className="mt-1 block w-full border rounded-md p-2" required /></div>
-                <div><label className="block text-sm font-medium">Vendor</label><select name="vendor" value={formData.vendor} onChange={handleChange} className="mt-1 block w-full border rounded-md p-2"><option value="">Select Vendor</option>{vendors.map(v => <option key={v._id} value={v._id}>{v.name}</option>)}</select></div>
-                <div><label className="block text-sm font-medium">Date</label><input name="date" type="date" value={formData.date} onChange={handleChange} className="mt-1 block w-full border rounded-md p-2" required /></div>
-            </div>
-            <div><label className="block text-sm font-medium">Notes</label><textarea name="notes" rows="2" value={formData.notes} onChange={handleChange} className="mt-1 block w-full border rounded-md p-2"></textarea></div>
-            <div><label className="block text-sm font-medium">Upload Receipt</label><input type="file" onChange={handleFileChange} className="mt-1 block w-full text-sm" /></div>
-            {error && <p className="text-red-500 text-sm bg-red-100 p-2 rounded-md">{error}</p>}
-            <div className="flex justify-end gap-4 pt-4">
-                <button type="button" onClick={handleClose} disabled={isSubmitting} className="px-4 py-2 rounded-md border">Cancel</button>
-                <button type="submit" disabled={isSubmitting} className="bg-brand-turquoise text-white px-4 py-2 rounded-md disabled:bg-opacity-50">{isSubmitting ? 'Saving...' : 'Save Expense'}</button>
-            </div>
-        </form>
-      </div>
-    </div>
-  );
-};
-
-const PrimaryButton = ({ onClick, children, className = '', ...props }) => <button onClick={onClick} className={`bg-brand-turquoise hover:bg-brand-turquoise-600 text-white font-semibold px-4 py-2 rounded-md transition ${className}`} {...props}>{children}</button>;
+import React, { useState, useMemo } from "react";
+import AddExpenseModal from "./AddExpenseModal";
+import AddBudgetItemModal from "./AddBudgetItemModal";
+import AIRehabBuilderModal from "./AIRehabBuilderModal";
+import BudgetLineItem from "./BudgetLineItem";
 
 const StatCard = ({ title, value, colorClass = 'text-brand-gray-800' }) => (
-    <div className="bg-brand-gray-50 p-4 rounded-lg border border-brand-gray-200">
-        <p className="text-sm text-brand-gray-500">{title}</p>
-        <p className={`text-2xl font-bold ${colorClass}`}>{value}</p>
-    </div>
+  <div className="bg-brand-gray-50 p-4 rounded-lg border text-center">
+    <p className="text-sm text-brand-gray-500">{title}</p>
+    <p className={`text-2xl font-bold ${colorClass}`}>{value}</p>
+  </div>
 );
 
-const FinancialsTab = ({ investment, budgetItems, expenses, vendors, onUpdate }) => {
-    const [isBudgetModalOpen, setIsBudgetModalOpen] = useState(false);
-    const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
-    const [selectedBudgetItemId, setSelectedBudgetItemId] = useState(null);
-    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-    const [editingBudgetItem, setEditingBudgetItem] = useState(null);
-    const [isEditExpenseModalOpen, setIsEditExpenseModalOpen] = useState(false);
-    const [editingExpense, setEditingExpense] = useState(null);
+const FinancialsTab = ({ investment, budgetItems, expenses, vendors = [], onUpdate }) => {
+  const [showAddExpenseModal, setShowAddExpenseModal] = useState(false);
+  const [showAddBudgetModal, setShowAddBudgetModal] = useState(false);
+  const [showAIBuilderModal, setShowAIBuilderModal] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState(null);
 
-    const financialSummary = useMemo(() => {
-        const totalBudget = budgetItems.reduce((sum, item) => sum + item.budgetedAmount, 0);
-        const totalSpent = expenses.reduce((sum, item) => sum + item.amount, 0);
-        const remainingBudget = totalBudget - totalSpent;
-        return { totalBudget, totalSpent, remainingBudget };
-    }, [budgetItems, expenses]);
+  const budgetSummary = useMemo(() => {
+    const totalBudget = budgetItems.reduce((sum, item) => sum + item.budgetedAmount, 0);
+    const totalSpent = expenses.reduce((sum, item) => sum + item.amount, 0);
+    const remaining = totalBudget - totalSpent;
+    const percent = totalBudget > 0 ? (totalSpent / totalBudget) * 100 : 0;
+    return { totalBudget, totalSpent, remaining, percent };
+  }, [budgetItems, expenses]);
 
-    const handleOpenExpenseModal = (budgetItemId) => {
-        setSelectedBudgetItemId(budgetItemId);
-        setIsExpenseModalOpen(true);
-    };
+  return (
+    <>
+      <AddExpenseModal
+        isOpen={showAddExpenseModal}
+        onClose={() => setShowAddExpenseModal(false)}
+        investmentId={investment._id}
+        defaultCategory={selectedCategory}
+        onSuccess={onUpdate}
+        budgetItems={budgetItems}
+      />
+      <AddBudgetItemModal
+        isOpen={showAddBudgetModal}
+        onClose={() => setShowAddBudgetModal(false)}
+        investmentId={investment._id}
+        onSuccess={onUpdate}
+      />
+      <AIRehabBuilderModal
+        isOpen={showAIBuilderModal}
+        onClose={() => setShowAIBuilderModal(false)}
+        investmentId={investment._id}
+        onSuccess={onUpdate}
+      />
 
-    const handleOpenEditModal = (budgetItem) => {
-        setEditingBudgetItem(budgetItem);
-        setIsEditModalOpen(true);
-    };
+      <div className="space-y-6">
+        {/* Summary Cards */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <StatCard title="Total Budget" value={`$${budgetSummary.totalBudget.toLocaleString()}`} />
+          <StatCard title="Total Spent" value={`$${budgetSummary.totalSpent.toLocaleString()}`} />
+          <StatCard title="Remaining Budget" value={`$${budgetSummary.remaining.toLocaleString()}`} colorClass={budgetSummary.remaining >= 0 ? 'text-green-600' : 'text-red-600'} />
+          <StatCard title="% Used" value={`${budgetSummary.percent.toFixed(1)}%`} />
+        </div>
 
-    const handleDeleteBudgetItem = async (budgetItemId) => {
-        if (window.confirm('Are you sure you want to delete this budget category? This will also delete all expenses linked to it.')) {
-            try {
-                await deleteBudgetItem(budgetItemId);
-                onUpdate();
-            } catch (error) {
-                alert(`Failed to delete budget item: ${error.message}`);
-            }
-        }
-    };
+        {/* Top Action Buttons */}
+        <div className="flex flex-wrap gap-3">
+          <button onClick={() => setShowAddBudgetModal(true)} className="bg-brand-turquoise text-white font-semibold px-4 py-2 rounded-md">+ Add Budget Line</button>
+          <button onClick={() => { setSelectedCategory(null); setShowAddExpenseModal(true); }} className="bg-brand-turquoise text-white font-semibold px-4 py-2 rounded-md">+ Add Expense</button>
+          <button onClick={() => setShowAIBuilderModal(true)} className="bg-purple-600 text-white font-semibold px-4 py-2 rounded-md">🧠 AI Build Budget</button>
+        </div>
 
-    const handleOpenEditExpenseModal = (expense) => {
-        setEditingExpense(expense);
-        setIsEditExpenseModalOpen(true);
-    };
-
-    const handleDeleteExpense = async (expenseId) => {
-        if(window.confirm('Are you sure you want to delete this expense?')) {
-            try {
-                await deleteExpense(expenseId);
-                onUpdate();
-            } catch (error) {
-                alert(`Failed to delete expense: ${error.message}`);
-            }
-        }
-    };
-
-    return (
-        <>
-            <AddBudgetItemModal isOpen={isBudgetModalOpen} onClose={() => setIsBudgetModalOpen(false)} onSuccess={onUpdate} investmentId={investment._id} />
-            
-            {/* ✅ THIS IS THE FIX: Using the component defined within this file */}
-            <AddExpenseModal_Component isOpen={isExpenseModalOpen} onClose={() => setIsExpenseModalOpen(false)} onSuccess={onUpdate} investmentId={investment._id} budgetItemId={selectedBudgetItemId} vendors={vendors} />
-            
-            <EditBudgetItemModal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} onSuccess={onUpdate} budgetItem={editingBudgetItem} />
-            <EditExpenseModal isOpen={isEditExpenseModalOpen} onClose={() => setIsEditExpenseModalOpen(false)} onSuccess={onUpdate} expense={editingExpense} vendors={vendors} />
-
-            <div className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <StatCard title="Total Budget" value={`$${financialSummary.totalBudget.toLocaleString()}`} />
-                    <StatCard title="Total Spent" value={`$${financialSummary.totalSpent.toLocaleString()}`} />
-                    <StatCard title="Remaining Budget" value={`$${financialSummary.remainingBudget.toLocaleString()}`} colorClass={financialSummary.remainingBudget >= 0 ? 'text-green-600' : 'text-red-600'} />
-                </div>
-                
-                <div className="bg-white p-6 rounded-lg shadow-sm border border-brand-gray-200">
-                    <div className="flex justify-between items-center mb-4">
-                        <h3 className="text-xl font-semibold">Budget vs. Actuals</h3>
-                        <PrimaryButton onClick={() => setIsBudgetModalOpen(true)}>Add Budget Category</PrimaryButton>
-                    </div>
-
-                    <div className="space-y-4">
-                        {budgetItems.length > 0 ? (
-                            budgetItems.map(item => (
-                                <BudgetItemRow 
-                                    key={item._id} 
-                                    item={item}
-                                    expenses={expenses}
-                                    onAddExpense={() => handleOpenExpenseModal(item._id)}
-                                    onEdit={() => handleOpenEditModal(item)}
-                                    onDelete={() => handleDeleteBudgetItem(item._id)}
-                                    onEditExpense={handleOpenEditExpenseModal}
-                                    onDeleteExpense={handleDeleteExpense}
-                                />
-                            ))
-                        ) : (
-                            <p className="text-center text-brand-gray-500 py-8">No budget items have been added yet.</p>
-                        )}
-                    </div>
-                </div>
-            </div>
-        </>
-    );
+        {/* Budget Table */}
+        <div className="bg-white border rounded-lg p-4 shadow-sm">
+          <h3 className="text-lg font-semibold mb-4">Budget Overview</h3>
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-gray-50 border-b text-left">
+                <th className="p-2">Category</th>
+                <th className="p-2">Budgeted</th>
+                <th className="p-2">Spent</th>
+                <th className="p-2">Remaining</th>
+                <th className="p-2 text-right">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {budgetItems.map((item) => (
+                <BudgetLineItem
+                  key={item._id}
+                  item={item}
+                  expenses={expenses.filter(e => e.budgetItem === item._id || e.category === item.category)}
+                  onAddExpense={() => {
+                    setSelectedCategory(item.category);
+                    setShowAddExpenseModal(true);
+                  }}
+                />
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </>
+  );
 };
 
 export default FinancialsTab;
