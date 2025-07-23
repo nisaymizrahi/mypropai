@@ -3,19 +3,23 @@ import { createExpense } from "../utils/api";
 
 const AddExpenseModal = ({ isOpen, onClose, investmentId, defaultCategory = null, onSuccess, budgetItems = [] }) => {
   const [formData, setFormData] = useState({
-    category: defaultCategory || "",
+    budgetItemId: "",
+    description: "",
     amount: "",
     date: new Date().toISOString().split("T")[0],
     notes: "",
   });
+
   const [receipt, setReceipt] = useState(null);
   const [error, setError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
+      const defaultBudget = budgetItems.find((item) => item.category === defaultCategory);
       setFormData({
-        category: defaultCategory || "",
+        budgetItemId: defaultBudget?._id || "",
+        description: "",
         amount: "",
         date: new Date().toISOString().split("T")[0],
         notes: "",
@@ -23,7 +27,7 @@ const AddExpenseModal = ({ isOpen, onClose, investmentId, defaultCategory = null
       setReceipt(null);
       setError("");
     }
-  }, [isOpen, defaultCategory]);
+  }, [isOpen, defaultCategory, budgetItems]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -33,8 +37,8 @@ const AddExpenseModal = ({ isOpen, onClose, investmentId, defaultCategory = null
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!formData.category || !formData.amount) {
-      setError("Category and amount are required.");
+    if (!formData.budgetItemId || !formData.description || !formData.amount) {
+      setError("Please fill in all required fields.");
       return;
     }
 
@@ -44,7 +48,8 @@ const AddExpenseModal = ({ isOpen, onClose, investmentId, defaultCategory = null
     try {
       const payload = new FormData();
       payload.append("investmentId", investmentId);
-      payload.append("category", formData.category);
+      payload.append("budgetItemId", formData.budgetItemId);
+      payload.append("description", formData.description);
       payload.append("amount", formData.amount);
       payload.append("date", formData.date);
       payload.append("notes", formData.notes);
@@ -68,13 +73,25 @@ const AddExpenseModal = ({ isOpen, onClose, investmentId, defaultCategory = null
         <h2 className="text-xl font-bold text-brand-gray-800">Add Expense</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium">Category</label>
-            <select name="category" value={formData.category} onChange={handleChange} className="w-full border rounded-md p-2">
-              <option value="">Select a category</option>
+            <label className="block text-sm font-medium">Budget Category</label>
+            <select
+              name="budgetItemId"
+              value={formData.budgetItemId}
+              onChange={handleChange}
+              className="w-full border rounded-md p-2"
+              required
+            >
+              <option value="">Select a budget line</option>
               {budgetItems.map((item) => (
-                <option key={item._id} value={item.category}>{item.category}</option>
+                <option key={item._id} value={item._id}>
+                  {item.category}
+                </option>
               ))}
             </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium">Description</label>
+            <input name="description" type="text" value={formData.description} onChange={handleChange} className="w-full border rounded-md p-2" required />
           </div>
           <div>
             <label className="block text-sm font-medium">Amount</label>
@@ -86,7 +103,7 @@ const AddExpenseModal = ({ isOpen, onClose, investmentId, defaultCategory = null
           </div>
           <div>
             <label className="block text-sm font-medium">Notes</label>
-            <textarea name="notes" value={formData.notes} onChange={handleChange} className="w-full border rounded-md p-2" rows={2} />
+            <textarea name="notes" rows="2" value={formData.notes} onChange={handleChange} className="w-full border rounded-md p-2" />
           </div>
           <div>
             <label className="block text-sm font-medium">Upload Receipt</label>
