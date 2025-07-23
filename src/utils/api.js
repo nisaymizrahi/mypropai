@@ -447,3 +447,16 @@ export const generateAIReport = async (investmentId) => {
   if (!res.ok) throw new Error("Failed to generate AI report");
   return res.json();
 };
+export const generateBudgetLines = async (input) => {
+  const res = await fetch(`${process.env.REACT_APP_API_URL}/api/investments/generate-budget-lines`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${localStorage.getItem("token")}`,
+    },
+    body: JSON.stringify(input),
+  });
+
+  if (!res.ok) throw new Error("Failed to generate budget lines");
+  return res.json();
+};
