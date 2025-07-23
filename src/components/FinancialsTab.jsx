@@ -3,8 +3,9 @@ import AddExpenseModal from "./AddExpenseModal";
 import AddBudgetItemModal from "./AddBudgetItemModal";
 import AIRehabBuilderModal from "./AIRehabBuilderModal";
 import BudgetLineItem from "./BudgetLineItem";
+import AnalysisCalculator from "./AnalysisCalculator";
 
-const StatCard = ({ title, value, colorClass = 'text-brand-gray-800' }) => (
+const StatCard = ({ title, value, colorClass = "text-brand-gray-800" }) => (
   <div className="bg-brand-gray-50 p-4 rounded-lg border text-center">
     <p className="text-sm text-brand-gray-500">{title}</p>
     <p className={`text-2xl font-bold ${colorClass}`}>{value}</p>
@@ -53,15 +54,37 @@ const FinancialsTab = ({ investment, budgetItems, expenses, vendors = [], onUpda
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <StatCard title="Total Budget" value={`$${budgetSummary.totalBudget.toLocaleString()}`} />
           <StatCard title="Total Spent" value={`$${budgetSummary.totalSpent.toLocaleString()}`} />
-          <StatCard title="Remaining Budget" value={`$${budgetSummary.remaining.toLocaleString()}`} colorClass={budgetSummary.remaining >= 0 ? 'text-green-600' : 'text-red-600'} />
+          <StatCard
+            title="Remaining Budget"
+            value={`$${budgetSummary.remaining.toLocaleString()}`}
+            colorClass={budgetSummary.remaining >= 0 ? "text-green-600" : "text-red-600"}
+          />
           <StatCard title="% Used" value={`${budgetSummary.percent.toFixed(1)}%`} />
         </div>
 
         {/* Top Action Buttons */}
         <div className="flex flex-wrap gap-3">
-          <button onClick={() => setShowAddBudgetModal(true)} className="bg-brand-turquoise text-white font-semibold px-4 py-2 rounded-md">+ Add Budget Line</button>
-          <button onClick={() => { setSelectedCategory(null); setShowAddExpenseModal(true); }} className="bg-brand-turquoise text-white font-semibold px-4 py-2 rounded-md">+ Add Expense</button>
-          <button onClick={() => setShowAIBuilderModal(true)} className="bg-purple-600 text-white font-semibold px-4 py-2 rounded-md">🧠 AI Build Budget</button>
+          <button
+            onClick={() => setShowAddBudgetModal(true)}
+            className="bg-brand-turquoise text-white font-semibold px-4 py-2 rounded-md"
+          >
+            + Add Budget Line
+          </button>
+          <button
+            onClick={() => {
+              setSelectedCategory(null);
+              setShowAddExpenseModal(true);
+            }}
+            className="bg-brand-turquoise text-white font-semibold px-4 py-2 rounded-md"
+          >
+            + Add Expense
+          </button>
+          <button
+            onClick={() => setShowAIBuilderModal(true)}
+            className="bg-purple-600 text-white font-semibold px-4 py-2 rounded-md"
+          >
+            🧠 AI Build Budget
+          </button>
         </div>
 
         {/* Budget Table */}
@@ -82,7 +105,7 @@ const FinancialsTab = ({ investment, budgetItems, expenses, vendors = [], onUpda
                 <BudgetLineItem
                   key={item._id}
                   item={item}
-                  expenses={expenses.filter(e => e.budgetItem === item._id || e.category === item.category)}
+                  expenses={expenses.filter((e) => e.budgetItem === item._id || e.category === item.category)}
                   onAddExpense={() => {
                     setSelectedCategory(item.category);
                     setShowAddExpenseModal(true);
@@ -92,6 +115,9 @@ const FinancialsTab = ({ investment, budgetItems, expenses, vendors = [], onUpda
             </tbody>
           </table>
         </div>
+
+        {/* 📊 Deal Analysis Calculator */}
+        <AnalysisCalculator investment={investment} totalRehabCost={budgetSummary.totalBudget} />
       </div>
     </>
   );
