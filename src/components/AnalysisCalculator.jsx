@@ -1,9 +1,17 @@
 import React, { useRef, useState } from "react";
 import { generateAIReport } from "../utils/api";
 import html2pdf from "html2pdf.js";
-import { Chart, ArcElement, BarElement, CategoryScale, LinearScale } from "chart.js";
+import {
+  Chart,
+  ArcElement,
+  BarElement,
+  CategoryScale,
+  LinearScale,
+  PieController,
+  BarController
+} from "chart.js";
 
-Chart.register(ArcElement, BarElement, CategoryScale, LinearScale);
+Chart.register(ArcElement, BarElement, CategoryScale, LinearScale, PieController, BarController);
 
 const AnalysisCalculator = ({ investment }) => {
   const [aiSummary, setAISummary] = useState(null);
