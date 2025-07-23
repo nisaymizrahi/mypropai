@@ -117,7 +117,7 @@ const FinancialsTab = ({ investment, budgetItems, expenses, vendors = [], onUpda
         </div>
 
         {/* 📊 Deal Analysis Calculator */}
-        <AnalysisCalculator investment={investment} totalRehabCost={budgetSummary.totalBudget} />
+        <AnalysisCalculator investment={{ ...investment, totalBudget: budgetSummary.totalBudget }} />
       </div>
     </>
   );
