@@ -1,6 +1,9 @@
-import React, { useState, useMemo, useRef } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import { generateAIReport } from "../utils/api";
 import html2pdf from "html2pdf.js";
+import { Chart, registerables } from "chart.js";
+
+Chart.register(...registerables);
 
 const AnalysisCalculator = ({ investment, totalRehabCost }) => {
   const [inputs, setInputs] = useState({
@@ -11,7 +14,6 @@ const AnalysisCalculator = ({ investment, totalRehabCost }) => {
     interestRate: 8,
     loanTerm: 12,
     loanPoints: 1,
-    fundedAmount: 0,
     holdingMonths: 6,
     taxes: 0,
     insurance: 0,
@@ -43,7 +45,6 @@ const AnalysisCalculator = ({ investment, totalRehabCost }) => {
       interestRate,
       loanTerm,
       loanPoints,
-      fundedAmount,
       holdingMonths,
       taxes,
       insurance,
@@ -62,7 +63,7 @@ const AnalysisCalculator = ({ investment, totalRehabCost }) => {
     const totalHolding = (taxes + insurance + utilities + otherMonthly) * holdingMonths;
     const totalCost = purchasePrice + buyClosing + totalRehabCost + totalFinance + totalHolding + sellClosing;
     const netProfit = arv - totalCost;
-    const cashInvested = totalCost - fundedAmount;
+    const cashInvested = totalCost - loanAmount;
     const roi = cashInvested > 0 ? (netProfit / cashInvested) * 100 : 0;
     const annualRoi = roi * (12 / holdingMonths);
     const profitPerMonth = netProfit / holdingMonths;
@@ -85,6 +86,58 @@ const AnalysisCalculator = ({ investment, totalRehabCost }) => {
     };
   }, [inputs, totalRehabCost]);
 
+  useEffect(() => {
+    const pie = document.getElementById("costPieChart");
+    if (pie) {
+      new Chart(pie, {
+        type: "pie",
+        data: {
+          labels: ["Purchase", "Buy Closing", "Rehab", "Finance", "Holding", "Sell Closing"],
+          datasets: [
+            {
+              data: [
+                inputs.purchasePrice,
+                calc.buyClosing,
+                totalRehabCost,
+                calc.totalFinance,
+                calc.totalHolding,
+                calc.sellClosing,
+              ],
+              backgroundColor: ["#14b8a6", "#4ade80", "#60a5fa", "#facc15", "#fb923c", "#f87171"],
+            },
+          ],
+        },
+      });
+    }
+
+    const bar = document.getElementById("roiBarChart");
+    if (bar) {
+      new Chart(bar, {
+        type: "bar",
+        data: {
+          labels: ["ROI", "Annual ROI"],
+          datasets: [
+            {
+              data: [calc.roi.toFixed(1), calc.annualRoi.toFixed(1)],
+              backgroundColor: ["#3b82f6", "#6366f1"],
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: {
+                callback: (val) => `${val}%`,
+              },
+            },
+          },
+        },
+      });
+    }
+  }, [calc]);
+
   const handleExportPDF = () => {
     const element = summaryRef.current;
     if (element) {
@@ -99,7 +152,7 @@ const AnalysisCalculator = ({ investment, totalRehabCost }) => {
       setAISummary(result.summary || "AI summary not available.");
     } catch (err) {
       console.error("AI Summary Error:", err);
-      setAISummary("Error generating summary.");
+      setAISummary("AI summary not available.");
     } finally {
       setAiLoading(false);
     }
@@ -111,88 +164,79 @@ const AnalysisCalculator = ({ investment, totalRehabCost }) => {
 
       {/* Inputs Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div>
-          <label className="block text-sm font-medium">Purchase Price</label>
-          <input name="purchasePrice" value={inputs.purchasePrice} onChange={handleChange} type="number" className="w-full border p-2 rounded-md" />
-        </div>
-        <div>
-          <label className="block text-sm font-medium">Buy Closing Costs</label>
-          <input name="buyClosingCost" value={inputs.buyClosingCost} onChange={handleChange} type="number" className="w-full border p-2 rounded-md" />
-          <label className="text-xs"><input type="checkbox" name="buyClosingIsPercent" checked={inputs.buyClosingIsPercent} onChange={handleChange} /> % of Price</label>
-        </div>
-        <div>
-          <label className="block text-sm font-medium">Holding Period (Months)</label>
-          <input name="holdingMonths" value={inputs.holdingMonths} onChange={handleChange} type="number" className="w-full border p-2 rounded-md" />
-        </div>
+        {[
+          { label: "Purchase Price", name: "purchasePrice" },
+          { label: "Buy Closing Costs", name: "buyClosingCost" },
+          { label: "Holding Period (Months)", name: "holdingMonths" },
+          { label: "Loan Amount", name: "loanAmount" },
+          { label: "Interest Rate (%)", name: "interestRate" },
+          { label: "Term (Months)", name: "loanTerm" },
+          { label: "Points (%)", name: "loanPoints" },
+          { label: "Taxes (Monthly)", name: "taxes" },
+          { label: "Insurance (Monthly)", name: "insurance" },
+          { label: "Utilities (Monthly)", name: "utilities" },
+          { label: "Other Monthly Costs", name: "otherMonthly" },
+          { label: "ARV (Sale Price)", name: "arv" },
+          { label: "Sell Closing Costs", name: "sellClosingCost" },
+        ].map(({ label, name }) => (
+          <div key={name}>
+            <label className="block text-sm font-medium">{label}</label>
+            <input
+              type="number"
+              name={name}
+              value={inputs[name]}
+              onChange={handleChange}
+              className="w-full border rounded-md p-2"
+            />
+          </div>
+        ))}
+      </div>
 
-        {/* Loan Details */}
-        <div>
-          <label className="block text-sm font-medium">Loan Amount</label>
-          <input name="loanAmount" value={inputs.loanAmount} onChange={handleChange} type="number" className="w-full border p-2 rounded-md" />
-        </div>
-        <div>
-          <label className="block text-sm font-medium">Interest Rate (%)</label>
-          <input name="interestRate" value={inputs.interestRate} onChange={handleChange} type="number" className="w-full border p-2 rounded-md" />
-        </div>
-        <div>
-          <label className="block text-sm font-medium">Term (Months)</label>
-          <input name="loanTerm" value={inputs.loanTerm} onChange={handleChange} type="number" className="w-full border p-2 rounded-md" />
-        </div>
-        <div>
-          <label className="block text-sm font-medium">Points (%)</label>
-          <input name="loanPoints" value={inputs.loanPoints} onChange={handleChange} type="number" className="w-full border p-2 rounded-md" />
-        </div>
-        <div>
-          <label className="block text-sm font-medium">Amount Funded by Lender</label>
-          <input name="fundedAmount" value={inputs.fundedAmount} onChange={handleChange} type="number" className="w-full border p-2 rounded-md" />
-        </div>
+      {/* Summary Table */}
+      <div className="overflow-x-auto">
+        <table className="w-full mt-6 text-sm border-t">
+          <thead>
+            <tr className="bg-gray-50 text-left">
+              <th className="p-2 font-semibold">Metric</th>
+              <th className="p-2 font-semibold">Value</th>
+            </tr>
+          </thead>
+          <tbody>
+            {[
+              ["Total Rehab Cost", `$${totalRehabCost.toLocaleString()}`],
+              ["Total Finance Cost", `$${calc.totalFinance.toLocaleString()}`],
+              ["Total Holding Cost", `$${calc.totalHolding.toLocaleString()}`],
+              ["Total Project Cost", `$${calc.totalCost.toLocaleString()}`],
+              ["Net Profit", `$${calc.netProfit.toLocaleString()}`],
+              ["Cash Invested", `$${calc.cashInvested.toLocaleString()}`],
+              ["ROI", `${calc.roi.toFixed(1)}%`],
+              ["Annualized ROI", `${calc.annualRoi.toFixed(1)}%`],
+              ["Profit per Month", `$${calc.profitPerMonth.toFixed(0)}`],
+              ["Break-even ARV", `$${calc.breakEvenARV.toLocaleString()}`],
+            ].map(([label, val], idx) => (
+              <tr key={idx} className={idx % 2 ? "bg-gray-50" : ""}>
+                <td className="p-2">{label}</td>
+                <td className="p-2 font-medium">{val}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
 
-        {/* Holding Costs */}
+      {/* Charts */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6">
         <div>
-          <label className="block text-sm font-medium">Taxes (monthly)</label>
-          <input name="taxes" value={inputs.taxes} onChange={handleChange} type="number" className="w-full border p-2 rounded-md" />
+          <h4 className="text-md font-semibold mb-2">📈 Cost Breakdown</h4>
+          <canvas id="costPieChart" />
         </div>
         <div>
-          <label className="block text-sm font-medium">Insurance (monthly)</label>
-          <input name="insurance" value={inputs.insurance} onChange={handleChange} type="number" className="w-full border p-2 rounded-md" />
-        </div>
-        <div>
-          <label className="block text-sm font-medium">Utilities (monthly)</label>
-          <input name="utilities" value={inputs.utilities} onChange={handleChange} type="number" className="w-full border p-2 rounded-md" />
-        </div>
-        <div>
-          <label className="block text-sm font-medium">Other Monthly Costs</label>
-          <input name="otherMonthly" value={inputs.otherMonthly} onChange={handleChange} type="number" className="w-full border p-2 rounded-md" />
-        </div>
-
-        {/* Sale */}
-        <div>
-          <label className="block text-sm font-medium">ARV (After Repair Value)</label>
-          <input name="arv" value={inputs.arv} onChange={handleChange} type="number" className="w-full border p-2 rounded-md" />
-        </div>
-        <div>
-          <label className="block text-sm font-medium">Sell Closing Costs</label>
-          <input name="sellClosingCost" value={inputs.sellClosingCost} onChange={handleChange} type="number" className="w-full border p-2 rounded-md" />
-          <label className="text-xs"><input type="checkbox" name="sellClosingIsPercent" checked={inputs.sellClosingIsPercent} onChange={handleChange} /> % of ARV</label>
+          <h4 className="text-md font-semibold mb-2">📊 ROI Comparison</h4>
+          <canvas id="roiBarChart" />
         </div>
       </div>
 
-      {/* Summary */}
-      <div className="pt-6 border-t text-sm space-y-2 text-brand-gray-800">
-        <div><strong>Total Rehab Cost:</strong> ${totalRehabCost.toLocaleString()}</div>
-        <div><strong>Total Finance Cost:</strong> ${calc.totalFinance.toLocaleString()}</div>
-        <div><strong>Total Holding Cost:</strong> ${calc.totalHolding.toLocaleString()}</div>
-        <div><strong>Total Project Cost:</strong> ${calc.totalCost.toLocaleString()}</div>
-        <div><strong>Net Profit:</strong> ${calc.netProfit.toLocaleString()}</div>
-        <div><strong>Cash Invested:</strong> ${calc.cashInvested.toLocaleString()}</div>
-        <div><strong>ROI:</strong> {calc.roi.toFixed(1)}%</div>
-        <div><strong>Annualized ROI:</strong> {calc.annualRoi.toFixed(1)}%</div>
-        <div><strong>Profit per Month:</strong> ${calc.profitPerMonth.toFixed(0)}</div>
-        <div><strong>Break-even ARV:</strong> ${calc.breakEvenARV.toLocaleString()}</div>
-      </div>
-
-      {/* Buttons */}
-      <div className="flex gap-4 pt-6">
+      {/* AI + PDF */}
+      <div className="flex flex-wrap gap-4 pt-6">
         <button onClick={handleGenerateSummary} className="bg-blue-600 text-white px-4 py-2 rounded-md">
           {aiLoading ? "Generating..." : "🧠 Generate AI Deal Summary"}
         </button>
@@ -201,9 +245,8 @@ const AnalysisCalculator = ({ investment, totalRehabCost }) => {
         </button>
       </div>
 
-      {/* AI Summary */}
       {aiSummary && (
-        <div className="bg-gray-100 p-4 border rounded-md text-sm whitespace-pre-wrap mt-4">
+        <div className="bg-gray-100 border p-4 mt-4 rounded-md text-sm whitespace-pre-wrap">
           {aiSummary}
         </div>
       )}
