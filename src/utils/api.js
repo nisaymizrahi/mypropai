@@ -345,6 +345,19 @@ export const deletePropertyDocument = async (docId) => {
   if (!res.ok) throw new Error('Failed to delete property document');
   return res.json();
 };
+export const updateTask = async (taskId, updates) => {
+  const res = await fetch(`/api/tasks/${taskId}`, {
+    method: 'PATCH',
+    headers: {
+      ...getAuthHeaders(),
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(updates),
+  });
+
+  if (!res.ok) throw new Error('Failed to update task');
+  return res.json();
+};
 
 // --- AI Tool Functions ---
 export const generateAIDescription = async (data) => {
