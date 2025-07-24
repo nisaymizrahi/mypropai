@@ -4,14 +4,15 @@ import NotificationBell from "./NotificationBell";
 import UserInfoBanner from "./UserInfoBanner";
 import {
   HomeIcon,
-  ClipboardListIcon,
+  ClipboardDocumentListIcon,
   BriefcaseIcon,
   UsersIcon,
-  CogIcon,
+  Cog6ToothIcon,
   PlusCircleIcon,
   ChartBarIcon,
-  FolderOpenIcon,
-} from "@heroicons/react/outline";
+  FolderOpenIcon
+} from '@heroicons/react/24/outline';
+
 
 const navSections = [
   {
