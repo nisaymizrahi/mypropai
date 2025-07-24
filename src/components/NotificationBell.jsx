@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { getNotifications, markNotificationRead } from '../utils/api';
 import { formatDistanceToNow } from 'date-fns';
-import { BellIcon } from '@heroicons/react/outline';
+import { BellIcon } from '@heroicons/react/24/outline';
+
 import toast from 'react-hot-toast';
 
 const NotificationBell = () => {
