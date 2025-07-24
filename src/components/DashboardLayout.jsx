@@ -49,9 +49,13 @@ const navSections = [
 
 const Sidebar = ({ isExpanded, user }) => (
   <aside className={`min-h-screen bg-white border-r border-gray-200 ${isExpanded ? 'w-64' : 'w-20'} transition-all duration-300 flex flex-col`}>
-    <div className="p-4 border-b">
-      <Link to="/dashboard" className="text-xl font-bold text-brand-turquoise block text-center">
-        {isExpanded ? "MyPropAI" : "AI"}
+    <div className="p-4 border-b flex items-center justify-center">
+      <Link to="/dashboard" className="block">
+        <img
+          src="/fliprop_logo.png"
+          alt="Fliprop"
+          className={`${isExpanded ? "h-10 w-auto" : "h-8 w-8 mx-auto"}`}
+        />
       </Link>
     </div>
     <nav className="flex-1 overflow-y-auto px-2 py-4 space-y-6">
