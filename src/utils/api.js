@@ -460,3 +460,14 @@ export const generateBudgetLines = async (input) => {
   if (!res.ok) throw new Error("Failed to generate budget lines");
   return res.json();
 };
+export const getNotifications = async () => {
+  const res = await fetch('/api/notifications', { headers: getAuthHeaders() });
+  return res.json();
+};
+
+export const markNotificationRead = async (id) => {
+  await fetch(`/api/notifications/${id}/read`, {
+    method: 'PATCH',
+    headers: getAuthHeaders(),
+  });
+};
