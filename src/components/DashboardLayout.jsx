@@ -1,39 +1,101 @@
 import React, { useState, useEffect, useRef } from "react";
 import { NavLink, Link } from "react-router-dom";
+import NotificationBell from "./NotificationBell";
 import UserInfoBanner from "./UserInfoBanner";
-import NotificationBell from "./NotificationBell"; // ✅ Added
+import {
+  HomeIcon,
+  ClipboardListIcon,
+  BriefcaseIcon,
+  UsersIcon,
+  CogIcon,
+  PlusCircleIcon,
+  ChartBarIcon,
+  FolderOpenIcon,
+} from "@heroicons/react/outline";
 
-const navLinks = [
-  { to: "/dashboard", text: "Dashboard" },
-  { to: "/leads", text: "Leads" },
-  { to: "/investments", text: "Investments" },
-  { to: "/management", text: "Management" },
-  { to: "/applications", text: "Applications" },
-  { to: "/tools", text: "Financial Tools" },
-  { to: "/investments/new", text: "Add Investment" },
+const navSections = [
+  {
+    title: "Main",
+    links: [
+      { to: "/dashboard", label: "Dashboard", icon: HomeIcon },
+      { to: "/leads", label: "Leads", icon: ClipboardListIcon },
+    ],
+  },
+  {
+    title: "Investments",
+    links: [
+      { to: "/investments", label: "My Investments", icon: BriefcaseIcon },
+      { to: "/investments/new", label: "Add Investment", icon: PlusCircleIcon },
+      { to: "/deal-analysis", label: "Deal Analyzer", icon: ChartBarIcon },
+    ],
+  },
+  {
+    title: "Management",
+    links: [
+      { to: "/management", label: "Properties", icon: FolderOpenIcon },
+      { to: "/applications", label: "Applications", icon: ClipboardListIcon },
+      { to: "/team", label: "Team", icon: UsersIcon },
+    ],
+  },
+  {
+    title: "Tools",
+    links: [
+      { to: "/tools", label: "Financial Tools", icon: ChartBarIcon },
+      { to: "/reports", label: "Reports", icon: ClipboardListIcon },
+    ],
+  },
 ];
 
-const NavItem = ({ to, text, isExpanded, onClick }) => {
-  const activeLinkStyle = "bg-brand-turquoise-100 text-brand-turquoise-600 font-semibold";
-  const inactiveLinkStyle = "text-gray-600 hover:bg-gray-100 hover:text-gray-900";
-
-  return (
-    <NavLink
-      to={to}
-      onClick={onClick}
-      className={({ isActive }) =>
-        `flex items-center p-2 rounded-lg transition-colors duration-200 ${
-          isActive ? activeLinkStyle : inactiveLinkStyle
-        }`
-      }
-    >
-      <span className={`overflow-hidden transition-all ${isExpanded ? "w-40 ml-3" : "w-0"}`}>{text}</span>
-    </NavLink>
-  );
-};
+const Sidebar = ({ isExpanded }) => (
+  <aside className="min-h-screen bg-white border-r border-gray-200 w-20 lg:w-64 transition-all duration-300 flex flex-col">
+    <div className="p-4 border-b">
+      <Link to="/dashboard" className="text-xl font-bold text-brand-turquoise block text-center">
+        {isExpanded ? "MyPropAI" : "AI"}
+      </Link>
+    </div>
+    <nav className="flex-1 overflow-y-auto px-2 py-4 space-y-6">
+      {navSections.map((section, idx) => (
+        <div key={idx}>
+          {isExpanded && (
+            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide px-2 mb-1">
+              {section.title}
+            </div>
+          )}
+          <ul className="space-y-1">
+            {section.links.map((link) => (
+              <li key={link.to}>
+                <NavLink
+                  to={link.to}
+                  className={({ isActive }) =>
+                    `flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition ${
+                      isActive
+                        ? "bg-brand-turquoise-100 text-brand-turquoise-700"
+                        : "text-gray-700 hover:bg-gray-100"
+                    }`
+                  }
+                >
+                  <link.icon className="h-5 w-5" />
+                  {isExpanded && <span>{link.label}</span>}
+                </NavLink>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+    </nav>
+    <div className="p-2">
+      {isExpanded && (
+        <button className="w-full flex items-center justify-center px-3 py-2 border rounded-md text-sm text-gray-600 hover:bg-gray-100">
+          <CogIcon className="h-5 w-5 mr-2" />
+          Settings
+        </button>
+      )}
+    </div>
+  </aside>
+);
 
 function DashboardLayout({ children }) {
-  const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
+  const [isSidebarExpanded, setIsSidebarExpanded] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const mobileMenuRef = useRef(null);
 
@@ -50,57 +112,41 @@ function DashboardLayout({ children }) {
   return (
     <div className="flex min-h-screen bg-gray-50">
       {/* Sidebar */}
-      <aside
+      <div
         onMouseEnter={() => setIsSidebarExpanded(true)}
         onMouseLeave={() => setIsSidebarExpanded(false)}
-        className={`bg-white border-r border-gray-200 hidden lg:flex flex-col transition-all duration-300 ease-in-out z-40 ${
-          isSidebarExpanded ? "w-64" : "w-20"
-        }`}
+        className="hidden lg:flex"
       >
-        <div className="p-4 border-b h-16 flex items-center justify-center">
-          <Link to="/dashboard" className="text-3xl font-bold text-brand-turquoise">
-            {isSidebarExpanded ? "MyPropAI" : "AI"}
-          </Link>
-        </div>
-        <nav className="flex-1 px-4 py-6 space-y-2">
-          {navLinks.map((link) => (
-            <NavItem key={link.to} {...link} isExpanded={isSidebarExpanded} />
-          ))}
-        </nav>
-      </aside>
+        <Sidebar isExpanded={isSidebarExpanded} />
+      </div>
 
-      {/* Main Content */}
+      {/* Mobile Sidebar */}
+      {isMobileMenuOpen && (
+        <div className="fixed inset-0 z-40 flex lg:hidden">
+          <div className="flex-shrink-0 w-64 bg-white border-r border-gray-200">
+            <Sidebar isExpanded={true} />
+          </div>
+          <div
+            className="flex-grow bg-black bg-opacity-25"
+            onClick={() => setIsMobileMenuOpen(false)}
+          />
+        </div>
+      )}
+
+      {/* Main content */}
       <div className="flex-1 flex flex-col">
-        <header className="bg-white border-b border-gray-200 sticky top-0 z-20">
-          <div ref={mobileMenuRef} className="relative">
-            <div className="flex items-center justify-between px-4 h-16">
-              <div className="lg:hidden">
-                <button
-                  onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                  className="p-2 rounded-md hover:bg-gray-100"
-                >
-                  ☰
-                </button>
-              </div>
-              <div className="flex-1 flex justify-end items-center gap-4">
-                <NotificationBell /> {/* 🔔 Added */}
-                <UserInfoBanner />
-              </div>
+        <header className="bg-white border-b border-gray-200 sticky top-0 z-10 px-4">
+          <div className="flex items-center justify-between h-16">
+            <button
+              onClick={() => setIsMobileMenuOpen(true)}
+              className="lg:hidden p-2 rounded-md hover:bg-gray-100"
+            >
+              ☰
+            </button>
+            <div className="flex items-center gap-4">
+              <NotificationBell />
+              <UserInfoBanner />
             </div>
-            {isMobileMenuOpen && (
-              <nav className="lg:hidden border-b bg-white absolute w-full shadow-lg">
-                <div className="px-2 pt-2 pb-3 space-y-1">
-                  {navLinks.map((link) => (
-                    <NavItem
-                      key={link.to}
-                      {...link}
-                      isExpanded={true}
-                      onClick={() => setIsMobileMenuOpen(false)}
-                    />
-                  ))}
-                </div>
-              </nav>
-            )}
           </div>
         </header>
 
