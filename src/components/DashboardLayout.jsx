@@ -13,15 +13,12 @@ import {
   FolderOpenIcon,
 } from '@heroicons/react/24/outline';
 
-
-
-
 const navSections = [
   {
     title: "Main",
     links: [
       { to: "/dashboard", label: "Dashboard", icon: HomeIcon },
-      { to: "/leads", label: "Leads", icon: ClipboardListIcon },
+      { to: "/leads", label: "Leads", icon: ClipboardDocumentListIcon },
     ],
   },
   {
@@ -36,7 +33,7 @@ const navSections = [
     title: "Management",
     links: [
       { to: "/management", label: "Properties", icon: FolderOpenIcon },
-      { to: "/applications", label: "Applications", icon: ClipboardListIcon },
+      { to: "/applications", label: "Applications", icon: ClipboardDocumentListIcon },
       { to: "/team", label: "Team", icon: UsersIcon },
     ],
   },
@@ -44,7 +41,7 @@ const navSections = [
     title: "Tools",
     links: [
       { to: "/tools", label: "Financial Tools", icon: ChartBarIcon },
-      { to: "/reports", label: "Reports", icon: ClipboardListIcon },
+      { to: "/reports", label: "Reports", icon: ClipboardDocumentListIcon },
     ],
   },
 ];
@@ -89,7 +86,7 @@ const Sidebar = ({ isExpanded }) => (
     <div className="p-2">
       {isExpanded && (
         <button className="w-full flex items-center justify-center px-3 py-2 border rounded-md text-sm text-gray-600 hover:bg-gray-100">
-          <CogIcon className="h-5 w-5 mr-2" />
+          <Cog6ToothIcon className="h-5 w-5 mr-2" />
           Settings
         </button>
       )}
