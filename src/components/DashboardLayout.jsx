@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { NavLink, Link } from "react-router-dom";
 import NotificationBell from "./NotificationBell";
 import UserInfoBanner from "./UserInfoBanner";
+import { useAuth } from "../context/AuthContext";
 import {
   HomeIcon,
   ClipboardDocumentListIcon,
@@ -46,8 +47,8 @@ const navSections = [
   },
 ];
 
-const Sidebar = ({ isExpanded }) => (
-  <aside className="min-h-screen bg-white border-r border-gray-200 w-20 lg:w-64 transition-all duration-300 flex flex-col">
+const Sidebar = ({ isExpanded, user }) => (
+  <aside className={`min-h-screen bg-white border-r border-gray-200 ${isExpanded ? 'w-64' : 'w-20'} transition-all duration-300 flex flex-col`}>
     <div className="p-4 border-b">
       <Link to="/dashboard" className="text-xl font-bold text-brand-turquoise block text-center">
         {isExpanded ? "MyPropAI" : "AI"}
@@ -67,10 +68,10 @@ const Sidebar = ({ isExpanded }) => (
                 <NavLink
                   to={link.to}
                   className={({ isActive }) =>
-                    `flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition ${
+                    `flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-all duration-200 border-l-4 ${
                       isActive
-                        ? "bg-brand-turquoise-100 text-brand-turquoise-700"
-                        : "text-gray-700 hover:bg-gray-100"
+                        ? "bg-brand-turquoise-50 text-brand-turquoise-700 border-brand-turquoise"
+                        : "text-gray-700 border-transparent hover:bg-gray-100"
                     }`
                   }
                 >
@@ -83,6 +84,21 @@ const Sidebar = ({ isExpanded }) => (
         </div>
       ))}
     </nav>
+    <div className="px-4 py-3 border-t border-gray-100">
+      {isExpanded ? (
+        <div className="text-sm text-gray-600">
+          <NotificationBell />
+          <div className="mt-2">
+            Logged in as<br />
+            <strong className="text-brand-turquoise">{user?.name}</strong>
+          </div>
+        </div>
+      ) : (
+        <div className="flex flex-col items-center gap-3">
+          <NotificationBell />
+        </div>
+      )}
+    </div>
     <div className="p-2">
       {isExpanded && (
         <button className="w-full flex items-center justify-center px-3 py-2 border rounded-md text-sm text-gray-600 hover:bg-gray-100">
@@ -95,9 +111,10 @@ const Sidebar = ({ isExpanded }) => (
 );
 
 function DashboardLayout({ children }) {
-  const [isSidebarExpanded, setIsSidebarExpanded] = useState(true);
+  const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const mobileMenuRef = useRef(null);
+  const { user } = useAuth();
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -117,14 +134,14 @@ function DashboardLayout({ children }) {
         onMouseLeave={() => setIsSidebarExpanded(false)}
         className="hidden lg:flex"
       >
-        <Sidebar isExpanded={isSidebarExpanded} />
+        <Sidebar isExpanded={isSidebarExpanded} user={user} />
       </div>
 
       {/* Mobile Sidebar */}
       {isMobileMenuOpen && (
         <div className="fixed inset-0 z-40 flex lg:hidden">
           <div className="flex-shrink-0 w-64 bg-white border-r border-gray-200">
-            <Sidebar isExpanded={true} />
+            <Sidebar isExpanded={true} user={user} />
           </div>
           <div
             className="flex-grow bg-black bg-opacity-25"
