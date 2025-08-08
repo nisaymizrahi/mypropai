@@ -20,7 +20,7 @@ const ReportDownloader = ({ comps, subject, roiData }) => {
     }
     
     const doc = new jsPDF();
-    const pageTitle = "MyPropAI Property Analysis Report";
+    const pageTitle = "Fliprop Property Analysis Report";
     const reportDate = new Date().toLocaleDateString();
 
     // --- NEW: Improved PDF Generation Logic ---
@@ -83,7 +83,7 @@ const ReportDownloader = ({ comps, subject, roiData }) => {
         });
     }
 
-    doc.save(`MyPropAI_Report_${subject.address.replace(/ /g, '_')}.pdf`);
+    doc.save(`Fliprop_Report_${subject.address.replace(/ /g, '_')}.pdf`);
   };
 
   return (

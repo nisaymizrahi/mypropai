@@ -17,7 +17,7 @@ const Homepage = () => {
             {/* Header */}
             <header className="bg-white shadow-sm">
                 <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
-                    <h1 className="text-2xl font-bold text-brand-turquoise">MyPropAI</h1>
+                    <h1 className="text-2xl font-bold text-brand-turquoise">Fliprop</h1>
                     <div className="space-x-4">
                         <button onClick={() => navigate('/tenant-login')} className="text-gray-600 hover:text-brand-turquoise font-semibold">
                             Tenant Login
@@ -35,7 +35,7 @@ const Homepage = () => {
                     Smarter Property & Investment Management
                 </h2>
                 <p className="mt-4 max-w-2xl mx-auto text-xl text-gray-500">
-                    From deal analysis to tenant communication, MyPropAI provides the tools you need to manage your real estate portfolio like a pro.
+                    From deal analysis to tenant communication, Fliprop provides the tools you need to manage your real estate portfolio like a pro.
                 </p>
                 <div className="mt-8">
                     <button onClick={() => navigate('/login')} className="text-lg bg-brand-turquoise text-white font-semibold px-8 py-3 rounded-md hover:bg-brand-turquoise-600">
@@ -71,7 +71,7 @@ const Homepage = () => {
             {/* Footer */}
             <footer className="bg-gray-800 text-white py-8">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-                    <p>&copy; 2025 MyPropAI. All rights reserved.</p>
+                    <p>&copy; 2025 Fliprop. All rights reserved.</p>
                 </div>
             </footer>
         </div>

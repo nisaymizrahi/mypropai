@@ -5,7 +5,7 @@ import PropertyForm from "../components/PropertyForm";
 import CompTable from "../components/CompTable";
 import ROICalculator from "../components/ROICalculator";
 import ReportDownloader from "../components/ReportDownloader";
-import fetchRealtorComps from "../utils/fetchRealtorComps";
+import fetchAttomComps from "../utils/fetchAttomComps";
 
 const CompsPage = () => {
   const [coords, setCoords] = useState({ lat: 40.7484, lng: -73.9857 });
@@ -19,6 +19,7 @@ const CompsPage = () => {
     const mapboxToken = process.env.REACT_APP_MAPBOX_TOKEN;
 
     try {
+      // 1) Geocode with Mapbox
       const res = await fetch(
         `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodedAddress}.json?access_token=${mapboxToken}`
       );
@@ -31,10 +32,12 @@ const CompsPage = () => {
       const [lng, lat] = json.features[0].center;
       setCoords({ lat, lng });
 
-      const comps = await fetchRealtorComps(lat, lng, formData);
-      setComps(comps);
+      // 2) Get comps from protected backend
+      const results = await fetchAttomComps(lat, lng, formData);
+      setComps(results || []);
 
-      const firstComp = comps[0] || {};
+      // 3) Seed subject details from first comp if your form doesn't include them
+      const firstComp = (results && results[0]) || {};
       setSubject({
         address: formData.address,
         lat,
@@ -57,7 +60,7 @@ const CompsPage = () => {
     <div className="min-h-screen bg-gray-50 text-gray-800 p-6">
       <div className="max-w-5xl mx-auto">
         <h1 className="text-4xl font-bold text-purple-700 mb-6 text-center">
-          MyPropAI: Real Estate Comp Tool
+          Fliprop: Real Estate Comp Tool
         </h1>
 
         <div className="mb-6">
