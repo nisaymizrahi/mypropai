@@ -1,68 +1,54 @@
+// client/src/components/MapView.js
 import React, { useEffect, useRef } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 
-mapboxgl.accessToken = process.env.REACT_APP_MAPBOX_TOKEN;
-
-const MapView = ({ latitude, longitude, zoom = 13, markers = [] }) => {
-  const mapContainer = useRef(null);
+const MapView = ({ latitude, longitude, markers = [], zoom = 14 }) => {
+  const mapContainerRef = useRef(null);
   const mapRef = useRef(null);
-  const markerRefs = useRef([]);
 
   useEffect(() => {
-    if (!mapRef.current) {
+    mapboxgl.accessToken = process.env.REACT_APP_MAPBOX_TOKEN || "";
+    if (!mapRef.current && mapContainerRef.current) {
       mapRef.current = new mapboxgl.Map({
-        container: mapContainer.current,
-        style: "mapbox://styles/mapbox/streets-v12",
+        container: mapContainerRef.current,
+        style: "mapbox://styles/mapbox/streets-v11",
         center: [longitude, latitude],
-        zoom
+        zoom,
       });
-      mapRef.current.addControl(new mapboxgl.NavigationControl(), "top-right");
     }
+    return () => {};
+  }, []); // init once
 
-    mapRef.current.flyTo({ center: [longitude, latitude], zoom });
+  useEffect(() => {
+    if (mapRef.current) {
+      mapRef.current.setCenter([longitude, latitude]);
+      mapRef.current.setZoom(zoom);
+    }
+  }, [latitude, longitude, zoom]);
 
-    // Clear previous markers
-    markerRefs.current.forEach((m) => m.remove());
-    markerRefs.current = [];
+  useEffect(() => {
+    if (!mapRef.current) return;
 
-    // Add new markers
-    markers.forEach(({ id, lat, lng, color, address, price, beds, baths, sqft }) => {
+    // Remove existing markers (store them on the map instance)
+    if (!mapRef.current._mypropai_markers) mapRef.current._mypropai_markers = [];
+    mapRef.current._mypropai_markers.forEach((m) => m.remove());
+    mapRef.current._mypropai_markers = [];
+
+    // Create markers
+    markers.forEach((m) => {
       const el = document.createElement("div");
-      el.className = "marker";
-      el.style.backgroundColor = color || "#3FB1CE";
-      el.style.width = "14px";
-      el.style.height = "14px";
-      el.style.borderRadius = "50%";
-      el.style.border = "2px solid white";
+      el.style.width = "12px";
+      el.style.height = "12px";
+      el.style.borderRadius = "9999px";
+      el.style.background = m.color || "#EF4444";
 
-      const marker = new mapboxgl.Marker(el).setLngLat([lng, lat]);
-
-      const popup = new mapboxgl.Popup({ offset: 24 }).setHTML(`
-        <div style="font-family: sans-serif; font-size: 13px;">
-          <strong>${address || "Unknown Property"}</strong><br/>
-          ${beds || "?"} bd / ${baths || "?"} ba<br/>
-          ${sqft ? sqft.toLocaleString() + " sqft<br/>" : ""}
-          ${price ? "<strong>$" + price.toLocaleString() + "</strong>" : ""}
-        </div>
-      `);
-
-      marker.setPopup(popup).addTo(mapRef.current);
-      markerRefs.current.push(marker);
+      const marker = new mapboxgl.Marker(el).setLngLat([m.lng, m.lat]).addTo(mapRef.current);
+      mapRef.current._mypropai_markers.push(marker);
     });
-  }, [latitude, longitude, zoom, markers]);
+  }, [markers]);
 
-  return (
-    <div
-      ref={mapContainer}
-      style={{
-        width: "100%",
-        height: "400px",
-        borderRadius: "8px",
-        boxShadow: "0 0 8px rgba(0,0,0,0.2)"
-      }}
-    />
-  );
+  return <div ref={mapContainerRef} className="w-full h-[380px] rounded-md" />;
 };
 
 export default MapView;

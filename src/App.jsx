@@ -16,6 +16,9 @@ import { AuthProvider } from "./context/AuthContext";
 import ApplicationsPage from "./pages/ApplicationsPage";
 import SendApplicationPage from "./pages/SendApplicationPage";
 import ApplicationSuccessPage from "./pages/ApplicationSuccessPage";
+import CompsPage from "./pages/CompsPage";
+import ProtectedRoute from "./components/ProtectedRoute";
+import LoginContinuePage from "./pages/LoginContinuePage"; // you already have this
 
 import ManagementDashboard from "./pages/ManagementDashboard";
 import ManagedPropertyDetail from "./pages/ManagedPropertyDetail";
@@ -100,6 +103,15 @@ function App() {
               </ProtectedRoute>
             }
           />
+<Route path="/login-continue" element={<LoginContinuePage />} />
+<Route
+  path="/comps"
+  element={
+    <ProtectedRoute>
+      <CompsPage />
+    </ProtectedRoute>
+  }
+/>
 
           <Route
             path="/leads"
