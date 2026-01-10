@@ -1,7 +1,11 @@
 import React, { useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
-import { Toaster } from 'react-hot-toast';
+import { Toaster } from "react-hot-toast";
+
 import DashboardLayout from "./components/DashboardLayout";
+import ProtectedRoute from "./components/ProtectedRoute";
+import TenantProtectedRoute from "./components/TenantProtectedRoute";
+
 import DashboardPage from "./pages/DashboardPage";
 import CompsTool from "./pages/CompsTool";
 import NewInvestment from "./pages/NewInvestment";
@@ -10,15 +14,10 @@ import InvestmentDetail from "./pages/InvestmentDetail";
 import EditInvestment from "./pages/EditInvestment";
 import LoginPage from "./pages/LoginPage";
 import LoginContinuePage from "./pages/LoginContinuePage";
-import ProtectedRoute from "./components/ProtectedRoute";
-import { setTokenCookieFromURL } from "./utils/setTokenFromURL";
-import { AuthProvider } from "./context/AuthContext";
 import ApplicationsPage from "./pages/ApplicationsPage";
 import SendApplicationPage from "./pages/SendApplicationPage";
 import ApplicationSuccessPage from "./pages/ApplicationSuccessPage";
 import CompsPage from "./pages/CompsPage";
-import ProtectedRoute from "./components/ProtectedRoute";
-import LoginContinuePage from "./pages/LoginContinuePage"; // you already have this
 
 import ManagementDashboard from "./pages/ManagementDashboard";
 import ManagedPropertyDetail from "./pages/ManagedPropertyDetail";
@@ -26,7 +25,6 @@ import LeaseDetailPage from "./pages/LeaseDetailPage";
 import InvitePage from "./pages/InvitePage";
 import TenantLoginPage from "./pages/TenantLoginPage";
 import TenantDashboard from "./pages/TenantDashboard";
-import TenantProtectedRoute from "./components/TenantProtectedRoute";
 import Homepage from "./pages/Homepage";
 import SignupPage from "./pages/SignupPage";
 import AccountCenter from "./pages/AccountCenter";
@@ -35,9 +33,10 @@ import UnitListingPage from "./pages/UnitListingPage";
 import LeadsPage from "./pages/LeadsPage";
 import LeadDetailPage from "./pages/LeadDetailPage";
 import ApplicationFormPage from "./pages/ApplicationFormPage";
-// 1. IMPORT THE NEW APPLICATION DETAIL PAGE
 import ApplicationDetailPage from "./pages/ApplicationDetailPage";
 
+import { setTokenCookieFromURL } from "./utils/setTokenFromURL";
+import { AuthProvider } from "./context/AuthContext";
 
 function App() {
   useEffect(() => {
@@ -54,11 +53,11 @@ function App() {
           <Route path="/" element={<Homepage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/login-continue" element={<LoginContinuePage />} />
+          <Route path="/signup" element={<SignupPage />} />
           <Route path="/invite/:token" element={<InvitePage />} />
           <Route path="/tenant-login" element={<TenantLoginPage />} />
-          <Route path="/signup" element={<SignupPage />} />
           <Route path="/apply/:unitId" element={<ApplicationFormPage />} />
-
+          <Route path="/apply/success" element={<ApplicationSuccessPage />} />
 
           {/* --- Protected Tenant Route --- */}
           <Route
@@ -81,7 +80,7 @@ function App() {
               </ProtectedRoute>
             }
           />
-          
+
           <Route
             path="/account"
             element={
@@ -103,15 +102,30 @@ function App() {
               </ProtectedRoute>
             }
           />
-<Route path="/login-continue" element={<LoginContinuePage />} />
-<Route
-  path="/comps"
-  element={
-    <ProtectedRoute>
-      <CompsPage />
-    </ProtectedRoute>
-  }
-/>
+
+          {/* Comps (main) */}
+          <Route
+            path="/comps"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <CompsPage />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Keep old comps tool without deleting it */}
+          <Route
+            path="/comps-tool"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <CompsTool />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
 
           <Route
             path="/leads"
@@ -123,7 +137,7 @@ function App() {
               </ProtectedRoute>
             }
           />
-          
+
           <Route
             path="/leads/:id"
             element={
@@ -167,7 +181,7 @@ function App() {
               </ProtectedRoute>
             }
           />
-          
+
           <Route
             path="/management/units/:unitId/listing"
             element={
@@ -179,24 +193,34 @@ function App() {
             }
           />
 
-          {/* 2. ADD THE NEW APPLICATION DETAIL ROUTE */}
           <Route
-            path="/applications/:id"
+            path="/applications"
             element={
               <ProtectedRoute>
                 <DashboardLayout>
-                  <ApplicationDetailPage />
+                  <ApplicationsPage />
                 </DashboardLayout>
               </ProtectedRoute>
             }
           />
 
           <Route
-            path="/comps"
+            path="/applications/send"
             element={
               <ProtectedRoute>
                 <DashboardLayout>
-                  <CompsTool />
+                  <SendApplicationPage />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/applications/:id"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <ApplicationDetailPage />
                 </DashboardLayout>
               </ProtectedRoute>
             }
@@ -223,18 +247,6 @@ function App() {
               </ProtectedRoute>
             }
           />
-            <Route
-  path="/applications/send"
-  element={
-    <ProtectedRoute>
-      <DashboardLayout>
-        <SendApplicationPage />
-      </DashboardLayout>
-    </ProtectedRoute>
-  }
-/>
-          <Route path="/apply/success" element={<ApplicationSuccessPage />} />
-
 
           <Route
             path="/investments/:id"
@@ -256,19 +268,7 @@ function App() {
                 </DashboardLayout>
               </ProtectedRoute>
             }
-            
           />
-          <Route
-  path="/applications"
-  element={
-    <ProtectedRoute>
-      <DashboardLayout>
-        <ApplicationsPage />
-      </DashboardLayout>
-    </ProtectedRoute>
-  }
-/>
-
 
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
