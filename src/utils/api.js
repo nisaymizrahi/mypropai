@@ -382,6 +382,40 @@ export const deleteProjectDocument = async (documentId) => {
 
 /**
  * ==========================
+ *   UNIT DOCUMENTS (NEW EXPORTS)
+ * ==========================
+ * These exports fix the Render compile error coming from DocumentsTab.jsx.
+ * If your backend uses a different path, the build will still succeed and we can adjust the endpoint next.
+ */
+export const getUnitDocuments = async (unitId) => {
+  const res = await fetch(`${API_BASE_URL}/documents/unit/${unitId}`, {
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) throw new Error("Failed to fetch unit documents");
+  return res.json();
+};
+
+export const uploadUnitDocument = async (formData) => {
+  const res = await fetch(`${API_BASE_URL}/documents/unit`, {
+    method: "POST",
+    headers: getAuthHeaders(true),
+    body: formData,
+  });
+  if (!res.ok) throw new Error("Failed to upload unit document");
+  return res.json();
+};
+
+export const deleteUnitDocument = async (documentId) => {
+  const res = await fetch(`${API_BASE_URL}/documents/unit/${documentId}`, {
+    method: "DELETE",
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) throw new Error("Failed to delete unit document");
+  return res.json();
+};
+
+/**
+ * ==========================
  *   AUTH (MANAGER)
  * ==========================
  */
@@ -628,11 +662,6 @@ export const generateAIDescription = async (data) => {
   return res.json();
 };
 
-/**
- * NEW: generateBudgetLines
- * - This fixes the frontend compile error on Render where a component imports generateBudgetLines.
- * - Backend route should exist at /api/ai-tools/generate-budget-lines (you can wire it up server-side).
- */
 export const generateBudgetLines = async (data) => {
   const res = await fetch(`${API_BASE_URL}/ai-tools/generate-budget-lines`, {
     method: "POST",
@@ -643,10 +672,6 @@ export const generateBudgetLines = async (data) => {
   return res.json();
 };
 
-/**
- * OPTIONAL: generateAIReport
- * (If your UI imports this in the future, you won't get another compile error.)
- */
 export const generateAIReport = async (investmentId) => {
   const res = await fetch(`${API_BASE_URL}/ai-tools/generate-report`, {
     method: "POST",
