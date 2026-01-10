@@ -628,9 +628,34 @@ export const generateAIDescription = async (data) => {
   return res.json();
 };
 
-// If you have server endpoints for these, point them to API_BASE_URL similarly:
-// export const generateAIReport = async (investmentId) => { ... }
-// export const generateBudgetLines = async (input) => { ... }
+/**
+ * NEW: generateBudgetLines
+ * - This fixes the frontend compile error on Render where a component imports generateBudgetLines.
+ * - Backend route should exist at /api/ai-tools/generate-budget-lines (you can wire it up server-side).
+ */
+export const generateBudgetLines = async (data) => {
+  const res = await fetch(`${API_BASE_URL}/ai-tools/generate-budget-lines`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error((await res.json()).msg || "Failed to generate budget lines");
+  return res.json();
+};
+
+/**
+ * OPTIONAL: generateAIReport
+ * (If your UI imports this in the future, you won't get another compile error.)
+ */
+export const generateAIReport = async (investmentId) => {
+  const res = await fetch(`${API_BASE_URL}/ai-tools/generate-report`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ investmentId }),
+  });
+  if (!res.ok) throw new Error((await res.json()).msg || "Failed to generate AI report");
+  return res.json();
+};
 
 /**
  * ==========================
