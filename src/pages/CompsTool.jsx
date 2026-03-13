@@ -4,7 +4,8 @@ import PropertyForm from "../components/PropertyForm";
 import CompTable from "../components/CompTable";
 import ROICalculator from "../components/ROICalculator";
 import ReportDownloader from "../components/ReportDownloader";
-import fetchComps from "../utils/fetchAttomComps"; // FIXED: Importing from the new, correct file.
+import { geocodeAddress } from "../utils/api";
+import fetchMarketComps from "../utils/fetchMarketComps";
 
 const LoadingSpinner = () => (
     <div className="flex justify-center items-center p-8">
@@ -36,13 +37,7 @@ const CompsTool = () => {
     setSubjectMarker(null);
     
     try {
-      const encodedAddress = encodeURIComponent(formData.address);
-      const mapboxToken = process.env.REACT_APP_MAPBOX_TOKEN;
-
-      const geocodeRes = await fetch(
-        `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodedAddress}.json?access_token=${mapboxToken}`
-      );
-      const geocodeJson = await geocodeRes.json();
+      const geocodeJson = await geocodeAddress(formData.address);
       if (!geocodeJson.features?.length) {
         throw new Error("Address not found by Mapbox. Please try a more specific address.");
       }
@@ -50,7 +45,7 @@ const CompsTool = () => {
       const [lng, lat] = geocodeJson.features[0].center;
       setCoords({ lat, lng });
 
-      const fetchedComps = await fetchComps({ ...formData, lat, lng });
+      const fetchedComps = await fetchMarketComps({ ...formData, address: formData.address, lat, lng });
       setComps(fetchedComps);
 
       const firstComp = fetchedComps.length > 0 ? fetchedComps[0] : {};
@@ -63,11 +58,12 @@ const CompsTool = () => {
         sqft: firstComp.sqft,
         price: firstComp.price,
         saleDate: firstComp.saleDate,
+        status: firstComp.status,
       });
       setSubjectMarker({ id: "subject", lat, lng, color: "#00BFFF" });
 
       if (fetchedComps.length === 0) {
-        setError("Address found, but no comparable sales were returned from Attom for that area.");
+        setError("Address found, but no comparable properties were returned for that area.");
       }
 
     } catch (err) {
@@ -83,12 +79,12 @@ const CompsTool = () => {
       <div>
         <h1 className="text-3xl font-bold text-brand-dark-100">Comps Tool</h1>
         <p className="text-lg text-brand-dark-400 mt-1">
-            Find and analyze comparable property sales using Attom Data.
+            Find and analyze nearby market comparables using live property data.
         </p>
       </div>
 
       <div className="bg-brand-slate-100 rounded-lg p-6 border border-brand-dark-800">
-        <PropertyForm onSubmit={handleSearch} isLoading={isLoading} />
+        <PropertyForm onSubmit={handleSearch} loading={isLoading} />
       </div>
 
       {isLoading && <LoadingSpinner />}

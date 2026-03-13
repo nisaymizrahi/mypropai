@@ -41,7 +41,7 @@ const PropertyForm = ({ onSubmit, loading }) => {
           required
         />
         <p className="text-xs text-gray-500 mt-1">
-          (Autocomplete coming in M2 – using Mapbox Geocoder UI)
+          Search an address to pull nearby comparable properties and pricing signals.
         </p>
       </div>
 
@@ -122,7 +122,7 @@ const PropertyForm = ({ onSubmit, loading }) => {
           disabled={loading}
           className="px-4 py-2 rounded-md bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-60"
         >
-          {loading ? "Searching..." : "Search Comps"}
+          {loading ? "Searching..." : "Search Market Comps"}
         </button>
       </div>
     </form>
