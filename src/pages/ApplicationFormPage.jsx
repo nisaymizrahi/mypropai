@@ -19,24 +19,6 @@ const applicantFields = [
   { key: "dateOfBirth", label: "Date of birth", type: "date", placeholder: "" },
 ];
 
-const publicBenefits = [
-  {
-    title: "Secure submission",
-    description: "Your details are sent directly to the property manager for review.",
-    icon: ShieldCheckIcon,
-  },
-  {
-    title: "Guided review",
-    description: "The property team can move you through payment and screening faster.",
-    icon: UserGroupIcon,
-  },
-  {
-    title: "Unit-specific",
-    description: "This application is tied to the exact unit you were invited to apply for.",
-    icon: HomeModernIcon,
-  },
-];
-
 const applicationSteps = [
   {
     key: "applicant",
@@ -105,6 +87,7 @@ const SummaryItem = ({ label, value }) => (
 const ApplicationFormPage = () => {
   const { unitId } = useParams();
   const [searchParams] = useSearchParams();
+  const inviteToken = searchParams.get("invite") || "";
 
   const [unitInfo, setUnitInfo] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -125,14 +108,16 @@ const ApplicationFormPage = () => {
 
   useEffect(() => {
     const fetchUnitInfo = async () => {
-      if (!unitId) {
+      if (!unitId && !inviteToken) {
         setLoadError("This application link is invalid.");
         setLoading(false);
         return;
       }
 
       try {
-        const data = await getPublicApplicationDetails(unitId);
+        const data = await getPublicApplicationDetails(
+          inviteToken ? { inviteToken } : { unitId }
+        );
         setUnitInfo(data);
         setLoadError("");
       } catch (err) {
@@ -144,7 +129,7 @@ const ApplicationFormPage = () => {
     };
 
     fetchUnitInfo();
-  }, [unitId]);
+  }, [inviteToken, unitId]);
 
   useEffect(() => {
     if (searchParams.get("payment") === "cancelled") {
@@ -155,6 +140,43 @@ const ApplicationFormPage = () => {
   }, [searchParams]);
 
   const currentStep = applicationSteps[activeStep];
+  const applicationHeadline = unitInfo?.title || "Rental application";
+  const applicationSummary =
+    unitInfo?.summary ||
+    "Complete this guided rental application and the property manager will review your information.";
+  const unitSummaryLabel =
+    unitInfo?.unitName ||
+    (unitInfo?.applicationScope === "property" ? "Unit to be assigned" : "General application");
+  const publicBenefits = useMemo(
+    () => [
+      {
+        title: "Secure submission",
+        description: "Your details are sent directly to the property manager for review.",
+        icon: ShieldCheckIcon,
+      },
+      {
+        title: "Guided review",
+        description: "The property team can move you through payment and screening faster.",
+        icon: UserGroupIcon,
+      },
+      {
+        title:
+          unitInfo?.applicationScope === "unit"
+            ? "Unit-specific"
+            : unitInfo?.applicationScope === "property"
+              ? "Property-aware"
+              : "Flexible placement",
+        description:
+          unitInfo?.applicationScope === "unit"
+            ? "This application is tied to the exact unit you were invited to apply for."
+            : unitInfo?.applicationScope === "property"
+              ? "This application stays connected to the selected property even without a unit assignment."
+              : "This application can be reviewed and matched to the right property later.",
+        icon: HomeModernIcon,
+      },
+    ],
+    [unitInfo?.applicationScope]
+  );
 
   const completedStepCount = useMemo(() => {
     let completed = 0;
@@ -302,6 +324,7 @@ const ApplicationFormPage = () => {
       setIsSubmitting(true);
       const payload = {
         unitId,
+        inviteToken: inviteToken || undefined,
         ...formData,
       };
       const response = await submitApplication(payload);
@@ -665,10 +688,10 @@ const ApplicationFormPage = () => {
         <header className="surface-panel flex items-center justify-between px-5 py-4">
           <Link to="/" className="flex items-center gap-4">
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-ink-900 text-lg font-bold text-white">
-              MP
+              FL
             </div>
             <div>
-              <p className="font-display text-2xl leading-none text-ink-900">MyPropAI</p>
+              <p className="font-display text-2xl leading-none text-ink-900">Fliprop</p>
               <p className="mt-1 text-sm text-ink-500">Rental application</p>
             </div>
           </Link>
@@ -684,20 +707,21 @@ const ApplicationFormPage = () => {
               <div>
                 <span className="eyebrow">Application intake</span>
                 <h1 className="mt-6 max-w-3xl font-display text-4xl leading-[1.05] text-balance text-ink-900 sm:text-[3.75rem]">
-                  Apply for {unitInfo.unitName}.
+                  {applicationHeadline}.
                 </h1>
                 <p className="mt-5 max-w-2xl text-base leading-7 text-ink-600">
-                  Complete this guided application for {unitInfo.address}. The property manager will
-                  review your information and follow up with the next step after submission.
+                  {applicationSummary}
                 </p>
               </div>
 
               <div className="section-card p-6">
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-400">
-                  Unit summary
+                  Application summary
                 </p>
-                <h2 className="mt-3 text-2xl font-semibold text-ink-900">{unitInfo.address}</h2>
-                <p className="mt-2 text-sm text-ink-500">Unit {unitInfo.unitName}</p>
+                <h2 className="mt-3 text-2xl font-semibold text-ink-900">
+                  {unitInfo.propertyAddress || unitInfo.ownerName || "General application"}
+                </h2>
+                <p className="mt-2 text-sm text-ink-500">{unitSummaryLabel}</p>
                 <div className="mt-5 rounded-[18px] bg-sand-50 px-4 py-4">
                   <p className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-400">
                     Application fee

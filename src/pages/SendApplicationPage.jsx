@@ -1,181 +1,248 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
-  ClipboardDocumentListIcon,
+  EnvelopeIcon,
+  HomeModernIcon,
   LinkIcon,
   PaperAirplaneIcon,
 } from "@heroicons/react/24/outline";
 import toast from "react-hot-toast";
 
-import { API_BASE_URL } from "../config";
-import { getAuthHeaders, getManagedProperties } from "../utils/api";
+import { createApplicationInvite, getManagedProperties } from "../utils/api";
 
-const LoadingCard = () => (
+const scopeOptions = [
+  {
+    value: "portfolio",
+    label: "General application",
+    description: "Send a portfolio-wide application without tying it to a property or unit yet.",
+  },
+  {
+    value: "property",
+    label: "Specific property",
+    description: "Keep the application tied to one property while leaving the unit flexible.",
+  },
+  {
+    value: "unit",
+    label: "Specific unit",
+    description: "Send the application for an exact unit when you already know the placement.",
+  },
+];
+
+const LoadingCard = ({ children }) => (
   <div className="rounded-[24px] border border-ink-100 bg-white px-5 py-10 text-center text-ink-500">
-    Loading vacant units...
+    {children}
   </div>
 );
 
-const buildPropertyQuery = (propertyId) =>
-  propertyId ? `?${new URLSearchParams({ propertyId }).toString()}` : "";
-
 const SendApplicationPage = () => {
-  const [units, setUnits] = useState([]);
-  const [managedProperties, setManagedProperties] = useState([]);
-  const [selectedUnit, setSelectedUnit] = useState("");
-  const [generatedLink, setGeneratedLink] = useState("");
-  const [apiError, setApiError] = useState(false);
-  const [managementError, setManagementError] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const propertyIdParam = searchParams.get("propertyId") || "";
-  const unitIdParam = searchParams.get("unitId") || "";
+  const [managedProperties, setManagedProperties] = useState([]);
+  const [generatedLink, setGeneratedLink] = useState("");
+  const [scope, setScope] = useState(
+    scopeOptions.some((option) => option.value === searchParams.get("scope"))
+      ? searchParams.get("scope")
+      : "portfolio"
+  );
+  const [selectedPropertyId, setSelectedPropertyId] = useState(searchParams.get("propertyId") || "");
+  const [selectedUnitId, setSelectedUnitId] = useState(searchParams.get("unitId") || "");
+  const [recipientName, setRecipientName] = useState("");
+  const [recipientEmail, setRecipientEmail] = useState("");
+  const [note, setNote] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [isSending, setIsSending] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
 
-    const fetchPageData = async () => {
-      setIsLoading(true);
-      setApiError(false);
-      setManagementError(false);
-
-      const [unitsResult, managementResult] = await Promise.allSettled([
-        fetch(`${API_BASE_URL}/management/units/vacant`, {
-          headers: getAuthHeaders(),
-        }),
-        getManagedProperties(),
-      ]);
-
-      if (!isMounted) {
-        return;
-      }
-
-      if (unitsResult.status === "fulfilled") {
-        if (unitsResult.value.ok) {
-          const data = await unitsResult.value.json();
-          if (isMounted) {
-            setUnits(data || []);
-          }
-        } else {
-          setApiError(true);
-          toast.error("Failed to load vacant units. Try again after your units finish loading.");
+    const fetchManagedProperties = async () => {
+      try {
+        setIsLoading(true);
+        const data = await getManagedProperties();
+        if (!isMounted) {
+          return;
         }
-      } else {
-        setApiError(true);
-        toast.error("Failed to load vacant units. Try again after your units finish loading.");
-      }
 
-      if (managementResult.status === "fulfilled") {
-        setManagedProperties(managementResult.value || []);
-      } else {
-        setManagementError(true);
+        setManagedProperties(data || []);
+      } catch (error) {
+        if (isMounted) {
+          toast.error(error.message || "Failed to load managed properties");
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
-
-      setIsLoading(false);
     };
 
-    fetchPageData();
+    fetchManagedProperties();
 
     return () => {
       isMounted = false;
     };
   }, []);
 
-  const selectedPropertyId = useMemo(() => {
-    if (managedProperties.some((property) => property._id === propertyIdParam)) {
-      return propertyIdParam;
-    }
-
-    if (!isLoading && managedProperties.length === 1) {
-      return managedProperties[0]._id;
-    }
-
-    return "";
-  }, [isLoading, managedProperties, propertyIdParam]);
-
-  useEffect(() => {
-    if (isLoading) {
-      return;
-    }
-
-    if (selectedPropertyId && propertyIdParam !== selectedPropertyId) {
-      setSearchParams({ propertyId: selectedPropertyId }, { replace: true });
-      return;
-    }
-
-    if (!selectedPropertyId && propertyIdParam) {
-      setSearchParams({}, { replace: true });
-    }
-  }, [isLoading, propertyIdParam, selectedPropertyId, setSearchParams]);
+  const allUnits = useMemo(
+    () =>
+      managedProperties.flatMap((property) =>
+        (property.units || []).map((unit) => ({
+          ...unit,
+          property: {
+            _id: property._id,
+            address: property.address,
+          },
+        }))
+      ),
+    [managedProperties]
+  );
 
   const selectedProperty = useMemo(
     () => managedProperties.find((property) => property._id === selectedPropertyId) || null,
     [managedProperties, selectedPropertyId]
   );
 
-  const availableUnits = useMemo(() => {
-    if (managedProperties.length > 1 && !selectedPropertyId) {
-      return [];
-    }
-
+  const visibleUnits = useMemo(() => {
     if (!selectedPropertyId) {
-      return units;
+      return allUnits;
     }
 
-    return units.filter((unit) => unit.property?._id === selectedPropertyId);
-  }, [managedProperties.length, selectedPropertyId, units]);
+    return allUnits.filter((unit) => unit.property?._id === selectedPropertyId);
+  }, [allUnits, selectedPropertyId]);
+
+  const selectedUnit = useMemo(
+    () => allUnits.find((unit) => unit._id === selectedUnitId) || null,
+    [allUnits, selectedUnitId]
+  );
+
+  const totalVacantUnits = useMemo(
+    () => allUnits.filter((unit) => unit.status === "Vacant").length,
+    [allUnits]
+  );
 
   useEffect(() => {
-    if (isLoading) {
-      return;
+    if (selectedPropertyId && !managedProperties.some((property) => property._id === selectedPropertyId)) {
+      setSelectedPropertyId("");
+    }
+  }, [managedProperties, selectedPropertyId]);
+
+  useEffect(() => {
+    if (selectedUnitId && !visibleUnits.some((unit) => unit._id === selectedUnitId)) {
+      setSelectedUnitId("");
+    }
+  }, [selectedUnitId, visibleUnits]);
+
+  useEffect(() => {
+    const nextParams = {};
+
+    if (scope !== "portfolio") {
+      nextParams.scope = scope;
+    }
+    if (selectedPropertyId) {
+      nextParams.propertyId = selectedPropertyId;
+    }
+    if (selectedUnitId) {
+      nextParams.unitId = selectedUnitId;
     }
 
-    setSelectedUnit((currentSelectedUnit) => {
-      if (currentSelectedUnit && availableUnits.some((unit) => unit._id === currentSelectedUnit)) {
-        return currentSelectedUnit;
-      }
-
-      if (unitIdParam && availableUnits.some((unit) => unit._id === unitIdParam)) {
-        return unitIdParam;
-      }
-
-      if (availableUnits.length === 1) {
-        return availableUnits[0]._id;
-      }
-
-      return "";
-    });
-  }, [availableUnits, isLoading, unitIdParam]);
+    setSearchParams(nextParams, { replace: true });
+  }, [scope, selectedPropertyId, selectedUnitId, setSearchParams]);
 
   useEffect(() => {
     setGeneratedLink("");
-  }, [selectedPropertyId, selectedUnit]);
+  }, [scope, selectedPropertyId, selectedUnitId]);
 
-  const selectedUnitDetails = useMemo(
-    () => units.find((unit) => unit._id === selectedUnit) || null,
-    [selectedUnit, units]
+  const selectedScope = useMemo(
+    () => scopeOptions.find((option) => option.value === scope) || scopeOptions[0],
+    [scope]
   );
 
-  const handlePropertyChange = (event) => {
-    const nextPropertyId = event.target.value;
-    setSelectedUnit("");
-    setSearchParams(nextPropertyId ? { propertyId: nextPropertyId } : {});
+  const inviteSummary = useMemo(() => {
+    if (scope === "unit") {
+      return selectedUnit
+        ? `${selectedUnit.property?.address || "Property"} - ${selectedUnit.name}`
+        : "Choose the exact unit that should appear on the application.";
+    }
+
+    if (scope === "property") {
+      return selectedProperty
+        ? selectedProperty.address
+        : "Choose the property that should anchor this application.";
+    }
+
+    return "This link will work as a general application for your rental portfolio.";
+  }, [scope, selectedProperty, selectedUnit]);
+
+  const validateSelection = () => {
+    if (scope === "property" && !selectedPropertyId) {
+      toast.error("Choose a property before creating this application invite.");
+      return false;
+    }
+
+    if (scope === "unit" && !selectedUnitId) {
+      toast.error("Choose a unit before creating this application invite.");
+      return false;
+    }
+
+    return true;
   };
 
-  const generateLink = () => {
-    const base = window.location.origin;
-    if (selectedUnit) {
-      setGeneratedLink(`${base}/apply/${selectedUnit}`);
+  const buildPayload = (extra = {}) => {
+    if (!validateSelection()) {
+      return null;
+    }
+
+    return {
+      scope,
+      propertyId: scope === "property" ? selectedPropertyId : undefined,
+      unitId: scope === "unit" ? selectedUnitId : undefined,
+      ...extra,
+    };
+  };
+
+  const handleCreateLink = async () => {
+    const payload = buildPayload();
+    if (!payload) {
       return;
     }
 
-    if (managedProperties.length > 1 && !selectedPropertyId) {
-      toast.error("Choose a property before generating an application link.");
+    try {
+      setIsGenerating(true);
+      const result = await createApplicationInvite(payload);
+      setGeneratedLink(result.url);
+      toast.success(result.message || "Application link created.");
+    } catch (error) {
+      toast.error(error.message || "Failed to create application link.");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleSendEmail = async () => {
+    if (!recipientEmail.trim()) {
+      toast.error("Enter the prospect's email address first.");
       return;
     }
 
-    toast.error(apiError ? "Vacant units could not be loaded." : "Please select a vacant unit.");
+    const payload = buildPayload({
+      recipientName: recipientName || undefined,
+      recipientEmail,
+      note: note || undefined,
+    });
+    if (!payload) {
+      return;
+    }
+
+    try {
+      setIsSending(true);
+      const result = await createApplicationInvite(payload);
+      setGeneratedLink(result.url);
+      toast.success(result.message || "Application email sent.");
+    } catch (error) {
+      toast.error(error.message || "Failed to send application email.");
+    } finally {
+      setIsSending(false);
+    }
   };
 
   const copyToClipboard = async () => {
@@ -187,22 +254,6 @@ const SendApplicationPage = () => {
     }
   };
 
-  const handleAddUnit = () => {
-    if (selectedPropertyId) {
-      navigate(`/management/${selectedPropertyId}`);
-      return;
-    }
-
-    if (managedProperties.length === 1) {
-      navigate(`/management/${managedProperties[0]._id}`);
-      return;
-    }
-
-    navigate("/management");
-  };
-
-  const propertyApplicationsQuery = buildPropertyQuery(selectedPropertyId);
-
   return (
     <div className="space-y-6">
       <section className="surface-panel-strong relative overflow-hidden px-6 py-7 sm:px-8">
@@ -211,11 +262,11 @@ const SendApplicationPage = () => {
           <div>
             <span className="eyebrow">Application distribution</span>
             <h2 className="page-hero-title">
-              Generate a clean rental application link without losing property context.
+              Send an application by link or email without being boxed into one vacant unit.
             </h2>
             <p className="page-hero-copy">
-              Pick the property first, confirm the correct vacant unit, and generate a public
-              application URL that stays tied to the right leasing pipeline.
+              Choose whether this invite should point to a specific unit, a property, or your wider
+              rental portfolio. Then either copy the share link or email it directly to a prospect.
             </p>
           </div>
 
@@ -223,250 +274,288 @@ const SendApplicationPage = () => {
             <div className="flex items-center justify-between gap-4">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-400">
-                  Vacant inventory
+                  Portfolio coverage
                 </p>
                 <h3 className="mt-2 text-2xl font-semibold text-ink-900">
-                  {selectedPropertyId ? availableUnits.length : units.length}
+                  {managedProperties.length}
                 </h3>
               </div>
               <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-verdigris-50 text-verdigris-700">
-                <ClipboardDocumentListIcon className="h-7 w-7" />
+                <HomeModernIcon className="h-7 w-7" />
               </div>
             </div>
 
             <div className="mt-8 space-y-3">
               <div className="rounded-[18px] bg-sand-50 px-4 py-4">
                 <p className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-400">
-                  Property scope
+                  Managed properties
                 </p>
-                <p className="mt-1 text-sm font-semibold text-ink-900">
-                  {selectedProperty
-                    ? selectedProperty.address
-                    : managedProperties.length > 0
-                      ? "Choose a property"
-                      : "No managed properties"}
-                </p>
+                <p className="mt-1 text-lg font-semibold text-ink-900">{managedProperties.length}</p>
               </div>
               <div className="rounded-[18px] border border-ink-100 bg-white px-4 py-4">
                 <p className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-400">
-                  Selected unit
+                  Vacant units tracked
                 </p>
-                <p className="mt-1 text-sm font-semibold text-ink-900">
-                  {selectedUnitDetails
-                    ? `${selectedUnitDetails.property?.address} - ${selectedUnitDetails.name}`
-                    : "None selected"}
-                </p>
+                <p className="mt-1 text-lg font-semibold text-ink-900">{totalVacantUnits}</p>
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      <section className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(320px,0.85fr)]">
+      <section className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(360px,0.9fr)]">
         <div className="section-card p-6 sm:p-7">
-          <span className="eyebrow">Unit selection</span>
-          <h3 className="mt-4 text-2xl font-semibold text-ink-900">Choose a vacant unit</h3>
+          <span className="eyebrow">Invite setup</span>
+          <h3 className="mt-4 text-2xl font-semibold text-ink-900">Choose what the application should target</h3>
           <p className="mt-2 text-sm leading-6 text-ink-500">
-            Select the property first when you manage multiple assets, then choose the exact vacant
-            unit to generate the public application link.
+            Property and unit selection are now optional. Use the lightest context that still helps
+            the applicant understand what they are applying for.
           </p>
 
+          <div className="mt-6 grid gap-3">
+            {scopeOptions.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => setScope(option.value)}
+                className={`rounded-[22px] border px-5 py-5 text-left transition ${
+                  scope === option.value
+                    ? "border-verdigris-200 bg-verdigris-50"
+                    : "border-ink-100 bg-white hover:border-ink-200 hover:bg-sand-50"
+                }`}
+              >
+                <p className="text-sm font-semibold text-ink-900">{option.label}</p>
+                <p className="mt-2 text-sm leading-6 text-ink-500">{option.description}</p>
+              </button>
+            ))}
+          </div>
+
           <div className="mt-6 space-y-6">
-            {managedProperties.length > 1 && (
+            {scope !== "portfolio" && (
               <div>
                 <label htmlFor="property" className="auth-label">
                   Property
                 </label>
-                <select
-                  id="property"
-                  className="auth-input"
-                  value={selectedPropertyId}
-                  onChange={handlePropertyChange}
-                >
-                  <option value="">Choose a property</option>
-                  {managedProperties.map((property) => (
-                    <option key={property._id} value={property._id}>
-                      {property.address}
-                    </option>
-                  ))}
-                </select>
+                {isLoading ? (
+                  <LoadingCard>Loading properties...</LoadingCard>
+                ) : (
+                  <select
+                    id="property"
+                    className="auth-input"
+                    value={selectedPropertyId}
+                    onChange={(event) => {
+                      setSelectedPropertyId(event.target.value);
+                      setSelectedUnitId("");
+                    }}
+                  >
+                    <option value="">Choose a property</option>
+                    {managedProperties.map((property) => (
+                      <option key={property._id} value={property._id}>
+                        {property.address}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
             )}
 
-            <div>
-              <label htmlFor="unit" className="auth-label">
-                Vacant unit
-              </label>
-              {isLoading ? (
-                <LoadingCard />
-              ) : (
-                <select
-                  id="unit"
-                  className="auth-input"
-                  value={selectedUnit}
-                  onChange={(event) => setSelectedUnit(event.target.value)}
-                  disabled={
-                    !availableUnits.length || (managedProperties.length > 1 && !selectedPropertyId)
-                  }
-                >
-                  <option value="">
-                    {managedProperties.length > 1 && !selectedPropertyId
-                      ? "Choose a property first"
-                      : "Choose a unit"}
-                  </option>
-                  {availableUnits.map((unit) => (
-                    <option key={unit._id} value={unit._id}>
-                      {unit.property?.address} - {unit.name}
+            {scope === "unit" && (
+              <div>
+                <label htmlFor="unit" className="auth-label">
+                  Unit
+                </label>
+                {isLoading ? (
+                  <LoadingCard>Loading units...</LoadingCard>
+                ) : (
+                  <select
+                    id="unit"
+                    className="auth-input"
+                    value={selectedUnitId}
+                    onChange={(event) => setSelectedUnitId(event.target.value)}
+                    disabled={!visibleUnits.length}
+                  >
+                    <option value="">
+                      {selectedPropertyId ? "Choose a unit" : "Choose any unit"}
                     </option>
-                  ))}
-                </select>
-              )}
+                    {visibleUnits.map((unit) => (
+                      <option key={unit._id} value={unit._id}>
+                        {unit.property?.address} - {unit.name} ({unit.status || "Unknown"})
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+            )}
 
-              {managedProperties.length === 0 && !apiError && !isLoading && (
-                <div className="mt-4 rounded-[22px] border border-dashed border-ink-200 bg-sand-50 p-5">
+              {managedProperties.length === 0 && !isLoading && (
+                <div className="rounded-[22px] border border-dashed border-ink-200 bg-sand-50 p-5">
                   <p className="text-sm font-semibold text-ink-900">No managed properties yet</p>
                   <p className="mt-2 text-sm leading-6 text-ink-500">
-                    Start management on a Fix &amp; Rent or Rental property first so you can create
-                    leasing links from a real property workspace.
+                    You can still send a general application now, or create managed properties to
+                    attach invites to a specific property or unit later.
                   </p>
                   <div className="mt-4 flex flex-wrap gap-3">
-                    <button
-                      type="button"
-                      onClick={() => navigate("/properties/new?workspace=management")}
-                      className="primary-action"
-                    >
-                      Create Managed Property
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => navigate("/management")}
-                      className="secondary-action"
-                    >
-                      Open Managed Properties
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => navigate("/properties/new?workspace=management")}
+                    className="primary-action"
+                  >
+                    Create managed property
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => navigate("/management")}
+                    className="secondary-action"
+                  >
+                    Open managed properties
+                  </button>
                 </div>
-              )}
+              </div>
+            )}
 
-              {managedProperties.length > 1 && !selectedPropertyId && !isLoading && (
-                <div className="mt-4 rounded-[22px] border border-dashed border-ink-200 bg-sand-50 p-5">
-                  <p className="text-sm font-semibold text-ink-900">Choose a property first</p>
-                  <p className="mt-2 text-sm leading-6 text-ink-500">
-                    Leasing links now stay anchored to a specific property so the resulting
-                    applications land in the right review queue.
-                  </p>
-                </div>
-              )}
-
-              {managedProperties.length > 0 &&
-                selectedPropertyId &&
-                availableUnits.length === 0 &&
-                !apiError &&
-                !isLoading && (
-                  <div className="mt-4 rounded-[22px] border border-dashed border-ink-200 bg-sand-50 p-5">
-                    <p className="text-sm font-semibold text-ink-900">No vacant units for this property</p>
-                    <p className="mt-2 text-sm leading-6 text-ink-500">
-                      Add a unit or mark an existing one vacant before sending a public application
-                      link for {selectedProperty?.address || "this property"}.
-                    </p>
-                    <div className="mt-4 flex flex-wrap gap-3">
-                      <button type="button" onClick={handleAddUnit} className="primary-action">
-                        Open Property
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => navigate("/management")}
-                        className="secondary-action"
-                      >
-                        View All Properties
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-              {apiError && (
-                <div className="mt-4 rounded-[20px] border border-clay-200 bg-clay-50 px-4 py-4 text-sm text-clay-700">
-                  Vacant units are unavailable right now. Refresh and try again.
-                </div>
-              )}
-
-              {managementError && !isLoading && (
-                <p className="mt-3 text-sm text-clay-700">
-                  Management properties could not be loaded, so property shortcuts may be
-                  unavailable right now.
+            {scope === "unit" && !isLoading && !visibleUnits.length && managedProperties.length > 0 && (
+              <div className="rounded-[22px] border border-dashed border-ink-200 bg-sand-50 p-5">
+                <p className="text-sm font-semibold text-ink-900">No units match this selection</p>
+                <p className="mt-2 text-sm leading-6 text-ink-500">
+                  Choose another property, add units in management, or switch to a property-level or
+                  general application invite.
                 </p>
-              )}
-            </div>
+              </div>
+            )}
           </div>
 
-          {selectedUnitDetails && (
-            <div className="mt-6 rounded-[22px] border border-ink-100 bg-sand-50 p-5">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-400">
-                Selected unit summary
-              </p>
-              <h4 className="mt-2 text-lg font-semibold text-ink-900">
-                {selectedUnitDetails.property?.address}
-              </h4>
-              <p className="mt-1 text-sm text-ink-500">{selectedUnitDetails.name}</p>
-            </div>
-          )}
+          <div className="mt-6 rounded-[22px] border border-ink-100 bg-sand-50 p-5">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-400">
+              Current invite scope
+            </p>
+            <h4 className="mt-2 text-lg font-semibold text-ink-900">{selectedScope.label}</h4>
+            <p className="mt-2 text-sm leading-6 text-ink-500">{inviteSummary}</p>
+          </div>
 
-          <div className="mt-6">
+          <div className="mt-6 flex flex-wrap gap-3">
             <button
               type="button"
-              onClick={generateLink}
-              disabled={isLoading || apiError || !availableUnits.length}
+              onClick={handleCreateLink}
+              disabled={isLoading || isGenerating || (scope !== "portfolio" && managedProperties.length === 0)}
               className="primary-action disabled:cursor-not-allowed disabled:opacity-60"
             >
               <PaperAirplaneIcon className="mr-2 h-5 w-5" />
-              Generate application link
+              {isGenerating ? "Creating..." : "Generate application link"}
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate("/applications")}
+              className="secondary-action"
+            >
+              Review applications
             </button>
           </div>
         </div>
 
-        <div className="section-card p-6 sm:p-7">
-          <span className="eyebrow">Shareable link</span>
-          <h3 className="mt-4 text-2xl font-semibold text-ink-900">Public application URL</h3>
-          <p className="mt-2 text-sm leading-6 text-ink-500">
-            Once generated, this link can be shared directly with prospective tenants.
-          </p>
+        <div className="space-y-6">
+          <div className="section-card p-6 sm:p-7">
+            <span className="eyebrow">Email delivery</span>
+            <h3 className="mt-4 text-2xl font-semibold text-ink-900">Email the invite directly</h3>
+            <p className="mt-2 text-sm leading-6 text-ink-500">
+              Send the same application link straight to a prospective tenant without leaving the app.
+            </p>
 
-          {generatedLink ? (
             <div className="mt-6 space-y-4">
-              <div className="rounded-[22px] border border-ink-100 bg-white p-4">
-                <div className="flex items-start gap-3">
-                  <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl bg-verdigris-50 text-verdigris-700">
-                    <LinkIcon className="h-5 w-5" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-400">
-                      Generated link
-                    </p>
-                    <p className="mt-2 break-all text-sm font-medium text-ink-900">{generatedLink}</p>
+              <div>
+                <label htmlFor="recipientName" className="auth-label">
+                  Prospect name
+                </label>
+                <input
+                  id="recipientName"
+                  className="auth-input"
+                  value={recipientName}
+                  onChange={(event) => setRecipientName(event.target.value)}
+                  placeholder="Optional"
+                />
+              </div>
+              <div>
+                <label htmlFor="recipientEmail" className="auth-label">
+                  Prospect email
+                </label>
+                <input
+                  id="recipientEmail"
+                  type="email"
+                  className="auth-input"
+                  value={recipientEmail}
+                  onChange={(event) => setRecipientEmail(event.target.value)}
+                  placeholder="name@example.com"
+                />
+              </div>
+              <div>
+                <label htmlFor="inviteNote" className="auth-label">
+                  Optional note
+                </label>
+                <textarea
+                  id="inviteNote"
+                  rows="4"
+                  className="auth-input min-h-[120px]"
+                  value={note}
+                  onChange={(event) => setNote(event.target.value)}
+                  placeholder="Optional message to include in the email"
+                />
+              </div>
+            </div>
+
+            <div className="mt-6">
+              <button
+                type="button"
+                onClick={handleSendEmail}
+                disabled={isLoading || isSending || (scope !== "portfolio" && managedProperties.length === 0)}
+                className="primary-action disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <EnvelopeIcon className="mr-2 h-5 w-5" />
+                {isSending ? "Sending..." : "Email application"}
+              </button>
+            </div>
+          </div>
+
+          <div className="section-card p-6 sm:p-7">
+            <span className="eyebrow">Shareable link</span>
+            <h3 className="mt-4 text-2xl font-semibold text-ink-900">Public application URL</h3>
+            <p className="mt-2 text-sm leading-6 text-ink-500">
+              Create the link once, then copy it into texts, listings, or manual follow-ups.
+            </p>
+
+            {generatedLink ? (
+              <div className="mt-6 space-y-4">
+                <div className="rounded-[22px] border border-ink-100 bg-white p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl bg-verdigris-50 text-verdigris-700">
+                      <LinkIcon className="h-5 w-5" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-400">
+                        Generated link
+                      </p>
+                      <p className="mt-2 break-all text-sm font-medium text-ink-900">{generatedLink}</p>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <div className="flex flex-wrap gap-3">
-                <button type="button" onClick={copyToClipboard} className="secondary-action">
-                  Copy link
-                </button>
-                {selectedPropertyId && (
+                <div className="flex flex-wrap gap-3">
+                  <button type="button" onClick={copyToClipboard} className="secondary-action">
+                    Copy link
+                  </button>
                   <button
                     type="button"
-                    onClick={() => navigate(`/applications${propertyApplicationsQuery}`)}
+                    onClick={() => navigate("/applications")}
                     className="secondary-action"
                   >
-                    Review applications
+                    Open applications
                   </button>
-                )}
+                </div>
               </div>
-            </div>
-          ) : (
-            <div className="mt-6 rounded-[22px] border border-dashed border-ink-200 bg-sand-50 px-5 py-10 text-center text-ink-500">
-              Generate a link first and it will appear here ready to share.
-            </div>
-          )}
+            ) : (
+              <div className="mt-6 rounded-[22px] border border-dashed border-ink-200 bg-sand-50 px-5 py-10 text-center text-ink-500">
+                Generate or email an invite first and the signed application link will appear here.
+              </div>
+            )}
+          </div>
         </div>
       </section>
     </div>

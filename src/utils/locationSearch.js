@@ -1,10 +1,36 @@
 const GOOGLE_MAPS_API_KEY = process.env.REACT_APP_GOOGLE_MAPS_API_KEY;
 const MAPBOX_TOKEN = process.env.REACT_APP_MAPBOX_TOKEN;
+const GOOGLE_MAPS_LOAD_TIMEOUT_MS = 5000;
 
 let googleMapsPromise = null;
+let googleMapsDisabled = false;
+
+const hasGoogleMapsKey = () => Boolean(GOOGLE_MAPS_API_KEY) && !googleMapsDisabled;
+const hasMapboxToken = () => Boolean(MAPBOX_TOKEN);
+
+const createAbortError = () => {
+  if (typeof DOMException === "function") {
+    return new DOMException("Request aborted", "AbortError");
+  }
+
+  const error = new Error("Request aborted");
+  error.name = "AbortError";
+  return error;
+};
+
+const throwIfAborted = (signal) => {
+  if (signal?.aborted) {
+    throw createAbortError();
+  }
+};
+
+const disableGoogleMaps = () => {
+  googleMapsDisabled = true;
+  googleMapsPromise = null;
+};
 
 const loadGoogleMaps = async () => {
-  if (!GOOGLE_MAPS_API_KEY || typeof window === "undefined") {
+  if (!hasGoogleMapsKey() || typeof window === "undefined") {
     return null;
   }
 
@@ -17,25 +43,80 @@ const loadGoogleMaps = async () => {
   }
 
   googleMapsPromise = new Promise((resolve, reject) => {
-    const callbackName = "__mypropaiGoogleMapsReady";
+    const callbackName = "__flipropGoogleMapsReady";
+    const existingScript = document.querySelector('script[data-google-maps-loader="fliprop"]');
+    const previousAuthFailure = window.gm_authFailure;
+    let settled = false;
 
-    window[callbackName] = () => {
+    const cleanup = () => {
+      window.clearTimeout(timeoutId);
       delete window[callbackName];
-      resolve(window.google.maps);
+
+      if (previousAuthFailure) {
+        window.gm_authFailure = previousAuthFailure;
+      } else {
+        delete window.gm_authFailure;
+      }
     };
 
-    const existingScript = document.querySelector('script[data-google-maps-loader="mypropai"]');
+    const rejectWith = (error) => {
+      if (settled) {
+        return;
+      }
+
+      settled = true;
+      cleanup();
+      disableGoogleMaps();
+      reject(error);
+    };
+
+    const resolveMaps = () => {
+      if (settled) {
+        return;
+      }
+
+      const maps = window.google?.maps;
+      if (!maps) {
+        rejectWith(new Error("Google Maps failed to initialize."));
+        return;
+      }
+
+      settled = true;
+      cleanup();
+      resolve(maps);
+    };
+
+    const timeoutId = window.setTimeout(() => {
+      rejectWith(new Error("Google Maps failed to initialize."));
+    }, GOOGLE_MAPS_LOAD_TIMEOUT_MS);
+
+    window[callbackName] = () => {
+      resolveMaps();
+    };
+
+    window.gm_authFailure = () => {
+      if (typeof previousAuthFailure === "function") {
+        previousAuthFailure();
+      }
+
+      rejectWith(new Error("Google Maps authorization failed."));
+    };
+
     if (existingScript) {
+      if (window.google?.maps) {
+        resolveMaps();
+        return;
+      }
+
       existingScript.addEventListener(
         "load",
-        () => resolve(window.google.maps),
+        () => resolveMaps(),
         { once: true }
       );
       existingScript.addEventListener(
         "error",
         () => {
-          googleMapsPromise = null;
-          reject(new Error("Failed to load Google Maps."));
+          rejectWith(new Error("Failed to load Google Maps."));
         },
         { once: true }
       );
@@ -48,11 +129,14 @@ const loadGoogleMaps = async () => {
     )}&libraries=places&loading=async&callback=${callbackName}`;
     script.async = true;
     script.defer = true;
-    script.dataset.googleMapsLoader = "mypropai";
+    script.dataset.googleMapsLoader = "fliprop";
+    script.onload = () => {
+      if (window.google?.maps) {
+        resolveMaps();
+      }
+    };
     script.onerror = () => {
-      delete window[callbackName];
-      googleMapsPromise = null;
-      reject(new Error("Failed to load Google Maps."));
+      rejectWith(new Error("Failed to load Google Maps."));
     };
     document.head.appendChild(script);
   });
@@ -92,48 +176,112 @@ const searchWithMapbox = async (query, signal) => {
 };
 
 const geocodeWithGoogle = async (address) => {
-  const maps = await loadGoogleMaps();
-  if (!maps) {
-    return geocodeWithMapbox(address);
+  let maps;
+
+  try {
+    maps = await loadGoogleMaps();
+  } catch (error) {
+    if (hasMapboxToken()) {
+      return geocodeWithMapbox(address);
+    }
+
+    throw error;
   }
 
-  const geocoder = new maps.Geocoder();
-  const results = await new Promise((resolve, reject) => {
-    geocoder.geocode({ address }, (matches, status) => {
-      if (status === "OK") {
-        resolve(matches || []);
-        return;
-      }
-      if (status === "ZERO_RESULTS") {
-        resolve([]);
-        return;
-      }
-      reject(new Error("Geocoding failed"));
-    });
-  });
+  if (!maps?.Geocoder) {
+    if (hasMapboxToken()) {
+      return geocodeWithMapbox(address);
+    }
 
-  return {
-    features: results.map((result) => ({
-      id: result.place_id || result.formatted_address,
-      place_name: result.formatted_address,
-      center: [
-        result.geometry.location.lng(),
-        result.geometry.location.lat(),
-      ],
-      provider: "google",
-    })),
-  };
+    throw new Error("Google geocoder is unavailable.");
+  }
+
+  try {
+    const geocoder = new maps.Geocoder();
+    const results = await new Promise((resolve, reject) => {
+      geocoder.geocode({ address }, (matches, status) => {
+        if (status === "OK") {
+          resolve(matches || []);
+          return;
+        }
+        if (status === "ZERO_RESULTS") {
+          resolve([]);
+          return;
+        }
+        reject(new Error("Geocoding failed"));
+      });
+    });
+
+    return {
+      features: results.map((result) => ({
+        id: result.place_id || result.formatted_address,
+        place_name: result.formatted_address,
+        center: [
+          result.geometry.location.lng(),
+          result.geometry.location.lat(),
+        ],
+        provider: "google",
+      })),
+    };
+  } catch (error) {
+    disableGoogleMaps();
+
+    if (hasMapboxToken()) {
+      return geocodeWithMapbox(address);
+    }
+
+    throw error;
+  }
 };
 
-const searchWithGoogle = async (query, signal) => {
-  if (!query?.trim()) return [];
-  if (signal?.aborted) {
-    throw new DOMException("Request aborted", "AbortError");
+const searchWithGoogleAutocompleteData = async (maps, query, signal) => {
+  if (typeof maps?.importLibrary !== "function") {
+    return null;
   }
 
-  const maps = await loadGoogleMaps();
+  const placesLibrary = await maps.importLibrary("places");
+  const autocompleteSuggestion = placesLibrary?.AutocompleteSuggestion;
+
+  if (!autocompleteSuggestion?.fetchAutocompleteSuggestions) {
+    return null;
+  }
+
+  throwIfAborted(signal);
+
+  const response = await autocompleteSuggestion.fetchAutocompleteSuggestions({
+    input: query,
+    includedRegionCodes: ["us"],
+    region: "us",
+    language: "en-US",
+  });
+
+  throwIfAborted(signal);
+
+  return (response?.suggestions || [])
+    .map((suggestion) => {
+      const prediction = suggestion?.placePrediction;
+      const label =
+        prediction?.text?.toString?.() ||
+        prediction?.text?.text ||
+        "";
+
+      if (!label) {
+        return null;
+      }
+
+      return {
+        id: prediction.placeId || label,
+        place_name: label,
+        provider: "google",
+        placeId: prediction.placeId || null,
+      };
+    })
+    .filter(Boolean);
+};
+
+const searchWithGoogleLegacy = async (maps, query, signal) => {
   if (!maps?.places?.AutocompleteService) {
-    return searchWithMapbox(query, signal);
+    return null;
   }
 
   const autocompleteService = new maps.places.AutocompleteService();
@@ -147,7 +295,7 @@ const searchWithGoogle = async (query, signal) => {
       },
       (matches, status) => {
         if (signal?.aborted) {
-          reject(new DOMException("Request aborted", "AbortError"));
+          reject(createAbortError());
           return;
         }
 
@@ -172,8 +320,57 @@ const searchWithGoogle = async (query, signal) => {
   }));
 };
 
+const searchWithGoogle = async (query, signal) => {
+  if (!query?.trim()) return [];
+  throwIfAborted(signal);
+
+  let maps;
+
+  try {
+    maps = await loadGoogleMaps();
+  } catch (error) {
+    if (hasMapboxToken()) {
+      return searchWithMapbox(query, signal);
+    }
+
+    throw error;
+  }
+
+  if (!maps) {
+    if (hasMapboxToken()) {
+      return searchWithMapbox(query, signal);
+    }
+
+    return [];
+  }
+
+  try {
+    const newResults = await searchWithGoogleAutocompleteData(maps, query, signal);
+    if (Array.isArray(newResults)) {
+      return newResults;
+    }
+
+    const legacyResults = await searchWithGoogleLegacy(maps, query, signal);
+    if (Array.isArray(legacyResults)) {
+      return legacyResults;
+    }
+
+    throw new Error("Google autocomplete is unavailable.");
+  } catch (error) {
+    if (error?.name !== "AbortError") {
+      disableGoogleMaps();
+    }
+
+    if (hasMapboxToken()) {
+      return searchWithMapbox(query, signal);
+    }
+
+    throw error;
+  }
+};
+
 export const geocodeAddress = async (address) => {
-  if (GOOGLE_MAPS_API_KEY) {
+  if (hasGoogleMapsKey()) {
     return geocodeWithGoogle(address);
   }
 
@@ -181,12 +378,25 @@ export const geocodeAddress = async (address) => {
 };
 
 export const searchAddressSuggestions = async (query, signal) => {
-  if (GOOGLE_MAPS_API_KEY) {
+  if (hasGoogleMapsKey()) {
     return searchWithGoogle(query, signal);
   }
 
   return searchWithMapbox(query, signal);
 };
 
-export const getLocationProviderName = () =>
-  GOOGLE_MAPS_API_KEY ? "Google Places" : "Mapbox";
+export const getLocationProviderName = () => {
+  if (hasGoogleMapsKey() && hasMapboxToken()) {
+    return "Google Places with Mapbox fallback";
+  }
+
+  if (hasGoogleMapsKey()) {
+    return "Google Places";
+  }
+
+  if (hasMapboxToken()) {
+    return "Mapbox";
+  }
+
+  return "address lookup service";
+};

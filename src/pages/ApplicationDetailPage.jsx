@@ -196,6 +196,14 @@ const ApplicationDetailPage = () => {
     return <div className="section-card px-6 py-10 text-center text-ink-500">Application not found.</div>;
   }
 
+  const propertyLabel =
+    application.property?.address ||
+    application.propertyAddressSnapshot ||
+    "Portfolio-wide application";
+  const unitLabel =
+    application.unit?.name ||
+    application.unitNameSnapshot ||
+    (application.applicationScope === "property" ? "No unit selected" : "General application");
   const statusClass = statusStyles[application.status] || "bg-ink-100 text-ink-700";
   const residenceHistory = application.residenceHistory || [];
   const employmentHistory = application.employmentHistory || [];
@@ -214,7 +222,7 @@ const ApplicationDetailPage = () => {
               {application.applicantInfo?.fullName || "Applicant record"}
             </h2>
             <p className="mt-3 text-lg text-ink-500">
-              {application.unit?.name || "Unit"} at {application.property?.address || "Unknown property"}
+              {unitLabel} at {propertyLabel}
             </p>
             <p className="page-hero-copy">
               Review the applicant profile, confirm fee and screening steps, and make an approval decision with all of the supporting context in one place.

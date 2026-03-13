@@ -10,7 +10,7 @@ import {
 import toast from "react-hot-toast";
 
 import WorkspaceDataTable from "../components/WorkspaceDataTable";
-import { getApplicationsForProperty, getManagedProperties } from "../utils/api";
+import { getApplications, getManagedProperties } from "../utils/api";
 
 const statusStyles = {
   "Pending Payment": "bg-sand-100 text-sand-700",
@@ -81,35 +81,21 @@ const ApplicationsPage = () => {
       return propertyIdParam;
     }
 
-    if (!propertiesLoading && managedProperties.length === 1) {
-      return managedProperties[0]._id;
-    }
-
     return "";
-  }, [managedProperties, propertiesLoading, propertyIdParam]);
+  }, [managedProperties, propertyIdParam]);
 
   useEffect(() => {
     if (propertiesLoading) {
       return;
     }
 
-    if (selectedPropertyId && propertyIdParam !== selectedPropertyId) {
-      setSearchParams({ propertyId: selectedPropertyId }, { replace: true });
-      return;
-    }
-
-    if (!selectedPropertyId && propertyIdParam) {
-      setSearchParams({}, { replace: true });
+    if (selectedPropertyId !== propertyIdParam) {
+      setSearchParams(selectedPropertyId ? { propertyId: selectedPropertyId } : {}, { replace: true });
     }
   }, [propertiesLoading, propertyIdParam, selectedPropertyId, setSearchParams]);
 
   useEffect(() => {
     if (propertiesLoading) {
-      return;
-    }
-
-    if (!selectedPropertyId) {
-      setApplications([]);
       return;
     }
 
@@ -119,7 +105,9 @@ const ApplicationsPage = () => {
       try {
         setApplications([]);
         setApplicationsLoading(true);
-        const data = await getApplicationsForProperty(selectedPropertyId);
+        const data = await getApplications({
+          propertyId: selectedPropertyId || undefined,
+        });
         if (isMounted) {
           setApplications(data || []);
         }
@@ -147,8 +135,9 @@ const ApplicationsPage = () => {
   );
 
   const propertySummary = useMemo(() => {
-    const units = selectedProperty?.units || [];
-    const occupiedUnits = units.filter((unit) => unit.currentLease).length;
+    const propertiesToSummarize = selectedProperty ? [selectedProperty] : managedProperties;
+    const units = propertiesToSummarize.flatMap((property) => property.units || []);
+    const occupiedUnits = units.filter((unit) => unit.currentLease || unit.status === "Occupied").length;
     const totalUnits = units.length;
 
     return {
@@ -156,7 +145,7 @@ const ApplicationsPage = () => {
       occupiedUnits,
       vacantUnits: Math.max(0, totalUnits - occupiedUnits),
     };
-  }, [selectedProperty]);
+  }, [managedProperties, selectedProperty]);
 
   const summary = useMemo(() => {
     const pending = applications.filter((application) =>
@@ -193,7 +182,8 @@ const ApplicationsPage = () => {
         application.applicantInfo?.fullName,
         application.applicantInfo?.email,
         application.applicantInfo?.phone,
-        application.unit?.name,
+        application.unit?.name || application.unitNameSnapshot,
+        application.property?.address || application.propertyAddressSnapshot,
         application.status,
       ]
         .filter(Boolean)
@@ -227,13 +217,24 @@ const ApplicationsPage = () => {
         ),
       },
       {
-        id: "unit",
-        label: "Unit",
-        sortValue: (application) => application.unit?.name || "",
+        id: "placement",
+        label: "Property / Unit",
+        sortValue: (application) =>
+          `${application.property?.address || application.propertyAddressSnapshot || ""} ${
+            application.unit?.name || application.unitNameSnapshot || ""
+          }`,
         render: (application) => (
           <div>
-            <p className="font-medium text-ink-800">{application.unit?.name || "Unknown unit"}</p>
-            <p className="mt-1 text-sm text-ink-500">{selectedProperty?.address || "Selected property"}</p>
+            <p className="font-medium text-ink-800">
+              {application.unit?.name ||
+                application.unitNameSnapshot ||
+                (application.applicationScope === "property" ? "No unit selected" : "General application")}
+            </p>
+            <p className="mt-1 text-sm text-ink-500">
+              {application.property?.address ||
+                application.propertyAddressSnapshot ||
+                "Portfolio-wide application"}
+            </p>
           </div>
         ),
       },
@@ -276,7 +277,7 @@ const ApplicationsPage = () => {
         ),
       },
     ],
-    [propertyQuery, selectedProperty?.address]
+    [propertyQuery]
   );
 
   const handlePropertyChange = (event) => {
@@ -299,11 +300,11 @@ const ApplicationsPage = () => {
               Review rental applications with clearer status and property context.
             </h2>
             <p className="page-hero-copy">
-              Choose a managed property, keep the application roster anchored to that address, and
-              send new application links without losing your place in the leasing workflow.
+              Start from the full leasing queue, then narrow to a single property only when you
+              want a tighter review view.
             </p>
 
-            {managedProperties.length > 1 && (
+            {managedProperties.length > 0 && (
               <div className="mt-6 max-w-sm">
                 <label htmlFor="property" className="auth-label">
                   Property
@@ -314,7 +315,7 @@ const ApplicationsPage = () => {
                   value={selectedPropertyId}
                   onChange={handlePropertyChange}
                 >
-                  <option value="">Choose a property</option>
+                  <option value="">All properties</option>
                   {managedProperties.map((property) => (
                     <option key={property._id} value={property._id}>
                       {property.address}
@@ -348,13 +349,13 @@ const ApplicationsPage = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-400">
-                  Selected property
+                  Current view
                 </p>
                 <h3 className="mt-2 text-2xl font-semibold text-ink-900">
                   {selectedProperty
                     ? selectedProperty.address
                     : managedProperties.length > 0
-                      ? "Choose a property"
+                      ? "All managed properties"
                       : "No managed properties"}
                 </h3>
               </div>
@@ -369,7 +370,7 @@ const ApplicationsPage = () => {
                   Units tracked
                 </p>
                 <p className="mt-1 text-lg font-semibold text-ink-900">
-                  {selectedProperty ? propertySummary.totalUnits : 0}
+                  {propertySummary.totalUnits}
                 </p>
               </div>
               <div className="rounded-[18px] border border-ink-100 bg-white px-4 py-4">
@@ -377,7 +378,7 @@ const ApplicationsPage = () => {
                   Vacant units
                 </p>
                 <p className="mt-1 text-lg font-semibold text-ink-900">
-                  {selectedProperty ? propertySummary.vacantUnits : 0}
+                  {propertySummary.vacantUnits}
                 </p>
               </div>
             </div>
@@ -394,7 +395,7 @@ const ApplicationsPage = () => {
               </p>
               <p className="mt-4 text-3xl font-semibold text-ink-900">{summary.total}</p>
               <p className="mt-3 text-sm leading-6 text-ink-500">
-                Applications currently visible for the selected property.
+                Applications currently visible in this queue view.
               </p>
             </div>
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-ink-100 text-ink-700">
@@ -480,21 +481,11 @@ const ApplicationsPage = () => {
             </>
           }
         />
-      ) : !selectedPropertyId ? (
-        <WorkspaceDataTable
-          title="Application roster"
-          description="Choose a managed property to load the right leasing queue."
-          columns={applicationColumns}
-          rows={[]}
-          rowKey={(application) => application._id}
-          emptyTitle="Select a property"
-          emptyDescription="Choose a managed property above to review applicants, screening, and decisions in one place."
-        />
       ) : applicationsLoading ? (
         <div className="section-card p-5 sm:p-6">
           <h3 className="text-xl font-semibold text-ink-900 sm:text-2xl">Application roster</h3>
           <p className="mt-2 text-sm leading-6 text-ink-500">
-            Loading applicants for {selectedProperty?.address || "this property"}.
+            Loading applicants for {selectedProperty?.address || "your portfolio"}.
           </p>
           <div className="mt-5 rounded-[20px] border border-ink-100 bg-white px-5 py-10">
             <LoadingSpinner />
@@ -550,12 +541,16 @@ const ApplicationsPage = () => {
           }
           emptyTitle={
             applications.length === 0
-              ? "No applications for this property yet"
+              ? selectedProperty
+                ? "No applications for this property yet"
+                : "No applications yet"
               : "No applicants match this view"
           }
           emptyDescription={
             applications.length === 0
-              ? "Send a rental application link to start building the queue for this property."
+              ? selectedProperty
+                ? "Send a rental application link to start building the queue for this property."
+                : "Send a rental application link to start building your leasing queue."
               : "Try another status or search term to pull the right applicants back into view."
           }
           emptyActions={
@@ -570,10 +565,12 @@ const ApplicationsPage = () => {
                 </button>
                 <button
                   type="button"
-                  onClick={() => navigate(`/management/${selectedPropertyId}`)}
+                  onClick={() =>
+                    navigate(selectedPropertyId ? `/management/${selectedPropertyId}` : "/management")
+                  }
                   className="secondary-action"
                 >
-                  Open property
+                  {selectedPropertyId ? "Open property" : "Open properties"}
                 </button>
               </>
             ) : null

@@ -67,6 +67,7 @@ function App() {
           <Route path="/signup" element={<SignupPage />} />
           <Route path="/invite/:token" element={<InvitePage />} />
           <Route path="/tenant-login" element={<TenantLoginPage />} />
+          <Route path="/apply" element={<ApplicationFormPage />} />
           <Route path="/apply/:unitId" element={<ApplicationFormPage />} />
           <Route path="/apply/success" element={<ApplicationSuccessPage />} />
 

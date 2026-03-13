@@ -329,9 +329,10 @@ const LeadDetailPage = () => {
     workspaceForm.arv === ''
       ? analysis?.summary?.estimatedValue ?? null
       : Number(workspaceForm.arv);
+  const askingPrice = lead?.sellerAskingPrice;
   const askGap =
-    lead.sellerAskingPrice && workingTargetOffer !== null
-      ? lead.sellerAskingPrice - workingTargetOffer
+    askingPrice !== null && askingPrice !== undefined && workingTargetOffer !== null
+      ? askingPrice - workingTargetOffer
       : null;
   const projectedSpread =
     workingExitValue !== null && workingTargetOffer !== null
@@ -400,7 +401,7 @@ const LeadDetailPage = () => {
         </Link>
         {propertyWorkspacePath ? (
           <Link to={propertyWorkspacePath} className="secondary-action">
-            Edit Shared Profile
+            Open Property Hub
           </Link>
         ) : null}
       </div>
@@ -533,7 +534,7 @@ const LeadDetailPage = () => {
                 </div>
                 {propertyWorkspacePath ? (
                   <Link to={propertyWorkspacePath} className="secondary-action">
-                    Open Workspace
+                    Open Property Hub
                   </Link>
                 ) : null}
               </div>

@@ -1054,6 +1054,19 @@ export const submitApplication = async (data) => {
   return res.json();
 };
 
+export const createApplicationInvite = async (data) => {
+  const res = await fetch(`${API_BASE_URL}/applications/invitations`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.msg || error.message || "Failed to create application invite");
+  }
+  return res.json();
+};
+
 export const createApplicationPaymentIntent = async (applicationId) => {
   const res = await fetch(
     `${API_BASE_URL}/applications/${applicationId}/create-payment-intent`,
@@ -1080,8 +1093,23 @@ export const confirmApplicationPayment = async (sessionId) => {
   return res.json();
 };
 
-export const getPublicApplicationDetails = async (unitId) => {
-  const res = await fetch(`${API_BASE_URL}/applications/public/${unitId}`, {
+export const getPublicApplicationDetails = async (options) => {
+  let url = `${API_BASE_URL}/applications/public`;
+
+  if (typeof options === "string") {
+    url = `${url}/${encodeURIComponent(options)}`;
+  } else if (options?.inviteToken || options?.unitId) {
+    const params = new URLSearchParams();
+    if (options.inviteToken) {
+      params.set("invite", options.inviteToken);
+    }
+    if (options.unitId) {
+      params.set("unitId", options.unitId);
+    }
+    url = `${url}?${params.toString()}`;
+  }
+
+  const res = await fetch(url, {
     headers: { "Content-Type": "application/json" },
   });
   if (!res.ok) {
@@ -1091,13 +1119,21 @@ export const getPublicApplicationDetails = async (unitId) => {
   return res.json();
 };
 
-export const getApplicationsForProperty = async (propertyId) => {
-  const res = await fetch(`${API_BASE_URL}/applications/property/${propertyId}`, {
+export const getApplications = async ({ propertyId } = {}) => {
+  const query = propertyId
+    ? `?${new URLSearchParams({ propertyId }).toString()}`
+    : "";
+  const res = await fetch(`${API_BASE_URL}/applications${query}`, {
     headers: getAuthHeaders(),
   });
-  if (!res.ok) throw new Error("Failed to fetch property applications");
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.msg || error.message || "Failed to fetch applications");
+  }
   return res.json();
 };
+
+export const getApplicationsForProperty = async (propertyId) => getApplications({ propertyId });
 
 /**
  * ==========================

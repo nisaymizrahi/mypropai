@@ -62,7 +62,9 @@ const ApplicantsTab = ({ propertyId }) => {
                         {applications.length > 0 ? applications.map(app => (
                             <tr key={app._id} className="hover:bg-gray-50">
                                 <td className="p-3 font-medium">{app.applicantInfo.fullName}</td>
-                                <td className="p-3">{app.unit.name}</td>
+                                <td className="p-3">
+                                    {app.unit?.name || app.unitNameSnapshot || 'No unit selected'}
+                                </td>
                                 <td className="p-3"><StatusBadge status={app.status} /></td>
                                 <td className="p-3">{new Date(app.createdAt).toLocaleDateString()}</td>
                                 <td className="p-3 text-right">
