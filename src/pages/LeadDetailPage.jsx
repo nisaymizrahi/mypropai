@@ -950,6 +950,10 @@ const LeadDetailPage = () => {
   };
 
   const handleDeleteRenovationItem = (itemId) => {
+    if (!window.confirm("Delete this renovation item?")) {
+      return;
+    }
+
     setRenovationForm((previous) => ({
       ...previous,
       items: previous.items.filter((item) => item.itemId !== itemId),
