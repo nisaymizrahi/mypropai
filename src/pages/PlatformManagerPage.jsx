@@ -81,7 +81,7 @@ const getInitials = (name = "", email = "") => {
     return parts[0].slice(0, 2).toUpperCase();
   }
 
-  return String(email).slice(0, 2).toUpperCase() || "MP";
+  return String(email).slice(0, 2).toUpperCase() || "FL";
 };
 
 const formatJoinedDate = (value) =>

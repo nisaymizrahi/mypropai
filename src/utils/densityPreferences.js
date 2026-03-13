@@ -1,4 +1,4 @@
-export const DENSITY_STORAGE_KEY = "mypropai.densityPreset";
+export const DENSITY_STORAGE_KEY = "fliprop.densityPreset";
 export const DEFAULT_DENSITY_PRESET = "standard";
 
 export const DENSITY_OPTIONS = [

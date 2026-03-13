@@ -4,11 +4,12 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
 import { createProperty, previewLeadProperty } from "../utils/api";
 import { getLocationProviderName, searchAddressSuggestions } from "../utils/locationSearch";
-import { PROPERTY_STRATEGIES } from "../utils/propertyStrategy";
 
 const propertyTypeOptions = [
   { value: "", label: "Select property type" },
   { value: "single-family", label: "Single Family" },
+  { value: "condo", label: "Condo" },
+  { value: "townhouse", label: "Townhouse" },
   { value: "multi-family", label: "Multi-Family" },
   { value: "mixed-use", label: "Mixed Use" },
   { value: "commercial", label: "Commercial" },
@@ -16,30 +17,25 @@ const propertyTypeOptions = [
   { value: "other", label: "Other" },
 ];
 
-const occupancyOptions = ["Unknown", "Vacant", "Owner Occupied", "Tenant Occupied"];
-
-const workspaceOptions = [
-  {
-    value: "property_only",
+const workspaceDetails = {
+  property_only: {
     label: "Property only",
-    description: "Create the shared property record first, then place it into a workspace later.",
+    description: "Create the shared property record first, then decide what to do with it.",
   },
-  {
-    value: "pipeline",
-    label: "Start in pipeline",
-    description: "Create the property and attach a lead workspace for seller-side tracking.",
+  pipeline: {
+    label: "Leads",
+    description: "This property will open in the leads workflow right after it is created.",
   },
-  {
-    value: "acquisitions",
-    label: "Start in acquisitions",
-    description: "Create the property and open an investment workspace right away.",
+  acquisitions: {
+    label: "Investments",
+    description: "This property will open in the investment workflow right after it is created.",
   },
-  {
-    value: "management",
-    label: "Start in management",
-    description: "Create the property, seed an eligible investment, and open the management workspace.",
+  management: {
+    label: "Management",
+    description:
+      "This property will open in management after creation using the default rental strategy in the background.",
   },
-];
+};
 
 const normalizeWorkspaceKey = (value) => {
   if (["property_only", "pipeline", "acquisitions", "management"].includes(value)) {
@@ -48,29 +44,6 @@ const normalizeWorkspaceKey = (value) => {
 
   return "property_only";
 };
-
-const mapPreviewToForm = (preview = {}) => ({
-  address: preview.address || "",
-  addressLine1: preview.addressLine1 || "",
-  addressLine2: preview.addressLine2 || "",
-  city: preview.city || "",
-  state: preview.state || "",
-  zipCode: preview.zipCode || "",
-  county: preview.county || "",
-  latitude: preview.latitude ?? "",
-  longitude: preview.longitude ?? "",
-  propertyType: preview.propertyType || "",
-  bedrooms: preview.bedrooms ?? "",
-  bathrooms: preview.bathrooms ?? "",
-  squareFootage: preview.squareFootage ?? "",
-  lotSize: preview.lotSize ?? "",
-  yearBuilt: preview.yearBuilt ?? "",
-  sellerAskingPrice: preview.sellerAskingPrice ?? "",
-  listingStatus: preview.listingStatus || "",
-  daysOnMarket: preview.daysOnMarket ?? "",
-  lastSalePrice: preview.lastSalePrice ?? "",
-  lastSaleDate: preview.lastSaleDate ? String(preview.lastSaleDate).slice(0, 10) : "",
-});
 
 const toOptionalNumber = (value) => {
   if (value === "" || value === null || value === undefined) {
@@ -81,26 +54,84 @@ const toOptionalNumber = (value) => {
   return Number.isFinite(parsed) ? parsed : undefined;
 };
 
-const managementStrategyOptions = PROPERTY_STRATEGIES.filter(
-  (option) => option.value === "fix_and_rent" || option.value === "rental"
-);
+const extractAddressLine1 = (value = "") => String(value).split(",")[0]?.trim() || "";
+
+const parseAddressLabel = (value = "") => {
+  const [addressLine1 = "", city = "", region = ""] = String(value)
+    .split(",")
+    .map((part) => part.trim());
+  const regionTokens = region.split(/\s+/).filter(Boolean);
+
+  return {
+    addressLine1,
+    city,
+    state: regionTokens[0] || "",
+    zipCode: regionTokens[1] || "",
+  };
+};
+
+const composeAddress = (parts = {}) =>
+  [parts.addressLine1, parts.city, parts.state, parts.zipCode].filter(Boolean).join(", ");
+
+const normalizePropertyType = (value) => {
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[_\s]+/g, "-");
+
+  if (!normalized) return "";
+  if (propertyTypeOptions.some((option) => option.value === normalized)) {
+    return normalized;
+  }
+  if (normalized.includes("single")) return "single-family";
+  if (normalized.includes("condo")) return "condo";
+  if (normalized.includes("town")) return "townhouse";
+  if (normalized.includes("multi")) return "multi-family";
+  if (normalized.includes("mixed")) return "mixed-use";
+  if (normalized.includes("commercial")) return "commercial";
+  if (normalized.includes("land") || normalized.includes("lot")) return "land";
+  return "other";
+};
+
+const mapPreviewToForm = (preview = {}) => ({
+  addressLine1: preview.addressLine1 || extractAddressLine1(preview.address),
+  city: preview.city || "",
+  state: preview.state || "",
+  zipCode: preview.zipCode || "",
+  propertyType: normalizePropertyType(preview.propertyType),
+  bedrooms: preview.bedrooms ?? "",
+  bathrooms: preview.bathrooms ?? "",
+  squareFootage: preview.squareFootage ?? "",
+  lotSize: preview.lotSize ?? "",
+  yearBuilt: preview.yearBuilt ?? "",
+  listingStatus: preview.listingStatus || "",
+  sellerAskingPrice: preview.sellerAskingPrice ?? "",
+  latitude: preview.latitude ?? "",
+  longitude: preview.longitude ?? "",
+});
+
+const formatCurrency = (value) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return "";
+
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
+  }).format(parsed);
+};
 
 const CreatePropertyPage = () => {
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const selectedSuggestionRef = useRef("");
   const initialWorkspace = normalizeWorkspaceKey(searchParams.get("workspace"));
 
   const [formData, setFormData] = useState({
-    address: "",
     addressLine1: "",
-    addressLine2: "",
     city: "",
     state: "",
     zipCode: "",
-    county: "",
-    latitude: "",
-    longitude: "",
     propertyType: "",
     bedrooms: "",
     bathrooms: "",
@@ -108,26 +139,11 @@ const CreatePropertyPage = () => {
     lotSize: "",
     yearBuilt: "",
     unitCount: "",
-    workspaceKey: initialWorkspace,
-    strategy: initialWorkspace === "management" ? "rental" : "flip",
-    purchasePrice: "",
-    arv: "",
-    sellerAskingPrice: "",
-    sellerName: "",
-    sellerPhone: "",
-    sellerEmail: "",
-    leadSource: "",
-    occupancyStatus: "Unknown",
-    motivation: "",
-    targetOffer: "",
-    rehabEstimate: "",
-    nextAction: "",
-    followUpDate: "",
-    notes: "",
     listingStatus: "",
-    daysOnMarket: "",
-    lastSalePrice: "",
-    lastSaleDate: "",
+    sellerAskingPrice: "",
+    latitude: "",
+    longitude: "",
+    workspaceKey: initialWorkspace,
   });
   const [suggestions, setSuggestions] = useState([]);
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
@@ -135,17 +151,25 @@ const CreatePropertyPage = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
 
-  const workspaceDetails = useMemo(
-    () => workspaceOptions.find((option) => option.value === formData.workspaceKey),
-    [formData.workspaceKey]
+  const addressQuery = useMemo(
+    () =>
+      composeAddress({
+        addressLine1: formData.addressLine1,
+        city: formData.city,
+        state: formData.state,
+        zipCode: formData.zipCode,
+      }),
+    [formData.addressLine1, formData.city, formData.state, formData.zipCode]
   );
 
-  const showsUnitCount = ["multi-family", "mixed-use", "commercial"].includes(
-    formData.propertyType
+  const launchMode = workspaceDetails[formData.workspaceKey] || workspaceDetails.property_only;
+  const showsUnitCount = formData.propertyType === "multi-family";
+  const isForSale = Boolean(
+    previewMetadata?.activeListingFound || formData.listingStatus || formData.sellerAskingPrice
   );
 
   useEffect(() => {
-    const query = formData.address.trim();
+    const query = addressQuery.trim();
     if (query.length < 4 || query === selectedSuggestionRef.current) {
       setSuggestions([]);
       return undefined;
@@ -167,7 +191,7 @@ const CreatePropertyPage = () => {
       controller.abort();
       window.clearTimeout(timeoutId);
     };
-  }, [formData.address]);
+  }, [addressQuery]);
 
   const handleChange = (event) => {
     const { name, value } = event.target;
@@ -178,44 +202,53 @@ const CreatePropertyPage = () => {
         [name]: value,
       };
 
-      if (name === "workspaceKey") {
-        if (value === "management" && nextState.strategy === "flip") {
-          nextState.strategy = "rental";
-        }
-
-        setSearchParams(value === "property_only" ? {} : { workspace: value }, { replace: true });
+      if (name === "propertyType" && value !== "multi-family") {
+        nextState.unitCount = "";
       }
 
       return nextState;
     });
 
-    if (name === "address") {
-      selectedSuggestionRef.current = "";
+    if (["addressLine1", "city", "state", "zipCode"].includes(name)) {
       setPreviewMetadata(null);
+      if (name === "addressLine1") {
+        selectedSuggestionRef.current = "";
+      }
     }
   };
 
-  const handlePreviewLookup = async (addressOverride) => {
-    const address = addressOverride || formData.address.trim();
-    if (!address) {
-      toast.error("Select or type an address first.");
+  const handlePreviewLookup = async (addressOverride, fieldOverrides = {}) => {
+    const previewSource = {
+      ...formData,
+      ...fieldOverrides,
+    };
+    const address = addressOverride || composeAddress(previewSource);
+    if (!address.trim()) {
+      toast.error("Enter an address first.");
       return;
     }
 
     setIsPreviewLoading(true);
     try {
       const preview = await previewLeadProperty({
-        ...formData,
         address,
+        addressLine1: previewSource.addressLine1,
+        city: previewSource.city,
+        state: previewSource.state,
+        zipCode: previewSource.zipCode,
+        propertyType: previewSource.propertyType || undefined,
+        bedrooms: toOptionalNumber(previewSource.bedrooms),
+        bathrooms: toOptionalNumber(previewSource.bathrooms),
+        squareFootage: toOptionalNumber(previewSource.squareFootage),
+        lotSize: toOptionalNumber(previewSource.lotSize),
+        yearBuilt: toOptionalNumber(previewSource.yearBuilt),
+        sellerAskingPrice: toOptionalNumber(previewSource.sellerAskingPrice),
+        listingStatus: previewSource.listingStatus || undefined,
       });
 
       setFormData((current) => ({
         ...current,
         ...mapPreviewToForm(preview),
-        strategy:
-          current.workspaceKey === "management" && current.strategy === "flip"
-            ? "rental"
-            : current.strategy,
       }));
       setPreviewMetadata(preview.metadata || null);
       setSuggestions([]);
@@ -227,15 +260,14 @@ const CreatePropertyPage = () => {
   };
 
   const handleSelectSuggestion = async (suggestion) => {
+    const parsedAddress = parseAddressLabel(suggestion.place_name);
     selectedSuggestionRef.current = suggestion.place_name;
     setSuggestions([]);
     setFormData((current) => ({
       ...current,
-      address: suggestion.place_name,
-      longitude: suggestion.center?.[0] ?? current.longitude,
-      latitude: suggestion.center?.[1] ?? current.latitude,
+      ...parsedAddress,
     }));
-    await handlePreviewLookup(suggestion.place_name);
+    await handlePreviewLookup(suggestion.place_name, parsedAddress);
   };
 
   const handleSubmit = async (event) => {
@@ -245,13 +277,11 @@ const CreatePropertyPage = () => {
 
     try {
       const payload = {
-        address: formData.address,
+        address: composeAddress(formData),
         addressLine1: formData.addressLine1 || undefined,
-        addressLine2: formData.addressLine2 || undefined,
         city: formData.city || undefined,
         state: formData.state || undefined,
         zipCode: formData.zipCode || undefined,
-        county: formData.county || undefined,
         latitude: toOptionalNumber(formData.latitude),
         longitude: toOptionalNumber(formData.longitude),
         propertyType: formData.propertyType || undefined,
@@ -261,26 +291,15 @@ const CreatePropertyPage = () => {
         lotSize: toOptionalNumber(formData.lotSize),
         yearBuilt: toOptionalNumber(formData.yearBuilt),
         unitCount: showsUnitCount ? toOptionalNumber(formData.unitCount) : undefined,
+        listingStatus: isForSale ? formData.listingStatus || "For Sale" : undefined,
+        sellerAskingPrice: isForSale ? toOptionalNumber(formData.sellerAskingPrice) : undefined,
         workspaceKey: formData.workspaceKey,
-        strategy: formData.strategy,
-        purchasePrice: toOptionalNumber(formData.purchasePrice),
-        arv: toOptionalNumber(formData.arv),
-        sellerAskingPrice: toOptionalNumber(formData.sellerAskingPrice),
-        sellerName: formData.sellerName || undefined,
-        sellerPhone: formData.sellerPhone || undefined,
-        sellerEmail: formData.sellerEmail || undefined,
-        leadSource: formData.leadSource || undefined,
-        occupancyStatus: formData.occupancyStatus || undefined,
-        motivation: formData.motivation || undefined,
-        targetOffer: toOptionalNumber(formData.targetOffer),
-        rehabEstimate: toOptionalNumber(formData.rehabEstimate),
-        nextAction: formData.nextAction || undefined,
-        followUpDate: formData.followUpDate || undefined,
-        notes: formData.notes || undefined,
-        listingStatus: formData.listingStatus || undefined,
-        daysOnMarket: toOptionalNumber(formData.daysOnMarket),
-        lastSalePrice: toOptionalNumber(formData.lastSalePrice),
-        lastSaleDate: formData.lastSaleDate || undefined,
+        strategy:
+          formData.workspaceKey === "management"
+            ? "rental"
+            : formData.workspaceKey === "acquisitions"
+              ? "flip"
+              : undefined,
       };
 
       const result = await createProperty(payload);
@@ -292,13 +311,13 @@ const CreatePropertyPage = () => {
       }
 
       if (result.investmentId) {
-        toast.success("Property created and sent to acquisitions.");
+        toast.success("Property created and sent to investments.");
         navigate(`/investments/${result.investmentId}`);
         return;
       }
 
       if (result.leadId) {
-        toast.success("Property created and added to pipeline.");
+        toast.success("Property created and added to leads.");
         navigate(`/leads/${result.leadId}`);
         return;
       }
@@ -323,14 +342,13 @@ const CreatePropertyPage = () => {
       <section className="surface-panel-strong relative overflow-hidden px-6 py-7 sm:px-8">
         <div className="grid gap-8 lg:grid-cols-[minmax(0,1.05fr)_minmax(320px,0.95fr)]">
           <div>
-            <span className="eyebrow">Property-first creation</span>
+            <span className="eyebrow">Add property</span>
             <h2 className="mt-5 text-4xl font-semibold tracking-tight text-ink-900">
-              Create the property once, then launch the right workspace.
+              Start with the address, then fill in only the property facts you need.
             </h2>
             <p className="mt-4 max-w-2xl text-base leading-7 text-ink-500">
-              This is now the shared front door for leads, acquisitions, and management. Start
-              with the address, auto-fill what we can, and then add only the extra fields needed
-              for the workflow you want.
+              This version keeps the entry flow lean: street address, city, state, zip, core
+              property specs, and sale status when the property is actively listed.
             </p>
 
             <div className="mt-8 flex flex-wrap gap-3">
@@ -342,14 +360,10 @@ const CreatePropertyPage = () => {
 
           <div className="section-card p-6">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-400">
-              Starting mode
+              Save target
             </p>
-            <h3 className="mt-3 text-2xl font-semibold text-ink-900">
-              {workspaceDetails?.label || "Property only"}
-            </h3>
-            <p className="mt-3 text-sm leading-6 text-ink-500">
-              {workspaceDetails?.description}
-            </p>
+            <h3 className="mt-3 text-2xl font-semibold text-ink-900">{launchMode.label}</h3>
+            <p className="mt-3 text-sm leading-6 text-ink-500">{launchMode.description}</p>
 
             <div className="mt-6 rounded-[22px] border border-ink-100 bg-white/90 p-4">
               <p className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-400">
@@ -357,32 +371,32 @@ const CreatePropertyPage = () => {
               </p>
               <p className="mt-2 text-sm leading-6 text-ink-600">
                 Address suggestions come from {getLocationProviderName()}, and the property detail
-                lookup uses the backend preview service to pull address context and property facts.
+                lookup checks for sale activity plus available property facts.
               </p>
             </div>
           </div>
         </div>
       </section>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={handleSubmit}>
         <section className="section-card p-6 sm:p-7">
-          <span className="eyebrow">Shared profile</span>
-          <h3 className="mt-4 text-2xl font-semibold text-ink-900">Core property details</h3>
+          <span className="eyebrow">Property details</span>
+          <h3 className="mt-4 text-2xl font-semibold text-ink-900">Keep the first form simple</h3>
           <p className="mt-2 text-sm leading-6 text-ink-500">
-            These fields become the shared property identity used across leads, investments, and
-            management.
+            Select an address, auto-fill the basics, and only enter unit count when the property is
+            multi-family.
           </p>
 
           <div className="mt-6 grid gap-5 md:grid-cols-2">
             <div className="relative md:col-span-2">
               <label className="space-y-2">
-                <span className="text-sm font-medium text-ink-700">Address</span>
+                <span className="text-sm font-medium text-ink-700">Address line</span>
                 <input
-                  name="address"
-                  value={formData.address}
+                  name="addressLine1"
+                  value={formData.addressLine1}
                   onChange={handleChange}
                   className="auth-input"
-                  placeholder="Start typing an address..."
+                  placeholder="Start typing the property address..."
                   required
                 />
               </label>
@@ -403,12 +417,48 @@ const CreatePropertyPage = () => {
               ) : null}
             </div>
 
+            <label className="space-y-2">
+              <span className="text-sm font-medium text-ink-700">City</span>
+              <input
+                name="city"
+                value={formData.city}
+                onChange={handleChange}
+                className="auth-input"
+                placeholder="City"
+                required
+              />
+            </label>
+
+            <label className="space-y-2">
+              <span className="text-sm font-medium text-ink-700">State</span>
+              <input
+                name="state"
+                value={formData.state}
+                onChange={handleChange}
+                className="auth-input"
+                placeholder="State"
+                required
+              />
+            </label>
+
+            <label className="space-y-2">
+              <span className="text-sm font-medium text-ink-700">Zip code</span>
+              <input
+                name="zipCode"
+                value={formData.zipCode}
+                onChange={handleChange}
+                className="auth-input"
+                placeholder="Zip code"
+                required
+              />
+            </label>
+
             <div className="md:col-span-2">
               <div className="flex flex-wrap items-center gap-3">
                 <button
                   type="button"
                   onClick={() => handlePreviewLookup()}
-                  disabled={isPreviewLoading || !formData.address.trim()}
+                  disabled={isPreviewLoading || !addressQuery.trim()}
                   className="secondary-action disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {isPreviewLoading ? "Loading property details..." : "Auto-fill property details"}
@@ -416,13 +466,18 @@ const CreatePropertyPage = () => {
                 {previewMetadata ? (
                   <p className="text-sm text-ink-500">
                     {previewMetadata.propertyFound
-                      ? "Property record found."
-                      : "No property record found."}{" "}
+                      ? "Property facts found."
+                      : "No property facts found."}{" "}
                     {previewMetadata.activeListingFound
-                      ? "Active listing found."
-                      : "No active listing found."}
+                      ? "Active sale listing found."
+                      : "No active sale listing found."}
                   </p>
-                ) : null}
+                ) : (
+                  <p className="text-sm text-ink-500">
+                    Use the lookup after selecting an address to fill the property facts and sale
+                    status.
+                  </p>
+                )}
               </div>
             </div>
 
@@ -441,22 +496,6 @@ const CreatePropertyPage = () => {
                 ))}
               </select>
             </label>
-
-            {showsUnitCount ? (
-              <label className="space-y-2">
-                <span className="text-sm font-medium text-ink-700">Unit count</span>
-                <input
-                  name="unitCount"
-                  type="number"
-                  value={formData.unitCount}
-                  onChange={handleChange}
-                  className="auth-input"
-                  placeholder="0"
-                />
-              </label>
-            ) : (
-              <div className="hidden md:block" />
-            )}
 
             <label className="space-y-2">
               <span className="text-sm font-medium text-ink-700">Bedrooms</span>
@@ -518,250 +557,75 @@ const CreatePropertyPage = () => {
                 placeholder="0"
               />
             </label>
-          </div>
-        </section>
 
-        <section className="section-card p-6 sm:p-7">
-          <span className="eyebrow">Placement</span>
-          <h3 className="mt-4 text-2xl font-semibold text-ink-900">Where should it start?</h3>
-          <p className="mt-2 text-sm leading-6 text-ink-500">
-            Choose the first behavior this property should have. The shared property profile stays
-            in one place even as you add more workspaces later.
-          </p>
-
-          <div className="mt-6 grid gap-3 lg:grid-cols-2">
-            {workspaceOptions.map((option) => (
-              <label
-                key={option.value}
-                className={`block cursor-pointer rounded-[22px] border px-4 py-4 transition ${
-                  formData.workspaceKey === option.value
-                    ? "border-verdigris-300 bg-verdigris-50/70"
-                    : "border-ink-100 bg-white/90 hover:border-ink-200"
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="workspaceKey"
-                  value={option.value}
-                  checked={formData.workspaceKey === option.value}
-                  onChange={handleChange}
-                  className="sr-only"
-                />
-                <p className="text-sm font-semibold text-ink-900">{option.label}</p>
-                <p className="mt-1 text-sm leading-6 text-ink-500">{option.description}</p>
-              </label>
-            ))}
-          </div>
-
-          {formData.workspaceKey === "pipeline" ? (
-            <div className="mt-6 space-y-5 rounded-[24px] border border-ink-100 bg-sand-50/70 p-5">
-              <div>
-                <p className="text-sm font-semibold text-ink-900">Pipeline setup</p>
-                <p className="mt-1 text-sm text-ink-500">
-                  Seller and deal-specific fields that only matter for lead workflow.
-                </p>
-              </div>
-
-              <div className="grid gap-5 md:grid-cols-2">
-                <label className="space-y-2">
-                  <span className="text-sm font-medium text-ink-700">Seller asking price</span>
-                  <input
-                    name="sellerAskingPrice"
-                    type="number"
-                    value={formData.sellerAskingPrice}
-                    onChange={handleChange}
-                    className="auth-input"
-                    placeholder="0"
-                  />
-                </label>
-                <label className="space-y-2">
-                  <span className="text-sm font-medium text-ink-700">Target offer</span>
-                  <input
-                    name="targetOffer"
-                    type="number"
-                    value={formData.targetOffer}
-                    onChange={handleChange}
-                    className="auth-input"
-                    placeholder="0"
-                  />
-                </label>
-                <label className="space-y-2">
-                  <span className="text-sm font-medium text-ink-700">ARV / exit value</span>
-                  <input
-                    name="arv"
-                    type="number"
-                    value={formData.arv}
-                    onChange={handleChange}
-                    className="auth-input"
-                    placeholder="0"
-                  />
-                </label>
-                <label className="space-y-2">
-                  <span className="text-sm font-medium text-ink-700">Rehab estimate</span>
-                  <input
-                    name="rehabEstimate"
-                    type="number"
-                    value={formData.rehabEstimate}
-                    onChange={handleChange}
-                    className="auth-input"
-                    placeholder="0"
-                  />
-                </label>
-                <label className="space-y-2">
-                  <span className="text-sm font-medium text-ink-700">Seller name</span>
-                  <input
-                    name="sellerName"
-                    value={formData.sellerName}
-                    onChange={handleChange}
-                    className="auth-input"
-                  />
-                </label>
-                <label className="space-y-2">
-                  <span className="text-sm font-medium text-ink-700">Seller phone</span>
-                  <input
-                    name="sellerPhone"
-                    value={formData.sellerPhone}
-                    onChange={handleChange}
-                    className="auth-input"
-                  />
-                </label>
-                <label className="space-y-2">
-                  <span className="text-sm font-medium text-ink-700">Seller email</span>
-                  <input
-                    name="sellerEmail"
-                    type="email"
-                    value={formData.sellerEmail}
-                    onChange={handleChange}
-                    className="auth-input"
-                  />
-                </label>
-                <label className="space-y-2">
-                  <span className="text-sm font-medium text-ink-700">Lead source</span>
-                  <input
-                    name="leadSource"
-                    value={formData.leadSource}
-                    onChange={handleChange}
-                    className="auth-input"
-                    placeholder="Agent, direct mail, cold call..."
-                  />
-                </label>
-                <label className="space-y-2">
-                  <span className="text-sm font-medium text-ink-700">Occupancy</span>
-                  <select
-                    name="occupancyStatus"
-                    value={formData.occupancyStatus}
-                    onChange={handleChange}
-                    className="auth-input appearance-none"
-                  >
-                    {occupancyOptions.map((option) => (
-                      <option key={option} value={option}>
-                        {option}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="space-y-2">
-                  <span className="text-sm font-medium text-ink-700">Next action</span>
-                  <input
-                    name="nextAction"
-                    value={formData.nextAction}
-                    onChange={handleChange}
-                    className="auth-input"
-                    placeholder="Call seller, request rent roll..."
-                  />
-                </label>
-                <label className="space-y-2 md:col-span-2">
-                  <span className="text-sm font-medium text-ink-700">Follow-up date</span>
-                  <input
-                    name="followUpDate"
-                    type="date"
-                    value={formData.followUpDate}
-                    onChange={handleChange}
-                    className="auth-input"
-                  />
-                </label>
-                <label className="space-y-2 md:col-span-2">
-                  <span className="text-sm font-medium text-ink-700">Seller motivation</span>
-                  <textarea
-                    name="motivation"
-                    rows="4"
-                    value={formData.motivation}
-                    onChange={handleChange}
-                    className="auth-input min-h-[120px]"
-                    placeholder="Why might this seller move quickly or accept a discount?"
-                  />
-                </label>
-                <label className="space-y-2 md:col-span-2">
-                  <span className="text-sm font-medium text-ink-700">Notes</span>
-                  <textarea
-                    name="notes"
-                    rows="4"
-                    value={formData.notes}
-                    onChange={handleChange}
-                    className="auth-input min-h-[120px]"
-                    placeholder="Anything important to remember about this lead."
-                  />
-                </label>
-              </div>
-            </div>
-          ) : null}
-
-          {formData.workspaceKey === "acquisitions" || formData.workspaceKey === "management" ? (
-            <div className="mt-6 space-y-4 rounded-[24px] border border-ink-100 bg-sand-50/70 p-5">
-              <div>
-                <p className="text-sm font-semibold text-ink-900">
-                  {formData.workspaceKey === "management" ? "Management launch" : "Acquisitions setup"}
-                </p>
-                <p className="mt-1 text-sm text-ink-500">
-                  Strategy and valuation inputs that belong to investment and operations workflow.
-                </p>
-              </div>
-
+            {showsUnitCount ? (
               <label className="space-y-2">
-                <span className="text-sm font-medium text-ink-700">Strategy</span>
-                <select
-                  name="strategy"
-                  value={formData.strategy}
+                <span className="text-sm font-medium text-ink-700">Unit count</span>
+                <input
+                  name="unitCount"
+                  type="number"
+                  value={formData.unitCount}
                   onChange={handleChange}
-                  className="auth-input appearance-none"
-                >
-                  {(formData.workspaceKey === "management"
-                    ? managementStrategyOptions
-                    : PROPERTY_STRATEGIES
-                  ).map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
+                  className="auth-input"
+                  placeholder="0"
+                />
               </label>
+            ) : null}
 
-              <div className="grid gap-5 md:grid-cols-2">
-                <label className="space-y-2">
-                  <span className="text-sm font-medium text-ink-700">Purchase price</span>
-                  <input
-                    name="purchasePrice"
-                    type="number"
-                    value={formData.purchasePrice}
-                    onChange={handleChange}
-                    className="auth-input"
-                    placeholder="0"
-                  />
-                </label>
-                <label className="space-y-2">
-                  <span className="text-sm font-medium text-ink-700">ARV / future value</span>
-                  <input
-                    name="arv"
-                    type="number"
-                    value={formData.arv}
-                    onChange={handleChange}
-                    className="auth-input"
-                    placeholder="0"
-                  />
-                </label>
+            <div className="md:col-span-2 rounded-[24px] border border-ink-100 bg-sand-50/70 p-5">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-ink-900">Sale status</p>
+                  <p className="mt-1 text-sm text-ink-500">
+                    If the property has an active listing, we show that here automatically.
+                  </p>
+                </div>
+                <span
+                  className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
+                    isForSale
+                      ? "bg-verdigris-50 text-verdigris-700"
+                      : "bg-white text-ink-600 ring-1 ring-ink-100"
+                  }`}
+                >
+                  {isForSale ? "For sale" : "Not listed"}
+                </span>
               </div>
+
+              {isForSale ? (
+                <div className="mt-4 grid gap-5 md:grid-cols-[minmax(0,280px)_minmax(0,1fr)]">
+                  <label className="space-y-2">
+                    <span className="text-sm font-medium text-ink-700">Sale price</span>
+                    <input
+                      name="sellerAskingPrice"
+                      type="number"
+                      value={formData.sellerAskingPrice}
+                      onChange={handleChange}
+                      className="auth-input"
+                      placeholder="0"
+                    />
+                  </label>
+
+                  <div className="rounded-[20px] border border-ink-100 bg-white/90 p-4">
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-400">
+                      Listing snapshot
+                    </p>
+                    <p className="mt-2 text-sm font-medium text-ink-800">
+                      {formData.listingStatus || "For Sale"}
+                    </p>
+                    <p className="mt-2 text-sm leading-6 text-ink-500">
+                      {formData.sellerAskingPrice
+                        ? `Current sale price: ${formatCurrency(formData.sellerAskingPrice)}`
+                        : "The property is listed for sale, but the asking price was not available from the lookup."}
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <p className="mt-4 text-sm leading-6 text-ink-500">
+                  No active sale listing was found for this address yet.
+                </p>
+              )}
             </div>
-          ) : null}
+          </div>
 
           {error ? (
             <div className="mt-5 rounded-[18px] border border-clay-200 bg-clay-50 px-4 py-3 text-sm text-clay-700">

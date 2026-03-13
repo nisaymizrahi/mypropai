@@ -1,5 +1,5 @@
-export const SIDEBAR_STORAGE_KEY = "mypropai.sidebarPreset";
-export const SIDEBAR_PREFERENCE_EVENT = "mypropai:sidebar-preference-change";
+export const SIDEBAR_STORAGE_KEY = "fliprop.sidebarPreset";
+export const SIDEBAR_PREFERENCE_EVENT = "fliprop:sidebar-preference-change";
 export const DEFAULT_SIDEBAR_PRESET = "expanded";
 
 export const SIDEBAR_OPTIONS = [

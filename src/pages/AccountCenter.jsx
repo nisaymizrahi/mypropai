@@ -48,6 +48,17 @@ const formatCurrency = (amountCents = 0, currency = "usd") =>
     maximumFractionDigits: 0,
   }).format((amountCents || 0) / 100);
 
+const formatFeeInput = (amountCents = 5000) => ((amountCents || 0) / 100).toFixed(2);
+
+const parseFeeInputToCents = (value) => {
+  if (value === "" || value === null || value === undefined) {
+    return 0;
+  }
+
+  const normalized = Number(value);
+  return Number.isFinite(normalized) && normalized >= 0 ? Math.round(normalized * 100) : null;
+};
+
 const LoadingSpinner = () => (
   <div className="surface-panel flex items-center justify-center px-6 py-20">
     <div className="h-12 w-12 animate-spin rounded-full border-4 border-verdigris-100 border-t-verdigris-500" />
@@ -133,6 +144,10 @@ const AccountCenter = () => {
 
   const [profileData, setProfileData] = useState({ name: "", email: "" });
   const [isProfileSaving, setIsProfileSaving] = useState(false);
+  const [applicationSettings, setApplicationSettings] = useState({
+    applicationFee: formatFeeInput(),
+  });
+  const [isApplicationSettingsSaving, setIsApplicationSettingsSaving] = useState(false);
 
   const [passwordData, setPasswordData] = useState({
     currentPassword: "",
@@ -164,6 +179,9 @@ const AccountCenter = () => {
   useEffect(() => {
     if (user) {
       setProfileData({ name: user.name || "", email: user.email || "" });
+      setApplicationSettings({
+        applicationFee: formatFeeInput(user.applicationFeeCents),
+      });
     }
   }, [user]);
 
@@ -229,6 +247,13 @@ const AccountCenter = () => {
     }));
   };
 
+  const handleApplicationSettingsChange = (event) => {
+    setApplicationSettings((current) => ({
+      ...current,
+      [event.target.name]: event.target.value,
+    }));
+  };
+
   const handleProfileSubmit = async (event) => {
     event.preventDefault();
     setIsProfileSaving(true);
@@ -254,6 +279,27 @@ const AccountCenter = () => {
       toast.error(error.message || "Failed to change password.");
     } finally {
       setIsPasswordSaving(false);
+    }
+  };
+
+  const handleApplicationSettingsSubmit = async (event) => {
+    event.preventDefault();
+
+    const applicationFeeCents = parseFeeInputToCents(applicationSettings.applicationFee);
+    if (applicationFeeCents === null || applicationFeeCents > 100000) {
+      toast.error("Application fee must be between $0 and $1,000.");
+      return;
+    }
+
+    setIsApplicationSettingsSaving(true);
+    try {
+      await updateUserProfile({ applicationFeeCents });
+      await refreshUser();
+      toast.success("Application settings updated.");
+    } catch (error) {
+      toast.error(error.message || "Failed to update application settings.");
+    } finally {
+      setIsApplicationSettingsSaving(false);
     }
   };
 
@@ -396,7 +442,7 @@ const AccountCenter = () => {
                   Workspace owner
                 </p>
                 <p className="mt-1 text-sm font-semibold text-ink-900">
-                  {user?.name || "MyPropAI User"}
+                  {user?.name || "Fliprop User"}
                 </p>
                 <p className="mt-1 text-sm text-ink-500">{user?.email || "No email on file"}</p>
               </div>
@@ -437,7 +483,7 @@ const AccountCenter = () => {
         <MetricCard
           label="Plan"
           value={currentPlan?.name || "Starter"}
-          detail="The current subscription level attached to this manager workspace."
+          detail="The current subscription level attached to this workspace."
           icon={CreditCardIcon}
           accent="ink"
         />
@@ -470,6 +516,13 @@ const AccountCenter = () => {
           icon={CheckBadgeIcon}
           accent={user?.stripeOnboardingComplete ? "verdigris" : "clay"}
         />
+        <MetricCard
+          label="App Fee"
+          value={formatCurrency(user?.applicationFeeCents || 0)}
+          detail="The amount applicants currently pay before the manager can run screening."
+          icon={BanknotesIcon}
+          accent="sand"
+        />
       </section>
 
       <section className="grid gap-6 lg:grid-cols-[minmax(0,1.08fr)_minmax(320px,0.92fr)]">
@@ -478,7 +531,7 @@ const AccountCenter = () => {
             <span className="eyebrow">Profile</span>
             <h3 className="mt-4 text-2xl font-semibold text-ink-900">Workspace profile</h3>
             <p className="mt-2 text-sm leading-6 text-ink-500">
-              Update the account details used across the manager workspace.
+              Update the account details used across the workspace.
             </p>
 
             <form onSubmit={handleProfileSubmit} className="mt-6 space-y-5">
@@ -704,6 +757,51 @@ const AccountCenter = () => {
               </div>
             )}
           </div>
+
+          <div className="section-card p-6 sm:p-7">
+            <span className="eyebrow">Applications</span>
+            <h3 className="mt-4 text-2xl font-semibold text-ink-900">Application settings</h3>
+            <p className="mt-2 text-sm leading-6 text-ink-500">
+              Set the application fee applicants pay before the screening step becomes available to
+              your team.
+            </p>
+
+            <form onSubmit={handleApplicationSettingsSubmit} className="mt-6 space-y-5">
+              <div>
+                <label htmlFor="applicationFee" className="auth-label">
+                  Application fee (USD)
+                </label>
+                <input
+                  id="applicationFee"
+                  name="applicationFee"
+                  type="number"
+                  min="0"
+                  max="1000"
+                  step="0.01"
+                  value={applicationSettings.applicationFee}
+                  onChange={handleApplicationSettingsChange}
+                  className="auth-input"
+                  placeholder="50.00"
+                />
+              </div>
+
+              <div className="rounded-[20px] border border-ink-100 bg-sand-50 px-4 py-4 text-sm leading-6 text-ink-600">
+                Applicants currently see and pay {formatCurrency(user?.applicationFeeCents || 0)}.
+                Once payment is confirmed, the manager can trigger tenant screening from the
+                application detail page.
+              </div>
+
+              <div className="flex justify-end">
+                <button
+                  type="submit"
+                  disabled={isApplicationSettingsSaving}
+                  className="primary-action disabled:cursor-not-allowed disabled:opacity-70"
+                >
+                  {isApplicationSettingsSaving ? "Saving..." : "Save application settings"}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
 
         <div className="space-y-6">
@@ -843,7 +941,7 @@ const AccountCenter = () => {
             <span className="eyebrow">Security</span>
             <h3 className="mt-4 text-2xl font-semibold text-ink-900">Change password</h3>
             <p className="mt-2 text-sm leading-6 text-ink-500">
-              Keep the manager workspace secure with an updated password.
+              Keep the workspace secure with an updated password.
             </p>
 
             <form onSubmit={handlePasswordSubmit} className="mt-6 space-y-5">

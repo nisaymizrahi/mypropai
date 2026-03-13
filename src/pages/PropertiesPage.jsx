@@ -31,6 +31,17 @@ const SummaryCard = ({ label, value, detail }) => (
   </div>
 );
 
+const formatCurrency = (value) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return "";
+
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
+  }).format(parsed);
+};
+
 const formatPropertyDetails = (property) => {
   const bits = [
     property.sharedProfile.propertyType || null,
@@ -45,6 +56,19 @@ const formatPropertyDetails = (property) => {
   ].filter(Boolean);
 
   return bits.join(" • ") || "Shared property profile not filled out yet";
+};
+
+const formatListingSummary = (property) => {
+  if (!property.sharedProfile.listingStatus && !property.sharedProfile.sellerAskingPrice) {
+    return "";
+  }
+
+  const bits = ["For sale"];
+  if (property.sharedProfile.sellerAskingPrice) {
+    bits.push(formatCurrency(property.sharedProfile.sellerAskingPrice));
+  }
+
+  return bits.join(" • ");
 };
 
 const countActiveWorkspaces = (property) =>
@@ -106,6 +130,7 @@ const PropertiesPage = () => {
         property.propertyKey,
         property.sharedProfile.propertyType,
         formatPropertyDetails(property),
+        formatListingSummary(property),
         property.workspaces.pipeline?.status,
         property.workspaces.acquisitions?.strategyLabel,
         property.workspaces.management?.status,
@@ -133,6 +158,11 @@ const PropertiesPage = () => {
               {property.title}
             </Link>
             <p className="mt-1 text-sm text-ink-500">{property.placement}</p>
+            {formatListingSummary(property) ? (
+              <p className="mt-2 text-sm font-medium text-verdigris-700">
+                {formatListingSummary(property)}
+              </p>
+            ) : null}
           </div>
         ),
       },

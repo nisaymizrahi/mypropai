@@ -71,20 +71,20 @@ const TenantLoginPage = () => {
         <header className="surface-panel flex items-center justify-between px-5 py-4">
           <Link to="/" className="flex items-center gap-4">
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-ink-900 text-lg font-bold text-white">
-              MP
+              FL
             </div>
             <div>
-              <p className="font-display text-2xl leading-none text-ink-900">MyPropAI</p>
+              <p className="font-display text-2xl leading-none text-ink-900">Fliprop</p>
               <p className="mt-1 text-sm text-ink-500">Tenant portal</p>
             </div>
           </Link>
 
           <div className="flex items-center gap-3">
             <Link to="/login" className="ghost-action">
-              Manager login
+              Workspace login
             </Link>
             <Link to="/signup" className="primary-action hidden sm:inline-flex">
-              Create manager account
+              Create workspace account
             </Link>
           </div>
         </header>
@@ -124,7 +124,7 @@ const TenantLoginPage = () => {
                 Need access? Contact your property manager for a tenant invitation. Managers and
                 operators should use{" "}
                 <Link to="/login" className="font-semibold underline decoration-verdigris-300 underline-offset-4">
-                  the manager login
+                  the workspace login
                 </Link>
                 .
               </div>
@@ -181,7 +181,7 @@ const TenantLoginPage = () => {
                   Back to homepage
                 </Link>
                 <Link to="/login" className="ghost-action">
-                  Manager login
+                  Workspace login
                 </Link>
               </div>
             </section>

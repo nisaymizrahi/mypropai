@@ -21,8 +21,17 @@ const managementStrategyOptions = PROPERTY_STRATEGIES.filter(
   (option) => option.value === "fix_and_rent" || option.value === "rental"
 );
 
-const isUnitCountRelevant = (propertyType) =>
-  ["multi-family", "mixed-use", "commercial"].includes(propertyType);
+const propertyTypeOptions = [
+  { value: "", label: "Select property type" },
+  { value: "single-family", label: "Single Family" },
+  { value: "condo", label: "Condo" },
+  { value: "townhouse", label: "Townhouse" },
+  { value: "multi-family", label: "Multi-Family" },
+  { value: "mixed-use", label: "Mixed Use" },
+  { value: "commercial", label: "Commercial" },
+  { value: "land", label: "Land" },
+  { value: "other", label: "Other" },
+];
 
 const normalizeStrategy = (value, fallback = "flip") => {
   if (PROPERTY_STRATEGIES.some((option) => option.value === value)) {
@@ -44,41 +53,89 @@ const toOptionalNumber = (value) => {
   return Number.isFinite(parsed) ? parsed : undefined;
 };
 
+const formatCurrency = (value) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return "";
+
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
+  }).format(parsed);
+};
+
+const extractAddressLine1 = (value = "") => String(value).split(",")[0]?.trim() || "";
+
+const parseAddressLabel = (value = "") => {
+  const [addressLine1 = "", city = "", region = ""] = String(value)
+    .split(",")
+    .map((part) => part.trim());
+  const regionTokens = region.split(/\s+/).filter(Boolean);
+
+  return {
+    addressLine1,
+    city,
+    state: regionTokens[0] || "",
+    zipCode: regionTokens[1] || "",
+  };
+};
+
+const composeAddress = (parts = {}) =>
+  [parts.addressLine1, parts.city, parts.state, parts.zipCode].filter(Boolean).join(", ");
+
+const normalizePropertyType = (value) => {
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[_\s]+/g, "-");
+
+  if (!normalized) return "";
+  if (propertyTypeOptions.some((option) => option.value === normalized)) {
+    return normalized;
+  }
+  if (normalized.includes("single")) return "single-family";
+  if (normalized.includes("condo")) return "condo";
+  if (normalized.includes("town")) return "townhouse";
+  if (normalized.includes("multi")) return "multi-family";
+  if (normalized.includes("mixed")) return "mixed-use";
+  if (normalized.includes("commercial")) return "commercial";
+  if (normalized.includes("land") || normalized.includes("lot")) return "land";
+  return "other";
+};
+
 const mapPreviewToForm = (preview = {}) => ({
-  address: preview.address || "",
-  addressLine1: preview.addressLine1 || "",
-  addressLine2: preview.addressLine2 || "",
+  addressLine1: preview.addressLine1 || extractAddressLine1(preview.address),
   city: preview.city || "",
   state: preview.state || "",
   zipCode: preview.zipCode || "",
-  county: preview.county || "",
   latitude: preview.latitude ?? "",
   longitude: preview.longitude ?? "",
-  propertyType: preview.propertyType || "",
+  propertyType: normalizePropertyType(preview.propertyType),
   bedrooms: preview.bedrooms ?? "",
   bathrooms: preview.bathrooms ?? "",
   squareFootage: preview.squareFootage ?? "",
   lotSize: preview.lotSize ?? "",
   yearBuilt: preview.yearBuilt ?? "",
+  listingStatus: preview.listingStatus || "",
+  sellerAskingPrice: preview.sellerAskingPrice ?? "",
 });
 
 const buildFormState = (property) => ({
-  address: property?.sharedProfile.address || "",
   addressLine1: property?.sharedProfile.addressLine1 || "",
-  addressLine2: property?.sharedProfile.addressLine2 || "",
   city: property?.sharedProfile.city || "",
   state: property?.sharedProfile.state || "",
   zipCode: property?.sharedProfile.zipCode || "",
-  county: property?.sharedProfile.county || "",
   latitude: property?.sharedProfile.latitude ?? "",
   longitude: property?.sharedProfile.longitude ?? "",
-  propertyType: property?.sharedProfile.propertyType || "",
+  propertyType: normalizePropertyType(property?.sharedProfile.propertyType),
   bedrooms: property?.sharedProfile.bedrooms ?? "",
   bathrooms: property?.sharedProfile.bathrooms ?? "",
   squareFootage: property?.sharedProfile.squareFootage ?? "",
   lotSize: property?.sharedProfile.lotSize ?? "",
   yearBuilt: property?.sharedProfile.yearBuilt ?? "",
   unitCount: property?.sharedProfile.unitCount ?? "",
+  listingStatus: property?.sharedProfile.listingStatus || "",
+  sellerAskingPrice: property?.sharedProfile.sellerAskingPrice ?? "",
 });
 
 const WorkspaceCard = ({ title, eyebrow, status, detail, action, tone = "sand" }) => {
@@ -171,7 +228,7 @@ const PropertyWorkspacePage = () => {
   }, [propertyKey, syncPropertyState]);
 
   useEffect(() => {
-    const query = formData.address.trim();
+    const query = composeAddress(formData).trim();
     if (query.length < 4 || query === selectedSuggestionRef.current) {
       setSuggestions([]);
       return undefined;
@@ -193,7 +250,7 @@ const PropertyWorkspacePage = () => {
       controller.abort();
       window.clearTimeout(timeoutId);
     };
-  }, [formData.address]);
+  }, [formData.addressLine1, formData.city, formData.state, formData.zipCode]);
 
   const detailLine = useMemo(() => {
     if (!property) {
@@ -215,15 +272,29 @@ const PropertyWorkspacePage = () => {
     return bits.join(" • ") || "Shared property profile is still lightweight.";
   }, [property]);
 
-  const showsUnitCount = useMemo(
-    () => isUnitCountRelevant(formData.propertyType),
-    [formData.propertyType]
-  );
+  const showsUnitCount = useMemo(() => formData.propertyType === "multi-family", [formData.propertyType]);
+
+  const listingSummary = useMemo(() => {
+    if (!property?.sharedProfile) {
+      return null;
+    }
+
+    if (!property.sharedProfile.listingStatus && !property.sharedProfile.sellerAskingPrice) {
+      return null;
+    }
+
+    return {
+      label: property.sharedProfile.listingStatus || "For Sale",
+      price: property.sharedProfile.sellerAskingPrice
+        ? formatCurrency(property.sharedProfile.sellerAskingPrice)
+        : "",
+    };
+  }, [property]);
 
   const handleChange = (event) => {
     const { name, value } = event.target;
 
-    if (name === "address") {
+    if (["addressLine1", "city", "state", "zipCode"].includes(name)) {
       selectedSuggestionRef.current = "";
       setPreviewMetadata(null);
     }
@@ -231,11 +302,16 @@ const PropertyWorkspacePage = () => {
     setFormData((current) => ({
       ...current,
       [name]: value,
+      ...(name === "propertyType" && value !== "multi-family" ? { unitCount: "" } : {}),
     }));
   };
 
-  const handlePreviewLookup = async (addressOverride) => {
-    const address = addressOverride || formData.address.trim();
+  const handlePreviewLookup = async (addressOverride, fieldOverrides = {}) => {
+    const previewSource = {
+      ...formData,
+      ...fieldOverrides,
+    };
+    const address = addressOverride || composeAddress(previewSource);
     if (!address) {
       toast.error("Select or type an address first.");
       return;
@@ -245,8 +321,19 @@ const PropertyWorkspacePage = () => {
 
     try {
       const preview = await previewLeadProperty({
-        ...formData,
         address,
+        addressLine1: previewSource.addressLine1,
+        city: previewSource.city,
+        state: previewSource.state,
+        zipCode: previewSource.zipCode,
+        propertyType: previewSource.propertyType || undefined,
+        bedrooms: toOptionalNumber(previewSource.bedrooms),
+        bathrooms: toOptionalNumber(previewSource.bathrooms),
+        squareFootage: toOptionalNumber(previewSource.squareFootage),
+        lotSize: toOptionalNumber(previewSource.lotSize),
+        yearBuilt: toOptionalNumber(previewSource.yearBuilt),
+        sellerAskingPrice: toOptionalNumber(previewSource.sellerAskingPrice),
+        listingStatus: previewSource.listingStatus || undefined,
       });
 
       setFormData((current) => ({
@@ -263,15 +350,16 @@ const PropertyWorkspacePage = () => {
   };
 
   const handleSelectSuggestion = async (suggestion) => {
+    const parsedAddress = parseAddressLabel(suggestion.place_name);
     selectedSuggestionRef.current = suggestion.place_name;
     setSuggestions([]);
     setFormData((current) => ({
       ...current,
-      address: suggestion.place_name,
+      ...parsedAddress,
       longitude: suggestion.center?.[0] ?? current.longitude,
       latitude: suggestion.center?.[1] ?? current.latitude,
     }));
-    await handlePreviewLookup(suggestion.place_name);
+    await handlePreviewLookup(suggestion.place_name, parsedAddress);
   };
 
   const handleSave = async (event) => {
@@ -281,13 +369,11 @@ const PropertyWorkspacePage = () => {
       setIsSaving(true);
 
       const updatedProperty = await updatePropertyWorkspace(propertyKey, {
-        address: formData.address,
+        address: composeAddress(formData),
         addressLine1: formData.addressLine1 || undefined,
-        addressLine2: formData.addressLine2 || undefined,
         city: formData.city || undefined,
         state: formData.state || undefined,
         zipCode: formData.zipCode || undefined,
-        county: formData.county || undefined,
         latitude: toOptionalNumber(formData.latitude),
         longitude: toOptionalNumber(formData.longitude),
         propertyType: formData.propertyType || undefined,
@@ -297,6 +383,12 @@ const PropertyWorkspacePage = () => {
         lotSize: toOptionalNumber(formData.lotSize),
         yearBuilt: toOptionalNumber(formData.yearBuilt),
         unitCount: showsUnitCount ? toOptionalNumber(formData.unitCount) : undefined,
+        listingStatus:
+          formData.listingStatus || formData.sellerAskingPrice ? formData.listingStatus || "For Sale" : undefined,
+        sellerAskingPrice:
+          formData.listingStatus || formData.sellerAskingPrice
+            ? toOptionalNumber(formData.sellerAskingPrice)
+            : undefined,
       });
 
       syncPropertyState(updatedProperty);
@@ -378,6 +470,16 @@ const PropertyWorkspacePage = () => {
               {property.title}
             </h2>
             <p className="mt-4 max-w-2xl text-base leading-7 text-ink-500">{detailLine}</p>
+            {listingSummary ? (
+              <div className="mt-5 flex flex-wrap items-center gap-3">
+                <span className="inline-flex rounded-full bg-verdigris-50 px-3 py-1 text-xs font-semibold text-verdigris-700">
+                  For sale
+                </span>
+                {listingSummary.price ? (
+                  <span className="text-sm font-medium text-ink-700">{listingSummary.price}</span>
+                ) : null}
+              </div>
+            ) : null}
 
             <div className="mt-8 flex flex-wrap gap-3">
               <Link to="/properties" className="secondary-action">
@@ -404,6 +506,19 @@ const PropertyWorkspacePage = () => {
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-400">
               Active workspaces
             </p>
+            {listingSummary ? (
+              <div className="mt-5 rounded-[18px] bg-verdigris-50 px-4 py-3">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-sm font-medium text-ink-600">Market status</span>
+                  <span className="text-sm font-semibold text-ink-900">{listingSummary.label}</span>
+                </div>
+                {listingSummary.price ? (
+                  <p className="mt-2 text-sm font-medium text-verdigris-700">
+                    Asking {listingSummary.price}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
             <div className="mt-5 space-y-3">
               <div className="flex items-center justify-between rounded-[18px] bg-white px-4 py-3 ring-1 ring-ink-100">
                 <span className="text-sm font-medium text-ink-600">Leads</span>
@@ -446,13 +561,13 @@ const PropertyWorkspacePage = () => {
           <div className="mt-6 grid gap-5 md:grid-cols-2">
             <div className="relative md:col-span-2">
               <label className="space-y-2">
-                <span className="text-sm font-medium text-ink-700">Address</span>
+                <span className="text-sm font-medium text-ink-700">Address line</span>
                 <input
-                  name="address"
-                  value={formData.address}
+                  name="addressLine1"
+                  value={formData.addressLine1}
                   onChange={handleChange}
                   className="auth-input"
-                  placeholder="Start typing an address..."
+                  placeholder="Start typing the property address..."
                   required
                 />
               </label>
@@ -478,7 +593,7 @@ const PropertyWorkspacePage = () => {
                 <button
                   type="button"
                   onClick={() => handlePreviewLookup()}
-                  disabled={isPreviewLoading || !formData.address.trim()}
+                  disabled={isPreviewLoading || !composeAddress(formData).trim()}
                   className="secondary-action disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {isPreviewLoading ? "Loading property details..." : "Auto-fill property details"}
@@ -489,34 +604,12 @@ const PropertyWorkspacePage = () => {
               </div>
               {previewMetadata ? (
                 <p className="mt-3 text-sm text-ink-500">
-                  {previewMetadata.propertyFound
-                    ? "Property record found."
-                    : "No property record found."}{" "}
-                  {previewMetadata.activeListingFound
-                    ? "Active listing found."
-                    : "No active listing found."}
+                  {previewMetadata.propertyFound ? "Property facts found." : "No property facts found."}{" "}
+                  {previewMetadata.activeListingFound ? "Active sale listing found." : "No active sale listing found."}
                 </p>
               ) : null}
             </div>
 
-            <label className="space-y-2">
-              <span className="text-sm font-medium text-ink-700">Address line 1</span>
-              <input
-                name="addressLine1"
-                value={formData.addressLine1}
-                onChange={handleChange}
-                className="auth-input"
-              />
-            </label>
-            <label className="space-y-2">
-              <span className="text-sm font-medium text-ink-700">Address line 2</span>
-              <input
-                name="addressLine2"
-                value={formData.addressLine2}
-                onChange={handleChange}
-                className="auth-input"
-              />
-            </label>
             <label className="space-y-2">
               <span className="text-sm font-medium text-ink-700">City</span>
               <input
@@ -545,23 +638,19 @@ const PropertyWorkspacePage = () => {
               />
             </label>
             <label className="space-y-2">
-              <span className="text-sm font-medium text-ink-700">County</span>
-              <input
-                name="county"
-                value={formData.county}
-                onChange={handleChange}
-                className="auth-input"
-              />
-            </label>
-            <label className="space-y-2">
               <span className="text-sm font-medium text-ink-700">Property type</span>
-              <input
+              <select
                 name="propertyType"
                 value={formData.propertyType}
                 onChange={handleChange}
-                className="auth-input"
-                placeholder="single-family, multi-family, mixed-use..."
-              />
+                className="auth-input appearance-none"
+              >
+                {propertyTypeOptions.map((option) => (
+                  <option key={option.value || "empty"} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
             </label>
             {showsUnitCount ? (
               <label className="space-y-2">
@@ -628,6 +717,60 @@ const PropertyWorkspacePage = () => {
                 className="auth-input"
               />
             </label>
+
+            <div className="md:col-span-2 rounded-[24px] border border-ink-100 bg-sand-50/70 p-5">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-ink-900">Sale status</p>
+                  <p className="mt-1 text-sm text-ink-500">
+                    If the property has an active listing, we keep that visible here.
+                  </p>
+                </div>
+                <span
+                  className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
+                    formData.listingStatus || formData.sellerAskingPrice
+                      ? "bg-verdigris-50 text-verdigris-700"
+                      : "bg-white text-ink-600 ring-1 ring-ink-100"
+                  }`}
+                >
+                  {formData.listingStatus || formData.sellerAskingPrice ? "For sale" : "Not listed"}
+                </span>
+              </div>
+
+              {formData.listingStatus || formData.sellerAskingPrice ? (
+                <div className="mt-4 grid gap-5 md:grid-cols-[minmax(0,280px)_minmax(0,1fr)]">
+                  <label className="space-y-2">
+                    <span className="text-sm font-medium text-ink-700">Sale price</span>
+                    <input
+                      name="sellerAskingPrice"
+                      type="number"
+                      value={formData.sellerAskingPrice}
+                      onChange={handleChange}
+                      className="auth-input"
+                      placeholder="0"
+                    />
+                  </label>
+
+                  <div className="rounded-[20px] border border-ink-100 bg-white/90 p-4">
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-400">
+                      Listing snapshot
+                    </p>
+                    <p className="mt-2 text-sm font-medium text-ink-800">
+                      {formData.listingStatus || "For Sale"}
+                    </p>
+                    <p className="mt-2 text-sm leading-6 text-ink-500">
+                      {formData.sellerAskingPrice
+                        ? `Current sale price: ${formatCurrency(formData.sellerAskingPrice)}`
+                        : "The property is listed for sale, but the asking price was not available from the lookup."}
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <p className="mt-4 text-sm leading-6 text-ink-500">
+                  No active sale listing was found for this address yet.
+                </p>
+              )}
+            </div>
           </div>
 
           <div className="mt-6 flex justify-end">

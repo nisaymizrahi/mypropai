@@ -36,6 +36,8 @@ const visibleNavSections = [
     title: "Workspace",
     links: [
       { to: "/dashboard", label: "Overview", icon: HomeIcon },
+      { to: "/properties", label: "Properties", icon: HomeModernIcon },
+      { to: "/properties/new", label: "Add Property", icon: PlusCircleIcon },
       { to: "/account", label: "Account Center", icon: Cog6ToothIcon },
     ],
   },
@@ -46,8 +48,6 @@ const parkedFeatureNavSections = [
   {
     title: "Command",
     links: [
-      { to: "/properties", label: "Property Hub", icon: HomeModernIcon },
-      { to: "/properties/new", label: "New Property", icon: PlusCircleIcon },
       { to: "/applications", label: "Applications", icon: ClipboardDocumentListIcon },
       { to: "/applications/send", label: "Send Application", icon: ClipboardDocumentListIcon },
     ],
@@ -103,7 +103,7 @@ const resolvePageMeta = (pathname, user) => {
     return {
       kicker: "Property Hub",
       title: "Create Property",
-      subtitle: "Start with the shared property record, then decide whether it belongs in pipeline, acquisitions, or management.",
+      subtitle: "Create a clean property record with the address, core specs, and sale status if it is actively listed.",
     };
   }
 
@@ -135,7 +135,7 @@ const resolvePageMeta = (pathname, user) => {
     return {
       kicker: "Property Hub",
       title: "Property Workspace",
-      subtitle: "Manage shared property details once, then move between pipeline, acquisitions, and management with less duplication.",
+      subtitle: "Edit the core property details once, keep the sale status visible, and add workspaces only when needed.",
     };
   }
 

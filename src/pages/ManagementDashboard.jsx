@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { useNavigate } from "react-router-dom";
 import {
   ArrowRightIcon,
@@ -8,8 +9,7 @@ import {
 } from "@heroicons/react/24/outline";
 
 import PromotePropertyModal from "../components/PromotePropertyModal";
-import { API_BASE_URL } from "../config";
-import { getAuthHeaders } from "../utils/api";
+import { getManagedProperties } from "../utils/api";
 
 const LoadingSpinner = () => (
   <div className="surface-panel flex items-center justify-center px-6 py-20">
@@ -41,6 +41,15 @@ const SummaryCard = ({ label, value, detail, accent = "verdigris" }) => {
   );
 };
 
+const getPropertyWorkspacePath = (managedProperty) => {
+  const propertyId =
+    typeof managedProperty?.property === "object"
+      ? managedProperty?.property?._id
+      : managedProperty?.property;
+
+  return propertyId ? `/properties/${encodeURIComponent(propertyId)}` : "";
+};
+
 const ManagementDashboard = () => {
   const [managedProperties, setManagedProperties] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -51,15 +60,7 @@ const ManagementDashboard = () => {
   const fetchManagedProperties = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/management`, {
-        headers: getAuthHeaders(),
-      });
-
-      if (!res.ok) {
-        throw new Error("Failed to fetch managed properties.");
-      }
-
-      const data = await res.json();
+      const data = await getManagedProperties();
       setManagedProperties(data);
     } catch (err) {
       setError(err.message);
@@ -74,6 +75,7 @@ const ManagementDashboard = () => {
 
   const summary = useMemo(() => {
     const totalProperties = managedProperties.length;
+    const linkedProfiles = managedProperties.filter((property) => Boolean(property.property)).length;
     const totalUnits = managedProperties.reduce(
       (count, property) => count + (property.units?.length || 0),
       0
@@ -92,6 +94,7 @@ const ManagementDashboard = () => {
 
     return {
       totalProperties,
+      linkedProfiles,
       totalUnits,
       totalOccupied,
       totalVacant,
@@ -122,23 +125,27 @@ const ManagementDashboard = () => {
         <section className="surface-panel-strong relative overflow-hidden px-5 py-6 sm:px-7">
           <div className="absolute inset-y-0 right-0 hidden w-1/3 bg-[radial-gradient(circle_at_center,rgba(59,143,129,0.18),transparent_62%)] lg:block" />
           <div className="relative grid gap-8 lg:grid-cols-[minmax(0,1.05fr)_minmax(320px,0.95fr)]">
-            <div>
-              <span className="eyebrow">Operations command</span>
+          <div>
+              <span className="eyebrow">Management view</span>
               <h2 className="page-hero-title">
-                Property operations at a glance
+                Properties currently active in management.
               </h2>
               <p className="page-hero-copy">
-                Keep occupancy, vacancies, and operational coverage organized across your managed
-                assets with clearer signal and faster action.
+                This is the management-filtered view of your property hub. Focus on occupancy,
+                units, and leasing pressure while keeping each property’s shared profile within
+                reach.
               </p>
 
               <div className="mt-8 flex flex-wrap gap-3">
+                <Link to="/properties" className="secondary-action">
+                  Open property hub
+                </Link>
                 <button
                   type="button"
                   onClick={() => navigate("/properties/new?workspace=management")}
                   className="primary-action"
                 >
-                  Create managed property
+                  New rental property
                 </button>
                 <button
                   type="button"
@@ -187,9 +194,15 @@ const ManagementDashboard = () => {
 
               <div className="mt-6 space-y-3">
                 <div className="flex items-center justify-between rounded-[18px] bg-white px-4 py-3 ring-1 ring-ink-100">
-                  <span className="text-sm font-medium text-ink-600">Active properties</span>
+                  <span className="text-sm font-medium text-ink-600">Managed properties</span>
                   <span className="text-sm font-semibold text-ink-900">
-                    {summary.activeProperties}
+                    {summary.totalProperties}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between rounded-[18px] bg-verdigris-50 px-4 py-3">
+                  <span className="text-sm font-medium text-ink-600">Linked shared profiles</span>
+                  <span className="text-sm font-semibold text-ink-900">
+                    {summary.linkedProfiles}
                   </span>
                 </div>
                 <div className="flex items-center justify-between rounded-[18px] bg-sand-50 px-4 py-3">
@@ -205,9 +218,9 @@ const ManagementDashboard = () => {
 
         <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
           <SummaryCard
-            label="Properties"
+            label="Managed properties"
             value={summary.totalProperties}
-            detail="Managed assets currently tracked in your operations workspace."
+            detail="Properties currently carrying an active management workspace."
             accent="ink"
           />
           <SummaryCard
@@ -233,11 +246,15 @@ const ManagementDashboard = () => {
         <section className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(320px,0.8fr)]">
           <div className="section-card p-5 sm:p-6">
             <div className="flex items-center justify-between gap-4">
-              <div>
-                <span className="eyebrow">Portfolio roster</span>
+            <div>
+                <span className="eyebrow">Filtered from property hub</span>
                 <h3 className="mt-3 text-xl font-semibold text-ink-900">
                   Managed properties
                 </h3>
+                <p className="mt-2 text-sm leading-6 text-ink-500">
+                  Operations stays property-specific here, while the shared property workspace keeps
+                  the core profile in sync across the rest of the platform.
+                </p>
               </div>
               <div className="hidden rounded-full bg-sand-100 px-4 py-2 text-sm font-semibold text-ink-600 sm:block">
                 {summary.totalProperties} total
@@ -252,6 +269,7 @@ const ManagementDashboard = () => {
                     .length;
                   const propertyOccupancy =
                     unitCount > 0 ? Math.round((occupiedCount / unitCount) * 100) : 0;
+                  const propertyWorkspacePath = getPropertyWorkspacePath(property);
 
                   return (
                     <div
@@ -291,26 +309,51 @@ const ManagementDashboard = () => {
                         </div>
                       </div>
 
-                      <div className="mt-5 flex items-center justify-between">
+                      <div className="mt-5 space-y-3">
                         <div className="text-sm text-ink-500">
                           {Math.max(0, unitCount - occupiedCount)} vacancy slot(s)
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => navigate(`/management/${property._id}`)}
-                          className="inline-flex items-center text-sm font-semibold text-verdigris-700 hover:text-verdigris-800"
-                        >
-                          Open property
-                          <ArrowRightIcon className="ml-1.5 h-4 w-4" />
-                        </button>
+                        <div className="flex flex-wrap gap-3">
+                          <button
+                            type="button"
+                            onClick={() => navigate(`/management/${property._id}`)}
+                            className="inline-flex items-center text-sm font-semibold text-verdigris-700 hover:text-verdigris-800"
+                          >
+                            Open management workspace
+                            <ArrowRightIcon className="ml-1.5 h-4 w-4" />
+                          </button>
+                          {propertyWorkspacePath ? (
+                            <Link
+                              to={propertyWorkspacePath}
+                              className="inline-flex items-center text-sm font-semibold text-ink-700 hover:text-ink-900"
+                            >
+                              Open property workspace
+                            </Link>
+                          ) : null}
+                        </div>
                       </div>
                     </div>
                   );
                 })
               ) : (
                 <div className="rounded-[20px] border border-dashed border-ink-200 bg-sand-50 px-5 py-12 text-center text-ink-500 lg:col-span-2">
-                  No managed properties yet. Add one to start tracking occupancy, units, and
-                  operations.
+                  <p>No managed properties yet.</p>
+                  <p className="mt-2">
+                    Create a rental property or start management from an eligible acquisitions
+                    workspace to bring a property into operations.
+                  </p>
+                  <div className="mt-5 flex flex-wrap justify-center gap-3">
+                    <Link to="/properties" className="secondary-action">
+                      Open property hub
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => navigate("/properties/new?workspace=management")}
+                      className="primary-action"
+                    >
+                      New rental property
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
@@ -319,9 +362,9 @@ const ManagementDashboard = () => {
           <div className="section-card p-5 sm:p-6">
             <span className="eyebrow">Focus list</span>
             <h3 className="mt-3 text-xl font-semibold text-ink-900">Vacancy watch</h3>
-            <p className="mt-2 text-sm leading-6 text-ink-500">
-              Assets with open units that may need listing, leasing, or applicant review.
-            </p>
+              <p className="mt-2 text-sm leading-6 text-ink-500">
+                Assets with open units that may need listing, leasing, or applicant review.
+              </p>
 
             <div className="mt-5 space-y-3">
               {summary.vacancyWatch.length > 0 ? (
@@ -372,7 +415,8 @@ const ManagementDashboard = () => {
                 <ChartBarIcon className="h-7 w-7 text-white/75" />
               </div>
               <p className="mt-3 text-sm leading-6 text-white/68">
-                Use the roster on the left to open property-level command centers and keep open units moving.
+                Use the roster on the left to open management workspaces, or jump back to the
+                property hub when a shared profile update needs to carry everywhere.
               </p>
             </div>
           </div>

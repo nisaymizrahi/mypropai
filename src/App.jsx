@@ -68,11 +68,12 @@ function App() {
           reverseOrder={false}
           toastOptions={{
             style: {
-              borderRadius: "20px",
-              border: "1px solid rgba(24, 38, 55, 0.08)",
-              background: "rgba(255, 253, 248, 0.96)",
-              color: "#182637",
-              boxShadow: "0 18px 40px rgba(15, 23, 36, 0.12)",
+              borderRadius: "999px",
+              border: "1px solid rgba(76, 60, 45, 0.08)",
+              background: "rgba(255, 251, 245, 0.92)",
+              color: "#2f251d",
+              padding: "14px 18px",
+              boxShadow: "0 18px 36px rgba(62, 44, 30, 0.12)",
             },
           }}
         />

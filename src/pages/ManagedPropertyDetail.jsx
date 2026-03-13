@@ -290,6 +290,14 @@ const ManagedPropertyDetail = () => {
         : "bg-white/80 text-ink-500 ring-1 ring-ink-100 hover:bg-white hover:text-ink-900"
     }`;
   const propertyQuery = `?${new URLSearchParams({ propertyId }).toString()}`;
+  const propertyWorkspaceId =
+    (typeof property.property === "object" ? property.property?._id : property.property) ||
+    (typeof property.investment?.property === "object"
+      ? property.investment?.property?._id
+      : property.investment?.property);
+  const propertyWorkspacePath = propertyWorkspaceId
+    ? `/properties/${encodeURIComponent(propertyWorkspaceId)}`
+    : "";
 
   return (
     <>
@@ -336,6 +344,15 @@ const ManagedPropertyDetail = () => {
                 >
                   Review applications
                 </button>
+                {propertyWorkspacePath ? (
+                  <button
+                    type="button"
+                    onClick={() => navigate(propertyWorkspacePath)}
+                    className="secondary-action"
+                  >
+                    Open property hub
+                  </button>
+                ) : null}
                 {summary.vacantUnits > 0 && (
                   <button
                     type="button"

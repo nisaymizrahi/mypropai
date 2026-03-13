@@ -1,4 +1,4 @@
-export const FONT_SIZE_STORAGE_KEY = "mypropai.fontSizePreset";
+export const FONT_SIZE_STORAGE_KEY = "fliprop.fontSizePreset";
 export const DEFAULT_FONT_SIZE_PRESET = "standard";
 
 export const FONT_SIZE_OPTIONS = [

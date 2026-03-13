@@ -88,10 +88,10 @@ const InvitePage = () => {
         <header className="surface-panel flex items-center justify-between px-5 py-4">
           <Link to="/" className="flex items-center gap-4">
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-ink-900 text-lg font-bold text-white">
-              MP
+              FL
             </div>
             <div>
-              <p className="font-display text-2xl leading-none text-ink-900">MyPropAI</p>
+              <p className="font-display text-2xl leading-none text-ink-900">Fliprop</p>
               <p className="mt-1 text-sm text-ink-500">Tenant account activation</p>
             </div>
           </Link>
@@ -101,7 +101,7 @@ const InvitePage = () => {
               Tenant login
             </Link>
             <Link to="/login" className="ghost-action hidden sm:inline-flex">
-              Manager login
+              Workspace login
             </Link>
           </div>
         </header>

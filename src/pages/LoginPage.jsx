@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import {
   ArrowRightIcon,
-  BuildingOffice2Icon,
+  CheckCircleIcon,
   ChartBarIcon,
   ClipboardDocumentListIcon,
   SparklesIcon,
@@ -12,14 +12,14 @@ import { API_BASE_URL } from "../config";
 import { useAuth } from "../context/AuthContext";
 import { loginUser } from "../utils/api";
 
-const managerBenefits = [
+const workspaceBenefits = [
   {
-    title: "Portfolio visibility",
-    description: "Track investments, occupancy, rent, and action items without juggling tabs.",
+    title: "Deal and project visibility",
+    description: "Track acquisitions, rehab work, rent performance, and next actions without juggling tabs.",
     icon: ChartBarIcon,
   },
   {
-    title: "Operational workflow",
+    title: "Leasing and operations",
     description: "Manage leads, applications, leases, maintenance, and tenant communication.",
     icon: ClipboardDocumentListIcon,
   },
@@ -28,6 +28,12 @@ const managerBenefits = [
     description: "Generate reporting, listing copy, and operating insight from the same workspace.",
     icon: SparklesIcon,
   },
+];
+
+const accessPrinciples = [
+  "Premium hierarchy without the clutter of a generic SaaS dashboard.",
+  "Google and email sign in stay close to the surface with fewer detours.",
+  "Warm materials and calmer contrast help long work sessions feel steadier.",
 ];
 
 const oauthMessages = {
@@ -81,89 +87,93 @@ const LoginPage = () => {
   return (
     <div className="public-shell relative min-h-screen overflow-hidden text-ink-900">
       <div className="absolute inset-0 grid-fade opacity-30" />
+      <div className="ambient-orb ambient-orb-bronze float-slower left-[-9rem] top-[-4rem] h-[18rem] w-[18rem]" />
+      <div className="ambient-orb ambient-orb-sage float-slow right-[-7rem] top-24 h-[16rem] w-[16rem]" />
 
       <div className="relative mx-auto flex min-h-screen max-w-[1500px] flex-col px-4 py-5 sm:px-6 lg:px-8">
         <header className="surface-panel flex items-center justify-between px-5 py-4">
           <Link to="/" className="flex items-center gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-ink-900 text-lg font-bold text-white">
-              MP
+            <div className="brand-mark flex h-12 w-12 items-center justify-center rounded-[18px] text-lg font-semibold text-white">
+              FL
             </div>
             <div>
-              <p className="font-display text-2xl leading-none text-ink-900">MyPropAI</p>
-              <p className="mt-1 text-sm text-ink-500">Manager and operator workspace</p>
+              <p className="font-display text-[2rem] leading-none text-ink-900">Fliprop</p>
+              <p className="mt-1 text-sm text-ink-500">Secure workspace access</p>
             </div>
           </Link>
 
           <div className="flex items-center gap-3">
-            <Link to="/tenant-login" className="secondary-action hidden sm:inline-flex">
-              Tenant portal
-            </Link>
+            <span className="glass-chip hidden sm:inline-flex">Operator login</span>
             <Link to="/signup" className="primary-action">
-              Create account
+              Create workspace account
             </Link>
           </div>
         </header>
 
         <main className="flex flex-1 items-center py-10 lg:py-16">
           <div className="grid w-full gap-8 lg:grid-cols-[minmax(0,1.02fr)_minmax(0,0.98fr)] lg:gap-12">
-            <section className="flex flex-col justify-center">
-              <span className="eyebrow">Manager login</span>
-              <h1 className="mt-6 max-w-3xl font-display text-5xl leading-[1.03] text-balance text-ink-900 sm:text-6xl">
-                Sign in to the workspace built for owners, operators, and property managers.
-              </h1>
-              <p className="mt-6 max-w-2xl text-lg leading-8 text-ink-600 sm:text-xl">
-                Use this login if you manage acquisitions, leasing, applications, reporting, or
-                tenant operations. Tenants should use the separate tenant portal.
-              </p>
+            <section className="surface-panel-strong relative overflow-hidden p-6 sm:p-8 reveal-up">
+              <div className="absolute right-0 top-0 h-48 w-48 rounded-full bg-clay-100/35 blur-3xl" />
 
-              <div className="mt-8 flex flex-wrap gap-3 text-sm text-ink-600">
-                <span className="rounded-full border border-ink-200 bg-white/80 px-4 py-2">
-                  Investments and underwriting
-                </span>
-                <span className="rounded-full border border-ink-200 bg-white/80 px-4 py-2">
-                  Leasing and applications
-                </span>
-                <span className="rounded-full border border-ink-200 bg-white/80 px-4 py-2">
-                  Tenant portal management
-                </span>
-              </div>
+              <div className="relative">
+                <span className="eyebrow">Workspace login</span>
+                <h1 className="mt-6 max-w-3xl font-display text-[3.6rem] leading-[0.94] text-balance text-ink-900 sm:text-[4.7rem]">
+                  Return to a portfolio workspace that feels calm under pressure.
+                </h1>
+                <p className="mt-6 max-w-2xl text-lg leading-8 text-ink-600 sm:text-xl">
+                  Use this login if you run deals, rehab planning, leasing, or ongoing operations.
+                  The experience has been simplified so the essentials surface faster.
+                </p>
 
-              <div className="mt-10 grid gap-4 sm:grid-cols-3">
-                {managerBenefits.map((benefit) => (
-                  <div key={benefit.title} className="section-card p-5">
-                    <benefit.icon className="h-6 w-6 text-verdigris-600" />
-                    <h2 className="mt-4 text-lg font-semibold text-ink-900">{benefit.title}</h2>
-                    <p className="mt-2 text-sm leading-6 text-ink-500">{benefit.description}</p>
+                <div className="mt-10 grid gap-4 sm:grid-cols-3">
+                  {workspaceBenefits.map((benefit) => (
+                    <div key={benefit.title} className="section-card p-5">
+                      <benefit.icon className="h-6 w-6 text-verdigris-600" />
+                      <h2 className="mt-4 text-lg font-semibold text-ink-900">
+                        {benefit.title}
+                      </h2>
+                      <p className="mt-2 text-sm leading-6 text-ink-500">
+                        {benefit.description}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="section-card mt-6 p-6">
+                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-ink-400">
+                    Why it feels different
+                  </p>
+                  <div className="soft-list mt-4">
+                    {accessPrinciples.map((principle) => (
+                      <div key={principle} className="flex gap-3 py-3 first:pt-0 last:pb-0">
+                        <CheckCircleIcon className="mt-0.5 h-5 w-5 flex-shrink-0 text-verdigris-600" />
+                        <p className="text-sm leading-6 text-ink-600">{principle}</p>
+                      </div>
+                    ))}
                   </div>
-                ))}
+                </div>
               </div>
             </section>
 
-            <section className="auth-card p-6 text-ink-900 sm:p-8">
+            <section className="auth-card p-6 text-ink-900 sm:p-8 reveal-up" style={{ animationDelay: "120ms" }}>
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <span className="eyebrow">Operator access</span>
-                  <h2 className="mt-4 font-display text-4xl text-ink-900">Welcome back</h2>
-                  <p className="mt-3 max-w-lg text-sm leading-6 text-ink-500">
-                    Sign in with email or continue with Google. If you are a tenant looking for
-                    rent, lease, or request information, use the tenant portal instead.
+                  <span className="eyebrow">Secure sign in</span>
+                  <h2 className="mt-5 font-display text-[3rem] leading-none text-ink-900">
+                    Welcome back
+                  </h2>
+                  <p className="mt-4 max-w-lg text-sm leading-6 text-ink-500">
+                    Continue with Google or email. If you are waiting on lease or tenant request
+                    details, use the tenant-specific access flow rather than this operator login.
                   </p>
                 </div>
-                <div className="hidden h-14 w-14 flex-shrink-0 items-center justify-center rounded-2xl bg-ink-900 text-white sm:flex">
-                  <BuildingOffice2Icon className="h-7 w-7" />
+                <div className="brand-mark hidden h-14 w-14 flex-shrink-0 items-center justify-center rounded-[20px] text-lg font-semibold text-white sm:flex">
+                  FL
                 </div>
-              </div>
-
-              <div className="mt-8 rounded-[24px] border border-verdigris-100 bg-verdigris-50/80 p-4 text-sm text-verdigris-800">
-                Managers and operators sign in here. Tenants should use{" "}
-                <Link to="/tenant-login" className="font-semibold underline decoration-verdigris-400 underline-offset-4">
-                  the tenant portal
-                </Link>
-                .
               </div>
 
               {oauthMessage && (
-                <div className="mt-4 rounded-[24px] border border-clay-200 bg-clay-50 p-4 text-sm text-clay-700">
+                <div className="mt-6 rounded-[24px] border border-clay-200 bg-clay-50/80 p-4 text-sm leading-6 text-clay-700">
                   {oauthMessage}
                 </div>
               )}
@@ -202,7 +212,9 @@ const LoginPage = () => {
                     <label htmlFor="password" className="auth-label !mb-0">
                       Password
                     </label>
-                    <p className="text-xs text-ink-400">Use the password tied to your manager account.</p>
+                    <p className="text-xs text-ink-400">
+                      Use the password tied to your Fliprop workspace account.
+                    </p>
                   </div>
                   <input
                     id="password"
@@ -217,20 +229,20 @@ const LoginPage = () => {
                 </div>
 
                 {error && (
-                  <div className="rounded-[24px] border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+                  <div className="rounded-[24px] border border-red-200 bg-red-50/80 p-4 text-sm text-red-700">
                     {error}
                   </div>
                 )}
 
                 <button type="submit" disabled={isSubmitting} className="primary-action w-full">
-                  {isSubmitting ? "Signing in..." : "Sign in to manager workspace"}
+                  {isSubmitting ? "Signing in..." : "Sign in to workspace"}
                   {!isSubmitting && <ArrowRightIcon className="ml-2 h-5 w-5" />}
                 </button>
               </form>
 
               <div className="mt-6 flex flex-wrap gap-3">
                 <Link to="/signup" className="ghost-action">
-                  Create a manager account
+                  Create a workspace account
                 </Link>
                 <Link to="/" className="ghost-action">
                   Back to homepage

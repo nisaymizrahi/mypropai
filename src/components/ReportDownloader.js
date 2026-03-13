@@ -24,7 +24,7 @@ const ReportDownloader = ({ comps = [], roiData }) => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `mypropai-comps-${Date.now()}.csv`;
+    a.download = `fliprop-comps-${Date.now()}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -36,7 +36,7 @@ const ReportDownloader = ({ comps = [], roiData }) => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `mypropai-roi-${Date.now()}.json`;
+    a.download = `fliprop-roi-${Date.now()}.json`;
     a.click();
     URL.revokeObjectURL(url);
   };

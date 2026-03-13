@@ -280,10 +280,10 @@ const TenantDashboard = () => {
         <header className="surface-panel flex flex-col gap-4 px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-center gap-4">
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-ink-900 text-lg font-bold text-white">
-              MP
+              FL
             </div>
             <div>
-              <p className="font-display text-2xl leading-none text-ink-900">MyPropAI</p>
+              <p className="font-display text-2xl leading-none text-ink-900">Fliprop</p>
               <p className="mt-1 text-sm text-ink-500">Tenant portal</p>
             </div>
           </div>

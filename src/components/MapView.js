@@ -31,9 +31,9 @@ const MapView = ({ latitude, longitude, markers = [], zoom = 14 }) => {
     if (!mapRef.current) return;
 
     // Remove existing markers (store them on the map instance)
-    if (!mapRef.current._mypropai_markers) mapRef.current._mypropai_markers = [];
-    mapRef.current._mypropai_markers.forEach((m) => m.remove());
-    mapRef.current._mypropai_markers = [];
+    if (!mapRef.current._fliprop_markers) mapRef.current._fliprop_markers = [];
+    mapRef.current._fliprop_markers.forEach((m) => m.remove());
+    mapRef.current._fliprop_markers = [];
 
     // Create markers
     markers.forEach((m) => {
@@ -44,7 +44,7 @@ const MapView = ({ latitude, longitude, markers = [], zoom = 14 }) => {
       el.style.background = m.color || "#EF4444";
 
       const marker = new mapboxgl.Marker(el).setLngLat([m.lng, m.lat]).addTo(mapRef.current);
-      mapRef.current._mypropai_markers.push(marker);
+      mapRef.current._fliprop_markers.push(marker);
     });
   }, [markers]);
 

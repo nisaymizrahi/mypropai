@@ -232,7 +232,7 @@ const InvestmentDetail = () => {
                   className="secondary-action"
                 >
                   <BuildingOffice2Icon className="mr-2 h-5 w-5" />
-                  Edit shared profile
+                  Open property hub
                 </button>
               ) : null}
 

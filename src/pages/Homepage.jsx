@@ -4,14 +4,11 @@ import {
   ArrowRightIcon,
   BuildingOffice2Icon,
   CalculatorIcon,
-  ChatBubbleLeftRightIcon,
-  ChartBarIcon,
   CheckCircleIcon,
   ClipboardDocumentListIcon,
   HomeModernIcon,
   ShieldCheckIcon,
   SparklesIcon,
-  UserGroupIcon,
   WrenchScrewdriverIcon,
 } from "@heroicons/react/24/outline";
 
@@ -19,56 +16,56 @@ const coreModules = [
   {
     title: "Acquisitions and underwriting",
     description:
-      "Model deals, review comps, compare opportunities, and move from intuition to disciplined underwriting.",
-    icon: ChartBarIcon,
+      "Model deals, review comps, compare exit paths, and move from instinct to disciplined underwriting.",
+    icon: CalculatorIcon,
   },
   {
-    title: "Property operations",
+    title: "Projects and property operations",
     description:
-      "Track occupancy, leasing flow, maintenance, leases, and portfolio health from one command layer.",
+      "Track rehab scope, budgets, leasing flow, maintenance, and property performance from one command layer.",
     icon: BuildingOffice2Icon,
   },
   {
-    title: "AI reporting and content",
+    title: "AI reporting and marketing",
     description:
-      "Generate reports, listing copy, and operating insights without losing control of the details.",
+      "Generate reports, listing copy, investor updates, and operating insights without losing control of the details.",
     icon: SparklesIcon,
   },
 ];
 
 const outcomes = [
   {
-    title: "One place to run the business",
+    title: "One place to run deals, flips, and rentals",
     description:
-      "MyPropAI is a real estate operating system for investors and property managers. It brings acquisitions, leasing, applications, tenant communication, and reporting into one product.",
+      "Fliprop is a real estate operating system for developers, builders, and self-managing owners. It brings acquisitions, rehab planning, leasing, tenant communication, and reporting into one product.",
     icon: WrenchScrewdriverIcon,
   },
   {
-    title: "Clearer decisions and cleaner execution",
+    title: "Built for operators wearing multiple hats",
     description:
-      "The platform helps teams act faster with dashboards, financial tools, AI assistance, and organized workflows that feel more professional than spreadsheets and scattered apps.",
+      "The platform helps small teams move faster with dashboards, financial tools, AI assistance, and organized workflows that feel more professional than spreadsheets, text threads, and scattered apps.",
     icon: ShieldCheckIcon,
   },
 ];
 
 const audiences = [
   {
-    title: "Investors",
+    title: "Developers",
     description:
-      "Track opportunities, analyze returns, and keep each asset tied to the financial story behind it.",
-    icon: ChartBarIcon,
+      "Track pipeline, underwriting, budgets, and execution across development and renovation work.",
+    icon: BuildingOffice2Icon,
   },
   {
-    title: "Property managers",
+    title: "Flip builders",
     description:
-      "Oversee units, applications, leases, communications, maintenance, and performance from one workspace.",
-    icon: ClipboardDocumentListIcon,
+      "Coordinate scopes, bids, tasks, and deal performance from acquisition through resale or lease-up.",
+    icon: WrenchScrewdriverIcon,
   },
   {
-    title: "Tenants",
+    title: "Self-managing owners",
     description:
-      "Give renters a dedicated portal to view balances, review lease details, and submit requests.",
-    icon: UserGroupIcon,
+      "Oversee units, applications, leases, maintenance, communications, and performance without hiring a full management stack.",
+    icon: HomeModernIcon,
   },
 ];
 
@@ -79,55 +76,55 @@ const capabilities = [
     icon: CalculatorIcon,
   },
   {
+    title: "Plan rehab scopes and budgets",
+    description: "Track bids, tasks, documents, and budget items for renovation-heavy projects.",
+    icon: WrenchScrewdriverIcon,
+  },
+  {
     title: "Manage properties and leases",
     description: "Track units, occupancy, active leases, financials, and portfolio performance in real time.",
     icon: HomeModernIcon,
   },
   {
-    title: "Handle leads and applications",
-    description: "Move prospects from lead intake to application review without losing context.",
+    title: "Handle applications and tenant requests",
+    description: "Move prospects from lead intake to application review while keeping communication and tenant access organized.",
     icon: ClipboardDocumentListIcon,
-  },
-  {
-    title: "Support tenant communication",
-    description: "Centralize requests, lease messages, and tenant access inside a separate portal experience.",
-    icon: ChatBubbleLeftRightIcon,
   },
 ];
 
 const workflow = [
   {
     step: "01",
-    title: "Add properties and opportunities",
-    description: "Start with an investment, managed property, or new lead so each workflow begins in one system.",
+    title: "Add a deal, property, or lead",
+    description: "Start with an acquisition, active project, rental property, or new lead so every workflow begins in one system.",
   },
   {
     step: "02",
-    title: "Operate the portfolio day to day",
-    description: "Manage leasing, applicants, units, and tenant activity while keeping the portfolio picture visible.",
+    title: "Underwrite and execute the work",
+    description: "Model the numbers, plan the rehab, coordinate tasks, and keep leasing activity tied to the same property record.",
   },
   {
     step: "03",
-    title: "Report, refine, and scale",
-    description: "Use built-in numbers and AI help to produce clearer updates, faster decisions, and stronger execution.",
+    title: "Lease, manage, and report",
+    description: "Use built-in numbers and AI help to produce clearer updates, faster decisions, and stronger day-to-day execution.",
   },
 ];
 
 const faqs = [
   {
-    question: "What is MyPropAI?",
+    question: "What is Fliprop?",
     answer:
-      "MyPropAI is an AI-powered real estate platform for investors and property managers. It combines deal analysis, property management, leasing, tenant communication, and reporting in one workspace.",
+      "Fliprop is an AI-powered real estate platform for developers, flip builders, self-managing owners, and property operators. It combines deal analysis, rehab planning, leasing, tenant communication, and reporting in one workspace.",
   },
   {
     question: "Who should create an account?",
     answer:
-      "Owners, operators, and property managers should create or use a manager account. Tenants should use the dedicated tenant portal instead.",
+      "Developers, builders running flips, self-managing owners, and property operators should create or use a workspace account. Tenants should use the dedicated tenant portal instead.",
   },
   {
     question: "Does the platform support tenants too?",
     answer:
-      "Yes. Tenants get a separate login experience where they can review lease details, check balances, and submit requests without entering the manager workspace.",
+      "Yes. Tenants get a separate login experience where they can review lease details, check balances, and submit requests without entering the main workspace.",
   },
 ];
 
@@ -141,11 +138,11 @@ const Homepage = () => {
         <header className="surface-panel flex items-center justify-between px-5 py-4 text-ink-900">
           <Link to="/" className="flex items-center gap-4">
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-ink-900 text-lg font-bold text-white">
-              MP
+              FL
             </div>
             <div>
-              <p className="font-display text-2xl leading-none">MyPropAI</p>
-              <p className="mt-1 text-sm text-ink-500">Professional property intelligence</p>
+              <p className="font-display text-2xl leading-none">Fliprop</p>
+              <p className="mt-1 text-sm text-ink-500">Develop, flip, and self-manage with clarity</p>
             </div>
           </Link>
 
@@ -154,7 +151,7 @@ const Homepage = () => {
               Tenant portal
             </Link>
             <Link to="/login" className="primary-action">
-              Manager login
+              Workspace login
             </Link>
           </div>
         </header>
@@ -162,23 +159,23 @@ const Homepage = () => {
         <main className="flex flex-1 items-center py-10 lg:py-16">
           <div className="grid w-full gap-8 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:gap-12">
             <div className="flex flex-col justify-center">
-              <span className="eyebrow">AI-powered real estate platform</span>
+              <span className="eyebrow">Built for developers, builders, and self-managing owners</span>
               <h1 className="mt-6 max-w-4xl font-display text-5xl leading-[1.02] text-balance sm:text-6xl xl:text-7xl">
-                Analyze deals, manage properties, and keep tenants connected in one workspace.
+                Underwrite deals, run rehab projects, and manage properties from one workspace.
               </h1>
               <p className="mt-6 max-w-2xl text-lg leading-8 text-white/72 sm:text-xl">
-                MyPropAI helps investors and property managers run acquisitions, leasing,
-                property operations, tenant communication, and AI reporting from one clean
-                operating system.
+                Fliprop helps developers, flip builders, and self-managing property owners stay on
+                top of acquisitions, rehab planning, leasing, tenant communication, and reporting
+                without juggling disconnected tools.
               </p>
 
               <div className="mt-8 flex flex-wrap gap-4">
                 <Link to="/signup" className="primary-action">
-                  Create account
+                  Create workspace account
                   <ArrowRightIcon className="ml-2 h-5 w-5" />
                 </Link>
                 <Link to="/login" className="secondary-action !bg-white/10 !border-white/15 !text-white hover:!bg-white/14">
-                  Manager login
+                  Workspace login
                 </Link>
                 <Link to="/tenant-login" className="secondary-action !bg-white/10 !border-white/15 !text-white hover:!bg-white/14">
                   Tenant portal
@@ -187,19 +184,19 @@ const Homepage = () => {
 
               <div className="mt-10 grid gap-4 sm:grid-cols-3">
                 <div className="rounded-[24px] border border-white/12 bg-white/6 p-5 backdrop-blur-sm">
-                  <p className="text-sm text-white/60">Who it serves</p>
-                  <p className="mt-2 text-3xl font-semibold">Managers</p>
-                  <p className="mt-2 text-sm text-white/60">Built for owners, operators, and property teams</p>
+                  <p className="text-sm text-white/60">Primary users</p>
+                  <p className="mt-2 text-3xl font-semibold">Operators</p>
+                  <p className="mt-2 text-sm text-white/60">Developers, flip builders, and self-managing owners</p>
                 </div>
                 <div className="rounded-[24px] border border-white/12 bg-white/6 p-5 backdrop-blur-sm">
                   <p className="text-sm text-white/60">Product scope</p>
-                  <p className="mt-2 text-3xl font-semibold">End-to-end</p>
-                  <p className="mt-2 text-sm text-white/60">From lead intake to tenant portal activity</p>
+                  <p className="mt-2 text-3xl font-semibold">Deal to door</p>
+                  <p className="mt-2 text-sm text-white/60">From acquisition and rehab to leasing and tenant activity</p>
                 </div>
                 <div className="rounded-[24px] border border-white/12 bg-white/6 p-5 backdrop-blur-sm">
                   <p className="text-sm text-white/60">Why it matters</p>
-                  <p className="mt-2 text-3xl font-semibold">Clearer</p>
-                  <p className="mt-2 text-sm text-white/60">Better decisions, reporting, and execution</p>
+                  <p className="mt-2 text-3xl font-semibold">Aligned</p>
+                  <p className="mt-2 text-sm text-white/60">Fewer handoffs, clearer reporting, faster execution</p>
                 </div>
               </div>
             </div>
@@ -216,13 +213,13 @@ const Homepage = () => {
                       <div>
                         <p className="text-sm text-white/70">New visitor takeaway</p>
                         <p className="mt-2 text-2xl font-semibold leading-tight">
-                          One platform for investing, management, leasing, and tenant workflow
+                          One platform for deals, rehab execution, leasing, and property operations
                         </p>
                       </div>
                       <div>
                         <p className="text-sm text-white/70">Primary action</p>
                         <p className="mt-2 text-2xl font-semibold leading-tight">
-                          Start as a manager or use the tenant portal
+                          Enter the main workspace or use the tenant portal
                         </p>
                       </div>
                     </div>
@@ -252,7 +249,7 @@ const Homepage = () => {
           <div className="surface-panel p-6 text-ink-900 sm:p-8">
             <span className="eyebrow">Why teams choose it</span>
             <h2 className="mt-5 font-display text-4xl leading-tight text-balance text-ink-900">
-              Run acquisitions, operations, and tenant workflow without stitching together tools.
+              Run acquisitions, project execution, leasing, and tenant workflow without stitching together tools.
             </h2>
             <div className="mt-8 space-y-5">
               {outcomes.map((row) => (
@@ -300,12 +297,12 @@ const Homepage = () => {
             <div>
               <span className="eyebrow">Who it is for</span>
               <h2 className="mt-5 font-display text-4xl leading-tight text-balance text-ink-900">
-                Clear paths for investors, operators, and tenants.
+                Built for the people carrying deals, projects, and property operations.
               </h2>
             </div>
             <p className="max-w-2xl text-sm leading-7 text-ink-500">
-              Everyone reaches the same platform from a different doorway, but each role gets a
-              focused experience inside it.
+              The main workspace is designed for operators who need one reliable system, while
+              tenants still get a focused portal of their own.
             </p>
           </div>
 
@@ -324,7 +321,7 @@ const Homepage = () => {
           <div className="surface-panel p-6 text-ink-900 sm:p-8">
             <span className="eyebrow">What you can do</span>
             <h2 className="mt-5 font-display text-4xl leading-tight text-balance text-ink-900">
-              Everything needed to move from lead to lease and from deal to performance review.
+              Everything needed to move from lead to rehab plan to lease and performance review.
             </h2>
 
             <div className="mt-8 grid gap-4 sm:grid-cols-2">
@@ -362,7 +359,7 @@ const Homepage = () => {
             </h2>
             <div className="mt-8 space-y-4">
               {[
-                "Managers and operators use a dedicated workspace for portfolio and property oversight.",
+                "Developers, builders, owners, and property teams use a dedicated workspace for deals, projects, and operations.",
                 "Tenants get a separate portal focused on lease details, balances, and service requests.",
                 "Every entry point explains the purpose of the platform before asking for credentials.",
               ].map((item) => (
@@ -395,16 +392,16 @@ const Homepage = () => {
                 Choose your workspace and get moving.
               </h2>
               <p className="mt-4 max-w-2xl text-sm leading-7 text-white/70">
-                Create a manager account if you run properties or investments. If you are a tenant,
-                use the tenant portal to access lease details and requests.
+                Create a workspace account if you develop, flip, own, or self-manage properties.
+                If you are a tenant, use the tenant portal to access lease details and requests.
               </p>
             </div>
             <div className="flex flex-wrap gap-3">
               <Link to="/signup" className="primary-action">
-                Create account
+                Create workspace account
               </Link>
               <Link to="/login" className="secondary-action !bg-white !text-ink-900">
-                Manager login
+                Workspace login
               </Link>
               <Link to="/tenant-login" className="secondary-action !bg-white/10 !border-white/15 !text-white hover:!bg-white/14">
                 Tenant portal
@@ -415,8 +412,8 @@ const Homepage = () => {
 
         <footer className="px-2 pt-8 text-sm text-white/55">
           <div className="flex flex-col gap-2 border-t border-white/10 pt-6 sm:flex-row sm:items-center sm:justify-between">
-            <p>MyPropAI</p>
-            <p>One workspace for acquisitions, leasing, operations, tenant workflow, and reporting.</p>
+            <p>Fliprop</p>
+            <p>One workspace for acquisitions, rehab execution, leasing, operations, and reporting.</p>
           </div>
         </footer>
       </div>
