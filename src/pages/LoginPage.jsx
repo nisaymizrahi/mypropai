@@ -1,39 +1,30 @@
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import {
-  ArrowRightIcon,
-  CheckCircleIcon,
-  ChartBarIcon,
-  ClipboardDocumentListIcon,
-  SparklesIcon,
-} from "@heroicons/react/24/outline";
+import { ArrowRightIcon } from "@heroicons/react/24/outline";
 
 import { API_BASE_URL } from "../config";
 import { useAuth } from "../context/AuthContext";
 import { loginUser } from "../utils/api";
 
-const workspaceBenefits = [
+const workspaceNotes = [
   {
-    title: "Deal and project visibility",
-    description: "Track acquisitions, rehab work, rent performance, and next actions without juggling tabs.",
-    icon: ChartBarIcon,
+    title: "Deal review",
+    description: "A cleaner shell for acquisitions, underwriting, and next actions.",
   },
   {
-    title: "Leasing and operations",
-    description: "Manage leads, applications, leases, maintenance, and tenant communication.",
-    icon: ClipboardDocumentListIcon,
+    title: "Portfolio operations",
+    description: "Less chrome around the day-to-day work of leasing and management.",
   },
   {
-    title: "AI assistance",
-    description: "Generate reporting, listing copy, and operating insight from the same workspace.",
-    icon: SparklesIcon,
+    title: "Reporting",
+    description: "A simpler visual layer for summaries, updates, and internal handoff.",
   },
 ];
 
 const accessPrinciples = [
-  "Premium hierarchy without the clutter of a generic SaaS dashboard.",
-  "Google and email sign in stay close to the surface with fewer detours.",
-  "Warm materials and calmer contrast help long work sessions feel steadier.",
+  "Smaller typography and flatter panels keep the page easier to scan.",
+  "Google and email sign in stay visible without competing blocks around them.",
+  "The overall palette remains warm, but the interface now feels quieter.",
 ];
 
 const oauthMessages = {
@@ -85,112 +76,91 @@ const LoginPage = () => {
   const oauthMessage = oauthError ? oauthMessages[oauthError] || "Unable to complete sign in." : "";
 
   return (
-    <div className="public-shell relative min-h-screen overflow-hidden text-ink-900">
-      <div className="absolute inset-0 grid-fade opacity-30" />
-      <div className="ambient-orb ambient-orb-bronze float-slower left-[-9rem] top-[-4rem] h-[18rem] w-[18rem]" />
-      <div className="ambient-orb ambient-orb-sage float-slow right-[-7rem] top-24 h-[16rem] w-[16rem]" />
-
-      <div className="relative mx-auto flex min-h-screen max-w-[1500px] flex-col px-4 py-5 sm:px-6 lg:px-8">
-        <header className="surface-panel flex items-center justify-between px-5 py-4">
-          <Link to="/" className="flex items-center gap-4">
-            <div className="brand-mark flex h-12 w-12 items-center justify-center rounded-[18px] text-lg font-semibold text-white">
+    <div className="public-shell min-h-screen text-ink-900">
+      <div className="mx-auto flex min-h-screen max-w-[1240px] flex-col px-4 py-4 sm:px-6 lg:px-8">
+        <header className="surface-panel flex items-center justify-between gap-4 px-5 py-4">
+          <Link to="/" className="flex items-center gap-3">
+            <div className="brand-mark flex h-10 w-10 items-center justify-center rounded-[14px] text-sm font-semibold text-white">
               FL
             </div>
             <div>
-              <p className="font-display text-[2rem] leading-none text-ink-900">Fliprop</p>
-              <p className="mt-1 text-sm text-ink-500">Secure workspace access</p>
+              <p className="font-display text-[1.9rem] leading-none text-ink-900">Fliprop</p>
+              <p className="mt-1 text-xs text-ink-500">Workspace access</p>
             </div>
           </Link>
 
-          <div className="flex items-center gap-3">
-            <span className="glass-chip hidden sm:inline-flex">Operator login</span>
+          <div className="flex items-center gap-2.5">
             <Link to="/signup" className="primary-action">
-              Create workspace account
+              Create account
             </Link>
           </div>
         </header>
 
-        <main className="flex flex-1 items-center py-10 lg:py-16">
-          <div className="grid w-full gap-8 lg:grid-cols-[minmax(0,1.02fr)_minmax(0,0.98fr)] lg:gap-12">
-            <section className="surface-panel-strong relative overflow-hidden p-6 sm:p-8 reveal-up">
-              <div className="absolute right-0 top-0 h-48 w-48 rounded-full bg-clay-100/35 blur-3xl" />
+        <main className="flex flex-1 items-center py-10 lg:py-12">
+          <div className="grid w-full gap-6 lg:grid-cols-[minmax(0,1fr)_420px] lg:gap-8">
+            <section className="flex flex-col justify-center reveal-up">
+              <span className="eyebrow">Workspace login</span>
+              <h1 className="mt-5 max-w-3xl font-display text-[2.9rem] leading-[0.96] text-balance text-ink-900 sm:text-[3.6rem]">
+                Sign in to the lighter version of the Fliprop workspace.
+              </h1>
+              <p className="mt-5 max-w-2xl text-sm leading-7 text-ink-600 sm:text-base">
+                Use this access if you manage acquisitions, operations, reporting, or portfolio
+                decisions.
+              </p>
 
-              <div className="relative">
-                <span className="eyebrow">Workspace login</span>
-                <h1 className="mt-6 max-w-3xl font-display text-[3.6rem] leading-[0.94] text-balance text-ink-900 sm:text-[4.7rem]">
-                  Return to a portfolio workspace that feels calm under pressure.
-                </h1>
-                <p className="mt-6 max-w-2xl text-lg leading-8 text-ink-600 sm:text-xl">
-                  Use this login if you run deals, rehab planning, leasing, or ongoing operations.
-                  The experience has been simplified so the essentials surface faster.
+              <div className="surface-panel mt-7 p-5">
+                <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-ink-400">
+                  What changed
                 </p>
-
-                <div className="mt-10 grid gap-4 sm:grid-cols-3">
-                  {workspaceBenefits.map((benefit) => (
-                    <div key={benefit.title} className="section-card p-5">
-                      <benefit.icon className="h-6 w-6 text-verdigris-600" />
-                      <h2 className="mt-4 text-lg font-semibold text-ink-900">
-                        {benefit.title}
-                      </h2>
-                      <p className="mt-2 text-sm leading-6 text-ink-500">
-                        {benefit.description}
-                      </p>
+                <div className="soft-list mt-4">
+                  {workspaceNotes.map((note) => (
+                    <div key={note.title} className="py-4 first:pt-0 last:pb-0">
+                      <h2 className="text-sm font-medium text-ink-900">{note.title}</h2>
+                      <p className="mt-2 text-sm leading-6 text-ink-600">{note.description}</p>
                     </div>
                   ))}
                 </div>
+              </div>
 
-                <div className="section-card mt-6 p-6">
-                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-ink-400">
-                    Why it feels different
-                  </p>
-                  <div className="soft-list mt-4">
-                    {accessPrinciples.map((principle) => (
-                      <div key={principle} className="flex gap-3 py-3 first:pt-0 last:pb-0">
-                        <CheckCircleIcon className="mt-0.5 h-5 w-5 flex-shrink-0 text-verdigris-600" />
-                        <p className="text-sm leading-6 text-ink-600">{principle}</p>
-                      </div>
-                    ))}
-                  </div>
+              <div className="section-card mt-4 p-5">
+                <div className="soft-list">
+                  {accessPrinciples.map((principle) => (
+                    <div key={principle} className="py-3 first:pt-0 last:pb-0">
+                      <p className="text-sm leading-6 text-ink-600">{principle}</p>
+                    </div>
+                  ))}
                 </div>
               </div>
             </section>
 
-            <section className="auth-card p-6 text-ink-900 sm:p-8 reveal-up" style={{ animationDelay: "120ms" }}>
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <span className="eyebrow">Secure sign in</span>
-                  <h2 className="mt-5 font-display text-[3rem] leading-none text-ink-900">
-                    Welcome back
-                  </h2>
-                  <p className="mt-4 max-w-lg text-sm leading-6 text-ink-500">
-                    Continue with Google or email. If you are waiting on lease or tenant request
-                    details, use the tenant-specific access flow rather than this operator login.
-                  </p>
-                </div>
-                <div className="brand-mark hidden h-14 w-14 flex-shrink-0 items-center justify-center rounded-[20px] text-lg font-semibold text-white sm:flex">
-                  FL
-                </div>
-              </div>
+            <section className="auth-card p-6 reveal-up" style={{ animationDelay: "90ms" }}>
+              <span className="eyebrow">Secure sign in</span>
+              <h2 className="mt-4 font-display text-[2.2rem] leading-none text-ink-900">
+                Welcome back
+              </h2>
+              <p className="mt-3 text-sm leading-6 text-ink-500">
+                Continue with Google or use your workspace email and password.
+              </p>
 
               {oauthMessage && (
-                <div className="mt-6 rounded-[24px] border border-clay-200 bg-clay-50/80 p-4 text-sm leading-6 text-clay-700">
+                <div className="section-card mt-5 p-4 text-sm leading-6 text-clay-700">
                   {oauthMessage}
                 </div>
               )}
 
-              <button onClick={handleGoogleLogin} type="button" className="secondary-action mt-6 w-full">
+              <button onClick={handleGoogleLogin} type="button" className="secondary-action mt-5 w-full">
                 Continue with Google
               </button>
 
-              <div className="my-6 flex items-center gap-4">
+              <div className="my-5 flex items-center gap-4">
                 <div className="h-px flex-1 bg-ink-100" />
-                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-ink-400">
+                <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-ink-400">
                   Or use email
                 </p>
                 <div className="h-px flex-1 bg-ink-100" />
               </div>
 
-              <form onSubmit={handleSubmit} className="space-y-5">
+              <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
                   <label htmlFor="email" className="auth-label">
                     Work email
@@ -208,14 +178,9 @@ const LoginPage = () => {
                 </div>
 
                 <div>
-                  <div className="mb-2 flex items-center justify-between gap-3">
-                    <label htmlFor="password" className="auth-label !mb-0">
-                      Password
-                    </label>
-                    <p className="text-xs text-ink-400">
-                      Use the password tied to your Fliprop workspace account.
-                    </p>
-                  </div>
+                  <label htmlFor="password" className="auth-label">
+                    Password
+                  </label>
                   <input
                     id="password"
                     type="password"
@@ -229,23 +194,23 @@ const LoginPage = () => {
                 </div>
 
                 {error && (
-                  <div className="rounded-[24px] border border-red-200 bg-red-50/80 p-4 text-sm text-red-700">
+                  <div className="section-card p-4 text-sm text-red-700">
                     {error}
                   </div>
                 )}
 
                 <button type="submit" disabled={isSubmitting} className="primary-action w-full">
-                  {isSubmitting ? "Signing in..." : "Sign in to workspace"}
-                  {!isSubmitting && <ArrowRightIcon className="ml-2 h-5 w-5" />}
+                  {isSubmitting ? "Signing in..." : "Sign in"}
+                  {!isSubmitting && <ArrowRightIcon className="ml-2 h-4 w-4" />}
                 </button>
               </form>
 
-              <div className="mt-6 flex flex-wrap gap-3">
+              <div className="mt-5 flex flex-wrap gap-2.5">
                 <Link to="/signup" className="ghost-action">
-                  Create a workspace account
+                  Create account
                 </Link>
                 <Link to="/" className="ghost-action">
-                  Back to homepage
+                  Homepage
                 </Link>
               </div>
             </section>

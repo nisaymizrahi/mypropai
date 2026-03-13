@@ -1,12 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import {
-  ArrowRightIcon,
-  CheckCircleIcon,
-  ChartBarIcon,
-  ClipboardDocumentListIcon,
-  HomeModernIcon,
-} from "@heroicons/react/24/outline";
+import { ArrowRightIcon } from "@heroicons/react/24/outline";
 
 import { API_BASE_URL } from "../config";
 import { useAuth } from "../context/AuthContext";
@@ -14,26 +8,23 @@ import { signupUser } from "../utils/api";
 
 const workspaceUseCases = [
   {
-    title: "Track deals and underwriting",
-    description: "Create a shared system for acquisitions, return targets, and property performance.",
-    icon: ChartBarIcon,
+    title: "Acquisitions",
+    description: "Keep deals, assumptions, and decisions inside one clean workspace.",
   },
   {
-    title: "Run rehab and leasing workflows",
-    description: "Manage scopes, tasks, applications, leases, and day-to-day property work.",
-    icon: ClipboardDocumentListIcon,
+    title: "Execution",
+    description: "Manage rehab and leasing work without a crowded interface around it.",
   },
   {
-    title: "Operate properties in one workspace",
-    description: "Keep properties, tenants, reporting, and execution details inside one organized system.",
-    icon: HomeModernIcon,
+    title: "Operations",
+    description: "Review portfolio activity in a lighter daily command view.",
   },
 ];
 
 const onboardingPromises = [
-  "Create one elegant home for acquisitions, execution, and operations.",
-  "Start with a cleaner interface that leaves more room for narrative context.",
-  "Enter through Google or email and land directly inside the redesigned shell.",
+  "A smaller, simpler visual system from the first screen.",
+  "A flatter interface with less blur, weight, and extra decoration.",
+  "Direct access through Google or email once the account is created.",
 ];
 
 const SignupPage = () => {
@@ -78,100 +69,83 @@ const SignupPage = () => {
   };
 
   return (
-    <div className="public-shell relative min-h-screen overflow-hidden text-ink-900">
-      <div className="absolute inset-0 grid-fade opacity-30" />
-      <div className="ambient-orb ambient-orb-bronze float-slower left-[-9rem] top-[-3rem] h-[18rem] w-[18rem]" />
-      <div className="ambient-orb ambient-orb-sage float-slow right-[-7rem] top-20 h-[17rem] w-[17rem]" />
-
-      <div className="relative mx-auto flex min-h-screen max-w-[1500px] flex-col px-4 py-5 sm:px-6 lg:px-8">
-        <header className="surface-panel flex items-center justify-between px-5 py-4">
-          <Link to="/" className="flex items-center gap-4">
-            <div className="brand-mark flex h-12 w-12 items-center justify-center rounded-[18px] text-lg font-semibold text-white">
+    <div className="public-shell min-h-screen text-ink-900">
+      <div className="mx-auto flex min-h-screen max-w-[1240px] flex-col px-4 py-4 sm:px-6 lg:px-8">
+        <header className="surface-panel flex items-center justify-between gap-4 px-5 py-4">
+          <Link to="/" className="flex items-center gap-3">
+            <div className="brand-mark flex h-10 w-10 items-center justify-center rounded-[14px] text-sm font-semibold text-white">
               FL
             </div>
             <div>
-              <p className="font-display text-[2rem] leading-none text-ink-900">Fliprop</p>
-              <p className="mt-1 text-sm text-ink-500">Elegant workspace onboarding</p>
+              <p className="font-display text-[1.9rem] leading-none text-ink-900">Fliprop</p>
+              <p className="mt-1 text-xs text-ink-500">Workspace onboarding</p>
             </div>
           </Link>
 
-          <div className="flex items-center gap-3">
-            <span className="glass-chip hidden sm:inline-flex">New operator account</span>
-            <Link to="/login" className="ghost-action">
-              Workspace login
-            </Link>
-          </div>
+          <Link to="/login" className="ghost-action">
+            Workspace login
+          </Link>
         </header>
 
-        <main className="flex flex-1 items-center py-10 lg:py-16">
-          <div className="grid w-full gap-8 lg:grid-cols-[minmax(0,1.02fr)_minmax(0,0.98fr)] lg:gap-12">
-            <section className="surface-panel-strong relative overflow-hidden p-6 sm:p-8 reveal-up">
-              <div className="absolute right-0 top-0 h-48 w-48 rounded-full bg-verdigris-100/30 blur-3xl" />
+        <main className="flex flex-1 items-center py-10 lg:py-12">
+          <div className="grid w-full gap-6 lg:grid-cols-[minmax(0,1fr)_420px] lg:gap-8">
+            <section className="flex flex-col justify-center reveal-up">
+              <span className="eyebrow">New workspace account</span>
+              <h1 className="mt-5 max-w-3xl font-display text-[2.9rem] leading-[0.96] text-balance text-ink-900 sm:text-[3.6rem]">
+                Create an account for the lighter Fliprop workspace.
+              </h1>
+              <p className="mt-5 max-w-2xl text-sm leading-7 text-ink-600 sm:text-base">
+                This access is for owners, operators, and teams managing acquisitions, execution,
+                and portfolio work.
+              </p>
 
-              <div className="relative">
-                <span className="eyebrow">New workspace account</span>
-                <h1 className="mt-6 max-w-3xl font-display text-[3.6rem] leading-[0.94] text-balance text-ink-900 sm:text-[4.7rem]">
-                  Create a refined home for acquisitions, execution, and daily operations.
-                </h1>
-                <p className="mt-6 max-w-2xl text-lg leading-8 text-ink-600 sm:text-xl">
-                  This account is for developers, flip builders, self-managing owners, and
-                  operators who want the new experience from the first session.
+              <div className="surface-panel mt-7 p-5">
+                <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-ink-400">
+                  Workspace fit
                 </p>
-
-                <div className="mt-10 grid gap-4 sm:grid-cols-3">
+                <div className="soft-list mt-4">
                   {workspaceUseCases.map((item) => (
-                    <div key={item.title} className="section-card p-5">
-                      <item.icon className="h-6 w-6 text-verdigris-600" />
-                      <h2 className="mt-4 text-lg font-semibold text-ink-900">{item.title}</h2>
-                      <p className="mt-2 text-sm leading-6 text-ink-500">{item.description}</p>
+                    <div key={item.title} className="py-4 first:pt-0 last:pb-0">
+                      <h2 className="text-sm font-medium text-ink-900">{item.title}</h2>
+                      <p className="mt-2 text-sm leading-6 text-ink-600">{item.description}</p>
                     </div>
                   ))}
                 </div>
+              </div>
 
-                <div className="section-card mt-6 p-6">
-                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-ink-400">
-                    Onboarding promises
-                  </p>
-                  <div className="soft-list mt-4">
-                    {onboardingPromises.map((promise) => (
-                      <div key={promise} className="flex gap-3 py-3 first:pt-0 last:pb-0">
-                        <CheckCircleIcon className="mt-0.5 h-5 w-5 flex-shrink-0 text-verdigris-600" />
-                        <p className="text-sm leading-6 text-ink-600">{promise}</p>
-                      </div>
-                    ))}
-                  </div>
+              <div className="section-card mt-4 p-5">
+                <div className="soft-list">
+                  {onboardingPromises.map((promise) => (
+                    <div key={promise} className="py-3 first:pt-0 last:pb-0">
+                      <p className="text-sm leading-6 text-ink-600">{promise}</p>
+                    </div>
+                  ))}
                 </div>
               </div>
             </section>
 
-            <section className="auth-card p-6 text-ink-900 sm:p-8 reveal-up" style={{ animationDelay: "120ms" }}>
+            <section className="auth-card p-6 reveal-up" style={{ animationDelay: "90ms" }}>
               <span className="eyebrow">Workspace onboarding</span>
-              <h2 className="mt-5 font-display text-[3rem] leading-none text-ink-900">
+              <h2 className="mt-4 font-display text-[2.2rem] leading-none text-ink-900">
                 Create your account
               </h2>
-              <p className="mt-4 text-sm leading-6 text-ink-500">
-                Start with email or continue with Google. Once you are in, the new shell gives you
-                a more elegant foundation for portfolio work from day one.
+              <p className="mt-3 text-sm leading-6 text-ink-500">
+                Start with email or continue with Google and step into the simplified shell.
               </p>
 
-              <div className="mt-6 rounded-[24px] border border-verdigris-100 bg-verdigris-50/70 p-4 text-sm leading-6 text-verdigris-800">
-                This sign up is for owners and operators. Tenant access should follow the dedicated
-                tenant invitation flow instead of creating a workspace account.
-              </div>
-
-              <button onClick={handleGoogleSignup} type="button" className="secondary-action mt-6 w-full">
+              <button onClick={handleGoogleSignup} type="button" className="secondary-action mt-5 w-full">
                 Continue with Google
               </button>
 
-              <div className="my-6 flex items-center gap-4">
+              <div className="my-5 flex items-center gap-4">
                 <div className="h-px flex-1 bg-ink-100" />
-                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-ink-400">
+                <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-ink-400">
                   Or use email
                 </p>
                 <div className="h-px flex-1 bg-ink-100" />
               </div>
 
-              <form onSubmit={handleSubmit} className="space-y-5">
+              <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
                   <label htmlFor="name" className="auth-label">
                     Full name
@@ -224,23 +198,23 @@ const SignupPage = () => {
                 </div>
 
                 {error && (
-                  <div className="rounded-[24px] border border-red-200 bg-red-50/80 p-4 text-sm text-red-700">
+                  <div className="section-card p-4 text-sm text-red-700">
                     {error}
                   </div>
                 )}
 
                 <button type="submit" disabled={isSubmitting} className="primary-action w-full">
-                  {isSubmitting ? "Creating account..." : "Create workspace account"}
-                  {!isSubmitting && <ArrowRightIcon className="ml-2 h-5 w-5" />}
+                  {isSubmitting ? "Creating account..." : "Create account"}
+                  {!isSubmitting && <ArrowRightIcon className="ml-2 h-4 w-4" />}
                 </button>
               </form>
 
-              <div className="mt-6 flex flex-wrap gap-3">
+              <div className="mt-5 flex flex-wrap gap-2.5">
                 <Link to="/login" className="ghost-action">
                   Already have an account?
                 </Link>
                 <Link to="/" className="ghost-action">
-                  Back to homepage
+                  Homepage
                 </Link>
               </div>
             </section>

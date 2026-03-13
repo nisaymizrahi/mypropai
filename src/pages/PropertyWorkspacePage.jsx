@@ -146,9 +146,9 @@ const WorkspaceCard = ({ title, eyebrow, status, detail, action, tone = "sand" }
   };
 
   return (
-    <div className={`rounded-[24px] ${toneClasses[tone]} p-5`}>
-      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-400">{eyebrow}</p>
-      <h3 className="mt-3 text-lg font-semibold text-ink-900">{title}</h3>
+    <div className={`rounded-[16px] ${toneClasses[tone]} p-4`}>
+      <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-ink-400">{eyebrow}</p>
+      <h3 className="mt-3 text-base font-medium text-ink-900">{title}</h3>
       <p className="mt-2 text-sm font-medium text-ink-700">{status}</p>
       <p className="mt-3 text-sm leading-6 text-ink-500">{detail}</p>
       <div className="mt-4">{action}</div>
@@ -465,19 +465,18 @@ const PropertyWorkspacePage = () => {
   }
 
   return (
-    <div className="space-y-6">
-      <section className="surface-panel-strong relative overflow-hidden px-6 py-7 sm:px-8">
-        <div className="absolute inset-y-0 right-0 hidden w-1/3 bg-[radial-gradient(circle_at_center,rgba(59,143,129,0.18),transparent_62%)] lg:block" />
-        <div className="relative grid gap-8 lg:grid-cols-[minmax(0,1.05fr)_minmax(320px,0.95fr)]">
+    <div className="space-y-4">
+      <section className="surface-panel px-6 py-6 sm:px-7">
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
           <div>
             <span className="eyebrow">Shared property workspace</span>
-            <h2 className="mt-5 text-4xl font-semibold tracking-tight text-ink-900">
+            <h2 className="mt-4 font-display text-[2.5rem] leading-[0.96] text-ink-900">
               {property.title}
             </h2>
-            <p className="mt-4 max-w-2xl text-base leading-7 text-ink-500">{detailLine}</p>
+            <p className="mt-4 max-w-2xl text-sm leading-7 text-ink-500 sm:text-base">{detailLine}</p>
             {listingSummary ? (
               <div className="mt-5 flex flex-wrap items-center gap-3">
-                <span className="inline-flex rounded-full bg-verdigris-50 px-3 py-1 text-xs font-semibold text-verdigris-700">
+                <span className="inline-flex rounded-full bg-verdigris-50 px-3 py-1 text-[11px] font-medium text-verdigris-700">
                   For sale
                 </span>
                 {listingSummary.price ? (
@@ -486,9 +485,9 @@ const PropertyWorkspacePage = () => {
               </div>
             ) : null}
 
-            <div className="mt-8 flex flex-wrap gap-3">
-              <Link to="/properties" className="secondary-action">
-                Back to properties
+            <div className="mt-6 flex flex-wrap gap-3">
+              <Link to="/leads" className="secondary-action">
+                Back to leads
               </Link>
               {property.workspaces.pipeline ? (
                 <Link to={property.workspaces.pipeline.path} className="secondary-action">
@@ -507,12 +506,12 @@ const PropertyWorkspacePage = () => {
             </div>
           </div>
 
-          <div className="section-card p-6">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-400">
+          <div className="section-card p-5">
+            <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-ink-400">
               Active workspaces
             </p>
             {listingSummary ? (
-              <div className="mt-5 rounded-[18px] bg-verdigris-50 px-4 py-3">
+              <div className="mt-4 rounded-[14px] bg-verdigris-50 px-4 py-3">
                 <div className="flex items-center justify-between gap-3">
                   <span className="text-sm font-medium text-ink-600">Market status</span>
                   <span className="text-sm font-semibold text-ink-900">{listingSummary.label}</span>
@@ -524,14 +523,14 @@ const PropertyWorkspacePage = () => {
                 ) : null}
               </div>
             ) : null}
-            <div className="mt-5 space-y-3">
-              <div className="flex items-center justify-between rounded-[18px] bg-white px-4 py-3 ring-1 ring-ink-100">
+            <div className="mt-4 space-y-2.5">
+              <div className="flex items-center justify-between rounded-[14px] bg-white px-4 py-3 ring-1 ring-ink-100">
                 <span className="text-sm font-medium text-ink-600">Leads</span>
                 <span className="text-sm font-semibold text-ink-900">
                   {property.workspaces.pipeline ? property.workspaces.pipeline.status : "Missing"}
                 </span>
               </div>
-              <div className="flex items-center justify-between rounded-[18px] bg-sand-50 px-4 py-3">
+              <div className="flex items-center justify-between rounded-[14px] bg-sand-50 px-4 py-3">
                 <span className="text-sm font-medium text-ink-600">Investments</span>
                 <span className="text-sm font-semibold text-ink-900">
                   {property.workspaces.acquisitions
@@ -539,7 +538,7 @@ const PropertyWorkspacePage = () => {
                     : "Missing"}
                 </span>
               </div>
-              <div className="flex items-center justify-between rounded-[18px] bg-clay-50 px-4 py-3">
+              <div className="flex items-center justify-between rounded-[14px] bg-clay-50 px-4 py-3">
                 <span className="text-sm font-medium text-ink-600">Managed properties</span>
                 <span className="text-sm font-semibold text-ink-900">
                   {property.workspaces.management
@@ -552,10 +551,10 @@ const PropertyWorkspacePage = () => {
         </div>
       </section>
 
-      <section className="grid gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)]">
+      <section className="grid gap-4 xl:grid-cols-[minmax(0,1.16fr)_minmax(320px,0.84fr)]">
         <form onSubmit={handleSave} className="section-card p-6 sm:p-7">
           <span className="eyebrow">Shared profile</span>
-          <h3 className="mt-4 text-2xl font-semibold text-ink-900">
+          <h3 className="mt-4 font-display text-[2rem] leading-none text-ink-900">
             Edit the core property details once
           </h3>
           <p className="mt-2 text-sm leading-6 text-ink-500">
@@ -578,7 +577,7 @@ const PropertyWorkspacePage = () => {
               </label>
 
               {suggestions.length > 0 ? (
-                <div className="absolute z-20 mt-2 max-h-64 w-full overflow-y-auto rounded-[22px] border border-ink-100 bg-white shadow-luxe">
+                <div className="absolute z-20 mt-2 max-h-64 w-full overflow-y-auto rounded-[16px] border border-ink-100 bg-white shadow-soft">
                   {suggestions.map((suggestion) => (
                     <button
                       key={suggestion.id}
@@ -723,10 +722,10 @@ const PropertyWorkspacePage = () => {
               />
             </label>
 
-            <div className="md:col-span-2 rounded-[24px] border border-ink-100 bg-sand-50/70 p-5">
+            <div className="md:col-span-2 rounded-[16px] border border-ink-100 bg-sand-50/70 p-5">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <p className="text-sm font-semibold text-ink-900">Sale status</p>
+                  <p className="text-sm font-medium text-ink-900">Sale status</p>
                   <p className="mt-1 text-sm text-ink-500">
                     If the property has an active listing, we keep that visible here.
                   </p>
@@ -756,8 +755,8 @@ const PropertyWorkspacePage = () => {
                     />
                   </label>
 
-                  <div className="rounded-[20px] border border-ink-100 bg-white/90 p-4">
-                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-400">
+                  <div className="rounded-[16px] border border-ink-100 bg-white/90 p-4">
+                    <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-ink-400">
                       Listing snapshot
                     </p>
                     <p className="mt-2 text-sm font-medium text-ink-800">
@@ -926,9 +925,9 @@ const PropertyWorkspacePage = () => {
             tone="clay"
           />
 
-          <div className="section-card p-5">
+          <div className="section-card p-4">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-ink-100 text-ink-700">
+              <div className="flex h-9 w-9 items-center justify-center rounded-[14px] bg-ink-100 text-ink-700">
                 <HomeModernIcon className="h-5 w-5" />
               </div>
               <div>

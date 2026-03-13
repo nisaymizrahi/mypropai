@@ -317,38 +317,38 @@ const CreatePropertyPage = () => {
   };
 
   return (
-    <div className="space-y-6">
-      <section className="surface-panel-strong relative overflow-hidden px-6 py-7 sm:px-8">
-        <div className="grid gap-8 lg:grid-cols-[minmax(0,1.05fr)_minmax(320px,0.95fr)]">
+    <div className="space-y-4">
+      <section className="surface-panel px-6 py-6 sm:px-7">
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
           <div>
             <span className="eyebrow">Add property</span>
-            <h2 className="mt-5 text-4xl font-semibold tracking-tight text-ink-900">
+            <h2 className="mt-4 font-display text-[2.5rem] leading-[0.96] text-ink-900">
               Start with the address, then fill in only the details you need.
             </h2>
-            <p className="mt-4 max-w-2xl text-base leading-7 text-ink-500">
+            <p className="mt-4 max-w-2xl text-sm leading-7 text-ink-500 sm:text-base">
               Add a potential property to the pipeline with one clean form. Address lookup can fill the basics, and sale status appears automatically when the property is actively listed.
             </p>
 
-            <div className="mt-8 flex flex-wrap gap-3">
+            <div className="mt-6 flex flex-wrap gap-3">
               <Link to="/leads" className="secondary-action">
                 Back to leads
               </Link>
             </div>
           </div>
 
-          <div className="section-card p-6">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-400">
+          <div className="section-card p-5">
+            <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-ink-400">
               Autofill
             </p>
-            <h3 className="mt-3 text-2xl font-semibold text-ink-900">
+            <h3 className="mt-3 font-display text-[1.9rem] leading-none text-ink-900">
               Address first, details second
             </h3>
             <p className="mt-3 text-sm leading-6 text-ink-500">
               Start typing an address, choose the right result, and let the lookup prefill any property facts and sale information it can find.
             </p>
 
-            <div className="mt-6 rounded-[22px] border border-ink-100 bg-white/90 p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-400">
+            <div className="mt-5 rounded-[16px] border border-ink-100 bg-white/90 p-4">
+              <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-ink-400">
                 Autofill source
               </p>
               <p className="mt-2 text-sm leading-6 text-ink-600">
@@ -363,7 +363,7 @@ const CreatePropertyPage = () => {
       <form onSubmit={handleSubmit}>
         <section className="section-card p-6 sm:p-7">
           <span className="eyebrow">Property details</span>
-          <h3 className="mt-4 text-2xl font-semibold text-ink-900">Keep the first form simple</h3>
+          <h3 className="mt-4 font-display text-[2rem] leading-none text-ink-900">Keep the first form simple</h3>
           <p className="mt-2 text-sm leading-6 text-ink-500">
             Select an address, auto-fill the basics, and only enter unit count when the property is
             multi-family.
@@ -384,7 +384,7 @@ const CreatePropertyPage = () => {
               </label>
 
               {suggestions.length > 0 ? (
-                <div className="absolute z-20 mt-2 max-h-64 w-full overflow-y-auto rounded-[22px] border border-ink-100 bg-white shadow-luxe">
+                <div className="absolute z-20 mt-2 max-h-64 w-full overflow-y-auto rounded-[16px] border border-ink-100 bg-white shadow-soft">
                   {suggestions.map((suggestion) => (
                     <button
                       key={suggestion.id}
@@ -554,10 +554,10 @@ const CreatePropertyPage = () => {
               </label>
             ) : null}
 
-            <div className="md:col-span-2 rounded-[24px] border border-ink-100 bg-sand-50/70 p-5">
+            <div className="md:col-span-2 rounded-[16px] border border-ink-100 bg-sand-50/70 p-5">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <p className="text-sm font-semibold text-ink-900">Sale status</p>
+                  <p className="text-sm font-medium text-ink-900">Sale status</p>
                   <p className="mt-1 text-sm text-ink-500">
                     If the property has an active listing, we show that here automatically.
                   </p>
@@ -587,8 +587,8 @@ const CreatePropertyPage = () => {
                     />
                   </label>
 
-                  <div className="rounded-[20px] border border-ink-100 bg-white/90 p-4">
-                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-400">
+                  <div className="rounded-[16px] border border-ink-100 bg-white/90 p-4">
+                    <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-ink-400">
                       Listing snapshot
                     </p>
                     <p className="mt-2 text-sm font-medium text-ink-800">
@@ -610,7 +610,7 @@ const CreatePropertyPage = () => {
           </div>
 
           {error ? (
-            <div className="mt-5 rounded-[18px] border border-clay-200 bg-clay-50 px-4 py-3 text-sm text-clay-700">
+            <div className="mt-5 rounded-[16px] border border-clay-200 bg-clay-50 px-4 py-3 text-sm text-clay-700">
               {error}
             </div>
           ) : null}

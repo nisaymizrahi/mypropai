@@ -5,8 +5,12 @@ import {
   ArrowPathIcon,
   ClipboardDocumentListIcon,
   HomeModernIcon,
+  PencilSquareIcon,
+  PlusIcon,
   SparklesIcon,
+  TrashIcon,
   WrenchScrewdriverIcon,
+  XMarkIcon,
 } from "@heroicons/react/24/outline";
 
 import { useAuth } from "../context/AuthContext";
@@ -200,6 +204,14 @@ const renovationCategoryOptions = [
   ...renovationScopeOptions.map((scope) => ({ value: scope.value, label: scope.label })),
   { value: "custom", label: "Custom" },
 ];
+const buildRenovationItemDraft = (item = {}) => ({
+  itemId: item.itemId || "",
+  category: item.category || "custom",
+  name: item.name || "",
+  budget: item.budget ?? "",
+  status: item.status || "planning",
+  scopeDescription: item.scopeDescription || "",
+});
 
 const formatCurrency = (value) => {
   if (value === null || value === undefined || value === "") return "—";
@@ -522,15 +534,15 @@ const buildLiveLead = (lead, form) => ({
 });
 
 const LoadingSpinner = () => (
-  <div className="section-card flex items-center justify-center px-6 py-16">
-    <div className="h-12 w-12 animate-spin rounded-full border-b-2 border-brand-turquoise" />
+  <div className="section-card flex items-center justify-center px-6 py-14">
+    <div className="loading-ring h-10 w-10 animate-spin rounded-full" />
   </div>
 );
 
 const SummaryStat = ({ label, value, hint }) => (
-  <div className="metric-tile p-5">
-    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-400">{label}</p>
-    <p className="mt-3 text-2xl font-semibold text-ink-900">{value}</p>
+  <div className="metric-tile p-4">
+    <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-ink-400">{label}</p>
+    <p className="mt-3 text-lg font-medium text-ink-900">{value}</p>
     {hint ? <p className="mt-2 text-sm leading-6 text-ink-500">{hint}</p> : null}
   </div>
 );
@@ -547,14 +559,123 @@ const TabButton = ({ active, icon: Icon, label, onClick }) => (
   <button
     type="button"
     onClick={onClick}
-    className={`inline-flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-semibold transition ${
-      active ? "bg-ink-900 text-white shadow-soft" : "text-ink-600 hover:bg-white hover:text-ink-900"
+    className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition ${
+      active ? "bg-ink-900 text-white" : "text-ink-600 hover:bg-sand-50 hover:text-ink-900"
     }`}
   >
     <Icon className="h-4 w-4" />
     {label}
   </button>
 );
+
+const RenovationItemModal = ({
+  isOpen,
+  draft,
+  isEditing,
+  onChange,
+  onClose,
+  onSave,
+}) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4">
+      <div className="w-full max-w-2xl rounded-[28px] bg-white shadow-2xl">
+        <div className="flex items-start justify-between gap-4 border-b border-ink-100 px-6 py-5">
+          <div>
+            <span className="eyebrow">{isEditing ? "Edit renovation item" : "Add renovation item"}</span>
+            <h3 className="mt-3 text-2xl font-semibold text-ink-900">
+              {isEditing ? "Update renovation item" : "Create renovation item"}
+            </h3>
+            <p className="mt-2 text-sm leading-6 text-ink-500">
+              Choose a preset item or custom scope, then set the budget and contractor-ready description.
+            </p>
+          </div>
+          <button type="button" onClick={onClose} className="ghost-action">
+            <XMarkIcon className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div className="grid gap-5 px-6 py-6 md:grid-cols-2">
+          <FormField label="Choose from list or custom">
+            <select
+              name="category"
+              value={draft.category}
+              onChange={onChange}
+              className="auth-input appearance-none"
+            >
+              {renovationCategoryOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </FormField>
+
+          <FormField label="Budget">
+            <input
+              name="budget"
+              type="number"
+              value={draft.budget}
+              onChange={onChange}
+              className="auth-input"
+              placeholder="0"
+            />
+          </FormField>
+
+          <FormField label="Item name">
+            <input
+              name="name"
+              value={draft.name}
+              onChange={onChange}
+              className="auth-input"
+              placeholder="Kitchen remodel"
+            />
+          </FormField>
+
+          <FormField label="Item status">
+            <select
+              name="status"
+              value={draft.status}
+              onChange={onChange}
+              className="auth-input appearance-none"
+            >
+              {renovationItemStatusOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </FormField>
+
+          <FormField
+            label="Scope for contractor quote"
+            hint="Describe exactly what this contractor should price, including any must-haves or finish level."
+            className="md:col-span-2"
+          >
+            <textarea
+              name="scopeDescription"
+              rows="6"
+              value={draft.scopeDescription}
+              onChange={onChange}
+              className="auth-input min-h-[180px]"
+              placeholder="Example: demo existing kitchen, install shaker cabinets, quartz counters, undermount sink, new faucet, backsplash, and appliance hookups. Quote labor and material separately."
+            />
+          </FormField>
+        </div>
+
+        <div className="flex flex-wrap justify-end gap-3 border-t border-ink-100 px-6 py-5">
+          <button type="button" onClick={onClose} className="ghost-action">
+            Cancel
+          </button>
+          <button type="button" onClick={onSave} className="primary-action">
+            {isEditing ? "Save item" : "Add item"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const LeadDetailPage = () => {
   const { id } = useParams();
@@ -579,8 +700,13 @@ const LeadDetailPage = () => {
   });
 
   const [renovationForm, setRenovationForm] = useState(() => buildRenovationForm());
-  const [selectedRenovationItemId, setSelectedRenovationItemId] = useState(null);
   const [isSavingRenovation, setIsSavingRenovation] = useState(false);
+  const [lastRenovationSavedAt, setLastRenovationSavedAt] = useState("");
+  const [isRenovationItemModalOpen, setIsRenovationItemModalOpen] = useState(false);
+  const [editingRenovationItemId, setEditingRenovationItemId] = useState(null);
+  const [renovationItemDraft, setRenovationItemDraft] = useState(() =>
+    buildRenovationItemDraft()
+  );
 
   const [bids, setBids] = useState([]);
   const [activeTab, setActiveTab] = useState("details");
@@ -639,16 +765,6 @@ const LeadDetailPage = () => {
     setRenovationForm(nextRenovationForm);
     selectedSuggestionRef.current = composeAddress(nextDetailForm);
   }, [lead]);
-
-  useEffect(() => {
-    setSelectedRenovationItemId((current) => {
-      if (renovationForm.items.some((item) => item.itemId === current)) {
-        return current;
-      }
-
-      return renovationForm.items[0]?.itemId || null;
-    });
-  }, [renovationForm.items]);
 
   const loadBillingAccess = useCallback(async () => {
     try {
@@ -758,72 +874,90 @@ const LeadDetailPage = () => {
     }));
   };
 
-  const handleAddRenovationItem = (category = "custom") => {
-    let nextItemId = null;
+  const closeRenovationItemModal = () => {
+    setIsRenovationItemModalOpen(false);
+    setEditingRenovationItemId(null);
+    setRenovationItemDraft(buildRenovationItemDraft());
+  };
+
+  const openAddRenovationItemModal = () => {
+    setEditingRenovationItemId(null);
+    setRenovationItemDraft(buildRenovationItemDraft());
+    setIsRenovationItemModalOpen(true);
+  };
+
+  const openEditRenovationItemModal = (item) => {
+    setEditingRenovationItemId(item.itemId);
+    setRenovationItemDraft(buildRenovationItemDraft(item));
+    setIsRenovationItemModalOpen(true);
+  };
+
+  const handleRenovationDraftChange = (event) => {
+    const { name, value } = event.target;
+
+    setRenovationItemDraft((previous) => {
+      const next = {
+        ...previous,
+        [name]: value,
+      };
+
+      if (name === "category") {
+        const previousTemplate = findRenovationScopeOption(previous.category);
+        const nextTemplate = findRenovationScopeOption(value);
+
+        if (!previous.name || previous.name === previousTemplate?.label) {
+          next.name = nextTemplate?.label || "";
+        }
+
+        if (!previous.scopeDescription || previous.scopeDescription === previousTemplate?.description) {
+          next.scopeDescription = nextTemplate?.description || "";
+        }
+      }
+
+      return next;
+    });
+  };
+
+  const handleSaveRenovationItemDraft = () => {
+    const normalizedName =
+      String(renovationItemDraft.name || "").trim() ||
+      findRenovationScopeOption(renovationItemDraft.category)?.label ||
+      "Custom item";
 
     setRenovationForm((previous) => {
-      const nextItem = createRenovationItem({ category }, previous.items);
-      nextItemId = nextItem.itemId;
+      const existingItems = previous.items.filter((item) => item.itemId !== editingRenovationItemId);
+      const nextItem = createRenovationItem(
+        {
+          ...renovationItemDraft,
+          itemId: editingRenovationItemId || renovationItemDraft.itemId,
+          name: normalizedName,
+          budget: renovationItemDraft.budget,
+          scopeDescription: renovationItemDraft.scopeDescription,
+          status: renovationItemDraft.status,
+        },
+        existingItems
+      );
 
       return {
         ...previous,
-        items: [...previous.items, nextItem],
+        items: editingRenovationItemId
+          ? previous.items.map((item) => (item.itemId === editingRenovationItemId ? nextItem : item))
+          : [...previous.items, nextItem],
       };
     });
 
-    if (nextItemId) {
-      setSelectedRenovationItemId(nextItemId);
-    }
+    closeRenovationItemModal();
   };
 
-  const handleRemoveRenovationItem = (itemId) => {
-    let nextSelectedItemId = null;
-
-    setRenovationForm((previous) => {
-      const remainingItems = previous.items.filter((item) => item.itemId !== itemId);
-      nextSelectedItemId =
-        remainingItems.find((item) => item.itemId === selectedRenovationItemId)?.itemId ||
-        remainingItems[0]?.itemId ||
-        null;
-
-      return {
-        ...previous,
-        items: remainingItems,
-      };
-    });
-
-    setSelectedRenovationItemId(nextSelectedItemId);
-  };
-
-  const handleRenovationItemChange = (itemId, field, value) => {
+  const handleDeleteRenovationItem = (itemId) => {
     setRenovationForm((previous) => ({
       ...previous,
-      items: previous.items.map((item) => {
-        if (item.itemId !== itemId) {
-          return item;
-        }
-
-        const nextItem = {
-          ...item,
-          [field]: value,
-        };
-
-        if (field === "category") {
-          const previousTemplate = findRenovationScopeOption(item.category);
-          const nextTemplate = findRenovationScopeOption(value);
-
-          if (!item.name || item.name === previousTemplate?.label) {
-            nextItem.name = nextTemplate?.label || item.name;
-          }
-
-          if (!item.scopeDescription) {
-            nextItem.scopeDescription = nextTemplate?.description || "";
-          }
-        }
-
-        return nextItem;
-      }),
+      items: previous.items.filter((item) => item.itemId !== itemId),
     }));
+
+    if (editingRenovationItemId === itemId) {
+      closeRenovationItemModal();
+    }
   };
 
   const handlePreviewLookup = async (addressOverride, fieldOverrides = {}) => {
@@ -1005,7 +1139,8 @@ const LeadDetailPage = () => {
         renovationPlan: buildRenovationPayload(renovationForm),
       });
       setLead(updatedLead);
-      toast.success("Renovation plan saved.");
+      setLastRenovationSavedAt(new Date().toISOString());
+      toast.success("Renovation plan saved. It will stay here when you reopen the lead.");
     } catch (err) {
       setError(err.message || "Failed to save renovation plan.");
     } finally {
@@ -1044,8 +1179,6 @@ const LeadDetailPage = () => {
       ? workingExitValue - workingTargetOffer - (workingRehabEstimate || 0)
       : null;
   const showsUnitCount = detailForm.propertyType === "multi-family";
-  const selectedRenovationItem =
-    renovationForm.items.find((item) => item.itemId === selectedRenovationItemId) || null;
   const renovationBudgetTotal = renovationForm.items.reduce(
     (sum, item) => sum + (Number(item.budget) || 0),
     0
@@ -1053,9 +1186,10 @@ const LeadDetailPage = () => {
   const renovationBudgetedItemCount = renovationForm.items.filter(
     (item) => item.budget !== "" && item.budget !== null && item.budget !== undefined
   ).length;
+  const renovationItemsCount = renovationForm.items.length;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Link to="/leads" className="ghost-action">
           Back to leads
@@ -1067,32 +1201,31 @@ const LeadDetailPage = () => {
         ) : null}
       </div>
 
-      <section className="surface-panel-strong relative overflow-hidden px-6 py-7 sm:px-8">
-        <div className="absolute inset-y-0 right-0 hidden w-1/3 bg-[radial-gradient(circle_at_center,rgba(59,143,129,0.18),transparent_62%)] lg:block" />
-        <div className="relative">
+      <section className="surface-panel px-6 py-6 sm:px-7">
+        <div>
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
               <span className="eyebrow">Lead detail</span>
-              <h1 className="mt-4 text-3xl font-semibold tracking-tight text-ink-900 sm:text-4xl">
+              <h1 className="mt-4 font-display text-[2.6rem] leading-[0.96] text-ink-900 sm:text-[3.1rem]">
                 {liveLead.address}
               </h1>
               <p className="mt-3 max-w-2xl text-sm leading-6 text-ink-500">
                 Keep the property facts, seller context, renovation plan, comps work, and contractor bid workflow connected on one lead.
               </p>
               <div className="mt-4 flex flex-wrap gap-2">
-                <span className="rounded-full bg-ink-900 px-3 py-1 text-xs font-semibold text-white">
+                <span className="rounded-full bg-ink-900 px-3 py-1 text-[11px] font-medium text-white">
                   {liveLead.status || "Potential"}
                 </span>
-                <span className="rounded-full bg-white/85 px-3 py-1 text-xs font-semibold text-ink-700 ring-1 ring-ink-100">
+                <span className="rounded-full border border-ink-100 bg-white px-3 py-1 text-[11px] font-medium text-ink-700">
                   {liveLead.propertyType || "Property type pending"}
                 </span>
                 {liveLead.squareFootage ? (
-                  <span className="rounded-full bg-white/85 px-3 py-1 text-xs font-semibold text-ink-700 ring-1 ring-ink-100">
+                  <span className="rounded-full border border-ink-100 bg-white px-3 py-1 text-[11px] font-medium text-ink-700">
                     {Number(liveLead.squareFootage).toLocaleString()} sqft
                   </span>
                 ) : null}
                 {liveLead.bedrooms || liveLead.bathrooms ? (
-                  <span className="rounded-full bg-white/85 px-3 py-1 text-xs font-semibold text-ink-700 ring-1 ring-ink-100">
+                  <span className="rounded-full border border-ink-100 bg-white px-3 py-1 text-[11px] font-medium text-ink-700">
                     {[liveLead.bedrooms ? `${liveLead.bedrooms} bd` : null, liveLead.bathrooms ? `${liveLead.bathrooms} ba` : null]
                       .filter(Boolean)
                       .join(" • ")}
@@ -1101,11 +1234,11 @@ const LeadDetailPage = () => {
               </div>
             </div>
 
-            <div className="section-card min-w-[260px] p-5">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-400">
+            <div className="section-card min-w-[250px] p-4">
+              <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-ink-400">
                 Next action
               </p>
-              <p className="mt-3 text-lg font-semibold text-ink-900">
+              <p className="mt-3 text-base font-medium text-ink-900">
                 {liveLead.nextAction || "No next action yet"}
               </p>
               <p className="mt-2 text-sm text-ink-500">
@@ -1116,7 +1249,7 @@ const LeadDetailPage = () => {
             </div>
           </div>
 
-          <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <div className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             <SummaryStat label="Asking Price" value={formatCurrency(liveLead.sellerAskingPrice)} />
             <SummaryStat
               label="Target Offer"
@@ -1141,7 +1274,7 @@ const LeadDetailPage = () => {
         </div>
       </section>
 
-      <div className="section-card flex flex-wrap items-center gap-2 p-2">
+      <div className="section-card flex flex-wrap items-center gap-2 p-1.5">
         <TabButton
           active={activeTab === "details"}
           icon={HomeModernIcon}
@@ -1169,7 +1302,7 @@ const LeadDetailPage = () => {
       </div>
 
       {error ? (
-        <div className="rounded-[20px] border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
+        <div className="rounded-[16px] border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
           {error}
         </div>
       ) : null}
@@ -1177,7 +1310,7 @@ const LeadDetailPage = () => {
       {activeTab === "details" && (
         <div className="section-card p-6 sm:p-7">
           <span className="eyebrow">Edit lead</span>
-          <h2 className="mt-4 text-2xl font-semibold text-ink-900">Property, seller, and deal details</h2>
+          <h2 className="mt-4 font-display text-[2rem] leading-none text-ink-900">Property, seller, and deal details</h2>
           <p className="mt-2 text-sm leading-6 text-ink-500">
             Update the core information here whenever you learn something new about the opportunity.
           </p>
@@ -1195,7 +1328,7 @@ const LeadDetailPage = () => {
               </FormField>
 
               {suggestions.length > 0 ? (
-                <div className="absolute z-20 mt-2 max-h-64 w-full overflow-y-auto rounded-[22px] border border-ink-100 bg-white shadow-luxe">
+                <div className="absolute z-20 mt-2 max-h-64 w-full overflow-y-auto rounded-[16px] border border-ink-100 bg-white shadow-soft">
                   {suggestions.map((suggestion) => (
                     <button
                       key={suggestion.id}
@@ -1356,10 +1489,10 @@ const LeadDetailPage = () => {
               </FormField>
             ) : null}
 
-            <div className="md:col-span-2 mt-2 rounded-[24px] border border-ink-100 bg-sand-50/70 p-5">
+            <div className="md:col-span-2 mt-2 rounded-[16px] border border-ink-100 bg-sand-50/70 p-5">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <p className="text-sm font-semibold text-ink-900">Sale status</p>
+                  <p className="text-sm font-medium text-ink-900">Sale status</p>
                   <p className="mt-1 text-sm text-ink-500">
                     Keep the active listing details here if the property is on market.
                   </p>
@@ -1567,7 +1700,7 @@ const LeadDetailPage = () => {
             </FormField>
           </div>
 
-          <div className="mt-6 flex flex-wrap justify-end gap-3">
+          <div className="mt-5 flex flex-wrap justify-end gap-3">
             <button
               type="button"
               onClick={handleSaveDetails}
@@ -1913,355 +2046,233 @@ const LeadDetailPage = () => {
       )}
 
       {activeTab === "renovation" && (
-        <div className="grid gap-6 xl:grid-cols-[320px_minmax(0,1fr)]">
-          <div className="space-y-5">
-            <div className="section-card p-5">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-400">
-                Project setup
-              </p>
-              <div className="mt-4 space-y-3 text-sm">
-                <div className="flex items-center justify-between gap-4">
-                  <span className="text-ink-500">Verified sqft</span>
-                  <span className="font-semibold text-ink-900">
-                    {renovationForm.verifiedSquareFootage
-                      ? `${Number(renovationForm.verifiedSquareFootage).toLocaleString()} sqft`
-                      : "—"}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between gap-4">
-                  <span className="text-ink-500">Extension</span>
-                  <span className="font-semibold text-ink-900">
-                    {renovationForm.extensionPlanned
-                      ? renovationForm.extensionSquareFootage
-                        ? `${Number(renovationForm.extensionSquareFootage).toLocaleString()} sqft`
-                        : "Yes"
-                      : "No"}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between gap-4">
-                  <span className="text-ink-500">Items</span>
-                  <span className="font-semibold text-ink-900">{renovationForm.items.length}</span>
-                </div>
-                <div className="flex items-center justify-between gap-4">
-                  <span className="text-ink-500">Budgeted items</span>
-                  <span className="font-semibold text-ink-900">{renovationBudgetedItemCount}</span>
-                </div>
-                <div className="flex items-center justify-between gap-4">
-                  <span className="text-ink-500">Total planned budget</span>
-                  <span className="font-semibold text-ink-900">
-                    {renovationBudgetedItemCount ? formatCurrency(renovationBudgetTotal) : "—"}
-                  </span>
-                </div>
-              </div>
-            </div>
+        <div className="space-y-6">
+          <section className="section-card p-6 sm:p-7">
+            <span className="eyebrow">Renovation planning and estimate</span>
+            <h2 className="mt-4 text-2xl font-semibold text-ink-900">
+              Build the scope before you price the job
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-ink-500">
+              Set the project basics first, then build a clear renovation item list with budgets and contractor-ready scopes.
+            </p>
 
-            <div className="section-card p-5">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-400">
-                    Renovation items
-                  </p>
-                  <h3 className="mt-2 text-lg font-semibold text-ink-900">Build the scope list</h3>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => handleAddRenovationItem("custom")}
-                  className="secondary-action"
+            <div className="mt-6 grid gap-5 md:grid-cols-2 lg:grid-cols-4">
+              <FormField
+                label="Verified square footage"
+                hint="Confirm the usable square footage before building the estimate."
+              >
+                <input
+                  name="verifiedSquareFootage"
+                  type="number"
+                  value={renovationForm.verifiedSquareFootage}
+                  onChange={handleRenovationChange}
+                  className="auth-input"
+                  placeholder="0"
+                />
+              </FormField>
+
+              <FormField label="Renovation level">
+                <select
+                  name="renovationLevel"
+                  value={renovationForm.renovationLevel}
+                  onChange={handleRenovationChange}
+                  className="auth-input appearance-none"
                 >
-                  Add custom item
-                </button>
-              </div>
+                  {renovationLevelOptions.map((option) => (
+                    <option key={option.value || "empty"} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </FormField>
 
-              <p className="mt-3 text-sm leading-6 text-ink-500">
-                Add the work that needs pricing. Each item gets its own budget and contractor-ready scope.
-              </p>
+              <FormField label="Will there be an extension?">
+                <select
+                  name="extensionPlanned"
+                  value={renovationForm.extensionPlanned ? "yes" : "no"}
+                  onChange={(event) =>
+                    setRenovationForm((previous) => ({
+                      ...previous,
+                      extensionPlanned: event.target.value === "yes",
+                      extensionSquareFootage:
+                        event.target.value === "yes" ? previous.extensionSquareFootage : "",
+                    }))
+                  }
+                  className="auth-input appearance-none"
+                >
+                  <option value="no">No</option>
+                  <option value="yes">Yes</option>
+                </select>
+              </FormField>
 
-              <div className="mt-4 flex flex-wrap gap-2">
-                {renovationScopeOptions.map((scope) => (
-                  <button
-                    key={scope.value}
-                    type="button"
-                    onClick={() => handleAddRenovationItem(scope.value)}
-                    className="rounded-full border border-ink-100 bg-sand-50 px-3 py-2 text-xs font-semibold text-ink-700 transition hover:border-ink-200 hover:bg-sand-100"
-                  >
-                    Add {scope.label}
-                  </button>
-                ))}
-              </div>
-
-              <div className="mt-5 space-y-3">
-                {renovationForm.items.length ? (
-                  renovationForm.items.map((item) => {
-                    const isSelected = item.itemId === selectedRenovationItemId;
-                    const categoryLabel =
-                      renovationCategoryOptions.find((option) => option.value === item.category)?.label ||
-                      "Custom";
-
-                    return (
-                      <button
-                        key={item.itemId}
-                        type="button"
-                        onClick={() => setSelectedRenovationItemId(item.itemId)}
-                        className={`w-full rounded-[20px] border px-4 py-4 text-left transition ${
-                          isSelected
-                            ? "border-ink-900 bg-ink-900 text-white shadow-soft"
-                            : "border-ink-100 bg-white text-ink-900 hover:border-ink-200 hover:bg-sand-50"
-                        }`}
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <p className="text-sm font-semibold">{item.name || "Untitled item"}</p>
-                            <p className={`mt-1 text-xs ${isSelected ? "text-white/70" : "text-ink-400"}`}>
-                              {categoryLabel}
-                            </p>
-                          </div>
-                          <span
-                            className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${
-                              isSelected ? "bg-white/15 text-white" : "bg-sand-100 text-ink-500"
-                            }`}
-                          >
-                            {item.budget !== "" && item.budget !== null && item.budget !== undefined
-                              ? formatCurrency(item.budget)
-                              : "No budget"}
-                          </span>
-                        </div>
-                        <p
-                          className={`mt-3 line-clamp-3 text-sm leading-6 ${
-                            isSelected ? "text-white/80" : "text-ink-500"
-                          }`}
-                        >
-                          {item.scopeDescription || "Add the contractor-facing scope for this item."}
-                        </p>
-                      </button>
-                    );
-                  })
-                ) : (
-                  <div className="rounded-[22px] border border-dashed border-ink-200 bg-sand-50/70 px-4 py-5 text-sm text-ink-500">
-                    Start by adding a renovation item from the quick-add list or create a custom one.
-                  </div>
-                )}
-              </div>
+              <FormField label="Extension square footage">
+                <input
+                  name="extensionSquareFootage"
+                  type="number"
+                  value={renovationForm.extensionSquareFootage}
+                  onChange={handleRenovationChange}
+                  className="auth-input"
+                  placeholder={renovationForm.extensionPlanned ? "0" : "Not needed"}
+                  disabled={!renovationForm.extensionPlanned}
+                />
+              </FormField>
             </div>
+          </section>
+
+          <div className="grid gap-4 md:grid-cols-3">
+            <SummaryStat
+              label="Total Renovation Budget"
+              value={renovationBudgetedItemCount ? formatCurrency(renovationBudgetTotal) : "—"}
+              hint={
+                renovationBudgetedItemCount
+                  ? `${renovationBudgetedItemCount} of ${renovationItemsCount} items budgeted`
+                  : "Add budgets to your renovation items"
+              }
+            />
+            <SummaryStat
+              label="Renovation Items"
+              value={renovationItemsCount}
+              hint={renovationItemsCount ? "Items currently in the plan" : "No items added yet"}
+            />
+            <SummaryStat
+              label="Extension"
+              value={
+                renovationForm.extensionPlanned
+                  ? renovationForm.extensionSquareFootage
+                    ? `${Number(renovationForm.extensionSquareFootage).toLocaleString()} sqft`
+                    : "Yes"
+                  : "No"
+              }
+              hint={
+                renovationForm.verifiedSquareFootage
+                  ? `Verified size ${Number(renovationForm.verifiedSquareFootage).toLocaleString()} sqft`
+                  : "Square footage not verified yet"
+              }
+            />
           </div>
 
-          <div className="space-y-6">
-            <div className="section-card p-6 sm:p-7">
-              <span className="eyebrow">Renovation planning and estimate</span>
-              <h2 className="mt-4 text-2xl font-semibold text-ink-900">
-                Build the scope before you price the job
-              </h2>
-              <p className="mt-2 text-sm leading-6 text-ink-500">
-                Confirm the project basics here, then write out the scope item by item so contractor bids can be compared cleanly later.
-              </p>
-
-              <div className="mt-6 grid gap-5 md:grid-cols-2">
-                <FormField
-                  label="Verified square footage"
-                  hint="Confirm the usable square footage before building the estimate."
-                >
-                  <input
-                    name="verifiedSquareFootage"
-                    type="number"
-                    value={renovationForm.verifiedSquareFootage}
-                    onChange={handleRenovationChange}
-                    className="auth-input"
-                    placeholder="0"
-                  />
-                </FormField>
-
-                <FormField label="Renovation level">
-                  <select
-                    name="renovationLevel"
-                    value={renovationForm.renovationLevel}
-                    onChange={handleRenovationChange}
-                    className="auth-input appearance-none"
-                  >
-                    {renovationLevelOptions.map((option) => (
-                      <option key={option.value || "empty"} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </FormField>
-
-                <FormField label="Will there be an extension?">
-                  <select
-                    name="extensionPlanned"
-                    value={renovationForm.extensionPlanned ? "yes" : "no"}
-                    onChange={(event) =>
-                      setRenovationForm((previous) => ({
-                        ...previous,
-                        extensionPlanned: event.target.value === "yes",
-                        extensionSquareFootage:
-                          event.target.value === "yes" ? previous.extensionSquareFootage : "",
-                      }))
-                    }
-                    className="auth-input appearance-none"
-                  >
-                    <option value="no">No</option>
-                    <option value="yes">Yes</option>
-                  </select>
-                </FormField>
-
-                {renovationForm.extensionPlanned ? (
-                  <FormField label="Extension square footage">
-                    <input
-                      name="extensionSquareFootage"
-                      type="number"
-                      value={renovationForm.extensionSquareFootage}
-                      onChange={handleRenovationChange}
-                      className="auth-input"
-                      placeholder="0"
-                    />
-                  </FormField>
-                ) : (
-                  <div />
-                )}
+          <section className="section-card p-6 sm:p-7">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <span className="eyebrow">Renovation plan list</span>
+                <h3 className="mt-3 text-2xl font-semibold text-ink-900">Build the scope list</h3>
+                <p className="mt-2 text-sm leading-6 text-ink-500">
+                  Add renovation items one by one, set the budget, and write what the contractor should quote.
+                </p>
               </div>
+              <button
+                type="button"
+                onClick={openAddRenovationItemModal}
+                className="primary-action inline-flex items-center gap-2"
+              >
+                <PlusIcon className="h-4 w-4" />
+                Add renovation item
+              </button>
             </div>
 
-            <div className="section-card p-6 sm:p-7">
-              {selectedRenovationItem ? (
-                <>
-                  <div className="flex flex-wrap items-start justify-between gap-4">
-                    <div>
-                      <span className="eyebrow">Selected item</span>
-                      <h3 className="mt-3 text-2xl font-semibold text-ink-900">
-                        {selectedRenovationItem.name || "Renovation item"}
-                      </h3>
-                      <p className="mt-2 text-sm leading-6 text-ink-500">
-                        Write the scope the way you want the contractor to understand and price it.
-                      </p>
+            <div className="mt-6 space-y-4">
+              {renovationItemsCount ? (
+                renovationForm.items.map((item) => {
+                  const categoryLabel =
+                    renovationCategoryOptions.find((option) => option.value === item.category)?.label ||
+                    "Custom";
+                  const statusLabel =
+                    renovationItemStatusOptions.find((option) => option.value === item.status)?.label ||
+                    "Planning";
+
+                  return (
+                    <div
+                      key={item.itemId}
+                      className="rounded-[24px] border border-ink-100 bg-white px-5 py-5"
+                    >
+                      <div className="flex flex-wrap items-start justify-between gap-4">
+                        <div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <h4 className="text-lg font-semibold text-ink-900">
+                              {item.name || "Untitled item"}
+                            </h4>
+                            <span className="rounded-full bg-sand-100 px-3 py-1 text-xs font-semibold text-ink-600">
+                              {categoryLabel}
+                            </span>
+                            <span className="rounded-full bg-sand-100 px-3 py-1 text-xs font-semibold text-ink-600">
+                              {statusLabel}
+                            </span>
+                          </div>
+                          <p className="mt-3 max-w-3xl text-sm leading-6 text-ink-500">
+                            {item.scopeDescription || "No scope description added yet."}
+                          </p>
+                        </div>
+
+                        <div className="rounded-[18px] bg-sand-50 px-4 py-4 text-right">
+                          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-400">
+                            Budget
+                          </p>
+                          <p className="mt-2 text-lg font-semibold text-ink-900">
+                            {item.budget !== "" && item.budget !== null && item.budget !== undefined
+                              ? formatCurrency(item.budget)
+                              : "—"}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="mt-5 flex flex-wrap justify-end gap-3">
+                        <button
+                          type="button"
+                          onClick={() => openEditRenovationItemModal(item)}
+                          className="ghost-action inline-flex items-center gap-2"
+                        >
+                          <PencilSquareIcon className="h-4 w-4" />
+                          Edit item
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteRenovationItem(item.itemId)}
+                          className="ghost-action inline-flex items-center gap-2 text-red-600 hover:bg-red-50 hover:text-red-700"
+                        >
+                          <TrashIcon className="h-4 w-4" />
+                          Delete item
+                        </button>
+                      </div>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveRenovationItem(selectedRenovationItem.itemId)}
-                      className="ghost-action text-red-600 hover:bg-red-50 hover:text-red-700"
-                    >
-                      Remove item
-                    </button>
-                  </div>
-
-                  <div className="mt-6 grid gap-5 md:grid-cols-2">
-                    <FormField label="Item name">
-                      <input
-                        value={selectedRenovationItem.name}
-                        onChange={(event) =>
-                          handleRenovationItemChange(
-                            selectedRenovationItem.itemId,
-                            "name",
-                            event.target.value
-                          )
-                        }
-                        className="auth-input"
-                        placeholder="Kitchen remodel"
-                      />
-                    </FormField>
-
-                    <FormField label="Category">
-                      <select
-                        value={selectedRenovationItem.category}
-                        onChange={(event) =>
-                          handleRenovationItemChange(
-                            selectedRenovationItem.itemId,
-                            "category",
-                            event.target.value
-                          )
-                        }
-                        className="auth-input appearance-none"
-                      >
-                        {renovationCategoryOptions.map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
-                    </FormField>
-
-                    <FormField label="Budget for this item">
-                      <input
-                        type="number"
-                        value={selectedRenovationItem.budget}
-                        onChange={(event) =>
-                          handleRenovationItemChange(
-                            selectedRenovationItem.itemId,
-                            "budget",
-                            event.target.value
-                          )
-                        }
-                        className="auth-input"
-                        placeholder="0"
-                      />
-                    </FormField>
-
-                    <FormField label="Item status">
-                      <select
-                        value={selectedRenovationItem.status}
-                        onChange={(event) =>
-                          handleRenovationItemChange(
-                            selectedRenovationItem.itemId,
-                            "status",
-                            event.target.value
-                          )
-                        }
-                        className="auth-input appearance-none"
-                      >
-                        {renovationItemStatusOptions.map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
-                    </FormField>
-
-                    <FormField
-                      label="Scope for contractor quote"
-                      hint="Describe exactly what this contractor should price, including the level of finish and any must-haves."
-                      className="md:col-span-2"
-                    >
-                      <textarea
-                        rows="6"
-                        value={selectedRenovationItem.scopeDescription}
-                        onChange={(event) =>
-                          handleRenovationItemChange(
-                            selectedRenovationItem.itemId,
-                            "scopeDescription",
-                            event.target.value
-                          )
-                        }
-                        className="auth-input min-h-[180px]"
-                        placeholder="Example: demo existing kitchen, install shaker cabinets, quartz counters, undermount sink, new faucet, backsplash, and appliance hookups. Quote labor and material separately."
-                      />
-                    </FormField>
-                  </div>
-
-                  <div className="mt-5 rounded-[20px] border border-ink-100 bg-sand-50/80 px-4 py-4 text-sm leading-6 text-ink-600">
-                    This description becomes the source of truth for future quote uploads, AI scope polishing, and bid comparisons.
-                  </div>
-                </>
+                  );
+                })
               ) : (
-                <div className="rounded-[22px] border border-dashed border-ink-200 bg-sand-50/70 px-5 py-10 text-center">
-                  <h3 className="text-xl font-semibold text-ink-900">No renovation item selected</h3>
+                <div className="rounded-[24px] border border-dashed border-ink-200 bg-sand-50/70 px-5 py-10 text-center">
+                  <h4 className="text-xl font-semibold text-ink-900">No renovation items yet</h4>
                   <p className="mt-2 text-sm leading-6 text-ink-500">
-                    Add an item on the left, then use this panel to set the budget and write the contractor-ready scope.
+                    Click <span className="font-semibold text-ink-900">Add renovation item</span> to choose from the preset list or create a custom one.
                   </p>
                 </div>
               )}
             </div>
+          </section>
 
-            <div className="flex flex-wrap justify-end gap-3">
-              <button
-                type="button"
-                onClick={handleSaveRenovation}
-                disabled={isSavingRenovation}
-                className="primary-action disabled:cursor-not-allowed disabled:opacity-70"
-              >
-                {isSavingRenovation ? "Saving..." : "Save renovation plan"}
-              </button>
-            </div>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm text-ink-500">
+              {lastRenovationSavedAt
+                ? `Saved ${formatDate(lastRenovationSavedAt)}. Your renovation items and budgets are stored on this lead.`
+                : "Save renovation plan to store the item list, budgets, and project setup on this lead."}
+            </p>
+            <button
+              type="button"
+              onClick={handleSaveRenovation}
+              disabled={isSavingRenovation}
+              className="primary-action disabled:cursor-not-allowed disabled:opacity-70"
+            >
+              {isSavingRenovation ? "Saving..." : "Save renovation plan"}
+            </button>
           </div>
         </div>
       )}
+
+      <RenovationItemModal
+        isOpen={isRenovationItemModalOpen}
+        draft={renovationItemDraft}
+        isEditing={Boolean(editingRenovationItemId)}
+        onChange={handleRenovationDraftChange}
+        onClose={closeRenovationItemModal}
+        onSave={handleSaveRenovationItemDraft}
+      />
 
       {activeTab === "bids" && (
         <BidsTab

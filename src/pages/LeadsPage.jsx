@@ -83,9 +83,9 @@ const buildLeadSearchText = (lead) =>
     .toLowerCase();
 
 const StatCard = ({ title, value }) => (
-  <div className="metric-tile p-5">
-    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-400">{title}</p>
-    <p className="mt-4 text-3xl font-semibold text-ink-900">{value}</p>
+  <div className="metric-tile p-4">
+    <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-ink-400">{title}</p>
+    <p className="mt-3 text-lg font-medium text-ink-900">{value}</p>
   </div>
 );
 
@@ -95,7 +95,7 @@ const LeadCard = ({ lead, onClick, dragHandleProps, innerRef, draggableProps }) 
     ref={innerRef}
     {...draggableProps}
     {...dragHandleProps}
-    className="w-full cursor-pointer rounded-[22px] border border-ink-100 bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg"
+    className="w-full cursor-pointer rounded-[16px] border border-ink-100 bg-white p-4 text-left transition hover:border-ink-200"
     onClick={onClick}
   >
     <div className="flex items-start justify-between gap-3">
@@ -112,8 +112,8 @@ const LeadCard = ({ lead, onClick, dragHandleProps, innerRef, draggableProps }) 
     <p className="mt-1 text-sm text-ink-500">
       {[lead.bedrooms ? `${lead.bedrooms} bd` : null, lead.bathrooms ? `${lead.bathrooms} ba` : null].filter(Boolean).join(' • ')}
     </p>
-    <div className="mt-4 rounded-2xl bg-sand-50 px-3 py-3">
-      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-400">Next step</p>
+    <div className="mt-4 rounded-[14px] bg-sand-50 px-3 py-3">
+      <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-ink-400">Next step</p>
       <p className="mt-2 text-sm font-medium text-ink-700">{lead.nextAction || 'No next action yet'}</p>
       <p className="mt-1 text-xs text-ink-500">{formatFollowUpDate(lead.followUpDate)}</p>
     </div>
@@ -330,20 +330,19 @@ const LeadsPage = () => {
   }
 
   return (
-    <div className="space-y-6">
-      <section className="surface-panel-strong relative overflow-hidden px-6 py-7 sm:px-8">
-        <div className="absolute inset-y-0 right-0 hidden w-1/3 bg-[radial-gradient(circle_at_center,rgba(59,143,129,0.18),transparent_62%)] lg:block" />
-        <div className="relative grid gap-8 lg:grid-cols-[minmax(0,1.05fr)_minmax(320px,0.95fr)]">
+    <div className="space-y-4">
+      <section className="surface-panel px-6 py-6">
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
           <div>
             <span className="eyebrow">Lead pipeline</span>
-            <h2 className="mt-5 text-4xl font-semibold tracking-tight text-ink-900">
-              Keep potential properties organized from first look to next step.
+            <h2 className="mt-4 font-display text-[2.4rem] leading-[0.96] text-ink-900">
+              Keep potential properties organized with less noise.
             </h2>
-            <p className="mt-4 max-w-2xl text-base leading-7 text-ink-500">
+            <p className="mt-4 max-w-2xl text-sm leading-7 text-ink-500 sm:text-base">
               Review opportunities, track where each one stands, and add new properties without a bulky workflow getting in the way.
             </p>
 
-            <div className="mt-8 flex flex-wrap gap-3">
+            <div className="mt-6 flex flex-wrap gap-3">
               <button type="button" onClick={openUnifiedLeadCreator} className="primary-action">
                 <PlusIcon className="h-4 w-4" />
                 Add property
@@ -358,24 +357,24 @@ const LeadsPage = () => {
             </div>
           </div>
 
-          <div className="section-card p-6">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-400">
-              Pipeline health
+          <div className="section-card p-5">
+            <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-ink-400">
+              Snapshot
             </p>
-            <div className="mt-5 space-y-3">
-              <div className="flex items-center justify-between rounded-[18px] bg-white px-4 py-3 ring-1 ring-ink-100">
+            <div className="mt-4 space-y-2.5">
+              <div className="flex items-center justify-between rounded-[14px] bg-white px-4 py-3 ring-1 ring-ink-100">
                 <span className="text-sm font-medium text-ink-600">Total active leads</span>
                 <span className="text-sm font-semibold text-ink-900">{summary?.totalLeads || 0}</span>
               </div>
-              <div className="flex items-center justify-between rounded-[18px] bg-sand-50 px-4 py-3">
+              <div className="flex items-center justify-between rounded-[14px] bg-sand-50 px-4 py-3">
                 <span className="text-sm font-medium text-ink-600">Analyzing</span>
                 <span className="text-sm font-semibold text-ink-900">{summary?.analyzingCount || 0}</span>
               </div>
-              <div className="flex items-center justify-between rounded-[18px] bg-clay-50 px-4 py-3">
+              <div className="flex items-center justify-between rounded-[14px] bg-clay-50 px-4 py-3">
                 <span className="text-sm font-medium text-ink-600">Under contract</span>
                 <span className="text-sm font-semibold text-ink-900">{summary?.underContractCount || 0}</span>
               </div>
-              <div className="flex items-center justify-between rounded-[18px] bg-verdigris-50 px-4 py-3">
+              <div className="flex items-center justify-between rounded-[14px] bg-verdigris-50 px-4 py-3">
                 <span className="text-sm font-medium text-ink-600">Closing ratio</span>
                 <span className="text-sm font-semibold text-ink-900">
                   {summary ? `${summary.closingRatio.toFixed(1)}%` : '0.0%'}
@@ -387,7 +386,7 @@ const LeadsPage = () => {
       </section>
 
       {summary ? (
-        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           <StatCard title="Total Active Leads" value={summary.totalLeads} />
           <StatCard title="Analyzing" value={summary.analyzingCount} />
           <StatCard title="Under Contract" value={summary.underContractCount} />
@@ -397,13 +396,13 @@ const LeadsPage = () => {
 
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h3 className="text-2xl font-semibold text-ink-900">Potential properties</h3>
+          <h3 className="font-display text-[2rem] leading-none text-ink-900">Potential properties</h3>
           <p className="mt-2 text-sm leading-6 text-ink-500">
             Use list view when you need to scan and sort, or board view when you want to move opportunities through the pipeline.
           </p>
         </div>
 
-        <div className="inline-flex flex-wrap items-center gap-2 rounded-full bg-sand-100 p-1">
+        <div className="inline-flex flex-wrap items-center gap-2 rounded-full border border-ink-100 bg-white p-1">
           {leadViewModes.map((mode) => {
             const Icon = mode.icon;
             const isActive = viewMode === mode.value;
@@ -444,10 +443,10 @@ const LeadsPage = () => {
                     key={filterOption.value}
                     type="button"
                     onClick={() => setStatusFilter(filterOption.value)}
-                    className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+                    className={`rounded-full px-4 py-2 text-sm font-medium transition ${
                       statusFilter === filterOption.value
                         ? 'bg-ink-900 text-white'
-                        : 'bg-sand-50 text-ink-600 hover:bg-sand-100'
+                        : 'bg-white text-ink-600 hover:bg-sand-50'
                     }`}
                   >
                     {filterOption.label} ({filterOption.count})
@@ -455,7 +454,7 @@ const LeadsPage = () => {
                 ))}
               </div>
 
-              <div className="rounded-full bg-sand-100 px-4 py-2 text-sm font-semibold text-ink-600">
+              <div className="rounded-full border border-ink-100 bg-white px-4 py-2 text-sm font-medium text-ink-600">
                 Showing {visibleLeads.length} of {allLeads.length}
               </div>
             </div>
@@ -479,12 +478,12 @@ const LeadsPage = () => {
         <div className="section-card p-5 sm:p-6">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <h4 className="text-xl font-semibold text-ink-900">Pipeline board</h4>
+              <h4 className="font-display text-[1.8rem] leading-none text-ink-900">Pipeline board</h4>
               <p className="mt-2 text-sm leading-6 text-ink-500">
                 Drag deals from one stage to the next and keep the acquisition team aligned on the real pipeline.
               </p>
             </div>
-            <div className="rounded-full bg-sand-100 px-4 py-2 text-sm font-semibold text-ink-600">
+            <div className="rounded-full border border-ink-100 bg-white px-4 py-2 text-sm font-medium text-ink-600">
               {allLeads.length} active lead{allLeads.length === 1 ? '' : 's'}
             </div>
           </div>
@@ -500,7 +499,7 @@ const LeadsPage = () => {
                         <div
                           ref={provided.innerRef}
                           {...provided.droppableProps}
-                          className="w-[20rem] flex-shrink-0 rounded-[24px] border border-ink-100 bg-sand-50/80 p-4"
+                          className="w-[19rem] flex-shrink-0 rounded-[16px] border border-ink-100 bg-sand-50/70 p-4"
                         >
                           <div className="flex items-center justify-between gap-3 border-b border-ink-100 pb-3">
                             <h5 className="text-sm font-semibold text-ink-700">{column.title}</h5>
@@ -532,7 +531,7 @@ const LeadsPage = () => {
               </div>
             </DragDropContext>
           ) : (
-            <div className="mt-6 rounded-[20px] border border-dashed border-ink-200 bg-sand-50 px-6 py-12 text-center">
+            <div className="mt-6 rounded-[16px] border border-dashed border-ink-200 bg-sand-50 px-6 py-12 text-center">
               <p className="text-lg font-semibold text-ink-900">No leads in the pipeline yet</p>
               <p className="mt-2 text-sm leading-6 text-ink-500">
                 Add your first property to start tracking pricing, notes, and deal progress in one place.
