@@ -31,11 +31,21 @@ import {
   SIDEBAR_PREFERENCE_EVENT,
 } from "../utils/sidebarPreferences";
 
-const baseNavSections = [
+const visibleNavSections = [
+  {
+    title: "Workspace",
+    links: [
+      { to: "/dashboard", label: "Overview", icon: HomeIcon },
+      { to: "/account", label: "Account Center", icon: Cog6ToothIcon },
+    ],
+  },
+];
+
+// Keep the current feature navigation parked here so we can restore it quickly during the rebuild.
+const parkedFeatureNavSections = [
   {
     title: "Command",
     links: [
-      { to: "/dashboard", label: "Overview", icon: HomeIcon },
       { to: "/properties", label: "Property Hub", icon: HomeModernIcon },
       { to: "/properties/new", label: "New Property", icon: PlusCircleIcon },
       { to: "/applications", label: "Applications", icon: ClipboardDocumentListIcon },
@@ -43,11 +53,11 @@ const baseNavSections = [
     ],
   },
   {
-    title: "Workspaces",
+    title: "Views",
     links: [
       { to: "/leads", label: "Leads", icon: UsersIcon },
-      { to: "/investments", label: "Investments", icon: BriefcaseIcon },
-      { to: "/management", label: "Managed Properties", icon: BuildingOffice2Icon },
+      { to: "/investments", label: "Acquisitions View", icon: BriefcaseIcon },
+      { to: "/management", label: "Management View", icon: BuildingOffice2Icon },
     ],
   },
   {
@@ -55,13 +65,17 @@ const baseNavSections = [
     links: [
       { to: "/comps", label: "Market Intel", icon: ChartBarIcon },
       { to: "/tools", label: "Financial Tools", icon: RectangleStackIcon },
-      { to: "/account", label: "Account Center", icon: Cog6ToothIcon },
     ],
   },
 ];
 
+const parkedFeatureLinkCount = parkedFeatureNavSections.reduce(
+  (count, section) => count + section.links.length,
+  0
+);
+
 const getNavSections = (user) => {
-  const sections = baseNavSections.map((section) => ({
+  const sections = visibleNavSections.map((section) => ({
     ...section,
     links: [...section.links],
   }));
@@ -80,8 +94,8 @@ const resolvePageMeta = (pathname, user) => {
   if (pathname.startsWith("/investments/new")) {
     return {
       kicker: "Acquisitions",
-      title: "Create Investment",
-      subtitle: "Structure a new opportunity with underwriting details and assumptions.",
+      title: "Create Acquisition Workspace",
+      subtitle: "Structure a new acquisitions workspace with underwriting details and assumptions.",
     };
   }
 
@@ -96,16 +110,16 @@ const resolvePageMeta = (pathname, user) => {
   if (pathname.startsWith("/investments/") && pathname.endsWith("/edit")) {
     return {
       kicker: "Acquisitions",
-      title: "Edit Investment",
-      subtitle: "Refine the underwriting model, assumptions, and return targets.",
+      title: "Edit Acquisition Workspace",
+      subtitle: "Refine the underwriting model, assumptions, and return targets for this property.",
     };
   }
 
   if (pathname.startsWith("/investments/")) {
     return {
       kicker: "Acquisitions",
-      title: "Investment Detail",
-      subtitle: "Review deal performance, budget exposure, and execution progress.",
+      title: "Acquisition Workspace",
+      subtitle: "Review underwriting, budget exposure, and execution progress for this property.",
     };
   }
 
@@ -144,7 +158,7 @@ const resolvePageMeta = (pathname, user) => {
   if (pathname.startsWith("/management/")) {
     return {
       kicker: "Operations",
-      title: "Property Command Center",
+      title: "Management Workspace",
       subtitle: "Monitor occupancy, leasing pressure, and on-site activity for this asset.",
     };
   }
@@ -152,8 +166,8 @@ const resolvePageMeta = (pathname, user) => {
   if (pathname === "/management") {
     return {
       kicker: "Operations",
-      title: "Property Operations",
-      subtitle: "Oversee occupancy, vacancies, and the operational posture of your portfolio.",
+      title: "Management View",
+      subtitle: "Use the management-filtered view of the property hub to oversee occupancy, vacancies, and leasing operations.",
     };
   }
 
@@ -232,8 +246,8 @@ const resolvePageMeta = (pathname, user) => {
   if (pathname === "/investments") {
     return {
       kicker: "Acquisitions",
-      title: "Investment Portfolio",
-      subtitle: "View active deals, expected returns, and where capital is currently committed.",
+      title: "Acquisitions View",
+      subtitle: "Use the acquisitions-filtered view of the property hub to track underwriting, execution, and management readiness.",
     };
   }
 
@@ -245,11 +259,11 @@ const resolvePageMeta = (pathname, user) => {
 };
 
 const getUserInitials = (name, email) => {
-  const source = (name || email || "MyPropAI").replace(/@.*$/, "");
+  const source = (name || email || "Fliprop").replace(/@.*$/, "");
   const parts = source.split(/[\s._-]+/).filter(Boolean);
 
   if (parts.length === 0) {
-    return "MP";
+    return "FL";
   }
 
   if (parts.length === 1) {
@@ -310,19 +324,19 @@ const SidebarContent = ({ user, onNavigate, collapsed, onToggleCollapse }) => (
           to="/dashboard"
           onClick={onNavigate}
           className={collapsed ? "flex items-center justify-center" : "min-w-0 flex-1"}
-          title={collapsed ? "MyPropAI dashboard" : undefined}
+          title={collapsed ? "Fliprop dashboard" : undefined}
         >
           <div className={`flex items-center ${collapsed ? "justify-center" : "gap-3.5"}`}>
             <div className="flex h-11 w-11 items-center justify-center rounded-[18px] bg-white/10 text-base font-bold">
-              MP
+              FL
             </div>
             {!collapsed ? (
               <div className="min-w-0">
-                <p className="font-display text-[1.65rem] leading-none tracking-tight">MyPropAI</p>
-                <p className="mt-1 text-sm text-white/65">Real estate operating system</p>
+                <p className="font-display text-[1.65rem] leading-none tracking-tight">Fliprop</p>
+                <p className="mt-1 text-sm text-white/65">Develop, flip, and manage in one workspace</p>
               </div>
             ) : (
-              <span className="sr-only">MyPropAI dashboard</span>
+              <span className="sr-only">Fliprop dashboard</span>
             )}
           </div>
         </Link>
@@ -362,15 +376,6 @@ const SidebarContent = ({ user, onNavigate, collapsed, onToggleCollapse }) => (
       {collapsed ? (
         <>
           <Link
-            to="/properties"
-            onClick={onNavigate}
-            title="Open Properties"
-            aria-label="Open Properties"
-            className="flex h-11 items-center justify-center rounded-[18px] border border-white/70 bg-white/88 text-ink-700 shadow-soft transition hover:bg-white"
-          >
-            <HomeModernIcon className="h-5 w-5" />
-          </Link>
-          <Link
             to="/account"
             onClick={onNavigate}
             title="Open Account Center"
@@ -390,29 +395,21 @@ const SidebarContent = ({ user, onNavigate, collapsed, onToggleCollapse }) => (
         <>
           <div className="rounded-[22px] border border-white/80 bg-white/88 p-4 shadow-soft">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-ink-400">
-              Property hub
+              Rebuild mode
             </p>
-            <h3 className="mt-2 text-base font-semibold text-ink-900">
-              Open the shared property workspace
-            </h3>
+            <h3 className="mt-2 text-base font-semibold text-ink-900">Feature links are parked</h3>
             <p className="mt-2 text-sm leading-5 text-ink-500">
-              Start from one property record, then branch into pipeline, acquisitions, or management as needed.
+              {parkedFeatureLinkCount} existing feature
+              {parkedFeatureLinkCount === 1 ? " link is" : " links are"} hidden from the menu while we
+              rebuild. The routes and screens are still there if we need to bring them back.
             </p>
-            <Link
-              to="/properties/new"
-              onClick={onNavigate}
-              className="primary-action mt-4 w-full justify-center"
-            >
-              <PlusCircleIcon className="mr-2 h-5 w-5" />
-              New Property
-            </Link>
           </div>
 
           <div className="rounded-[22px] border border-ink-100 bg-sand-50/90 p-4">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-400">
               Workspace owner
             </p>
-            <p className="mt-2 text-sm font-semibold text-ink-900">{user?.name || "MyPropAI User"}</p>
+            <p className="mt-2 text-sm font-semibold text-ink-900">{user?.name || "Fliprop User"}</p>
             <p className="mt-1 text-sm text-ink-500">
               {user?.email || "Property operations dashboard"}
             </p>
@@ -534,11 +531,11 @@ function DashboardLayout({ children }) {
               className="relative z-10 m-4 flex w-[88vw] max-w-sm flex-col rounded-[28px] border border-white/75 bg-[rgba(255,253,248,0.96)] p-5 shadow-luxe backdrop-blur-xl"
             >
               <div className="mb-4 flex items-center justify-between">
-                <div>
+              <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] text-ink-400">
                     Navigation
                   </p>
-                  <h2 className="mt-1 text-xl font-semibold text-ink-900">MyPropAI</h2>
+                  <h2 className="mt-1 text-xl font-semibold text-ink-900">Fliprop</h2>
                 </div>
                 <button
                   type="button"
