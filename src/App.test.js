@@ -54,43 +54,16 @@ jest.mock("./context/AuthContext", () => ({
   AuthProvider: ({ children }) => children,
 }));
 
-jest.mock("./components/DashboardLayout", () => ({ children }) => (
-  <div data-testid="dashboard-layout">{children}</div>
+jest.mock("./components/PlatformShell", () => ({ children }) => (
+  <div data-testid="platform-shell">{children}</div>
 ));
 jest.mock("./components/ProtectedRoute", () => ({ children }) => children);
-jest.mock("./components/TenantProtectedRoute", () => ({ children }) => children);
-jest.mock("./components/PlatformManagerRoute", () => ({ children }) => children);
 
-jest.mock("./pages/Homepage", () => () => <div>Homepage screen</div>);
+jest.mock("./pages/PlatformLandingPage", () => () => <div>Platform landing screen</div>);
+jest.mock("./pages/PlatformWorkspacePage", () => () => <div>Platform workspace screen</div>);
 jest.mock("./pages/LoginPage", () => () => <div>Workspace login screen</div>);
 jest.mock("./pages/LoginContinuePage", () => () => <div>Login continue screen</div>);
 jest.mock("./pages/SignupPage", () => () => <div>Signup screen</div>);
-jest.mock("./pages/InvitePage", () => () => <div>Invite screen</div>);
-jest.mock("./pages/TenantLoginPage", () => () => <div>Tenant login screen</div>);
-jest.mock("./pages/ApplicationFormPage", () => () => <div>Application form screen</div>);
-jest.mock("./pages/ApplicationSuccessPage", () => () => <div>Application success screen</div>);
-jest.mock("./pages/TenantDashboard", () => () => <div>Tenant dashboard screen</div>);
-jest.mock("./pages/DashboardPage", () => () => <div>Dashboard screen</div>);
-jest.mock("./pages/AccountCenter", () => () => <div>Account screen</div>);
-jest.mock("./pages/PlatformManagerPage", () => () => <div>Platform manager screen</div>);
-jest.mock("./pages/FinancialToolsPage", () => () => <div>Financial tools screen</div>);
-jest.mock("./pages/CompsPage", () => () => <div>Comps screen</div>);
-jest.mock("./pages/CompsTool", () => () => <div>Comps tool screen</div>);
-jest.mock("./pages/PropertiesPage", () => () => <div>Properties screen</div>);
-jest.mock("./pages/CreatePropertyPage", () => () => <div>Create property screen</div>);
-jest.mock("./pages/PropertyWorkspacePage", () => () => <div>Property workspace screen</div>);
-jest.mock("./pages/LeadsPage", () => () => <div>Leads screen</div>);
-jest.mock("./pages/LeadDetailPage", () => () => <div>Lead detail screen</div>);
-jest.mock("./pages/ManagementDashboard", () => () => <div>Management screen</div>);
-jest.mock("./pages/ManagedPropertyDetail", () => () => <div>Managed property detail screen</div>);
-jest.mock("./pages/LeaseDetailPage", () => () => <div>Lease detail screen</div>);
-jest.mock("./pages/UnitListingPage", () => () => <div>Unit listing screen</div>);
-jest.mock("./pages/ApplicationsPage", () => () => <div>Applications screen</div>);
-jest.mock("./pages/SendApplicationPage", () => () => <div>Send application screen</div>);
-jest.mock("./pages/ApplicationDetailPage", () => () => <div>Application detail screen</div>);
-jest.mock("./pages/MyInvestments", () => () => <div>Investments screen</div>);
-jest.mock("./pages/InvestmentDetail", () => () => <div>Investment detail screen</div>);
-jest.mock("./pages/EditInvestment", () => () => <div>Edit investment screen</div>);
 
 describe("App routes", () => {
   const renderAtPath = (path) => {
@@ -98,10 +71,10 @@ describe("App routes", () => {
     return render(<App />);
   };
 
-  test("renders the public homepage at the root route", () => {
+  test("renders the clean-slate landing page at the root route", () => {
     renderAtPath("/");
 
-    expect(screen.getByText("Homepage screen")).toBeInTheDocument();
+    expect(screen.getByText("Platform landing screen")).toBeInTheDocument();
   });
 
   test("renders the workspace login route", () => {
@@ -110,35 +83,34 @@ describe("App routes", () => {
     expect(screen.getByText("Workspace login screen")).toBeInTheDocument();
   });
 
-  test("renders the invite-based application route", () => {
+  test("renders the blank workspace route", () => {
+    renderAtPath("/dashboard");
+
+    expect(screen.getByTestId("platform-shell")).toBeInTheDocument();
+    expect(screen.getByText("Platform workspace screen")).toBeInTheDocument();
+  });
+
+  test("redirects a parked public feature route back to the landing page", () => {
     renderAtPath("/apply");
 
-    expect(screen.getByText("Application form screen")).toBeInTheDocument();
+    expect(screen.getByText("Navigate:/")).toBeInTheDocument();
   });
 
-  test("renders the unified property creator route", () => {
-    renderAtPath("/properties/new");
-
-    expect(screen.getByText("Create property screen")).toBeInTheDocument();
-  });
-
-  test("renders a shared property workspace route", () => {
-    renderAtPath("/properties/property-123");
-
-    expect(screen.getByText("Property workspace screen")).toBeInTheDocument();
-  });
-
-  test("renders the management dashboard route", () => {
+  test("redirects a parked protected feature route into the blank workspace", () => {
     renderAtPath("/management");
 
-    expect(screen.getByText("Management screen")).toBeInTheDocument();
+    expect(screen.getByText("Navigate:/dashboard")).toBeInTheDocument();
   });
 
-  test("redirects the old new-investment route into the unified property creator", () => {
-    renderAtPath("/investments/new");
+  test("redirects old property workspace paths into the blank workspace", () => {
+    renderAtPath("/properties/property-123");
 
-    expect(
-      screen.getByText("Navigate:/properties/new?workspace=acquisitions")
-    ).toBeInTheDocument();
+    expect(screen.getByText("Navigate:/dashboard")).toBeInTheDocument();
+  });
+
+  test("redirects unknown routes back to the landing page", () => {
+    renderAtPath("/unknown");
+
+    expect(screen.getByText("Navigate:/")).toBeInTheDocument();
   });
 });
