@@ -2263,7 +2263,14 @@ const LeadDetailPage = () => {
         </div>
       )}
 
-      {activeTab === "bids" && <BidsTab leadId={id} bids={bids} onUpdate={fetchData} />}
+      {activeTab === "bids" && (
+        <BidsTab
+          leadId={id}
+          bids={bids}
+          renovationItems={lead.renovationPlan?.items || []}
+          onUpdate={fetchData}
+        />
+      )}
     </div>
   );
 };
