@@ -1,6 +1,19 @@
 // client/src/utils/api.js
 import { API_BASE_URL } from "../config";
 
+const getErrorPayload = async (res) => {
+  try {
+    return await res.json();
+  } catch (error) {
+    return null;
+  }
+};
+
+const getErrorMessage = async (res, fallbackMessage) => {
+  const payload = await getErrorPayload(res);
+  return payload?.msg || payload?.message || fallbackMessage;
+};
+
 /**
  * ==========================
  *   AUTH HEADER HELPERS
@@ -158,7 +171,7 @@ export const analyzeLeadComps = async (leadId, filters) => {
     headers: getAuthHeaders(),
     body: JSON.stringify(filters),
   });
-  if (!res.ok) throw new Error((await res.json()).msg || "Failed to analyze comps");
+  if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to analyze comps"));
   return res.json();
 };
 
@@ -597,6 +610,23 @@ export const getUnitDetails = async (unitId) => {
   return res.json();
 };
 
+export const getManagedProperties = async () => {
+  const res = await fetch(`${API_BASE_URL}/management`, {
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to fetch managed properties"));
+  return res.json();
+};
+
+export const promoteInvestmentToManagement = async (investmentId) => {
+  const res = await fetch(`${API_BASE_URL}/management/promote/${investmentId}`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to start management"));
+  return res.json();
+};
+
 export const runRecurringCharges = async () => {
   const res = await fetch(`${API_BASE_URL}/management/recurring/run`, {
     method: "POST",
@@ -769,7 +799,68 @@ export const generateAIReport = async (investmentId) => {
     method: "POST",
     headers: getAuthHeaders(),
   });
-  if (!res.ok) throw new Error((await res.json()).msg || "Failed to generate AI report");
+  if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to generate AI report"));
+  return res.json();
+};
+
+/**
+ * ==========================
+ *   BILLING
+ * ==========================
+ */
+export const getBillingOverview = async () => {
+  const res = await fetch(`${API_BASE_URL}/billing/overview`, {
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to load billing overview"));
+  return res.json();
+};
+
+export const getBillingAccess = async (kind, resourceId) => {
+  const params = new URLSearchParams({ kind, resourceId });
+  const res = await fetch(`${API_BASE_URL}/billing/access?${params.toString()}`, {
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to load billing access"));
+  return res.json();
+};
+
+export const createSubscriptionCheckout = async (planKey = "pro") => {
+  const res = await fetch(`${API_BASE_URL}/billing/checkout/subscription`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ planKey }),
+  });
+  if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to start subscription checkout"));
+  return res.json();
+};
+
+export const createOneTimeCheckout = async ({ kind, resourceId }) => {
+  const res = await fetch(`${API_BASE_URL}/billing/checkout/one-time`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ kind, resourceId }),
+  });
+  if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to start checkout"));
+  return res.json();
+};
+
+export const createBillingPortalSession = async () => {
+  const res = await fetch(`${API_BASE_URL}/billing/portal`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to open the billing portal"));
+  return res.json();
+};
+
+export const syncBillingCheckoutSession = async (sessionId) => {
+  const res = await fetch(`${API_BASE_URL}/billing/sync-session`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ sessionId }),
+  });
+  if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to sync checkout session"));
   return res.json();
 };
 
@@ -809,7 +900,10 @@ export const getApplicationDetails = async (applicationId) => {
   const res = await fetch(`${API_BASE_URL}/applications/${applicationId}`, {
     headers: getAuthHeaders(),
   });
-  if (!res.ok) throw new Error("Failed to fetch application details");
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.msg || error.message || "Failed to fetch application details");
+  }
   return res.json();
 };
 
@@ -819,7 +913,10 @@ export const updateApplicationStatus = async (applicationId, status) => {
     headers: getAuthHeaders(),
     body: JSON.stringify({ status }),
   });
-  if (!res.ok) throw new Error("Failed to update application status");
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.msg || error.message || "Failed to update application status");
+  }
   return res.json();
 };
 
@@ -831,7 +928,10 @@ export const initiateScreening = async (applicationId) => {
       headers: getAuthHeaders(),
     }
   );
-  if (!res.ok) throw new Error("Failed to initiate screening");
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.msg || error.message || "Failed to initiate screening");
+  }
   return res.json();
 };
 
@@ -841,7 +941,10 @@ export const submitApplication = async (data) => {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
-  if (!res.ok) throw new Error("Failed to submit application");
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.msg || error.message || "Failed to submit application");
+  }
   return res.json();
 };
 
@@ -853,7 +956,21 @@ export const createApplicationPaymentIntent = async (applicationId) => {
       headers: getAuthHeaders(),
     }
   );
-  if (!res.ok) throw new Error("Failed to create payment intent");
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.msg || error.message || "Failed to create payment session");
+  }
+  return res.json();
+};
+
+export const confirmApplicationPayment = async (sessionId) => {
+  const res = await fetch(`${API_BASE_URL}/applications/payment-session/${sessionId}`, {
+    headers: { "Content-Type": "application/json" },
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.msg || error.message || "Failed to confirm payment");
+  }
   return res.json();
 };
 
@@ -861,7 +978,10 @@ export const getPublicApplicationDetails = async (unitId) => {
   const res = await fetch(`${API_BASE_URL}/applications/public/${unitId}`, {
     headers: { "Content-Type": "application/json" },
   });
-  if (!res.ok) throw new Error("Failed to fetch application details");
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.msg || error.message || "Failed to fetch application details");
+  }
   return res.json();
 };
 

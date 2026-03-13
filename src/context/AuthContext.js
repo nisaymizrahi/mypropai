@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { API_BASE_URL } from '../config';
 
 const AuthContext = createContext();
@@ -8,6 +8,27 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(() => localStorage.getItem("token"));
+
+  const refreshUser = useCallback(async (activeToken = token) => {
+    if (!activeToken) {
+      setAuthenticated(false);
+      setUser(null);
+      return null;
+    }
+
+    const res = await fetch(`${API_BASE_URL}/auth/me`, {
+      headers: { Authorization: `Bearer ${activeToken}` },
+    });
+
+    if (!res.ok) {
+      throw new Error("Invalid token");
+    }
+
+    const userData = await res.json();
+    setUser(userData);
+    setAuthenticated(true);
+    return userData;
+  }, [token]);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -24,18 +45,8 @@ export const AuthProvider = ({ children }) => {
 
       console.log('[AUTH] Token found, verifying with server...');
       try {
-        const res = await fetch(`${API_BASE_URL}/auth/me`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-
-        if (res.ok) {
-          const userData = await res.json();
-          console.log('%c[AUTH] Token verification SUCCESSFUL.', 'color: green', { user: userData });
-          setUser(userData);
-          setAuthenticated(true);
-        } else {
-          throw new Error("Invalid token");
-        }
+        const userData = await refreshUser(token);
+        console.log('%c[AUTH] Token verification SUCCESSFUL.', 'color: green', { user: userData });
       } catch (err) {
         console.error('%c[AUTH] Token verification FAILED.', 'color: red', err);
         localStorage.removeItem("token");
@@ -49,7 +60,7 @@ export const AuthProvider = ({ children }) => {
     };
 
     checkAuth();
-  }, [token]);
+  }, [refreshUser, token]);
 
   const login = (newToken) => {
     console.log('%c[AUTH] Login function called. Setting new token.', 'color: purple');
@@ -71,6 +82,7 @@ export const AuthProvider = ({ children }) => {
         user,
         login,
         logout,
+        refreshUser,
       }}
     >
       {children}

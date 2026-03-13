@@ -1,6 +1,16 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
-import { analyzeLeadComps, getBidsForLead, getLeadDetails } from '../utils/api';
+import toast from 'react-hot-toast';
+import { Link, useLocation, useParams } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import {
+  analyzeLeadComps,
+  createOneTimeCheckout,
+  createSubscriptionCheckout,
+  getBidsForLead,
+  getBillingAccess,
+  getLeadDetails,
+  syncBillingCheckoutSession,
+} from '../utils/api';
 import BidsTab from '../components/BidsTab';
 
 const LoadingSpinner = () => (
@@ -75,6 +85,8 @@ const LeadSnapshot = ({ lead }) => (
 
 const LeadDetailPage = () => {
   const { id } = useParams();
+  const location = useLocation();
+  const { refreshUser } = useAuth();
   const [lead, setLead] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -89,6 +101,10 @@ const LeadDetailPage = () => {
 
   const [bids, setBids] = useState([]);
   const [activeTab, setActiveTab] = useState('comps');
+  const [billingAccess, setBillingAccess] = useState(null);
+  const [isBillingAccessLoading, setIsBillingAccessLoading] = useState(true);
+  const [isStartingSubscription, setIsStartingSubscription] = useState(false);
+  const [isStartingCheckout, setIsStartingCheckout] = useState(false);
 
   const fetchData = useCallback(async () => {
     try {
@@ -130,6 +146,43 @@ const LeadDetailPage = () => {
     fetchData();
   }, [fetchData]);
 
+  const loadBillingAccess = useCallback(async () => {
+    try {
+      setIsBillingAccessLoading(true);
+      const access = await getBillingAccess('comps_report', id);
+      setBillingAccess(access);
+    } catch (err) {
+      setBillingAccess(null);
+    } finally {
+      setIsBillingAccessLoading(false);
+    }
+  }, [id]);
+
+  useEffect(() => {
+    loadBillingAccess();
+  }, [loadBillingAccess]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const sessionId = params.get('session_id');
+    if (!sessionId) {
+      return;
+    }
+
+    const syncSession = async () => {
+      try {
+        await syncBillingCheckoutSession(sessionId);
+        await refreshUser();
+        await loadBillingAccess();
+        toast.success('Comps report purchase confirmed.');
+      } catch (err) {
+        toast.error(err.message || 'We could not confirm the billing session yet.');
+      }
+    };
+
+    syncSession();
+  }, [loadBillingAccess, location.search, refreshUser]);
+
   const handleFilterChange = (event) => {
     const { name, value } = event.target;
     setFilters((previous) => ({ ...previous, [name]: value }));
@@ -145,10 +198,41 @@ const LeadDetailPage = () => {
         ...previous,
         ...result.subject,
       }));
+      await loadBillingAccess();
     } catch (err) {
       setError(err.message || 'Analysis failed.');
     } finally {
       setIsAnalyzing(false);
+    }
+  };
+
+  const handleStartSubscription = async () => {
+    setIsStartingSubscription(true);
+    try {
+      const { url } = await createSubscriptionCheckout('pro');
+      window.location.href = url;
+    } catch (err) {
+      setError(err.message || 'Could not start the Pro checkout.');
+      setIsStartingSubscription(false);
+    }
+  };
+
+  const handleBuyReport = async () => {
+    setIsStartingCheckout(true);
+    setError('');
+    try {
+      const result = await createOneTimeCheckout({ kind: 'comps_report', resourceId: id });
+      if (result.alreadyUnlocked) {
+        toast.success(result.msg || 'This lead already has a purchased report ready to run.');
+        await loadBillingAccess();
+        setIsStartingCheckout(false);
+        return;
+      }
+
+      window.location.href = result.url;
+    } catch (err) {
+      setError(err.message || 'Could not start the report checkout.');
+      setIsStartingCheckout(false);
     }
   };
 
@@ -199,6 +283,39 @@ const LeadDetailPage = () => {
               <p className="mt-1 text-sm text-gray-500">
                 Pull market comps around this property, generate pricing guidance, and summarize it with AI.
               </p>
+              <div className="mt-4 rounded-xl border border-brand-gray-200 bg-brand-gray-50 p-4 text-sm">
+                {isBillingAccessLoading ? (
+                  <p className="text-gray-500">Checking report access...</p>
+                ) : billingAccess?.accessGranted ? (
+                  <p className="text-brand-gray-700">
+                    {billingAccess.hasActiveSubscription
+                      ? 'Pro access is active for this report.'
+                      : 'This lead already has a paid report purchase ready to run.'}
+                  </p>
+                ) : (
+                  <div className="space-y-3">
+                    <p className="text-brand-gray-700">
+                      This report is a premium workflow. Upgrade to Pro for unlimited comps analysis or buy this lead&apos;s report one time.
+                    </p>
+                    <div className="flex flex-col gap-3">
+                      <button
+                        onClick={handleStartSubscription}
+                        disabled={isStartingSubscription}
+                        className="w-full rounded-md border border-brand-gray-300 px-4 py-2 font-semibold text-brand-gray-800 disabled:opacity-50"
+                      >
+                        {isStartingSubscription ? 'Redirecting...' : 'Upgrade to Pro'}
+                      </button>
+                      <button
+                        onClick={handleBuyReport}
+                        disabled={isStartingCheckout}
+                        className="w-full rounded-md bg-brand-turquoise py-2 font-semibold text-white disabled:opacity-50"
+                      >
+                        {isStartingCheckout ? 'Redirecting...' : 'Buy One-Time Report'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
               <div className="mt-5 space-y-4">
                 <div>
                   <label className="block text-sm font-medium">Radius (miles)</label>
@@ -239,7 +356,7 @@ const LeadDetailPage = () => {
                 </div>
                 <button
                   onClick={handleRunAnalysis}
-                  disabled={isAnalyzing}
+                  disabled={isAnalyzing || isBillingAccessLoading || !billingAccess?.accessGranted}
                   className="w-full rounded-md bg-brand-turquoise py-2 font-semibold text-white disabled:opacity-50"
                 >
                   {isAnalyzing ? 'Analyzing...' : 'Run AI Comps Report'}

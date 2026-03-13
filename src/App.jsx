@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 
@@ -35,18 +35,25 @@ import LeadDetailPage from "./pages/LeadDetailPage";
 import ApplicationFormPage from "./pages/ApplicationFormPage";
 import ApplicationDetailPage from "./pages/ApplicationDetailPage";
 
-import { setTokenCookieFromURL } from "./utils/setTokenFromURL";
 import { AuthProvider } from "./context/AuthContext";
 
 function App() {
-  useEffect(() => {
-    setTokenCookieFromURL();
-  }, []);
-
   return (
     <AuthProvider>
       <Router>
-        <Toaster position="top-right" reverseOrder={false} />
+        <Toaster
+          position="top-right"
+          reverseOrder={false}
+          toastOptions={{
+            style: {
+              borderRadius: "20px",
+              border: "1px solid rgba(24, 38, 55, 0.08)",
+              background: "rgba(255, 253, 248, 0.96)",
+              color: "#182637",
+              boxShadow: "0 18px 40px rgba(15, 23, 36, 0.12)",
+            },
+          }}
+        />
 
         <Routes>
           {/* --- Public Routes --- */}

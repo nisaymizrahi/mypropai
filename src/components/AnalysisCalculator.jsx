@@ -82,9 +82,9 @@ const AnalysisCalculator = ({ investment }) => {
     try {
       setLoadingAI(true);
       const res = await generateAIReport(investment._id);
-      setAISummary(res.summary);
+      setAISummary(res.report);
     } catch (err) {
-      setAISummary("AI summary not available.");
+      setAISummary(err.message || "AI summary not available.");
     } finally {
       setLoadingAI(false);
     }

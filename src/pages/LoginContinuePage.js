@@ -11,9 +11,15 @@ const LoginContinuePage = () => {
   const { login, authenticated, loading } = useAuth();
 
   useEffect(() => {
-    // Check for the token in the URL only once
-    const tokenInUrl = new URLSearchParams(window.location.search).get("token");
-    if (tokenInUrl && !localStorage.getItem('token')) {
+    const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+    const searchParams = new URLSearchParams(window.location.search);
+    const tokenInUrl = hashParams.get("token") || searchParams.get("token");
+
+    if (tokenInUrl) {
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+
+    if (tokenInUrl) {
         login(tokenInUrl);
     }
   }, [login]);

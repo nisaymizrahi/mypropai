@@ -6,9 +6,58 @@ module.exports = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Inter', ...defaultTheme.fontFamily.sans],
+        sans: ['Manrope', ...defaultTheme.fontFamily.sans],
+        display: ['Fraunces', ...defaultTheme.fontFamily.serif],
       },
       colors: {
+        ink: {
+          '50': '#eef3f8',
+          '100': '#dce5ee',
+          '200': '#bacbda',
+          '300': '#93acc3',
+          '400': '#6d89a7',
+          '500': '#4c6988',
+          '600': '#39526d',
+          '700': '#273c51',
+          '800': '#182637',
+          '900': '#0d1724',
+        },
+        sand: {
+          '50': '#fbf8f2',
+          '100': '#f5efe3',
+          '200': '#e8dcc1',
+          '300': '#dbc79d',
+          '400': '#c3aa74',
+          '500': '#aa8854',
+          '600': '#896942',
+          '700': '#674f34',
+          '800': '#463524',
+          '900': '#281d15',
+        },
+        verdigris: {
+          '50': '#edf7f5',
+          '100': '#d8eee9',
+          '200': '#b1ddd3',
+          '300': '#82c5b8',
+          '400': '#4ba495',
+          '500': '#1f6f63',
+          '600': '#18584e',
+          '700': '#14453f',
+          '800': '#113631',
+          '900': '#0d2924',
+        },
+        clay: {
+          '50': '#f8f0eb',
+          '100': '#f0dfd3',
+          '200': '#dfbaa3',
+          '300': '#cf9573',
+          '400': '#bf754b',
+          '500': '#a65b33',
+          '600': '#854827',
+          '700': '#65361e',
+          '800': '#432414',
+          '900': '#27150c',
+        },
         'brand-turquoise': {
           'DEFAULT': '#14b8a6',
           '50': '#f0fdfa',
@@ -34,7 +83,17 @@ module.exports = {
           '800': '#1e293b',
           '900': '#0f172a',
         },
-      }
+      },
+      boxShadow: {
+        luxe: '0 26px 70px rgba(15, 23, 36, 0.12)',
+        soft: '0 16px 40px rgba(15, 23, 36, 0.08)',
+      },
+      backgroundImage: {
+        'executive-grid': 'linear-gradient(rgba(12, 23, 36, 0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(12, 23, 36, 0.05) 1px, transparent 1px)',
+      },
+      backgroundSize: {
+        executive: '36px 36px',
+      },
     },
   },
   plugins: [],

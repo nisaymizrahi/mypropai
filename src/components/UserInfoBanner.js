@@ -1,13 +1,15 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { ChevronDownIcon } from "@heroicons/react/24/outline";
+
 import { useAuth } from "../context/AuthContext";
 
-const UserIcon = ({ className }) => (
-    <svg className={className} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-        <circle cx="12" cy="7" r="4"></circle>
-    </svg>
-);
+const getInitials = (name = "") => {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "MP";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+};
 
 const UserInfoBanner = () => {
   const { user, logout } = useAuth();
@@ -15,59 +17,78 @@ const UserInfoBanner = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef(null);
 
-  // This effect handles closing the menu if you click outside of it
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (menuRef.current && !menuRef.current.contains(event.target)) {
         setIsMenuOpen(false);
       }
     };
+
     document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  if (!user) {
+    return null;
+  }
+
+  const displayName = user.name || "MyPropAI User";
+  const secondaryText = user.email || "Property operations";
 
   const handleLogout = () => {
     logout();
-    navigate('/login');
+    navigate("/login");
   };
 
-  if (!user) return null;
-
   return (
-    <div className="bg-white border-b border-brand-gray-200 px-6 py-3 flex justify-end items-center">
-      <div className="relative" ref={menuRef}>
-        {/* Button to toggle the dropdown menu */}
-        <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="flex items-center space-x-2 cursor-pointer">
-            <UserIcon className="h-5 w-5 text-brand-gray-400" />
-            <span className="text-sm">
-                Logged in as <strong className="font-semibold text-brand-gray-800">{user.name}</strong>
-            </span>
-            <svg className={`w-4 h-4 text-brand-gray-400 transition-transform ${isMenuOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
-        </button>
+    <div className="relative" ref={menuRef}>
+      <button
+        type="button"
+        onClick={() => setIsMenuOpen((open) => !open)}
+        className="flex items-center gap-3 rounded-full border border-white/70 bg-white/70 px-2 py-2 shadow-soft transition hover:bg-white"
+      >
+        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-ink-900 via-ink-700 to-verdigris-600 text-sm font-bold text-white">
+          {getInitials(displayName)}
+        </div>
+        <div className="hidden text-left md:block">
+          <p className="text-sm font-semibold text-ink-900">{displayName}</p>
+          <p className="text-xs text-ink-400">{secondaryText}</p>
+        </div>
+        <ChevronDownIcon
+          className={`hidden h-4 w-4 text-ink-400 transition md:block ${
+            isMenuOpen ? "rotate-180" : ""
+          }`}
+        />
+      </button>
 
-        {/* Dropdown Menu */}
-        {isMenuOpen && (
-            <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-20 border border-gray-200">
-                <div className="py-1">
-                    <Link
-                        to="/account"
-                        onClick={() => setIsMenuOpen(false)}
-                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                    >
-                        Account Center
-                    </Link>
-                    <button
-                        onClick={handleLogout}
-                        className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                    >
-                        Logout
-                    </button>
-                </div>
-            </div>
-        )}
-      </div>
+      {isMenuOpen && (
+        <div className="absolute right-0 top-14 z-50 w-64 overflow-hidden rounded-[24px] border border-white/80 bg-white/96 shadow-luxe backdrop-blur-xl">
+          <div className="border-b border-ink-100 px-5 py-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-400">
+              Account
+            </p>
+            <h3 className="mt-1 text-base font-semibold text-ink-900">{displayName}</h3>
+            <p className="mt-1 text-sm text-ink-500">{secondaryText}</p>
+          </div>
+
+          <div className="px-3 py-3">
+            <Link
+              to="/account"
+              onClick={() => setIsMenuOpen(false)}
+              className="flex w-full items-center rounded-2xl px-4 py-3 text-sm font-medium text-ink-700 transition hover:bg-sand-50"
+            >
+              Account Center
+            </Link>
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="mt-1 flex w-full items-center rounded-2xl px-4 py-3 text-sm font-medium text-clay-700 transition hover:bg-clay-50"
+            >
+              Sign out
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -35,7 +35,7 @@ const DealCalculatorTab = ({ investment }) => {
       const result = await generateAIReport(investment._id);
       setReport(result.report);
     } catch (err) {
-      setError("Failed to generate report");
+      setError(err.message || "Failed to generate report");
     } finally {
       setLoading(false);
     }

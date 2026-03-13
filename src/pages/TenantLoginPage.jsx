@@ -1,102 +1,195 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { API_BASE_URL } from '../config';
+import React, { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import {
+  ArrowRightIcon,
+  ChatBubbleLeftRightIcon,
+  ClipboardDocumentListIcon,
+  CurrencyDollarIcon,
+} from "@heroicons/react/24/outline";
+
+import { API_BASE_URL } from "../config";
+
+const tenantBenefits = [
+  {
+    title: "Review your lease details",
+    description: "See the property and unit information connected to your account.",
+    icon: ClipboardDocumentListIcon,
+  },
+  {
+    title: "Check balances and ledger",
+    description: "View rent-related transactions and your current balance from one place.",
+    icon: CurrencyDollarIcon,
+  },
+  {
+    title: "Submit requests",
+    description: "Send questions or maintenance-related communication directly through the portal.",
+    icon: ChatBubbleLeftRightIcon,
+  },
+];
 
 const TenantLoginPage = () => {
-    const navigate = useNavigate();
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
-    const [error, setError] = useState('');
-    const [isSubmitting, setIsSubmitting] = useState(false);
+  const navigate = useNavigate();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        setError('');
-        setIsSubmitting(true);
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    setError("");
+    setIsSubmitting(true);
 
-        try {
-            const res = await fetch(`${API_BASE_URL}/tenant-auth/login`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ email, password }),
-            });
+    try {
+      const res = await fetch(`${API_BASE_URL}/tenant-auth/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email, password }),
+      });
 
-            const data = await res.json();
+      const data = await res.json();
 
-            if (!res.ok) {
-                throw new Error(data.msg || 'Failed to log in.');
-            }
+      if (!res.ok) {
+        throw new Error(data.msg || "Failed to log in.");
+      }
 
-            // Store the tenant's token in localStorage under a specific key
-            localStorage.setItem('tenantToken', data.token);
+      localStorage.setItem("tenantToken", data.token);
+      navigate("/tenant-dashboard");
+    } catch (err) {
+      setError(err.message || "Unable to log in.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
-            // Redirect to the tenant dashboard
-            navigate('/tenant-dashboard');
+  return (
+    <div className="public-shell relative min-h-screen overflow-hidden text-ink-900">
+      <div className="absolute inset-0 grid-fade opacity-30" />
 
-        } catch (err) {
-            setError(err.message);
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
-
-    return (
-        <div className="flex items-center justify-center min-h-screen bg-brand-gray-50">
-            <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-lg shadow-md">
-                <h2 className="text-2xl font-bold text-center text-brand-gray-800">Tenant Portal Login</h2>
-                <form onSubmit={handleSubmit} className="space-y-4">
-                    <div>
-                        <label
-                            htmlFor="email"
-                            className="block text-sm font-medium text-brand-gray-700"
-                        >
-                            Email Address
-                        </label>
-                        <input
-                            id="email"
-                            name="email"
-                            type="email"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            className="w-full px-3 py-2 mt-1 border border-brand-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-brand-turquoise focus:border-brand-turquoise"
-                            required
-                        />
-                    </div>
-                    <div>
-                        <label
-                            htmlFor="password"
-                            className="block text-sm font-medium text-brand-gray-700"
-                        >
-                            Password
-                        </label>
-                        <input
-                            id="password"
-                            name="password"
-                            type="password"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            className="w-full px-3 py-2 mt-1 border border-brand-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-brand-turquoise focus:border-brand-turquoise"
-                            required
-                        />
-                    </div>
-
-                    {error && <p className="text-sm text-red-600 bg-red-100 p-3 rounded-md">{error}</p>}
-
-                    <div>
-                        <button
-                            type="submit"
-                            disabled={isSubmitting}
-                            className="w-full px-4 py-2 font-semibold text-white bg-brand-turquoise rounded-md hover:bg-brand-turquoise-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-turquoise disabled:bg-brand-gray-300"
-                        >
-                            {isSubmitting ? 'Logging In...' : 'Log In'}
-                        </button>
-                    </div>
-                </form>
+      <div className="relative mx-auto flex min-h-screen max-w-[1500px] flex-col px-4 py-5 sm:px-6 lg:px-8">
+        <header className="surface-panel flex items-center justify-between px-5 py-4">
+          <Link to="/" className="flex items-center gap-4">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-ink-900 text-lg font-bold text-white">
+              MP
             </div>
-        </div>
-    );
+            <div>
+              <p className="font-display text-2xl leading-none text-ink-900">MyPropAI</p>
+              <p className="mt-1 text-sm text-ink-500">Tenant portal</p>
+            </div>
+          </Link>
+
+          <div className="flex items-center gap-3">
+            <Link to="/login" className="ghost-action">
+              Manager login
+            </Link>
+            <Link to="/signup" className="primary-action hidden sm:inline-flex">
+              Create manager account
+            </Link>
+          </div>
+        </header>
+
+        <main className="flex flex-1 items-center py-10 lg:py-16">
+          <div className="grid w-full gap-8 lg:grid-cols-[minmax(0,1.02fr)_minmax(0,0.98fr)] lg:gap-12">
+            <section className="flex flex-col justify-center">
+              <span className="eyebrow">Tenant access</span>
+              <h1 className="mt-6 max-w-3xl font-display text-5xl leading-[1.03] text-balance text-ink-900 sm:text-6xl">
+                Sign in to review your lease information and send requests.
+              </h1>
+              <p className="mt-6 max-w-2xl text-lg leading-8 text-ink-600 sm:text-xl">
+                This portal is for tenants who have already been invited. Use the same email
+                address connected to your lease or invitation.
+              </p>
+
+              <div className="mt-10 grid gap-4 sm:grid-cols-3">
+                {tenantBenefits.map((benefit) => (
+                  <div key={benefit.title} className="section-card p-5">
+                    <benefit.icon className="h-6 w-6 text-verdigris-600" />
+                    <h2 className="mt-4 text-lg font-semibold text-ink-900">{benefit.title}</h2>
+                    <p className="mt-2 text-sm leading-6 text-ink-500">{benefit.description}</p>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            <section className="auth-card p-6 text-ink-900 sm:p-8">
+              <span className="eyebrow">Tenant portal login</span>
+              <h2 className="mt-4 font-display text-4xl text-ink-900">Welcome back</h2>
+              <p className="mt-3 text-sm leading-6 text-ink-500">
+                Use your tenant credentials to review your balance, lease details, and
+                communication history.
+              </p>
+
+              <div className="mt-6 rounded-[24px] border border-sand-200 bg-sand-50 p-4 text-sm leading-6 text-ink-600">
+                Need access? Contact your property manager for a tenant invitation. Managers and
+                operators should use{" "}
+                <Link to="/login" className="font-semibold underline decoration-verdigris-300 underline-offset-4">
+                  the manager login
+                </Link>
+                .
+              </div>
+
+              <form onSubmit={handleSubmit} className="mt-8 space-y-5">
+                <div>
+                  <label htmlFor="email" className="auth-label">
+                    Email address
+                  </label>
+                  <input
+                    id="email"
+                    name="email"
+                    type="email"
+                    value={email}
+                    onChange={(event) => setEmail(event.target.value)}
+                    className="auth-input"
+                    placeholder="tenant@email.com"
+                    autoComplete="email"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="password" className="auth-label">
+                    Password
+                  </label>
+                  <input
+                    id="password"
+                    name="password"
+                    type="password"
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    className="auth-input"
+                    placeholder="Enter your password"
+                    autoComplete="current-password"
+                    required
+                  />
+                </div>
+
+                {error && (
+                  <div className="rounded-[24px] border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+                    {error}
+                  </div>
+                )}
+
+                <button type="submit" disabled={isSubmitting} className="primary-action w-full">
+                  {isSubmitting ? "Logging in..." : "Enter tenant portal"}
+                  {!isSubmitting && <ArrowRightIcon className="ml-2 h-5 w-5" />}
+                </button>
+              </form>
+
+              <div className="mt-6 flex flex-wrap gap-3">
+                <Link to="/" className="ghost-action">
+                  Back to homepage
+                </Link>
+                <Link to="/login" className="ghost-action">
+                  Manager login
+                </Link>
+              </div>
+            </section>
+          </div>
+        </main>
+      </div>
+    </div>
+  );
 };
 
 export default TenantLoginPage;

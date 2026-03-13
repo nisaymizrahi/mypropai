@@ -21,6 +21,17 @@ const initialLeadForm = {
   squareFootage: '',
   yearBuilt: '',
   sellerAskingPrice: '',
+  sellerName: '',
+  sellerPhone: '',
+  sellerEmail: '',
+  leadSource: '',
+  occupancyStatus: 'Unknown',
+  motivation: '',
+  targetOffer: '',
+  arv: '',
+  rehabEstimate: '',
+  nextAction: '',
+  followUpDate: '',
   notes: '',
   listingStatus: '',
   daysOnMarket: '',
@@ -33,6 +44,8 @@ const initialLeadForm = {
   lastSalePrice: '',
   lastSaleDate: '',
 };
+
+const occupancyOptions = ['Unknown', 'Vacant', 'Owner Occupied', 'Tenant Occupied'];
 
 const formatCurrency = (value) => {
   if (value === null || value === undefined || value === '') return '—';
@@ -296,16 +309,156 @@ const AddLeadModal = ({ isOpen, onClose, onSuccess }) => {
               </div>
             </div>
 
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">Notes</label>
-              <textarea
-                name="notes"
-                rows="4"
-                value={formData.notes}
-                onChange={handleChange}
-                placeholder="Motivation, seller situation, target exit, or anything important..."
-                className="w-full rounded-md border border-gray-300 px-3 py-2"
-              />
+            <div className="grid gap-5 lg:grid-cols-2">
+              <div className="space-y-4 rounded-2xl border border-gray-200 p-4">
+                <div>
+                  <h4 className="text-sm font-semibold uppercase tracking-wide text-gray-500">Seller Details</h4>
+                  <p className="mt-1 text-sm text-gray-500">Capture who owns the opportunity and how you reached them.</p>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-gray-700">Seller name</label>
+                    <input
+                      type="text"
+                      name="sellerName"
+                      value={formData.sellerName}
+                      onChange={handleChange}
+                      className="w-full rounded-md border border-gray-300 px-3 py-2"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-gray-700">Seller phone</label>
+                    <input
+                      type="text"
+                      name="sellerPhone"
+                      value={formData.sellerPhone}
+                      onChange={handleChange}
+                      className="w-full rounded-md border border-gray-300 px-3 py-2"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-gray-700">Seller email</label>
+                    <input
+                      type="email"
+                      name="sellerEmail"
+                      value={formData.sellerEmail}
+                      onChange={handleChange}
+                      className="w-full rounded-md border border-gray-300 px-3 py-2"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-gray-700">Lead source</label>
+                    <input
+                      type="text"
+                      name="leadSource"
+                      value={formData.leadSource}
+                      onChange={handleChange}
+                      placeholder="Agent, direct mail, cold call..."
+                      className="w-full rounded-md border border-gray-300 px-3 py-2"
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="mb-1 block text-sm font-medium text-gray-700">Occupancy</label>
+                    <select
+                      name="occupancyStatus"
+                      value={formData.occupancyStatus}
+                      onChange={handleChange}
+                      className="w-full rounded-md border border-gray-300 px-3 py-2"
+                    >
+                      {occupancyOptions.map((option) => (
+                        <option key={option} value={option}>
+                          {option}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-4 rounded-2xl border border-gray-200 p-4">
+                <div>
+                  <h4 className="text-sm font-semibold uppercase tracking-wide text-gray-500">Deal Plan</h4>
+                  <p className="mt-1 text-sm text-gray-500">Set your buying thesis while the property details are fresh.</p>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-gray-700">Target offer</label>
+                    <input
+                      type="number"
+                      name="targetOffer"
+                      value={formData.targetOffer}
+                      onChange={handleChange}
+                      className="w-full rounded-md border border-gray-300 px-3 py-2"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-gray-700">ARV / exit value</label>
+                    <input
+                      type="number"
+                      name="arv"
+                      value={formData.arv}
+                      onChange={handleChange}
+                      className="w-full rounded-md border border-gray-300 px-3 py-2"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-gray-700">Rehab estimate</label>
+                    <input
+                      type="number"
+                      name="rehabEstimate"
+                      value={formData.rehabEstimate}
+                      onChange={handleChange}
+                      className="w-full rounded-md border border-gray-300 px-3 py-2"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-gray-700">Next action</label>
+                    <input
+                      type="text"
+                      name="nextAction"
+                      value={formData.nextAction}
+                      onChange={handleChange}
+                      placeholder="Call seller, request rent roll..."
+                      className="w-full rounded-md border border-gray-300 px-3 py-2"
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="mb-1 block text-sm font-medium text-gray-700">Follow-up date</label>
+                    <input
+                      type="date"
+                      name="followUpDate"
+                      value={formData.followUpDate}
+                      onChange={handleChange}
+                      className="w-full rounded-md border border-gray-300 px-3 py-2"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid gap-4 lg:grid-cols-2">
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Seller motivation</label>
+                <textarea
+                  name="motivation"
+                  rows="4"
+                  value={formData.motivation}
+                  onChange={handleChange}
+                  placeholder="Why might this seller move quickly or accept a discount?"
+                  className="w-full rounded-md border border-gray-300 px-3 py-2"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Notes</label>
+                <textarea
+                  name="notes"
+                  rows="4"
+                  value={formData.notes}
+                  onChange={handleChange}
+                  placeholder="Motivation, seller situation, target exit, or anything important..."
+                  className="w-full rounded-md border border-gray-300 px-3 py-2"
+                />
+              </div>
             </div>
           </div>
 
@@ -321,6 +474,21 @@ const AddLeadModal = ({ isOpen, onClose, onSuccess }) => {
                 <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Ask Price</p>
                 <p className="mt-2 text-xl font-semibold text-gray-900">
                   {formatCurrency(formData.sellerAskingPrice)}
+                </p>
+              </div>
+              <div className="rounded-xl border border-gray-200 bg-white p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Deal Plan</p>
+                <p className="mt-2 text-sm text-gray-700">
+                  {[
+                    formData.targetOffer ? `Target ${formatCurrency(formData.targetOffer)}` : null,
+                    formData.arv ? `ARV ${formatCurrency(formData.arv)}` : null,
+                    formData.rehabEstimate ? `Rehab ${formatCurrency(formData.rehabEstimate)}` : null,
+                  ]
+                    .filter(Boolean)
+                    .join(' • ') || 'No deal plan yet'}
+                </p>
+                <p className="mt-1 text-sm text-gray-500">
+                  {formData.nextAction || 'Next action not set'}
                 </p>
               </div>
               <div className="rounded-xl border border-gray-200 bg-white p-4">
@@ -350,6 +518,15 @@ const AddLeadModal = ({ isOpen, onClose, onSuccess }) => {
                 <p className="mt-2 text-sm font-medium text-gray-900">{formatCurrency(formData.lastSalePrice)}</p>
                 <p className="mt-1 text-sm text-gray-500">
                   {formData.lastSaleDate || 'No recent sale found'}
+                </p>
+              </div>
+              <div className="rounded-xl border border-gray-200 bg-white p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Seller Intel</p>
+                <p className="mt-2 text-sm font-medium text-gray-900">
+                  {formData.sellerName || 'Seller contact not added'}
+                </p>
+                <p className="mt-1 text-sm text-gray-500">
+                  {[formData.leadSource || null, formData.occupancyStatus || null].filter(Boolean).join(' • ') || 'Source and occupancy pending'}
                 </p>
               </div>
             </div>

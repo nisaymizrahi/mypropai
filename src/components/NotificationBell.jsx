@@ -1,83 +1,140 @@
-import React, { useState, useEffect } from 'react';
-import { getNotifications, markNotificationRead } from '../utils/api';
-import { formatDistanceToNow } from 'date-fns';
-import { BellIcon } from '@heroicons/react/24/outline';
+import React, { useEffect, useRef, useState } from "react";
+import { formatDistanceToNow } from "date-fns";
+import { BellIcon } from "@heroicons/react/24/outline";
+import toast from "react-hot-toast";
 
-import toast from 'react-hot-toast';
+import { getNotifications, markNotificationRead } from "../utils/api";
 
 const NotificationBell = () => {
   const [notifications, setNotifications] = useState([]);
   const [isOpen, setIsOpen] = useState(false);
   const [lastSeen, setLastSeen] = useState(Date.now());
+  const bellRef = useRef(null);
 
   const fetchNotifications = async () => {
-    const data = await getNotifications();
-    setNotifications(data || []);
+    try {
+      const data = await getNotifications();
+      setNotifications(data || []);
 
-    // Find new ones
-    const newOnes = (data || []).filter(
-      n => !n.read && new Date(n.createdAt).getTime() > lastSeen
-    );
+      const newOnes = (data || []).filter(
+        (notification) =>
+          !notification.read &&
+          new Date(notification.createdAt).getTime() > lastSeen
+      );
 
-    newOnes.forEach(n => {
-      toast(n.message, {
-        duration: 5000,
-        icon: '🔔',
+      newOnes.forEach((notification) => {
+        toast(notification.message, {
+          duration: 5000,
+          icon: "🔔",
+        });
       });
-    });
 
-    if (newOnes.length > 0) setLastSeen(Date.now());
+      if (newOnes.length > 0) {
+        setLastSeen(Date.now());
+      }
+    } catch (error) {
+      console.error("Failed to fetch notifications", error);
+    }
   };
 
   useEffect(() => {
     fetchNotifications();
-    const interval = setInterval(fetchNotifications, 30000); // poll every 30s
+    const interval = setInterval(fetchNotifications, 30000);
     return () => clearInterval(interval);
   }, []);
 
-  const unreadCount = notifications.filter(n => !n.read).length;
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (bellRef.current && !bellRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const unreadCount = notifications.filter((notification) => !notification.read).length;
 
   const handleMarkRead = async (id) => {
-    await markNotificationRead(id);
-    fetchNotifications();
+    try {
+      await markNotificationRead(id);
+      await fetchNotifications();
+    } catch (error) {
+      console.error("Failed to mark notification as read", error);
+    }
   };
 
   return (
-    <div className="relative">
+    <div className="relative" ref={bellRef}>
       <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="relative p-2 rounded-md hover:bg-gray-100"
+        type="button"
+        onClick={() => setIsOpen((open) => !open)}
+        className="relative flex h-11 w-11 items-center justify-center rounded-full border border-white/70 bg-white/70 text-ink-700 shadow-soft transition hover:bg-white"
       >
-        <BellIcon className="h-6 w-6 text-gray-600" />
+        <BellIcon className="h-5 w-5" />
         {unreadCount > 0 && (
-          <span className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full text-xs px-1.5">
+          <span className="absolute -right-1 -top-1 min-w-[1.35rem] rounded-full bg-clay-500 px-1.5 py-0.5 text-center text-[10px] font-bold text-white">
             {unreadCount}
           </span>
         )}
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-80 bg-white border rounded-md shadow-xl z-50">
-          <div className="p-3 border-b font-semibold text-gray-700">Notifications</div>
-          <ul className="max-h-80 overflow-y-auto">
+        <div className="absolute right-0 top-14 z-50 w-[22rem] overflow-hidden rounded-[24px] border border-white/80 bg-white/96 shadow-luxe backdrop-blur-xl">
+          <div className="border-b border-ink-100 px-5 py-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-ink-400">
+                  Alerts
+                </p>
+                <h3 className="mt-1 text-base font-semibold text-ink-900">
+                  Notifications
+                </h3>
+              </div>
+              <div className="rounded-full bg-sand-100 px-3 py-1 text-xs font-semibold text-ink-600">
+                {unreadCount} unread
+              </div>
+            </div>
+          </div>
+
+          <ul className="max-h-96 overflow-y-auto">
             {notifications.length === 0 && (
-              <li className="p-4 text-gray-500 text-sm">No notifications</li>
+              <li className="px-5 py-8 text-center text-sm text-ink-500">
+                No notifications right now.
+              </li>
             )}
-            {notifications.map((n) => (
-              <li key={n._id} className="p-3 border-b text-sm hover:bg-gray-50">
-                <div className="flex justify-between items-start">
-                  <div className="text-gray-800">{n.message}</div>
-                  {!n.read && (
+
+            {notifications.map((notification) => (
+              <li
+                key={notification._id}
+                className="border-b border-ink-100/80 px-5 py-4 last:border-b-0"
+              >
+                <div className="flex items-start gap-3">
+                  <span
+                    className={`mt-1 h-2.5 w-2.5 rounded-full ${
+                      notification.read ? "bg-ink-200" : "bg-verdigris-500"
+                    }`}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm leading-6 text-ink-800">
+                      {notification.message}
+                    </p>
+                    <p className="mt-1 text-xs text-ink-400">
+                      {formatDistanceToNow(new Date(notification.createdAt), {
+                        addSuffix: true,
+                      })}
+                    </p>
+                  </div>
+                  {!notification.read && (
                     <button
-                      onClick={() => handleMarkRead(n._id)}
-                      className="text-xs text-blue-500 underline ml-2"
+                      type="button"
+                      onClick={() => handleMarkRead(notification._id)}
+                      className="rounded-full bg-verdigris-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.15em] text-verdigris-700 transition hover:bg-verdigris-100"
                     >
-                      Mark Read
+                      Read
                     </button>
                   )}
-                </div>
-                <div className="text-xs text-gray-400 mt-1">
-                  {formatDistanceToNow(new Date(n.createdAt), { addSuffix: true })}
                 </div>
               </li>
             ))}
