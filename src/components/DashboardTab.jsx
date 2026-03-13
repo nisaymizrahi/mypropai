@@ -1,118 +1,235 @@
-import React, { useMemo, useState } from 'react';
-import AddTaskModal from './AddTaskModal';
-import AddBudgetItemModal from './AddBudgetItemModal';
-import AddExpenseModal from './AddExpenseModal';
-import { createExpense, getAuthHeaders } from '../utils/api';
+import React, { useMemo, useState } from "react";
 
-const StatCard = ({ title, value, colorClass = 'text-brand-gray-800' }) => (
-  <div className="bg-brand-gray-50 p-4 rounded-lg border border-brand-gray-200 text-center">
-    <p className="text-sm text-brand-gray-500">{title}</p>
-    <p className={`text-2xl font-bold ${colorClass}`}>{value}</p>
+import AddBudgetItemModal from "./AddBudgetItemModal";
+import AddExpenseModal from "./AddExpenseModal";
+import AddTaskModal from "./AddTaskModal";
+import {
+  formatCurrency,
+  getInvestmentAnalysisMetrics,
+} from "../utils/investmentMetrics";
+
+const SnapshotTile = ({ label, value, tone = "text-ink-900" }) => (
+  <div className="metric-tile p-5">
+    <p className="text-sm font-semibold uppercase tracking-[0.18em] text-ink-400">{label}</p>
+    <p className={`mt-3 text-3xl font-semibold ${tone}`}>{value}</p>
   </div>
 );
 
-const ProgressBar = ({ label, percent }) => (
-  <div className="w-full">
-    <div className="flex justify-between text-sm mb-1">
-      <span className="text-brand-gray-500">{label}</span>
-      <span className="font-semibold">{Math.round(percent)}%</span>
+const ProgressCard = ({ title, label, percent }) => (
+  <div className="section-card p-6">
+    <div className="flex items-center justify-between gap-3">
+      <div>
+        <span className="eyebrow">Progress</span>
+        <h3 className="mt-4 text-2xl font-semibold text-ink-900">{title}</h3>
+      </div>
+      <p className="text-2xl font-semibold text-ink-900">{Math.round(percent)}%</p>
     </div>
-    <div className="w-full bg-brand-gray-200 rounded-full h-2.5">
-      <div className="bg-brand-turquoise h-2.5 rounded-full" style={{ width: `${Math.min(percent, 100)}%` }}></div>
+
+    <div className="mt-6">
+      <div className="mb-2 flex items-center justify-between text-xs font-semibold uppercase tracking-[0.18em] text-ink-400">
+        <span>{label}</span>
+        <span>{Math.round(percent)}%</span>
+      </div>
+      <div className="h-3 rounded-full bg-ink-100">
+        <div
+          className="h-3 rounded-full bg-gradient-to-r from-verdigris-700 via-verdigris-500 to-sand-300 transition-all"
+          style={{ width: `${Math.min(percent, 100)}%` }}
+        />
+      </div>
     </div>
   </div>
 );
 
-const DashboardTab = ({ investment, budgetItems, expenses, tasks }) => {
+const DashboardTab = ({
+  investment,
+  budgetItems,
+  expenses,
+  tasks,
+  vendors = [],
+  onUpdate,
+}) => {
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [showExpenseModal, setShowExpenseModal] = useState(false);
   const [showBudgetModal, setShowBudgetModal] = useState(false);
 
   const financial = useMemo(() => {
-    const purchasePrice = investment.purchasePrice || 0;
-    const loan = investment.financingDetails?.purchaseLoan?.loanAmount || 0;
-    const arv = investment.arv || 0;
-    const rehab = budgetItems.reduce((sum, item) => sum + item.budgetedAmount, 0);
-    const spent = expenses.reduce((sum, item) => sum + item.amount, 0);
-    const totalCost = purchasePrice + rehab;
-    const profit = arv - totalCost;
-    const roi = totalCost > 0 ? (profit / totalCost) * 100 : 0;
-    const remaining = rehab - spent;
-    const budgetPercent = rehab > 0 ? (spent / rehab) * 100 : 0;
+    const metrics = getInvestmentAnalysisMetrics(investment, { budgetItems, expenses });
+
     return {
-      purchasePrice, loan, rehab, spent, remaining, totalCost, profit, roi, budgetPercent
+      purchasePrice: metrics.purchasePrice,
+      loan: metrics.loanAmount,
+      rehab: metrics.totalBudget,
+      spent: metrics.totalSpent,
+      remaining: metrics.remainingBudget,
+      totalCost: metrics.allInCost,
+      profit: metrics.profit,
+      roi: metrics.roiOnCash,
+      budgetPercent: metrics.budgetPercent,
     };
   }, [investment, budgetItems, expenses]);
 
   const schedule = useMemo(() => {
     const total = tasks.length;
-    const completed = tasks.filter(t => t.status === 'Complete').length;
+    const completed = tasks.filter((task) => task.status === "Complete").length;
     const percent = total > 0 ? (completed / total) * 100 : 0;
+
     return { total, completed, percent };
   }, [tasks]);
 
-  const upcomingTasks = useMemo(() => {
-    return tasks
-      .filter(t => t.status !== 'Complete')
-      .sort((a, b) => new Date(a.startDate) - new Date(b.startDate))
-      .slice(0, 3);
-  }, [tasks]);
+  const upcomingTasks = useMemo(
+    () =>
+      tasks
+        .filter((task) => task.status !== "Complete")
+        .sort((left, right) => new Date(left.startDate) - new Date(right.startDate))
+        .slice(0, 4),
+    [tasks]
+  );
 
   return (
     <>
-      <AddTaskModal isOpen={showTaskModal} onClose={() => setShowTaskModal(false)} investmentId={investment._id} />
-      <AddExpenseModal isOpen={showExpenseModal} onClose={() => setShowExpenseModal(false)} investmentId={investment._id} budgetItems={budgetItems} />
-      <AddBudgetItemModal isOpen={showBudgetModal} onClose={() => setShowBudgetModal(false)} investmentId={investment._id} />
+      <AddTaskModal
+        isOpen={showTaskModal}
+        onClose={() => setShowTaskModal(false)}
+        investmentId={investment._id}
+        vendors={vendors}
+        onSuccess={onUpdate}
+      />
+      <AddExpenseModal
+        isOpen={showExpenseModal}
+        onClose={() => setShowExpenseModal(false)}
+        investmentId={investment._id}
+        budgetItems={budgetItems}
+        onSuccess={onUpdate}
+      />
+      <AddBudgetItemModal
+        isOpen={showBudgetModal}
+        onClose={() => setShowBudgetModal(false)}
+        investmentId={investment._id}
+        onSuccess={onUpdate}
+      />
 
       <div className="space-y-6">
-        {/* Top Summary Section */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <StatCard title="Purchase Price" value={`$${financial.purchasePrice.toLocaleString()}`} />
-          <StatCard title="Loan Amount" value={`$${financial.loan.toLocaleString()}`} />
-          <StatCard title="Rehab Budget" value={`$${financial.rehab.toLocaleString()}`} />
-          <StatCard title="Total Spent" value={`$${financial.spent.toLocaleString()}`} />
-          <StatCard title="Remaining Budget" value={`$${financial.remaining.toLocaleString()}`} colorClass={financial.remaining >= 0 ? 'text-green-600' : 'text-red-600'} />
-          <StatCard title="Total Cost" value={`$${financial.totalCost.toLocaleString()}`} />
-          <StatCard title="Projected Profit" value={`$${financial.profit.toLocaleString()}`} colorClass={financial.profit >= 0 ? 'text-green-600' : 'text-red-600'} />
-          <StatCard title="ROI" value={`${financial.roi.toFixed(1)}%`} colorClass="text-brand-purple-700" />
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <SnapshotTile label="Purchase price" value={formatCurrency(financial.purchasePrice)} />
+          <SnapshotTile label="Loan amount" value={formatCurrency(financial.loan)} />
+          <SnapshotTile label="All-in cost" value={formatCurrency(financial.totalCost)} />
+          <SnapshotTile
+            label="Projected profit"
+            value={formatCurrency(financial.profit)}
+            tone={financial.profit >= 0 ? "text-verdigris-700" : "text-clay-700"}
+          />
         </div>
 
-        {/* Quick Actions */}
-        <div className="flex flex-wrap gap-4">
-          <button onClick={() => setShowExpenseModal(true)} className="bg-brand-turquoise text-white px-4 py-2 rounded-md font-semibold">+ Add Expense</button>
-          <button onClick={() => setShowTaskModal(true)} className="bg-brand-turquoise text-white px-4 py-2 rounded-md font-semibold">+ Add Task</button>
-          <button onClick={() => setShowBudgetModal(true)} className="bg-brand-turquoise text-white px-4 py-2 rounded-md font-semibold">+ Add Budget Line</button>
-        </div>
-
-        {/* Progress Charts */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="bg-white p-6 rounded-lg shadow-sm border">
-            <h3 className="text-lg font-semibold mb-2">Budget Progress</h3>
-            <ProgressBar label="Spent vs Budget" percent={financial.budgetPercent} />
+        <section className="section-card p-6 sm:p-7">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <span className="eyebrow">Quick actions</span>
+              <h3 className="mt-4 text-3xl font-semibold text-ink-900">Move the project forward</h3>
+              <p className="mt-3 max-w-2xl text-sm leading-6 text-ink-500">
+                Capture new budget lines, expenses, and tasks without leaving the project hub.
+              </p>
+            </div>
           </div>
-          <div className="bg-white p-6 rounded-lg shadow-sm border">
-            <h3 className="text-lg font-semibold mb-2">Schedule Progress</h3>
-            <ProgressBar label="Tasks Completed" percent={schedule.percent} />
+
+          <div className="mt-8 flex flex-wrap gap-3">
+            <button type="button" onClick={() => setShowExpenseModal(true)} className="primary-action">
+              Add expense
+            </button>
+            <button type="button" onClick={() => setShowTaskModal(true)} className="secondary-action">
+              Add task
+            </button>
+            <button type="button" onClick={() => setShowBudgetModal(true)} className="ghost-action">
+              Add budget line
+            </button>
           </div>
+        </section>
+
+        <div className="grid gap-6 xl:grid-cols-2">
+          <ProgressCard title="Budget pulse" label="Spent vs budget" percent={financial.budgetPercent} />
+          <ProgressCard title="Schedule pulse" label="Tasks completed" percent={schedule.percent} />
         </div>
 
-        {/* Upcoming Tasks */}
-        <div className="bg-white p-6 rounded-lg shadow-sm border">
-          <h3 className="text-lg font-semibold mb-4">Upcoming Tasks</h3>
-          <div className="space-y-3">
-            {upcomingTasks.length > 0 ? upcomingTasks.map(task => (
-              <div key={task._id} className="border-b pb-2">
-                <p className="font-semibold">{task.title}</p>
-                <p className="text-sm text-gray-500">Due: {new Date(task.endDate).toLocaleDateString()}</p>
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
+          <section className="section-card p-6 sm:p-7">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <span className="eyebrow">Upcoming work</span>
+                <h3 className="mt-4 text-3xl font-semibold text-ink-900">Near-term tasks</h3>
+                <p className="mt-3 max-w-2xl text-sm leading-6 text-ink-500">
+                  Focus on the next tasks that keep the investment on schedule.
+                </p>
               </div>
-            )) : <p className="text-sm text-gray-500">No upcoming tasks.</p>}
-          </div>
-        </div>
+              <div className="rounded-[24px] border border-sand-200 bg-sand-50 px-4 py-3 text-sm font-semibold text-sand-700">
+                {schedule.completed}/{schedule.total} complete
+              </div>
+            </div>
 
-        {/* Timeline Snapshot Placeholder */}
-        <div className="bg-white p-6 rounded-lg shadow-sm border">
-          <h3 className="text-lg font-semibold mb-2">Timeline Snapshot</h3>
-          <p className="text-sm text-brand-gray-500">[Visual timeline placeholder: Purchase → Rehab → Refi → Sale]</p>
+            <div className="mt-8 space-y-3">
+              {upcomingTasks.length > 0 ? (
+                upcomingTasks.map((task) => (
+                  <div
+                    key={task._id}
+                    className="rounded-[24px] border border-ink-100 bg-white/85 p-5"
+                  >
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div>
+                        <p className="text-base font-semibold text-ink-900">{task.title}</p>
+                        <p className="mt-1 text-sm text-ink-500">
+                          Due {new Date(task.endDate).toLocaleDateString()}
+                        </p>
+                        {task.description ? (
+                          <p className="mt-3 max-w-2xl text-sm leading-6 text-ink-500">
+                            {task.description}
+                          </p>
+                        ) : null}
+                      </div>
+                      <span className="rounded-full border border-ink-200 bg-white px-3 py-1 text-xs font-semibold text-ink-600">
+                        {task.status || "Not started"}
+                      </span>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="rounded-[24px] border border-dashed border-ink-200 bg-ink-50/40 p-6 text-center text-sm leading-6 text-ink-500">
+                  No upcoming tasks yet. Add one to start building the schedule.
+                </div>
+              )}
+            </div>
+          </section>
+
+          <section className="section-card p-6 sm:p-7">
+            <span className="eyebrow">Project snapshot</span>
+            <h3 className="mt-4 text-3xl font-semibold text-ink-900">At-a-glance math</h3>
+
+            <div className="mt-8 space-y-4">
+              <div className="rounded-[24px] border border-ink-100 bg-white/85 p-5">
+                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-ink-400">
+                  Total spent
+                </p>
+                <p className="mt-3 text-3xl font-semibold text-ink-900">
+                  {formatCurrency(financial.spent)}
+                </p>
+              </div>
+              <div className="rounded-[24px] border border-ink-100 bg-white/85 p-5">
+                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-ink-400">
+                  Remaining budget
+                </p>
+                <p
+                  className={`mt-3 text-3xl font-semibold ${
+                    financial.remaining >= 0 ? "text-verdigris-700" : "text-clay-700"
+                  }`}
+                >
+                  {formatCurrency(financial.remaining)}
+                </p>
+              </div>
+              <div className="rounded-[24px] border border-ink-100 bg-white/85 p-5">
+                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-ink-400">
+                  ROI
+                </p>
+                <p className="mt-3 text-3xl font-semibold text-ink-900">{financial.roi.toFixed(1)}%</p>
+              </div>
+            </div>
+          </section>
         </div>
       </div>
     </>

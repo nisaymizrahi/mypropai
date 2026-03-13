@@ -1,41 +1,36 @@
-import React, { useState } from 'react';
-import { generateAIReport } from '../utils/api';
+import React, { useMemo, useState } from "react";
 
-const DealCalculatorTab = ({ investment }) => {
-  const [report, setReport] = useState(null);
+import { generateAIReport } from "../utils/api";
+import {
+  formatCurrency,
+  getInvestmentAnalysisMetrics,
+} from "../utils/investmentMetrics";
+
+const SummaryRow = ({ label, value, tone = "text-ink-900" }) => (
+  <div className="flex items-center justify-between gap-6 border-b border-ink-100 py-3 last:border-b-0">
+    <span className="text-sm font-medium text-ink-500">{label}</span>
+    <span className={`text-sm font-semibold ${tone}`}>{value}</span>
+  </div>
+);
+
+const DealCalculatorTab = ({ investment, budgetItems = [], expenses = [] }) => {
+  const [report, setReport] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const calc = () => {
-    const p = investment.purchasePrice || 0;
-    const a = investment.arv || 0;
-    const buy = investment.dealAnalysis?.buyingCosts || 0;
-    const rehab = investment.budget?.reduce((sum, b) => sum + (b.amount || 0), 0);
-    const holdMonths = investment.dealAnalysis?.holdingCosts?.durationMonths || 6;
-    const holdingCost = (investment.dealAnalysis?.holdingCosts?.monthlyAmount || 0) * holdMonths;
-    const sell = investment.dealAnalysis?.sellingCosts?.value || 0;
-    const isPercent = investment.dealAnalysis?.sellingCosts?.isPercentage;
-
-    const finance = investment.dealAnalysis?.financingCosts || 0;
-
-    const saleCost = isPercent ? (sell / 100) * a : sell;
-    const totalCost = p + buy + rehab + holdingCost + saleCost + finance;
-    const profit = a - totalCost;
-    const roi = p > 0 ? (profit / p) * 100 : 0;
-
-    return { p, a, buy, rehab, holdingCost, saleCost, finance, totalCost, profit, roi };
-  };
-
-  const summary = calc();
+  const metrics = useMemo(
+    () => getInvestmentAnalysisMetrics(investment, { budgetItems, expenses }),
+    [investment, budgetItems, expenses]
+  );
 
   const handleGenerateReport = async () => {
     try {
       setLoading(true);
       setError("");
       const result = await generateAIReport(investment._id);
-      setReport(result.report);
+      setReport(result.report || "");
     } catch (err) {
-      setError(err.message || "Failed to generate report");
+      setError(err.message || "Failed to generate AI report.");
     } finally {
       setLoading(false);
     }
@@ -43,40 +38,118 @@ const DealCalculatorTab = ({ investment }) => {
 
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-brand-gray-900">Deal Calculator</h2>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-white border rounded-lg p-4 space-y-2">
-          <h3 className="text-lg font-semibold">Summary</h3>
-          <ul className="text-sm">
-            <li><strong>Purchase Price:</strong> ${summary.p.toLocaleString()}</li>
-            <li><strong>ARV:</strong> ${summary.a.toLocaleString()}</li>
-            <li><strong>Buying Costs:</strong> ${summary.buy.toLocaleString()}</li>
-            <li><strong>Rehab Budget:</strong> ${summary.rehab?.toLocaleString()}</li>
-            <li><strong>Holding Costs:</strong> ${summary.holdingCost?.toLocaleString()}</li>
-            <li><strong>Sale Closing:</strong> ${summary.saleCost.toLocaleString()}</li>
-            <li><strong>Financing:</strong> ${summary.finance.toLocaleString()}</li>
-            <li className="font-bold"><strong>Total Cost:</strong> ${summary.totalCost.toLocaleString()}</li>
-            <li className="font-bold text-green-600"><strong>Net Profit:</strong> ${summary.profit.toLocaleString()}</li>
-            <li><strong>ROI:</strong> {summary.roi.toFixed(1)}%</li>
-          </ul>
-        </div>
-        <div className="bg-white border rounded-lg p-4 space-y-4">
-          <h3 className="text-lg font-semibold">AI Report</h3>
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
+        <section className="section-card p-6 sm:p-7">
+          <span className="eyebrow">Calculator inputs</span>
+          <h3 className="mt-4 text-3xl font-semibold text-ink-900">Modeled assumptions</h3>
+          <p className="mt-3 max-w-2xl text-sm leading-6 text-ink-500">
+            The calculator uses the current underwriting fields and falls back to legacy deal data
+            where needed.
+          </p>
+
+          <div className="mt-8">
+            <SummaryRow label="Purchase price" value={formatCurrency(metrics.purchasePrice)} />
+            <SummaryRow label="After repair value" value={formatCurrency(metrics.arv)} />
+            <SummaryRow label="Buy closing costs" value={formatCurrency(metrics.calcBuyingCost)} />
+            <SummaryRow label="Rehab budget" value={formatCurrency(metrics.totalBudget)} />
+            <SummaryRow label="Loan amount" value={formatCurrency(metrics.loanAmount)} />
+            <SummaryRow label="Interest rate" value={`${metrics.interestRate.toFixed(2)}%`} />
+            <SummaryRow label="Holding period" value={`${metrics.holdingMonths || 0} months`} />
+            <SummaryRow label="Monthly carry" value={formatCurrency(metrics.monthlyHoldingCost)} />
+            <SummaryRow label="Selling costs" value={formatCurrency(metrics.calcSellCost)} />
+          </div>
+        </section>
+
+        <section className="section-card p-6 sm:p-7">
+          <span className="eyebrow">Calculator outputs</span>
+          <h3 className="mt-4 text-3xl font-semibold text-ink-900">Return math</h3>
+
+          <div className="mt-8 grid gap-4 md:grid-cols-2">
+            <div className="rounded-[24px] border border-ink-100 bg-white/85 p-5">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-400">
+                Total project cost
+              </p>
+              <p className="mt-3 text-3xl font-semibold text-ink-900">
+                {formatCurrency(metrics.totalCost)}
+              </p>
+            </div>
+            <div className="rounded-[24px] border border-ink-100 bg-white/85 p-5">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-400">
+                All-in cost
+              </p>
+              <p className="mt-3 text-3xl font-semibold text-ink-900">
+                {formatCurrency(metrics.allInCost)}
+              </p>
+            </div>
+            <div className="rounded-[24px] border border-ink-100 bg-white/85 p-5">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-400">
+                Profit
+              </p>
+              <p
+                className={`mt-3 text-3xl font-semibold ${
+                  metrics.profit >= 0 ? "text-verdigris-700" : "text-clay-700"
+                }`}
+              >
+                {formatCurrency(metrics.profit)}
+              </p>
+            </div>
+            <div className="rounded-[24px] border border-ink-100 bg-white/85 p-5">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-400">
+                ROI on cash
+              </p>
+              <p className="mt-3 text-3xl font-semibold text-ink-900">
+                {metrics.roiOnCash.toFixed(1)}%
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-8 rounded-[24px] border border-sand-200 bg-sand-50/80 p-5">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sand-700">
+              Decision snapshot
+            </p>
+            <p className="mt-3 text-sm leading-7 text-ink-600">
+              Modeled cash invested is {formatCurrency(metrics.cashInvested)} with a projected
+              annualized return of {metrics.annualizedROI.toFixed(1)}%.
+            </p>
+          </div>
+        </section>
+      </div>
+
+      <section className="section-card p-6 sm:p-7">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <span className="eyebrow">AI analysis</span>
+            <h3 className="mt-4 text-3xl font-semibold text-ink-900">Narrative deal review</h3>
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-ink-500">
+              Generate a written summary based on the latest underwriting inputs and budget data.
+            </p>
+          </div>
           <button
+            type="button"
             onClick={handleGenerateReport}
             disabled={loading}
-            className="bg-brand-turquoise text-white px-4 py-2 rounded-md"
+            className="primary-action"
           >
-            {loading ? "Generating..." : "Generate AI Report"}
+            {loading ? "Generating report..." : "Generate AI report"}
           </button>
-          {error && <p className="text-red-500 text-sm">{error}</p>}
-          {report && (
-            <div className="text-sm whitespace-pre-line bg-brand-gray-50 p-4 rounded-md border">
-              {report}
-            </div>
-          )}
         </div>
-      </div>
+
+        {error ? (
+          <div className="mt-6 rounded-[24px] border border-clay-200 bg-clay-50 px-5 py-4 text-sm text-clay-700">
+            {error}
+          </div>
+        ) : null}
+
+        {report ? (
+          <div className="mt-6 rounded-[24px] border border-verdigris-200 bg-verdigris-50/60 p-6">
+            <div className="whitespace-pre-line text-sm leading-7 text-ink-700">{report}</div>
+          </div>
+        ) : (
+          <div className="mt-6 rounded-[24px] border border-dashed border-ink-200 bg-ink-50/40 p-6 text-sm leading-6 text-ink-500">
+            No AI report generated yet. Use the button above to create a narrative summary.
+          </div>
+        )}
+      </section>
     </div>
   );
 };

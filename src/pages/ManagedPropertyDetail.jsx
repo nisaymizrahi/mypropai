@@ -289,6 +289,7 @@ const ManagedPropertyDetail = () => {
         ? "bg-ink-900 text-white shadow-soft"
         : "bg-white/80 text-ink-500 ring-1 ring-ink-100 hover:bg-white hover:text-ink-900"
     }`;
+  const propertyQuery = `?${new URLSearchParams({ propertyId }).toString()}`;
 
   return (
     <>
@@ -312,10 +313,10 @@ const ManagedPropertyDetail = () => {
           <div className="relative grid gap-8 lg:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.9fr)]">
             <div>
               <span className="eyebrow">Property command center</span>
-              <h2 className="mt-5 text-4xl font-semibold tracking-tight text-ink-900">
+              <h2 className="page-hero-title">
                 {property.address}
               </h2>
-              <p className="mt-4 max-w-2xl text-base leading-7 text-ink-500">
+              <p className="page-hero-copy">
                 Monitor occupancy, leasing readiness, maintenance, expenses, and performance from
                 one property-level workspace.
               </p>
@@ -328,6 +329,22 @@ const ManagedPropertyDetail = () => {
                 >
                   Add unit
                 </button>
+                <button
+                  type="button"
+                  onClick={() => navigate(`/applications${propertyQuery}`)}
+                  className="secondary-action"
+                >
+                  Review applications
+                </button>
+                {summary.vacantUnits > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/applications/send${propertyQuery}`)}
+                    className="secondary-action"
+                  >
+                    Send application link
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => navigate("/management")}

@@ -72,6 +72,15 @@ const UserInfoBanner = () => {
           </div>
 
           <div className="px-3 py-3">
+            {user.isPlatformManager ? (
+              <Link
+                to="/platform-manager"
+                onClick={() => setIsMenuOpen(false)}
+                className="flex w-full items-center rounded-2xl px-4 py-3 text-sm font-medium text-ink-700 transition hover:bg-sand-50"
+              >
+                Platform Manager
+              </Link>
+            ) : null}
             <Link
               to="/account"
               onClick={() => setIsMenuOpen(false)}

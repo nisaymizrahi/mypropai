@@ -1,12 +1,31 @@
-import React, { useState } from 'react';
-import { deleteVendor } from '../utils/api';
-import AddVendorModal from './AddVendorModal';
-import EditVendorModal from './EditVendorModal';
+import React, { useMemo, useState } from "react";
+import toast from "react-hot-toast";
 
-const TeamTab = ({ vendors, onUpdate }) => {
+import { deleteVendor } from "../utils/api";
+import AddVendorModal from "./AddVendorModal";
+import EditVendorModal from "./EditVendorModal";
+
+const MetricTile = ({ label, value, hint }) => (
+  <div className="metric-tile p-5">
+    <p className="text-sm font-semibold uppercase tracking-[0.18em] text-ink-400">{label}</p>
+    <p className="mt-3 text-3xl font-semibold text-ink-900">{value}</p>
+    {hint ? <p className="mt-2 text-sm leading-6 text-ink-500">{hint}</p> : null}
+  </div>
+);
+
+const TeamTab = ({ vendors = [], onUpdate }) => {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingVendor, setEditingVendor] = useState(null);
+
+  const activeCount = useMemo(
+    () => vendors.filter((vendor) => vendor.isActive !== false).length,
+    [vendors]
+  );
+  const tradeCount = useMemo(
+    () => new Set(vendors.map((vendor) => vendor.trade).filter(Boolean)).size,
+    [vendors]
+  );
 
   const handleOpenEditModal = (vendor) => {
     setEditingVendor(vendor);
@@ -14,13 +33,20 @@ const TeamTab = ({ vendors, onUpdate }) => {
   };
 
   const handleDelete = async (vendorId) => {
-    if (window.confirm('Are you sure you want to delete this vendor? This will not delete their associated expenses, only unlink them.')) {
-      try {
-        await deleteVendor(vendorId);
-        onUpdate();
-      } catch (error) {
-        alert(error.message);
-      }
+    const confirmed = window.confirm(
+      "Delete this vendor from the project directory? Historical expenses will stay linked in the ledger."
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      await deleteVendor(vendorId);
+      toast.success("Vendor removed");
+      onUpdate?.();
+    } catch (error) {
+      toast.error(error.message || "Failed to delete vendor");
     }
   };
 
@@ -38,45 +64,107 @@ const TeamTab = ({ vendors, onUpdate }) => {
         vendor={editingVendor}
       />
 
-      <div className="bg-white p-6 rounded-lg shadow-sm border border-brand-gray-200">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-xl font-semibold text-brand-gray-800">Project Team & Vendors</h3>
-          <button onClick={() => setIsAddModalOpen(true)} className="bg-brand-turquoise text-white font-semibold px-4 py-2 rounded-md">
-            Add Vendor
-          </button>
+      <div className="space-y-6">
+        <div className="grid gap-4 md:grid-cols-3">
+          <MetricTile label="Total vendors" value={vendors.length} />
+          <MetricTile label="Active vendors" value={activeCount} />
+          <MetricTile label="Trades covered" value={tradeCount} hint="Distinct specialties across the roster." />
         </div>
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-sm">
-            <thead className="bg-brand-gray-50">
-              <tr>
-                <th className="text-left p-3 font-semibold">Name</th>
-                <th className="text-left p-3 font-semibold">Trade</th>
-                <th className="text-left p-3 font-semibold">Contact</th>
-                <th className="p-3"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              {vendors.length > 0 ? vendors.map(vendor => (
-                <tr key={vendor._id} className="hover:bg-brand-gray-50">
-                  <td className="p-3 font-medium">{vendor.name}</td>
-                  <td className="p-3 text-brand-gray-600">{vendor.trade}</td>
-                  <td className="p-3 text-brand-gray-600">
-                    <div>{vendor.contactInfo?.email}</div>
-                    <div>{vendor.contactInfo?.phone}</div>
-                  </td>
-                  <td className="p-3 text-right space-x-4">
-                    <button onClick={() => handleOpenEditModal(vendor)} className="text-blue-600 hover:underline font-semibold">Edit</button>
-                    <button onClick={() => handleDelete(vendor._id)} className="text-red-500 hover:underline font-semibold">Delete</button>
-                  </td>
-                </tr>
-              )) : (
-                <tr>
-                  <td colSpan="4" className="text-center p-8 text-brand-gray-500">No vendors have been added yet.</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+
+        <section className="section-card p-6 sm:p-7">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <span className="eyebrow">Project directory</span>
+              <h3 className="mt-4 text-3xl font-semibold text-ink-900">Team and vendors</h3>
+              <p className="mt-3 max-w-2xl text-sm leading-6 text-ink-500">
+                Keep contractors, specialists, and core project contacts organized in one place.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsAddModalOpen(true)}
+              className="primary-action"
+            >
+              Add vendor
+            </button>
+          </div>
+
+          {vendors.length === 0 ? (
+            <div className="mt-8 rounded-[24px] border border-dashed border-ink-200 bg-ink-50/40 p-6 text-center text-sm leading-6 text-ink-500">
+              No vendors have been added yet. Build the project roster before assigning tasks and
+              logging trade-specific expenses.
+            </div>
+          ) : (
+            <div className="mt-8 grid gap-4 xl:grid-cols-2">
+              {vendors.map((vendor) => (
+                <div key={vendor._id} className="rounded-[24px] border border-ink-100 bg-white/85 p-5">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <p className="text-lg font-semibold text-ink-900">{vendor.name}</p>
+                      <p className="mt-1 text-sm font-medium text-ink-500">
+                        {vendor.trade || "Trade not specified"}
+                      </p>
+                    </div>
+                    <span
+                      className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
+                        vendor.isActive === false
+                          ? "border border-clay-200 bg-clay-50 text-clay-700"
+                          : "border border-verdigris-200 bg-verdigris-50 text-verdigris-700"
+                      }`}
+                    >
+                      {vendor.isActive === false ? "Inactive" : "Active"}
+                    </span>
+                  </div>
+
+                  <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                    <div className="rounded-[18px] border border-ink-100 bg-ink-50/55 p-4">
+                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-400">
+                        Email
+                      </p>
+                      <p className="mt-2 text-sm text-ink-700">
+                        {vendor.contactInfo?.email || "No email added"}
+                      </p>
+                    </div>
+                    <div className="rounded-[18px] border border-ink-100 bg-ink-50/55 p-4">
+                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-400">
+                        Phone
+                      </p>
+                      <p className="mt-2 text-sm text-ink-700">
+                        {vendor.contactInfo?.phone || "No phone added"}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 rounded-[18px] border border-ink-100 bg-ink-50/40 p-4">
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-400">
+                      Notes
+                    </p>
+                    <p className="mt-2 text-sm leading-6 text-ink-600">
+                      {vendor.notes || "No notes saved for this vendor yet."}
+                    </p>
+                  </div>
+
+                  <div className="mt-5 flex flex-wrap gap-3">
+                    <button
+                      type="button"
+                      onClick={() => handleOpenEditModal(vendor)}
+                      className="secondary-action"
+                    >
+                      Edit details
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(vendor._id)}
+                      className="ghost-action text-clay-700"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
       </div>
     </>
   );

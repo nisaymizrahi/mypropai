@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import {
   ArrowRightIcon,
   ClipboardDocumentListIcon,
@@ -9,7 +9,8 @@ import {
 } from "@heroicons/react/24/outline";
 import toast from "react-hot-toast";
 
-import { getApplicationsForProperty } from "../utils/api";
+import WorkspaceDataTable from "../components/WorkspaceDataTable";
+import { getApplicationsForProperty, getManagedProperties } from "../utils/api";
 
 const statusStyles = {
   "Pending Payment": "bg-sand-100 text-sand-700",
@@ -25,35 +26,137 @@ const LoadingSpinner = () => (
   </div>
 );
 
+const buildPropertyQuery = (propertyId) =>
+  propertyId ? `?${new URLSearchParams({ propertyId }).toString()}` : "";
+
+const STATUS_FILTERS = [
+  { value: "all", label: "All" },
+  { value: "in_progress", label: "In progress" },
+  { value: "Approved", label: "Approved" },
+  { value: "Denied", label: "Denied" },
+];
+
 const ApplicationsPage = () => {
   const [applications, setApplications] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [hasProperty, setHasProperty] = useState(false);
+  const [managedProperties, setManagedProperties] = useState([]);
+  const [propertiesLoading, setPropertiesLoading] = useState(true);
+  const [applicationsLoading, setApplicationsLoading] = useState(false);
+  const [searchValue, setSearchValue] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const propertyIdParam = searchParams.get("propertyId") || "";
 
   useEffect(() => {
-    const propertyId = localStorage.getItem("activePropertyId");
-    if (!propertyId) {
-      setHasProperty(false);
+    let isMounted = true;
+
+    const fetchManagedProperties = async () => {
+      try {
+        setPropertiesLoading(true);
+        const data = await getManagedProperties();
+        if (!isMounted) {
+          return;
+        }
+        setManagedProperties(data || []);
+      } catch (err) {
+        if (isMounted) {
+          toast.error(err.message || "Failed to load managed properties");
+        }
+      } finally {
+        if (isMounted) {
+          setPropertiesLoading(false);
+        }
+      }
+    };
+
+    fetchManagedProperties();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const selectedPropertyId = useMemo(() => {
+    if (managedProperties.some((property) => property._id === propertyIdParam)) {
+      return propertyIdParam;
+    }
+
+    if (!propertiesLoading && managedProperties.length === 1) {
+      return managedProperties[0]._id;
+    }
+
+    return "";
+  }, [managedProperties, propertiesLoading, propertyIdParam]);
+
+  useEffect(() => {
+    if (propertiesLoading) {
       return;
     }
 
-    setHasProperty(true);
+    if (selectedPropertyId && propertyIdParam !== selectedPropertyId) {
+      setSearchParams({ propertyId: selectedPropertyId }, { replace: true });
+      return;
+    }
+
+    if (!selectedPropertyId && propertyIdParam) {
+      setSearchParams({}, { replace: true });
+    }
+  }, [propertiesLoading, propertyIdParam, selectedPropertyId, setSearchParams]);
+
+  useEffect(() => {
+    if (propertiesLoading) {
+      return;
+    }
+
+    if (!selectedPropertyId) {
+      setApplications([]);
+      return;
+    }
+
+    let isMounted = true;
 
     const fetchApplications = async () => {
       try {
-        setLoading(true);
-        const res = await getApplicationsForProperty(propertyId);
-        setApplications(res);
+        setApplications([]);
+        setApplicationsLoading(true);
+        const data = await getApplicationsForProperty(selectedPropertyId);
+        if (isMounted) {
+          setApplications(data || []);
+        }
       } catch (err) {
-        toast.error(err.message || "Failed to load applications");
+        if (isMounted) {
+          toast.error(err.message || "Failed to load applications");
+        }
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setApplicationsLoading(false);
+        }
       }
     };
 
     fetchApplications();
-  }, []);
+
+    return () => {
+      isMounted = false;
+    };
+  }, [propertiesLoading, selectedPropertyId]);
+
+  const selectedProperty = useMemo(
+    () => managedProperties.find((property) => property._id === selectedPropertyId) || null,
+    [managedProperties, selectedPropertyId]
+  );
+
+  const propertySummary = useMemo(() => {
+    const units = selectedProperty?.units || [];
+    const occupiedUnits = units.filter((unit) => unit.currentLease).length;
+    const totalUnits = units.length;
+
+    return {
+      totalUnits,
+      occupiedUnits,
+      vacantUnits: Math.max(0, totalUnits - occupiedUnits),
+    };
+  }, [selectedProperty]);
 
   const summary = useMemo(() => {
     const pending = applications.filter((application) =>
@@ -70,7 +173,120 @@ const ApplicationsPage = () => {
     };
   }, [applications]);
 
-  if (loading) return <LoadingSpinner />;
+  const visibleApplications = useMemo(() => {
+    const normalizedQuery = searchValue.trim().toLowerCase();
+
+    return applications.filter((application) => {
+      if (statusFilter === "in_progress") {
+        if (!["Pending Payment", "Pending Screening", "Under Review"].includes(application.status)) {
+          return false;
+        }
+      } else if (statusFilter !== "all" && application.status !== statusFilter) {
+        return false;
+      }
+
+      if (!normalizedQuery) {
+        return true;
+      }
+
+      const haystack = [
+        application.applicantInfo?.fullName,
+        application.applicantInfo?.email,
+        application.applicantInfo?.phone,
+        application.unit?.name,
+        application.status,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+
+      return haystack.includes(normalizedQuery);
+    });
+  }, [applications, searchValue, statusFilter]);
+
+  const propertyQuery = buildPropertyQuery(selectedPropertyId);
+
+  const applicationColumns = useMemo(
+    () => [
+      {
+        id: "applicant",
+        label: "Applicant",
+        sortValue: (application) => application.applicantInfo?.fullName || "",
+        render: (application) => (
+          <div>
+            <Link
+              to={`/applications/${application._id}${propertyQuery}`}
+              className="font-semibold text-ink-900 transition hover:text-verdigris-700"
+            >
+              {application.applicantInfo?.fullName || "Unnamed applicant"}
+            </Link>
+            <p className="mt-1 text-sm text-ink-500">
+              {application.applicantInfo?.email || "No email on file"}
+            </p>
+          </div>
+        ),
+      },
+      {
+        id: "unit",
+        label: "Unit",
+        sortValue: (application) => application.unit?.name || "",
+        render: (application) => (
+          <div>
+            <p className="font-medium text-ink-800">{application.unit?.name || "Unknown unit"}</p>
+            <p className="mt-1 text-sm text-ink-500">{selectedProperty?.address || "Selected property"}</p>
+          </div>
+        ),
+      },
+      {
+        id: "status",
+        label: "Status",
+        sortValue: (application) => application.status || "",
+        render: (application) => (
+          <span
+            className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
+              statusStyles[application.status] || "bg-ink-100 text-ink-700"
+            }`}
+          >
+            {application.status}
+          </span>
+        ),
+      },
+      {
+        id: "contact",
+        label: "Phone",
+        sortValue: (application) => application.applicantInfo?.phone || "",
+        render: (application) => (
+          <span className="text-sm text-ink-700">
+            {application.applicantInfo?.phone || "N/A"}
+          </span>
+        ),
+      },
+      {
+        id: "open",
+        label: "Open",
+        align: "right",
+        render: (application) => (
+          <Link
+            to={`/applications/${application._id}${propertyQuery}`}
+            className="inline-flex items-center text-sm font-semibold text-verdigris-700 transition hover:text-verdigris-800"
+          >
+            Open
+            <ArrowRightIcon className="ml-1.5 h-4 w-4" />
+          </Link>
+        ),
+      },
+    ],
+    [propertyQuery, selectedProperty?.address]
+  );
+
+  const handlePropertyChange = (event) => {
+    const nextPropertyId = event.target.value;
+    setSearchParams(nextPropertyId ? { propertyId: nextPropertyId } : {});
+  };
+
+  if (propertiesLoading) {
+    return <LoadingSpinner />;
+  }
 
   return (
     <div className="space-y-6">
@@ -79,28 +295,51 @@ const ApplicationsPage = () => {
         <div className="relative grid gap-8 lg:grid-cols-[minmax(0,1.05fr)_minmax(320px,0.95fr)]">
           <div>
             <span className="eyebrow">Leasing pipeline</span>
-            <h2 className="mt-5 text-4xl font-semibold tracking-tight text-ink-900">
-              Review rental applications with clearer status and faster next steps.
+            <h2 className="page-hero-title">
+              Review rental applications with clearer status and property context.
             </h2>
-            <p className="mt-4 max-w-2xl text-base leading-7 text-ink-500">
-              Keep application review tied to the active property, understand where each applicant
-              sits in the pipeline, and send fresh application links whenever a vacant unit opens.
+            <p className="page-hero-copy">
+              Choose a managed property, keep the application roster anchored to that address, and
+              send new application links without losing your place in the leasing workflow.
             </p>
+
+            {managedProperties.length > 1 && (
+              <div className="mt-6 max-w-sm">
+                <label htmlFor="property" className="auth-label">
+                  Property
+                </label>
+                <select
+                  id="property"
+                  className="auth-input"
+                  value={selectedPropertyId}
+                  onChange={handlePropertyChange}
+                >
+                  <option value="">Choose a property</option>
+                  {managedProperties.map((property) => (
+                    <option key={property._id} value={property._id}>
+                      {property.address}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             <div className="mt-8 flex flex-wrap gap-3">
               <button
                 type="button"
-                onClick={() => navigate("/applications/send")}
+                onClick={() => navigate(`/applications/send${propertyQuery}`)}
                 className="primary-action"
               >
                 Send application
               </button>
               <button
                 type="button"
-                onClick={() => navigate("/management")}
+                onClick={() =>
+                  navigate(selectedPropertyId ? `/management/${selectedPropertyId}` : "/management")
+                }
                 className="secondary-action"
               >
-                Open properties
+                {selectedPropertyId ? "Open property" : "Open properties"}
               </button>
             </div>
           </div>
@@ -109,10 +348,14 @@ const ApplicationsPage = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-400">
-                  Active property status
+                  Selected property
                 </p>
                 <h3 className="mt-2 text-2xl font-semibold text-ink-900">
-                  {hasProperty ? "Property selected" : "No property selected"}
+                  {selectedProperty
+                    ? selectedProperty.address
+                    : managedProperties.length > 0
+                      ? "Choose a property"
+                      : "No managed properties"}
                 </h3>
               </div>
               <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-verdigris-50 text-verdigris-700">
@@ -123,15 +366,19 @@ const ApplicationsPage = () => {
             <div className="mt-8 space-y-3">
               <div className="rounded-[18px] bg-sand-50 px-4 py-4">
                 <p className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-400">
-                  Total applications
+                  Units tracked
                 </p>
-                <p className="mt-1 text-lg font-semibold text-ink-900">{summary.total}</p>
+                <p className="mt-1 text-lg font-semibold text-ink-900">
+                  {selectedProperty ? propertySummary.totalUnits : 0}
+                </p>
               </div>
               <div className="rounded-[18px] border border-ink-100 bg-white px-4 py-4">
                 <p className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-400">
-                  Review queue
+                  Vacant units
                 </p>
-                <p className="mt-1 text-lg font-semibold text-ink-900">{summary.pending}</p>
+                <p className="mt-1 text-lg font-semibold text-ink-900">
+                  {selectedProperty ? propertySummary.vacantUnits : 0}
+                </p>
               </div>
             </div>
           </div>
@@ -147,7 +394,7 @@ const ApplicationsPage = () => {
               </p>
               <p className="mt-4 text-3xl font-semibold text-ink-900">{summary.total}</p>
               <p className="mt-3 text-sm leading-6 text-ink-500">
-                Applications currently visible for the active property.
+                Applications currently visible for the selected property.
               </p>
             </div>
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-ink-100 text-ink-700">
@@ -205,83 +452,134 @@ const ApplicationsPage = () => {
         </div>
       </section>
 
-      <section className="section-card p-6 sm:p-7">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <span className="eyebrow">Application roster</span>
-            <h3 className="mt-4 text-2xl font-semibold text-ink-900">Applicants for the active property</h3>
-          </div>
-          <button
-            type="button"
-            onClick={() => navigate("/applications/send")}
-            className="secondary-action"
-          >
-            Send another application
-          </button>
-        </div>
-
-        {!hasProperty ? (
-          <div className="mt-6 rounded-[24px] border border-dashed border-ink-200 bg-sand-50 px-5 py-12 text-center text-ink-500">
-            No property is currently active. Open a property first so MyPropAI knows which application pipeline to show.
-          </div>
-        ) : applications.length === 0 ? (
-          <div className="mt-6 rounded-[24px] border border-dashed border-ink-200 bg-sand-50 px-5 py-12 text-center text-ink-500">
-            No applications found yet. Send a rental application link to start building the queue.
-          </div>
-        ) : (
-          <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {applications.map((application) => (
-              <Link
-                key={application._id}
-                to={`/applications/${application._id}`}
-                className="rounded-[24px] border border-ink-100 bg-white p-5 shadow-soft transition hover:-translate-y-0.5 hover:shadow-luxe"
+      {managedProperties.length === 0 ? (
+        <WorkspaceDataTable
+          title="Application roster"
+          description="Keep leasing attached to the right property and unit so the review queue stays clean."
+          columns={applicationColumns}
+          rows={[]}
+          rowKey={(application) => application._id}
+          emptyTitle="No managed properties yet"
+          emptyDescription="Start management on a property first so leasing can stay tied to a real address and unit roster."
+          emptyActions={
+            <>
+              <button
+                type="button"
+                onClick={() => navigate("/properties/new?workspace=management")}
+                className="primary-action"
               >
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <p className="text-lg font-semibold text-ink-900">
-                      {application.applicantInfo?.fullName || "Unnamed applicant"}
-                    </p>
-                    <p className="mt-1 text-sm text-ink-500">
-                      Unit {application.unit?.name || "Unknown"}
-                    </p>
-                  </div>
-                  <span
-                    className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                      statusStyles[application.status] || "bg-ink-100 text-ink-700"
+                Create managed property
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate("/properties")}
+                className="secondary-action"
+              >
+                Open property hub
+              </button>
+            </>
+          }
+        />
+      ) : !selectedPropertyId ? (
+        <WorkspaceDataTable
+          title="Application roster"
+          description="Choose a managed property to load the right leasing queue."
+          columns={applicationColumns}
+          rows={[]}
+          rowKey={(application) => application._id}
+          emptyTitle="Select a property"
+          emptyDescription="Choose a managed property above to review applicants, screening, and decisions in one place."
+        />
+      ) : applicationsLoading ? (
+        <div className="section-card p-5 sm:p-6">
+          <h3 className="text-xl font-semibold text-ink-900 sm:text-2xl">Application roster</h3>
+          <p className="mt-2 text-sm leading-6 text-ink-500">
+            Loading applicants for {selectedProperty?.address || "this property"}.
+          </p>
+          <div className="mt-5 rounded-[20px] border border-ink-100 bg-white px-5 py-10">
+            <LoadingSpinner />
+          </div>
+        </div>
+      ) : (
+        <WorkspaceDataTable
+          title={
+            selectedProperty
+              ? `Applicants for ${selectedProperty.address}`
+              : "Application roster"
+          }
+          description="Search faster, sort by the signal you need, and keep the leasing queue easy to scan."
+          columns={applicationColumns}
+          rows={visibleApplications}
+          rowKey={(application) => application._id}
+          defaultSort={{ columnId: "applicant", direction: "asc" }}
+          searchValue={searchValue}
+          onSearchValueChange={setSearchValue}
+          searchPlaceholder="Search applicant name, email, phone, unit, or status"
+          toolbarContent={
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+              <div className="flex flex-wrap gap-2">
+                {STATUS_FILTERS.map((filterOption) => (
+                  <button
+                    key={filterOption.value}
+                    type="button"
+                    onClick={() => setStatusFilter(filterOption.value)}
+                    className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+                      statusFilter === filterOption.value
+                        ? "bg-ink-900 text-white"
+                        : "bg-sand-50 text-ink-600 hover:bg-sand-100"
                     }`}
                   >
-                    {application.status}
-                  </span>
-                </div>
+                    {filterOption.label}
+                  </button>
+                ))}
+              </div>
 
-                <div className="mt-5 space-y-3">
-                  <div className="rounded-[18px] bg-sand-50 px-4 py-3">
-                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-400">
-                      Email
-                    </p>
-                    <p className="mt-1 truncate text-sm font-medium text-ink-900">
-                      {application.applicantInfo?.email || "N/A"}
-                    </p>
-                  </div>
-                  <div className="rounded-[18px] border border-ink-100 bg-white px-4 py-3">
-                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-400">
-                      Phone
-                    </p>
-                    <p className="mt-1 text-sm font-medium text-ink-900">
-                      {application.applicantInfo?.phone || "N/A"}
-                    </p>
-                  </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="rounded-full bg-sand-100 px-4 py-2 text-sm font-semibold text-ink-600">
+                  Showing {visibleApplications.length} of {applications.length}
                 </div>
-
-                <div className="mt-6 inline-flex items-center text-sm font-semibold text-verdigris-700">
-                  Open application
-                  <ArrowRightIcon className="ml-1.5 h-4 w-4" />
-                </div>
-              </Link>
-            ))}
-          </div>
-        )}
-      </section>
+                <button
+                  type="button"
+                  onClick={() => navigate(`/applications/send${propertyQuery}`)}
+                  className="secondary-action"
+                >
+                  Send another application
+                </button>
+              </div>
+            </div>
+          }
+          emptyTitle={
+            applications.length === 0
+              ? "No applications for this property yet"
+              : "No applicants match this view"
+          }
+          emptyDescription={
+            applications.length === 0
+              ? "Send a rental application link to start building the queue for this property."
+              : "Try another status or search term to pull the right applicants back into view."
+          }
+          emptyActions={
+            applications.length === 0 ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => navigate(`/applications/send${propertyQuery}`)}
+                  className="primary-action"
+                >
+                  Send application
+                </button>
+                <button
+                  type="button"
+                  onClick={() => navigate(`/management/${selectedPropertyId}`)}
+                  className="secondary-action"
+                >
+                  Open property
+                </button>
+              </>
+            ) : null
+          }
+        />
+      )}
     </div>
   );
 };

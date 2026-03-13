@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { getBidsForLead, importBid, deleteBid } from '../utils/api';
 import toast from 'react-hot-toast';
 import BidDetailModal from './BidDetailModal';
@@ -12,7 +12,7 @@ const BidsTab = ({ leadId }) => {
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
     const [selectedBid, setSelectedBid] = useState(null);
 
-    const fetchBids = async () => {
+    const fetchBids = useCallback(async () => {
         try {
             setLoading(true);
             const bidsData = await getBidsForLead(leadId);
@@ -22,13 +22,13 @@ const BidsTab = ({ leadId }) => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [leadId]);
 
     useEffect(() => {
         if (leadId) {
             fetchBids();
         }
-    }, [leadId]);
+    }, [leadId, fetchBids]);
 
     const handleFileChange = (e) => {
         setFileToUpload(e.target.files[0]);

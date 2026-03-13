@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { API_BASE_URL } from "../config";
 import { generateBudgetLines } from "../utils/api";
 
 const AIRehabBuilderModal = ({ isOpen, onClose, investmentId, onSuccess }) => {
@@ -37,7 +38,7 @@ const AIRehabBuilderModal = ({ isOpen, onClose, investmentId, onSuccess }) => {
     try {
       await Promise.all(
         generatedLines.map((line) =>
-          fetch(`${process.env.REACT_APP_API_URL}/api/budget-items`, {
+          fetch(`${API_BASE_URL}/budget-items`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",

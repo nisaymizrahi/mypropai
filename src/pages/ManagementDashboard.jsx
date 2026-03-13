@@ -26,14 +26,14 @@ const SummaryCard = ({ label, value, detail, accent = "verdigris" }) => {
   };
 
   return (
-    <div className="metric-tile p-5">
+    <div className="metric-tile p-4 sm:p-5">
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-400">
             {label}
           </p>
-          <p className="mt-4 text-3xl font-semibold text-ink-900">{value}</p>
-          <p className="mt-3 text-sm leading-6 text-ink-500">{detail}</p>
+          <p className="mt-3 text-[1.8rem] font-semibold text-ink-900 sm:text-[2rem]">{value}</p>
+          <p className="mt-2 text-sm leading-5 text-ink-500">{detail}</p>
         </div>
         <div className={`h-3 w-3 rounded-full ${accentStyles[accent]}`} />
       </div>
@@ -118,16 +118,16 @@ const ManagementDashboard = () => {
         onPromoteSuccess={fetchManagedProperties}
       />
 
-      <div className="space-y-6">
-        <section className="surface-panel-strong relative overflow-hidden px-6 py-7 sm:px-8">
+      <div className="space-y-5">
+        <section className="surface-panel-strong relative overflow-hidden px-5 py-6 sm:px-7">
           <div className="absolute inset-y-0 right-0 hidden w-1/3 bg-[radial-gradient(circle_at_center,rgba(59,143,129,0.18),transparent_62%)] lg:block" />
           <div className="relative grid gap-8 lg:grid-cols-[minmax(0,1.05fr)_minmax(320px,0.95fr)]">
             <div>
               <span className="eyebrow">Operations command</span>
-              <h2 className="mt-5 text-4xl font-semibold tracking-tight text-ink-900">
+              <h2 className="page-hero-title">
                 Property operations at a glance
               </h2>
-              <p className="mt-4 max-w-2xl text-base leading-7 text-ink-500">
+              <p className="page-hero-copy">
                 Keep occupancy, vacancies, and operational coverage organized across your managed
                 assets with clearer signal and faster action.
               </p>
@@ -135,10 +135,17 @@ const ManagementDashboard = () => {
               <div className="mt-8 flex flex-wrap gap-3">
                 <button
                   type="button"
-                  onClick={() => setIsModalOpen(true)}
+                  onClick={() => navigate("/properties/new?workspace=management")}
                   className="primary-action"
                 >
-                  Add managed property
+                  Create managed property
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsModalOpen(true)}
+                  className="secondary-action"
+                >
+                  Use existing investment
                 </button>
                 <button
                   type="button"
@@ -150,13 +157,13 @@ const ManagementDashboard = () => {
               </div>
             </div>
 
-            <div className="section-card p-6">
+            <div className="section-card p-5">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-400">
                     Occupancy signal
                   </p>
-                  <h3 className="mt-2 text-2xl font-semibold text-ink-900">
+                  <h3 className="mt-2 text-xl font-semibold text-ink-900">
                     {summary.occupancyRate}% occupied
                   </h3>
                 </div>
@@ -165,7 +172,7 @@ const ManagementDashboard = () => {
                 </div>
               </div>
 
-              <div className="mt-8">
+              <div className="mt-6">
                 <div className="h-3 w-full overflow-hidden rounded-full bg-sand-100">
                   <div
                     className="h-full rounded-full bg-[linear-gradient(90deg,#1f6f63_0%,#3b8f81_100%)]"
@@ -178,7 +185,7 @@ const ManagementDashboard = () => {
                 </div>
               </div>
 
-              <div className="mt-8 space-y-3">
+              <div className="mt-6 space-y-3">
                 <div className="flex items-center justify-between rounded-[18px] bg-white px-4 py-3 ring-1 ring-ink-100">
                   <span className="text-sm font-medium text-ink-600">Active properties</span>
                   <span className="text-sm font-semibold text-ink-900">
@@ -223,12 +230,12 @@ const ManagementDashboard = () => {
           />
         </section>
 
-        <section className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(320px,0.8fr)]">
-          <div className="section-card p-6 sm:p-7">
+        <section className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(320px,0.8fr)]">
+          <div className="section-card p-5 sm:p-6">
             <div className="flex items-center justify-between gap-4">
               <div>
                 <span className="eyebrow">Portfolio roster</span>
-                <h3 className="mt-4 text-2xl font-semibold text-ink-900">
+                <h3 className="mt-3 text-xl font-semibold text-ink-900">
                   Managed properties
                 </h3>
               </div>
@@ -237,7 +244,7 @@ const ManagementDashboard = () => {
               </div>
             </div>
 
-            <div className="mt-6 grid gap-4 lg:grid-cols-2">
+            <div className="mt-5 grid gap-4 lg:grid-cols-2">
               {managedProperties.length > 0 ? (
                 managedProperties.map((property) => {
                   const unitCount = property.units?.length || 0;
@@ -249,7 +256,7 @@ const ManagementDashboard = () => {
                   return (
                     <div
                       key={property._id}
-                      className="rounded-[24px] border border-ink-100 bg-white p-5 shadow-soft"
+                      className="rounded-[20px] border border-ink-100 bg-white p-4 shadow-soft"
                     >
                       <div className="flex items-start justify-between gap-4">
                         <div>
@@ -269,7 +276,7 @@ const ManagementDashboard = () => {
                         </span>
                       </div>
 
-                      <div className="mt-5">
+                      <div className="mt-4">
                         <div className="flex items-center justify-between text-sm text-ink-500">
                           <span>Occupancy</span>
                           <span className="font-semibold text-ink-900">
@@ -284,7 +291,7 @@ const ManagementDashboard = () => {
                         </div>
                       </div>
 
-                      <div className="mt-6 flex items-center justify-between">
+                      <div className="mt-5 flex items-center justify-between">
                         <div className="text-sm text-ink-500">
                           {Math.max(0, unitCount - occupiedCount)} vacancy slot(s)
                         </div>
@@ -301,7 +308,7 @@ const ManagementDashboard = () => {
                   );
                 })
               ) : (
-                <div className="rounded-[24px] border border-dashed border-ink-200 bg-sand-50 px-5 py-12 text-center text-ink-500 lg:col-span-2">
+                <div className="rounded-[20px] border border-dashed border-ink-200 bg-sand-50 px-5 py-12 text-center text-ink-500 lg:col-span-2">
                   No managed properties yet. Add one to start tracking occupancy, units, and
                   operations.
                 </div>
@@ -309,14 +316,14 @@ const ManagementDashboard = () => {
             </div>
           </div>
 
-          <div className="section-card p-6 sm:p-7">
+          <div className="section-card p-5 sm:p-6">
             <span className="eyebrow">Focus list</span>
-            <h3 className="mt-4 text-2xl font-semibold text-ink-900">Vacancy watch</h3>
+            <h3 className="mt-3 text-xl font-semibold text-ink-900">Vacancy watch</h3>
             <p className="mt-2 text-sm leading-6 text-ink-500">
               Assets with open units that may need listing, leasing, or applicant review.
             </p>
 
-            <div className="mt-6 space-y-3">
+            <div className="mt-5 space-y-3">
               {summary.vacancyWatch.length > 0 ? (
                 summary.vacancyWatch.map((property) => {
                   const unitCount = property.units?.length || 0;
@@ -329,7 +336,7 @@ const ManagementDashboard = () => {
                       key={property._id}
                       type="button"
                       onClick={() => navigate(`/management/${property._id}`)}
-                      className="flex w-full items-center justify-between rounded-[20px] border border-ink-100 bg-white px-4 py-4 text-left transition hover:-translate-y-0.5 hover:shadow-soft"
+                      className="flex w-full items-center justify-between rounded-[18px] border border-ink-100 bg-white px-4 py-3.5 text-left transition hover:-translate-y-0.5 hover:shadow-soft"
                     >
                       <div className="min-w-0">
                         <p className="truncate text-sm font-semibold text-ink-900">
@@ -339,7 +346,7 @@ const ManagementDashboard = () => {
                           {vacantCount} open unit(s)
                         </p>
                       </div>
-                      <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-clay-50 text-clay-700">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-clay-50 text-clay-700">
                         <HomeModernIcon className="h-5 w-5" />
                       </div>
                     </button>
@@ -352,19 +359,19 @@ const ManagementDashboard = () => {
               )}
             </div>
 
-            <div className="mt-6 rounded-[24px] bg-ink-900 px-5 py-5 text-white">
+            <div className="mt-5 rounded-[20px] bg-ink-900 px-4 py-4 text-white">
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.18em] text-white/60">
                     Portfolio posture
                   </p>
-                  <p className="mt-3 text-2xl font-semibold">
+                  <p className="mt-3 text-xl font-semibold">
                     Stable operations with targeted leasing needs
                   </p>
                 </div>
                 <ChartBarIcon className="h-7 w-7 text-white/75" />
               </div>
-              <p className="mt-4 text-sm leading-6 text-white/68">
+              <p className="mt-3 text-sm leading-6 text-white/68">
                 Use the roster on the left to open property-level command centers and keep open units moving.
               </p>
             </div>

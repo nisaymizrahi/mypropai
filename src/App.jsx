@@ -3,12 +3,12 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-d
 import { Toaster } from "react-hot-toast";
 
 import DashboardLayout from "./components/DashboardLayout";
+import PlatformManagerRoute from "./components/PlatformManagerRoute";
 import ProtectedRoute from "./components/ProtectedRoute";
 import TenantProtectedRoute from "./components/TenantProtectedRoute";
 
 import DashboardPage from "./pages/DashboardPage";
 import CompsTool from "./pages/CompsTool";
-import NewInvestment from "./pages/NewInvestment";
 import MyInvestments from "./pages/MyInvestments";
 import InvestmentDetail from "./pages/InvestmentDetail";
 import EditInvestment from "./pages/EditInvestment";
@@ -34,6 +34,10 @@ import LeadsPage from "./pages/LeadsPage";
 import LeadDetailPage from "./pages/LeadDetailPage";
 import ApplicationFormPage from "./pages/ApplicationFormPage";
 import ApplicationDetailPage from "./pages/ApplicationDetailPage";
+import PropertiesPage from "./pages/PropertiesPage";
+import PropertyWorkspacePage from "./pages/PropertyWorkspacePage";
+import CreatePropertyPage from "./pages/CreatePropertyPage";
+import PlatformManagerPage from "./pages/PlatformManagerPage";
 
 import { AuthProvider } from "./context/AuthContext";
 
@@ -100,6 +104,17 @@ function App() {
           />
 
           <Route
+            path="/platform-manager"
+            element={
+              <PlatformManagerRoute>
+                <DashboardLayout>
+                  <PlatformManagerPage />
+                </DashboardLayout>
+              </PlatformManagerRoute>
+            }
+          />
+
+          <Route
             path="/tools"
             element={
               <ProtectedRoute>
@@ -129,6 +144,39 @@ function App() {
               <ProtectedRoute>
                 <DashboardLayout>
                   <CompsTool />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/properties"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <PropertiesPage />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/properties/new"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <CreatePropertyPage />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/properties/:propertyKey"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <PropertyWorkspacePage />
                 </DashboardLayout>
               </ProtectedRoute>
             }
@@ -248,9 +296,7 @@ function App() {
             path="/investments/new"
             element={
               <ProtectedRoute>
-                <DashboardLayout>
-                  <NewInvestment />
-                </DashboardLayout>
+                <Navigate to="/properties/new?workspace=acquisitions" replace />
               </ProtectedRoute>
             }
           />

@@ -11,7 +11,7 @@ const getErrorPayload = async (res) => {
 
 const getErrorMessage = async (res, fallbackMessage) => {
   const payload = await getErrorPayload(res);
-  return payload?.msg || payload?.message || fallbackMessage;
+  return payload?.msg || payload?.message || payload?.error || fallbackMessage;
 };
 
 /**
@@ -162,6 +162,55 @@ export const getLeadSummary = async () => {
     headers: getAuthHeaders(),
   });
   if (!res.ok) throw new Error("Failed to fetch lead summary");
+  return res.json();
+};
+
+export const getProperties = async () => {
+  const res = await fetch(`${API_BASE_URL}/properties`, {
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to fetch properties"));
+  return res.json();
+};
+
+export const createProperty = async (data) => {
+  const res = await fetch(`${API_BASE_URL}/properties`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to create property"));
+  return res.json();
+};
+
+export const getPropertyWorkspace = async (propertyKey) => {
+  const res = await fetch(`${API_BASE_URL}/properties/${encodeURIComponent(propertyKey)}`, {
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to fetch property workspace"));
+  return res.json();
+};
+
+export const updatePropertyWorkspace = async (propertyKey, data) => {
+  const res = await fetch(`${API_BASE_URL}/properties/${encodeURIComponent(propertyKey)}`, {
+    method: "PATCH",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to update property"));
+  return res.json();
+};
+
+export const createPropertyWorkspace = async (propertyKey, workspaceKey, data = {}) => {
+  const res = await fetch(
+    `${API_BASE_URL}/properties/${encodeURIComponent(propertyKey)}/workspaces/${workspaceKey}`,
+    {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify(data),
+    }
+  );
+  if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to create workspace"));
   return res.json();
 };
 
@@ -346,7 +395,7 @@ export const createVendor = async (data) => {
     headers: getAuthHeaders(),
     body: JSON.stringify(data),
   });
-  if (!res.ok) throw new Error("Failed to create vendor");
+  if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to create vendor"));
   return res.json();
 };
 
@@ -356,7 +405,7 @@ export const updateVendor = async (id, data) => {
     headers: getAuthHeaders(),
     body: JSON.stringify(data),
   });
-  if (!res.ok) throw new Error("Failed to update vendor");
+  if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to update vendor"));
   return res.json();
 };
 
@@ -365,7 +414,7 @@ export const deleteVendor = async (id) => {
     method: "DELETE",
     headers: getAuthHeaders(),
   });
-  if (!res.ok) throw new Error("Failed to delete vendor");
+  if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to delete vendor"));
   return res.json();
 };
 
@@ -384,7 +433,7 @@ export const createProjectTask = async (data) => {
     headers: getAuthHeaders(),
     body: JSON.stringify(data),
   });
-  if (!res.ok) throw new Error("Failed to create project task");
+  if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to create project task"));
   return res.json();
 };
 
@@ -394,7 +443,7 @@ export const updateProjectTask = async (taskId, updates) => {
     headers: getAuthHeaders(),
     body: JSON.stringify(updates),
   });
-  if (!res.ok) throw new Error("Failed to update task");
+  if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to update task"));
   return res.json();
 };
 
@@ -406,7 +455,7 @@ export const deleteProjectTask = async (taskId) => {
     method: "DELETE",
     headers: getAuthHeaders(),
   });
-  if (!res.ok) throw new Error("Failed to delete task");
+  if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to delete task"));
   return res.json();
 };
 
@@ -414,7 +463,7 @@ export const getProjectDocuments = async (investmentId) => {
   const res = await fetch(`${API_BASE_URL}/documents/investment/${investmentId}`, {
     headers: getAuthHeaders(),
   });
-  if (!res.ok) throw new Error("Failed to fetch documents");
+  if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to fetch documents"));
   return res.json();
 };
 
@@ -424,7 +473,7 @@ export const uploadProjectDocument = async (formData) => {
     headers: getAuthHeaders(true),
     body: formData,
   });
-  if (!res.ok) throw new Error("Failed to upload document");
+  if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to upload document"));
   return res.json();
 };
 
@@ -433,7 +482,7 @@ export const deleteProjectDocument = async (documentId) => {
     method: "DELETE",
     headers: getAuthHeaders(),
   });
-  if (!res.ok) throw new Error("Failed to delete document");
+  if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to delete document"));
   return res.json();
 };
 
@@ -866,6 +915,63 @@ export const syncBillingCheckoutSession = async (sessionId) => {
 
 /**
  * ==========================
+ *   PLATFORM MANAGER
+ * ==========================
+ */
+export const getPlatformManagerUsers = async (query = "") => {
+  const params = new URLSearchParams();
+  if (query.trim()) {
+    params.set("q", query.trim());
+  }
+
+  const suffix = params.toString() ? `?${params.toString()}` : "";
+  const res = await fetch(`${API_BASE_URL}/platform-manager/users${suffix}`, {
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to load platform users"));
+  return res.json();
+};
+
+export const startPlatformManagerImpersonation = async (userId) => {
+  const res = await fetch(`${API_BASE_URL}/platform-manager/users/${userId}/impersonate`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to start impersonation"));
+  return res.json();
+};
+
+export const setPlatformManagerSubscriptionOverride = async (userId, overridePlan) => {
+  const res = await fetch(`${API_BASE_URL}/platform-manager/users/${userId}/subscription-override`, {
+    method: "PATCH",
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ overridePlan }),
+  });
+  if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to update user access"));
+  return res.json();
+};
+
+export const setPlatformManagerAccountStatus = async (userId, status) => {
+  const res = await fetch(`${API_BASE_URL}/platform-manager/users/${userId}/account-status`, {
+    method: "PATCH",
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ status }),
+  });
+  if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to update account status"));
+  return res.json();
+};
+
+export const deletePlatformManagerUser = async (userId) => {
+  const res = await fetch(`${API_BASE_URL}/platform-manager/users/${userId}`, {
+    method: "DELETE",
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to delete user"));
+  return res.json();
+};
+
+/**
+ * ==========================
  *   TENANT PORTAL
  * ==========================
  */
@@ -873,7 +979,7 @@ export const getTenantLeaseDetails = async () => {
   const res = await fetch(`${API_BASE_URL}/tenant/lease-details`, {
     headers: getTenantAuthHeaders(),
   });
-  if (!res.ok) throw new Error("Failed to fetch lease details");
+  if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to fetch lease details"));
   return res.json();
 };
 
@@ -883,7 +989,7 @@ export const submitTenantCommunication = async (formData) => {
     headers: getTenantAuthHeaders(true),
     body: formData,
   });
-  if (!res.ok) throw new Error("Failed to submit request");
+  if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to submit request"));
   return res.json();
 };
 

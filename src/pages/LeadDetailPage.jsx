@@ -373,6 +373,12 @@ const LeadDetailPage = () => {
   if (error && !lead) return <p className="p-4 text-center text-red-500">{error}</p>;
   if (!lead) return <p className="p-4 text-center">Lead not found.</p>;
 
+  const propertyWorkspaceId =
+    typeof lead.property === "object" ? lead.property?._id : lead.property;
+  const propertyWorkspacePath = propertyWorkspaceId
+    ? `/properties/${encodeURIComponent(propertyWorkspaceId)}`
+    : "";
+
   const TabButton = ({ tabName, label }) => (
     <button
       onClick={() => setActiveTab(tabName)}
@@ -388,10 +394,15 @@ const LeadDetailPage = () => {
 
   return (
     <div className="mx-auto max-w-7xl space-y-6">
-      <div>
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <Link to="/leads" className="text-sm text-brand-blue hover:underline">
           &larr; Back to Leads Pipeline
         </Link>
+        {propertyWorkspacePath ? (
+          <Link to={propertyWorkspacePath} className="secondary-action">
+            Edit Shared Profile
+          </Link>
+        ) : null}
       </div>
 
       <LeadSnapshot lead={lead} />
@@ -413,24 +424,46 @@ const LeadDetailPage = () => {
                 {isBillingAccessLoading ? (
                   <p className="text-gray-500">Checking report access...</p>
                 ) : billingAccess?.accessGranted ? (
-                  <p className="text-brand-gray-700">
-                    {billingAccess.hasActiveSubscription
-                      ? 'Pro access is active for this report.'
-                      : 'This lead already has a paid report purchase ready to run.'}
-                  </p>
+                  <div className="space-y-2 text-brand-gray-700">
+                    {billingAccess.accessSource === 'subscription_included' ? (
+                      <>
+                        <p>
+                          Pro includes 10 comps reports per month. You have{' '}
+                          <span className="font-semibold">
+                            {billingAccess.monthlyIncludedRemainingCount}
+                          </span>{' '}
+                          included report
+                          {billingAccess.monthlyIncludedRemainingCount === 1 ? '' : 's'} left this month.
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          Used {billingAccess.monthlyIncludedUsedCount} of {billingAccess.monthlyIncludedLimit}
+                          {billingAccess.monthlyIncludedResetsAt
+                            ? `, resets on ${formatDate(billingAccess.monthlyIncludedResetsAt)}`
+                            : ''}
+                          .
+                        </p>
+                      </>
+                    ) : (
+                      <p>This lead already has a paid report purchase ready to run.</p>
+                    )}
+                  </div>
                 ) : (
                   <div className="space-y-3">
                     <p className="text-brand-gray-700">
-                      This report is a premium workflow. Upgrade to Pro for unlimited comps analysis or buy this lead&apos;s report one time.
+                      {billingAccess?.hasActiveSubscription
+                        ? `You have used all ${billingAccess.monthlyIncludedLimit || 10} included Pro comps reports for this month. Buy this lead's report one time to keep going.`
+                        : "This report is a premium workflow. Upgrade to Pro for 10 included comps reports each month or buy this lead's report one time."}
                     </p>
                     <div className="flex flex-col gap-3">
-                      <button
-                        onClick={handleStartSubscription}
-                        disabled={isStartingSubscription}
-                        className="w-full rounded-md border border-brand-gray-300 px-4 py-2 font-semibold text-brand-gray-800 disabled:opacity-50"
-                      >
-                        {isStartingSubscription ? 'Redirecting...' : 'Upgrade to Pro'}
-                      </button>
+                      {!billingAccess?.hasActiveSubscription ? (
+                        <button
+                          onClick={handleStartSubscription}
+                          disabled={isStartingSubscription}
+                          className="w-full rounded-md border border-brand-gray-300 px-4 py-2 font-semibold text-brand-gray-800 disabled:opacity-50"
+                        >
+                          {isStartingSubscription ? 'Redirecting...' : 'Upgrade to Pro'}
+                        </button>
+                      ) : null}
                       <button
                         onClick={handleBuyReport}
                         disabled={isStartingCheckout}
@@ -491,7 +524,19 @@ const LeadDetailPage = () => {
             </div>
 
             <div className="rounded-2xl border bg-white p-6 shadow-sm">
-              <h3 className="text-xl font-semibold">Property Context</h3>
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h3 className="text-xl font-semibold">Shared Property Profile</h3>
+                  <p className="mt-1 text-sm text-gray-500">
+                    Address and physical specs are maintained from the property workspace.
+                  </p>
+                </div>
+                {propertyWorkspacePath ? (
+                  <Link to={propertyWorkspacePath} className="secondary-action">
+                    Open Workspace
+                  </Link>
+                ) : null}
+              </div>
               <dl className="mt-4 space-y-3 text-sm">
                 <div className="flex justify-between gap-4">
                   <dt className="text-gray-500">Address</dt>

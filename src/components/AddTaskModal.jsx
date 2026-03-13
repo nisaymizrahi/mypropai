@@ -1,165 +1,305 @@
-import React, { useState } from 'react';
-import { createProjectTask } from '../utils/api';
+import React, { useEffect, useState } from "react";
+
+import { createProjectTask } from "../utils/api";
+
+const createInitialState = () => ({
+  title: "",
+  description: "",
+  startDate: "",
+  endDate: "",
+  assignee: "",
+  status: "Not Started",
+  type: "vendor",
+  phase: "",
+  reminderOn: "",
+});
 
 const AddTaskModal = ({ isOpen, onClose, onSuccess, investmentId, vendors = [] }) => {
-  const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    startDate: '',
-    endDate: '',
-    assignee: '',
-    type: 'vendor',
-    phase: '',
-    reminderOn: '',
-  });
-  const [subtasks, setSubtasks] = useState([{ title: '', done: false }]);
-  const [error, setError] = useState('');
+  const [formData, setFormData] = useState(createInitialState());
+  const [subtasks, setSubtasks] = useState([{ title: "", done: false }]);
+  const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+  useEffect(() => {
+    if (isOpen) {
+      setFormData(createInitialState());
+      setSubtasks([{ title: "", done: false }]);
+      setError("");
+      setIsSubmitting(false);
+    }
+  }, [isOpen]);
+
+  const handleChange = (event) => {
+    const { name, value } = event.target;
+    setFormData((current) => ({
+      ...current,
+      [name]: value,
+      ...(name === "type" && value === "owner" ? { assignee: "" } : {}),
+    }));
   };
 
   const handleSubtaskChange = (index, value) => {
-    const updated = [...subtasks];
-    updated[index].title = value;
-    setSubtasks(updated);
+    setSubtasks((current) =>
+      current.map((item, itemIndex) =>
+        itemIndex === index ? { ...item, title: value } : item
+      )
+    );
   };
 
   const addSubtask = () => {
-    setSubtasks([...subtasks, { title: '', done: false }]);
+    setSubtasks((current) => [...current, { title: "", done: false }]);
+  };
+
+  const removeSubtask = (index) => {
+    setSubtasks((current) => current.filter((_, itemIndex) => itemIndex !== index));
   };
 
   const handleClose = () => {
-    setFormData({
-      title: '',
-      description: '',
-      startDate: '',
-      endDate: '',
-      assignee: '',
-      type: 'vendor',
-      phase: '',
-      reminderOn: '',
-    });
-    setSubtasks([{ title: '', done: false }]);
-    setError('');
-    onClose();
+    setFormData(createInitialState());
+    setSubtasks([{ title: "", done: false }]);
+    setError("");
+    setIsSubmitting(false);
+    onClose?.();
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
-    const { title, startDate, endDate } = formData;
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    setError("");
 
-    if (!title || !startDate || !endDate) {
-      setError('Title, Start Date, and End Date are required.');
+    if (!formData.title.trim() || !formData.startDate || !formData.endDate) {
+      setError("Title, start date, and end date are required.");
       return;
     }
 
-    setIsSubmitting(true);
+    if (!investmentId) {
+      setError("This task cannot be saved because the project is unavailable.");
+      return;
+    }
+
+    if (new Date(formData.endDate) < new Date(formData.startDate)) {
+      setError("End date must be the same as or later than the start date.");
+      return;
+    }
+
     try {
+      setIsSubmitting(true);
+
       await createProjectTask({
-        ...formData,
-        investment: investmentId,
-        subtasks: subtasks.filter(s => s.title.trim() !== ''),
+        investmentId,
+        title: formData.title.trim(),
+        description: formData.description.trim(),
+        startDate: formData.startDate,
+        endDate: formData.endDate,
+        assignee: formData.type === "vendor" ? formData.assignee || undefined : undefined,
+        status: formData.status,
+        type: formData.type,
+        phase: formData.phase.trim(),
+        reminderOn: formData.reminderOn || undefined,
+        subtasks: subtasks
+          .filter((item) => item.title.trim() !== "")
+          .map((item) => ({ title: item.title.trim(), done: false })),
       });
-      onSuccess();
+
+      onSuccess?.();
       handleClose();
     } catch (err) {
-      setError(err.message || 'An error occurred.');
+      setError(err.message || "Failed to save task.");
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  if (!isOpen) return null;
+  if (!isOpen) {
+    return null;
+  }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
-      <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-xl space-y-4">
-        <h2 className="text-xl font-bold text-brand-gray-800">Add New Task</h2>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Title */}
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink-950/60 p-4 backdrop-blur-sm">
+      <div className="surface-panel-strong w-full max-w-3xl rounded-[32px] p-6 sm:p-7">
+        <div>
+          <span className="eyebrow">Project schedule</span>
+          <h2 className="mt-4 text-3xl font-semibold text-ink-900">Add task</h2>
+          <p className="mt-3 max-w-2xl text-sm leading-6 text-ink-500">
+            Capture scope, timing, ownership, and subtasks so the gantt and task list stay in sync.
+          </p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="mt-8 space-y-5">
           <div>
-            <label className="block text-sm font-medium text-brand-gray-700">Task Title</label>
-            <input name="title" type="text" value={formData.title} onChange={handleChange} className="mt-1 block w-full border rounded-md p-2" required />
+            <label className="mb-2 block text-sm font-medium text-ink-700">Task title</label>
+            <input
+              name="title"
+              type="text"
+              value={formData.title}
+              onChange={handleChange}
+              className="auth-input"
+              placeholder="Demo kitchen, order windows, finalize insurance"
+              required
+            />
           </div>
 
-          {/* Description */}
           <div>
-            <label className="block text-sm font-medium text-brand-gray-700">Description</label>
-            <textarea name="description" rows={2} value={formData.description} onChange={handleChange} className="mt-1 block w-full border rounded-md p-2" />
+            <label className="mb-2 block text-sm font-medium text-ink-700">Description</label>
+            <textarea
+              name="description"
+              rows="3"
+              value={formData.description}
+              onChange={handleChange}
+              className="auth-input"
+              placeholder="Outline what needs to happen, what is blocked, or what to inspect."
+            />
           </div>
 
-          {/* Dates */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <div>
-              <label className="block text-sm font-medium text-brand-gray-700">Start Date</label>
-              <input name="startDate" type="date" value={formData.startDate} onChange={handleChange} className="mt-1 block w-full border rounded-md p-2" required />
+              <label className="mb-2 block text-sm font-medium text-ink-700">Start date</label>
+              <input
+                name="startDate"
+                type="date"
+                value={formData.startDate}
+                onChange={handleChange}
+                className="auth-input"
+                required
+              />
             </div>
+
             <div>
-              <label className="block text-sm font-medium text-brand-gray-700">End Date</label>
-              <input name="endDate" type="date" value={formData.endDate} onChange={handleChange} className="mt-1 block w-full border rounded-md p-2" required />
+              <label className="mb-2 block text-sm font-medium text-ink-700">End date</label>
+              <input
+                name="endDate"
+                type="date"
+                value={formData.endDate}
+                onChange={handleChange}
+                className="auth-input"
+                required
+              />
             </div>
-          </div>
 
-          {/* Reminder */}
-          <div>
-            <label className="block text-sm font-medium text-brand-gray-700">Reminder Date (Optional)</label>
-            <input name="reminderOn" type="date" value={formData.reminderOn} onChange={handleChange} className="mt-1 block w-full border rounded-md p-2" />
-          </div>
-
-          {/* Type + Phase */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-brand-gray-700">Task Type</label>
-              <select name="type" value={formData.type} onChange={handleChange} className="mt-1 block w-full border rounded-md p-2">
-                <option value="vendor">Vendor</option>
-                <option value="owner">Owner/Internal</option>
+              <label className="mb-2 block text-sm font-medium text-ink-700">Status</label>
+              <select
+                name="status"
+                value={formData.status}
+                onChange={handleChange}
+                className="auth-input"
+              >
+                <option value="Not Started">Not Started</option>
+                <option value="In Progress">In Progress</option>
+                <option value="Complete">Complete</option>
+                <option value="Blocked">Blocked</option>
+                <option value="On Hold">On Hold</option>
               </select>
             </div>
+
             <div>
-              <label className="block text-sm font-medium text-brand-gray-700">Phase</label>
-              <input name="phase" type="text" placeholder="e.g., Framing, Electrical" value={formData.phase} onChange={handleChange} className="mt-1 block w-full border rounded-md p-2" />
+              <label className="mb-2 block text-sm font-medium text-ink-700">Reminder</label>
+              <input
+                name="reminderOn"
+                type="date"
+                value={formData.reminderOn}
+                onChange={handleChange}
+                className="auth-input"
+              />
             </div>
           </div>
 
-          {/* Assignee */}
-          <div>
-            <label className="block text-sm font-medium text-brand-gray-700">Assign To (Optional)</label>
-            <select name="assignee" value={formData.assignee} onChange={handleChange} className="mt-1 block w-full border rounded-md p-2">
-              <option value="">Select a Vendor</option>
-              {vendors.map(v => <option key={v._id} value={v._id}>{v.name} ({v.trade})</option>)}
-            </select>
-          </div>
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            <div>
+              <label className="mb-2 block text-sm font-medium text-ink-700">Task type</label>
+              <select
+                name="type"
+                value={formData.type}
+                onChange={handleChange}
+                className="auth-input"
+              >
+                <option value="vendor">Vendor task</option>
+                <option value="owner">Owner / internal task</option>
+              </select>
+            </div>
 
-          {/* Subtasks */}
-          <div>
-            <label className="block text-sm font-medium text-brand-gray-700">Subtasks (Optional)</label>
-            {subtasks.map((sub, idx) => (
+            <div>
+              <label className="mb-2 block text-sm font-medium text-ink-700">Phase</label>
               <input
-                key={idx}
+                name="phase"
                 type="text"
-                placeholder={`Subtask ${idx + 1}`}
-                value={sub.title}
-                onChange={(e) => handleSubtaskChange(idx, e.target.value)}
-                className="mt-1 block w-full border rounded-md p-2 mb-2"
+                value={formData.phase}
+                onChange={handleChange}
+                className="auth-input"
+                placeholder="Demo, framing, lease-up"
               />
-            ))}
-            <button type="button" onClick={addSubtask} className="text-sm text-brand-turquoise hover:underline mt-1">
-              + Add Subtask
-            </button>
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-medium text-ink-700">Assign vendor</label>
+              <select
+                name="assignee"
+                value={formData.assignee}
+                onChange={handleChange}
+                className="auth-input"
+                disabled={formData.type !== "vendor"}
+              >
+                <option value="">Unassigned</option>
+                {vendors.map((vendor) => (
+                  <option key={vendor._id} value={vendor._id}>
+                    {vendor.name} ({vendor.trade})
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
-          {/* Submit */}
-          {error && <p className="text-red-500 text-sm">{error}</p>}
-          <div className="flex justify-end gap-4 pt-4">
-            <button type="button" onClick={handleClose} disabled={isSubmitting} className="bg-white hover:bg-gray-100 text-gray-700 font-semibold px-4 py-2 rounded-md border border-gray-300">
+          <div className="rounded-[24px] border border-ink-100 bg-white/85 p-5">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-ink-400">
+                  Subtasks
+                </p>
+                <p className="mt-2 text-sm leading-6 text-ink-500">
+                  Break larger tasks into checkpoints for the field team.
+                </p>
+              </div>
+              <button type="button" onClick={addSubtask} className="secondary-action">
+                Add subtask
+              </button>
+            </div>
+
+            <div className="mt-5 space-y-3">
+              {subtasks.map((subtask, index) => (
+                <div key={index} className="flex flex-col gap-3 sm:flex-row">
+                  <input
+                    type="text"
+                    value={subtask.title}
+                    onChange={(event) => handleSubtaskChange(index, event.target.value)}
+                    className="auth-input"
+                    placeholder={`Subtask ${index + 1}`}
+                  />
+                  {subtasks.length > 1 ? (
+                    <button
+                      type="button"
+                      onClick={() => removeSubtask(index)}
+                      className="ghost-action text-clay-700"
+                    >
+                      Remove
+                    </button>
+                  ) : null}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {error ? <p className="text-sm text-clay-700">{error}</p> : null}
+
+          <div className="flex flex-wrap justify-end gap-3 pt-2">
+            <button
+              type="button"
+              onClick={handleClose}
+              disabled={isSubmitting}
+              className="ghost-action"
+            >
               Cancel
             </button>
-            <button type="submit" disabled={isSubmitting} className="bg-brand-turquoise hover:bg-brand-turquoise-600 text-white font-semibold px-4 py-2 rounded-md">
-              {isSubmitting ? 'Saving...' : 'Save Task'}
+            <button type="submit" disabled={isSubmitting} className="primary-action">
+              {isSubmitting ? "Saving..." : "Save task"}
             </button>
           </div>
         </form>

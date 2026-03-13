@@ -1,88 +1,121 @@
-import React, { useRef, useState } from "react";
-import { generateAIReport } from "../utils/api";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import html2pdf from "html2pdf.js";
 import {
-  Chart,
   ArcElement,
+  BarController,
   BarElement,
   CategoryScale,
+  Chart,
   LinearScale,
   PieController,
-  BarController
 } from "chart.js";
 
+import { generateAIReport } from "../utils/api";
+import {
+  formatCurrency,
+  getInvestmentAnalysisMetrics,
+} from "../utils/investmentMetrics";
+
 Chart.register(ArcElement, BarElement, CategoryScale, LinearScale, PieController, BarController);
+
+const SummaryPair = ({ label, value, tone = "text-ink-900" }) => (
+  <div className="flex items-center justify-between gap-6 border-b border-ink-100 py-3 last:border-b-0">
+    <span className="text-sm font-medium text-ink-500">{label}</span>
+    <span className={`text-sm font-semibold ${tone}`}>{value}</span>
+  </div>
+);
 
 const AnalysisCalculator = ({ investment }) => {
   const [aiSummary, setAISummary] = useState(null);
   const [loadingAI, setLoadingAI] = useState(false);
-  const chartRef = useRef();
-  const exportRef = useRef();
+  const exportRef = useRef(null);
+  const costCanvasRef = useRef(null);
+  const returnCanvasRef = useRef(null);
+  const costChartRef = useRef(null);
+  const returnChartRef = useRef(null);
 
-  const {
-    purchasePrice,
-    arv,
-    buyClosingCost,
-    buyClosingIsPercent,
-    loanAmount,
-    interestRate,
-    loanTerm,
-    loanPoints,
-    holdingMonths,
-    taxes,
-    insurance,
-    utilities,
-    otherMonthly,
-    sellClosingCost,
-    sellClosingIsPercent,
-  } = investment;
+  const metrics = useMemo(() => getInvestmentAnalysisMetrics(investment), [investment]);
 
-  const totalBudget = investment.totalBudget || 0; // Can be injected in the future
+  useEffect(() => {
+    if (!costCanvasRef.current || !returnCanvasRef.current) {
+      return undefined;
+    }
 
-  const calcBuyingCost =
-    buyClosingIsPercent && buyClosingCost
-      ? (purchasePrice * buyClosingCost) / 100
-      : buyClosingCost || 0;
+    costChartRef.current?.destroy();
+    returnChartRef.current?.destroy();
 
-  const calcFinanceCost =
-    loanAmount && interestRate && loanTerm
-      ? ((loanAmount * (interestRate / 100)) / 12) * loanTerm + (loanPoints / 100) * loanAmount
-      : 0;
+    costChartRef.current = new Chart(costCanvasRef.current, {
+      type: "pie",
+      data: {
+        labels: ["Buy costs", "Rehab", "Finance", "Holding"],
+        datasets: [
+          {
+            data: [
+              metrics.calcBuyingCost,
+              metrics.totalBudget,
+              metrics.calcFinanceCost,
+              metrics.calcHoldingCost,
+            ],
+            backgroundColor: ["#1f6f63", "#dbc79d", "#51657f", "#cf9573"],
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { position: "bottom" },
+        },
+      },
+    });
 
-  const calcHoldingCost =
-    (Number(taxes || 0) +
-      Number(insurance || 0) +
-      Number(utilities || 0) +
-      Number(otherMonthly || 0)) * (holdingMonths || 0);
+    returnChartRef.current = new Chart(returnCanvasRef.current, {
+      type: "bar",
+      data: {
+        labels: ["Profit", "ROI %", "Annual ROI %"],
+        datasets: [
+          {
+            label: "Value",
+            data: [metrics.profit, metrics.roiOnCash, metrics.annualizedROI],
+            backgroundColor: ["#1f6f63", "#39526d", "#cf9573"],
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { display: false },
+        },
+        scales: {
+          y: { beginAtZero: true },
+        },
+      },
+    });
 
-  const calcSellCost =
-    sellClosingIsPercent && sellClosingCost
-      ? (arv * sellClosingCost) / 100
-      : sellClosingCost || 0;
-
-  const totalCost =
-    Number(purchasePrice || 0) +
-    calcBuyingCost +
-    totalBudget +
-    calcFinanceCost +
-    calcHoldingCost;
-
-  const profit = Number(arv || 0) - totalCost - calcSellCost;
-  const cashInvested = totalCost - loanAmount;
-  const roi = ((profit / cashInvested) * 100) || 0;
-  const annualizedROI = roi / ((holdingMonths || 1) / 12);
-
-  const breakevenARV = totalCost + calcSellCost;
+    return () => {
+      costChartRef.current?.destroy();
+      returnChartRef.current?.destroy();
+    };
+  }, [
+    metrics.calcBuyingCost,
+    metrics.totalBudget,
+    metrics.calcFinanceCost,
+    metrics.calcHoldingCost,
+    metrics.profit,
+    metrics.roiOnCash,
+    metrics.annualizedROI,
+  ]);
 
   const handleExportPDF = () => {
-    html2pdf().from(exportRef.current).save("Deal-Analysis-Report.pdf");
+    if (exportRef.current) {
+      html2pdf().from(exportRef.current).save("Deal-Analysis-Report.pdf");
+    }
   };
 
   const handleGenerateAI = async () => {
     try {
       setLoadingAI(true);
-      const res = await generateAIReport(investment._id);
-      setAISummary(res.report);
+      const response = await generateAIReport(investment._id);
+      setAISummary(response.report);
     } catch (err) {
       setAISummary(err.message || "AI summary not available.");
     } finally {
@@ -91,146 +124,93 @@ const AnalysisCalculator = ({ investment }) => {
   };
 
   return (
-    <div className="space-y-8">
-      <div ref={exportRef} className="bg-white p-6 rounded-lg shadow-sm border border-brand-gray-200">
-        <h2 className="text-2xl font-bold text-brand-gray-900 mb-4">Deal Analysis Summary</h2>
+    <div className="space-y-6">
+      <div ref={exportRef} className="space-y-6">
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
+          <div className="rounded-[24px] border border-ink-100 bg-white/90 p-6">
+            <span className="eyebrow">Deal summary</span>
+            <h4 className="mt-4 text-2xl font-semibold text-ink-900">Capital structure</h4>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="space-y-2 text-sm">
-            <div className="flex justify-between">
-              <span>Purchase Price</span>
-              <span>${purchasePrice?.toLocaleString() || "—"}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Buy Closing Costs</span>
-              <span>${calcBuyingCost.toLocaleString()}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Total Rehab Cost</span>
-              <span>${totalBudget.toLocaleString()}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Financing Cost</span>
-              <span>${calcFinanceCost.toLocaleString()}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Holding Cost</span>
-              <span>${calcHoldingCost.toLocaleString()}</span>
-            </div>
-            <div className="flex justify-between border-t pt-2 font-semibold">
-              <span>Total Project Cost</span>
-              <span>${totalCost.toLocaleString()}</span>
+            <div className="mt-6">
+              <SummaryPair label="Purchase price" value={formatCurrency(metrics.purchasePrice)} />
+              <SummaryPair label="Buy closing costs" value={formatCurrency(metrics.calcBuyingCost)} />
+              <SummaryPair label="Rehab budget" value={formatCurrency(metrics.totalBudget)} />
+              <SummaryPair label="Financing cost" value={formatCurrency(metrics.calcFinanceCost)} />
+              <SummaryPair label="Holding cost" value={formatCurrency(metrics.calcHoldingCost)} />
+              <SummaryPair
+                label="Total project cost"
+                value={formatCurrency(metrics.totalCost)}
+                tone="text-ink-900"
+              />
             </div>
           </div>
 
-          <div className="space-y-2 text-sm">
-            <div className="flex justify-between">
-              <span>Projected ARV</span>
-              <span>${arv?.toLocaleString() || "—"}</span>
+          <div className="rounded-[24px] border border-ink-100 bg-white/90 p-6">
+            <span className="eyebrow">Return profile</span>
+            <h4 className="mt-4 text-2xl font-semibold text-ink-900">Outcome assumptions</h4>
+
+            <div className="mt-6">
+              <SummaryPair label="Projected ARV" value={formatCurrency(metrics.arv)} />
+              <SummaryPair label="Selling costs" value={formatCurrency(metrics.calcSellCost)} />
+              <SummaryPair
+                label="Net profit"
+                value={formatCurrency(metrics.profit)}
+                tone={metrics.profit >= 0 ? "text-verdigris-700" : "text-clay-700"}
+              />
+              <SummaryPair label="Cash invested" value={formatCurrency(metrics.cashInvested)} />
+              <SummaryPair label="ROI" value={`${metrics.roiOnCash.toFixed(1)}%`} />
+              <SummaryPair
+                label="Annualized ROI"
+                value={`${metrics.annualizedROI.toFixed(1)}%`}
+              />
+              <SummaryPair label="Breakeven ARV" value={formatCurrency(metrics.breakevenARV)} />
             </div>
-            <div className="flex justify-between">
-              <span>Sell Closing Costs</span>
-              <span>${calcSellCost.toLocaleString()}</span>
+          </div>
+        </div>
+
+        <div className="grid gap-6 xl:grid-cols-2">
+          <div className="rounded-[24px] border border-ink-100 bg-white/90 p-6">
+            <h4 className="text-lg font-semibold text-ink-900">Cost breakdown</h4>
+            <p className="mt-2 text-sm leading-6 text-ink-500">
+              See where capital is concentrated across acquisition, rehab, finance, and hold.
+            </p>
+            <div className="mt-6">
+              <canvas ref={costCanvasRef} />
             </div>
-            <div className="flex justify-between font-semibold">
-              <span>Net Profit</span>
-              <span>${profit.toLocaleString()}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Cash Invested</span>
-              <span>${cashInvested.toLocaleString()}</span>
-            </div>
-            <div className="flex justify-between text-green-700 font-semibold">
-              <span>ROI</span>
-              <span>{roi.toFixed(1)}%</span>
-            </div>
-            <div className="flex justify-between text-indigo-700 font-semibold">
-              <span>Annualized ROI</span>
-              <span>{annualizedROI.toFixed(1)}%</span>
-            </div>
-            <div className="flex justify-between text-gray-600 text-xs pt-2 border-t">
-              <span>Breakeven ARV</span>
-              <span>${breakevenARV.toLocaleString()}</span>
+          </div>
+
+          <div className="rounded-[24px] border border-ink-100 bg-white/90 p-6">
+            <h4 className="text-lg font-semibold text-ink-900">Return snapshot</h4>
+            <p className="mt-2 text-sm leading-6 text-ink-500">
+              Compare projected profit with ROI and annualized return assumptions.
+            </p>
+            <div className="mt-6">
+              <canvas ref={returnCanvasRef} />
             </div>
           </div>
         </div>
       </div>
 
-      {/* Buttons */}
-      <div className="flex gap-4">
-        <button onClick={handleExportPDF} className="bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 rounded-md">
+      <div className="flex flex-wrap gap-3">
+        <button type="button" onClick={handleExportPDF} className="secondary-action">
           Export to PDF
         </button>
         <button
+          type="button"
           onClick={handleGenerateAI}
           disabled={loadingAI}
-          className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-md"
+          className="primary-action"
         >
-          {loadingAI ? "Generating..." : "Generate AI Deal Summary"}
+          {loadingAI ? "Generating AI summary..." : "Generate AI deal summary"}
         </button>
       </div>
 
-      {aiSummary && (
-        <div className="bg-brand-gray-50 p-4 rounded-lg border text-sm text-brand-gray-800">
-          <h3 className="font-semibold mb-2">AI Deal Summary</h3>
-          <p>{aiSummary}</p>
+      {aiSummary ? (
+        <div className="rounded-[24px] border border-verdigris-200 bg-verdigris-50/60 p-6">
+          <span className="eyebrow">AI summary</span>
+          <div className="mt-4 whitespace-pre-line text-sm leading-7 text-ink-700">{aiSummary}</div>
         </div>
-      )}
-
-      {/* Charts */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        <div>
-          <h3 className="text-lg font-semibold mb-2">Cost Breakdown</h3>
-          <canvas
-            ref={(el) => {
-              if (el) {
-                new Chart(el, {
-                  type: "pie",
-                  data: {
-                    labels: ["Buy Costs", "Rehab", "Finance", "Holding"],
-                    datasets: [
-                      {
-                        data: [calcBuyingCost, totalBudget, calcFinanceCost, calcHoldingCost],
-                        backgroundColor: ["#14b8a6", "#4f46e5", "#f59e0b", "#ef4444"],
-                      },
-                    ],
-                  },
-                  options: { responsive: true, plugins: { legend: { position: "bottom" } } },
-                });
-              }
-            }}
-          />
-        </div>
-
-        <div>
-          <h3 className="text-lg font-semibold mb-2">Profit vs ROI</h3>
-          <canvas
-            ref={(el) => {
-              if (el) {
-                new Chart(el, {
-                  type: "bar",
-                  data: {
-                    labels: ["Profit", "ROI %", "Annual ROI %"],
-                    datasets: [
-                      {
-                        label: "Value",
-                        data: [profit, roi, annualizedROI],
-                        backgroundColor: ["#22c55e", "#2563eb", "#9333ea"],
-                      },
-                    ],
-                  },
-                  options: {
-                    responsive: true,
-                    scales: {
-                      y: { beginAtZero: true },
-                    },
-                  },
-                });
-              }
-            }}
-          />
-        </div>
-      </div>
+      ) : null}
     </div>
   );
 };

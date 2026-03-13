@@ -1,7 +1,9 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { PlusIcon, Squares2X2Icon, TableCellsIcon } from '@heroicons/react/24/outline';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import toast from 'react-hot-toast';
+import WorkspaceDataTable from '../components/WorkspaceDataTable';
 import {
   createLead,
   getLeadSummary,
@@ -47,6 +49,39 @@ const initialLeadForm = {
 
 const occupancyOptions = ['Unknown', 'Vacant', 'Owner Occupied', 'Tenant Occupied'];
 
+const columnOrder = ['Potential', 'Analyzing', 'Offer Made', 'Under Contract', 'Closed - Won', 'Closed - Lost'];
+
+const statusStyles = {
+  Potential: 'bg-sand-100 text-ink-700',
+  Analyzing: 'bg-verdigris-50 text-verdigris-700',
+  'Offer Made': 'bg-clay-50 text-clay-700',
+  'Under Contract': 'bg-ink-100 text-ink-700',
+  'Closed - Won': 'bg-verdigris-100 text-verdigris-800',
+  'Closed - Lost': 'bg-clay-100 text-clay-800',
+};
+
+const leadViewModes = [
+  { value: 'list', label: 'List view', icon: TableCellsIcon },
+  { value: 'board', label: 'Board view', icon: Squares2X2Icon },
+];
+
+const buildLeadColumns = (leadsData = []) => {
+  const initialColumns = columnOrder.reduce((accumulator, column) => {
+    accumulator[column] = { id: column, title: column, leads: [] };
+    return accumulator;
+  }, {});
+
+  leadsData.forEach((lead) => {
+    if (initialColumns[lead.status]) {
+      initialColumns[lead.status].leads.push(lead);
+    } else {
+      initialColumns.Potential.leads.push({ ...lead, status: 'Potential' });
+    }
+  });
+
+  return initialColumns;
+};
+
 const formatCurrency = (value) => {
   if (value === null || value === undefined || value === '') return '—';
   return new Intl.NumberFormat('en-US', {
@@ -55,6 +90,39 @@ const formatCurrency = (value) => {
     maximumFractionDigits: 0,
   }).format(Number(value));
 };
+
+const formatFollowUpDate = (value) => {
+  if (!value) return 'No follow-up date';
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return 'No follow-up date';
+  }
+
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  }).format(date);
+};
+
+const buildLeadSearchText = (lead) =>
+  [
+    lead.address,
+    lead.propertyType,
+    lead.listingStatus,
+    lead.sellerName,
+    lead.sellerPhone,
+    lead.sellerEmail,
+    lead.leadSource,
+    lead.occupancyStatus,
+    lead.nextAction,
+    lead.notes,
+    lead.status,
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
 
 const mapPreviewToForm = (preview) => ({
   address: preview.address || '',
@@ -590,9 +658,7 @@ const LeadsPage = () => {
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const columnOrder = ['Potential', 'Analyzing', 'Offer Made', 'Under Contract', 'Closed - Won', 'Closed - Lost'];
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       const [leadsData, summaryData] = await Promise.all([getLeads(), getLeadSummary()]);
 
@@ -616,11 +682,11 @@ const LeadsPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [fetchData]);
 
   const handleOnDragEnd = async (result) => {
     const { source, destination, draggableId } = result;
@@ -667,10 +733,10 @@ const LeadsPage = () => {
             <p className="mt-1 text-lg text-gray-500">Build a smarter acquisition pipeline with richer lead data.</p>
           </div>
           <button
-            onClick={() => setIsModalOpen(true)}
+            onClick={() => navigate("/properties/new?workspace=pipeline")}
             className="w-full rounded-md bg-brand-turquoise px-4 py-2 font-semibold text-white sm:w-auto"
           >
-            + Add New Lead
+            + Add Property to Leads
           </button>
         </div>
 

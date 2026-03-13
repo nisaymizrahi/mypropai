@@ -1,4 +1,5 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { formatDistanceToNow } from "date-fns";
 import { BellIcon } from "@heroicons/react/24/outline";
 import toast from "react-hot-toast";
@@ -10,8 +11,9 @@ const NotificationBell = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [lastSeen, setLastSeen] = useState(Date.now());
   const bellRef = useRef(null);
+  const navigate = useNavigate();
 
-  const fetchNotifications = async () => {
+  const fetchNotifications = useCallback(async () => {
     try {
       const data = await getNotifications();
       setNotifications(data || []);
@@ -35,13 +37,13 @@ const NotificationBell = () => {
     } catch (error) {
       console.error("Failed to fetch notifications", error);
     }
-  };
+  }, [lastSeen]);
 
   useEffect(() => {
     fetchNotifications();
     const interval = setInterval(fetchNotifications, 30000);
     return () => clearInterval(interval);
-  }, []);
+  }, [fetchNotifications]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -59,10 +61,47 @@ const NotificationBell = () => {
   const handleMarkRead = async (id) => {
     try {
       await markNotificationRead(id);
-      await fetchNotifications();
+      setNotifications((currentNotifications) =>
+        currentNotifications.map((notification) =>
+          notification._id === id ? { ...notification, read: true } : notification
+        )
+      );
     } catch (error) {
       console.error("Failed to mark notification as read", error);
     }
+  };
+
+  const handleOpenNotification = async (notification) => {
+    const link = notification.link?.trim();
+
+    if (!notification.read) {
+      try {
+        await markNotificationRead(notification._id);
+      } catch (error) {
+        console.error("Failed to mark notification as read", error);
+      }
+
+      setNotifications((currentNotifications) =>
+        currentNotifications.map((currentNotification) =>
+          currentNotification._id === notification._id
+            ? { ...currentNotification, read: true }
+            : currentNotification
+        )
+      );
+    }
+
+    if (!link) {
+      return;
+    }
+
+    setIsOpen(false);
+
+    if (/^https?:\/\//i.test(link)) {
+      window.location.assign(link);
+      return;
+    }
+
+    navigate(link);
   };
 
   return (
@@ -126,7 +165,15 @@ const NotificationBell = () => {
                       })}
                     </p>
                   </div>
-                  {!notification.read && (
+                  {notification.link ? (
+                    <button
+                      type="button"
+                      onClick={() => handleOpenNotification(notification)}
+                      className="rounded-full bg-verdigris-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.15em] text-verdigris-700 transition hover:bg-verdigris-100"
+                    >
+                      Open
+                    </button>
+                  ) : !notification.read ? (
                     <button
                       type="button"
                       onClick={() => handleMarkRead(notification._id)}
@@ -134,7 +181,7 @@ const NotificationBell = () => {
                     >
                       Read
                     </button>
-                  )}
+                  ) : null}
                 </div>
               </li>
             ))}

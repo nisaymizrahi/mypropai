@@ -18,7 +18,7 @@ const MapView = ({ latitude, longitude, markers = [], zoom = 14 }) => {
       });
     }
     return () => {};
-  }, []); // init once
+  }, [latitude, longitude, zoom]);
 
   useEffect(() => {
     if (mapRef.current) {

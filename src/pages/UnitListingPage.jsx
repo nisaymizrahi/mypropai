@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { 
     getUnitDetails, 
     updateListingDetails, 
@@ -81,7 +81,6 @@ const masterAmenityList = [
 
 const UnitListingPage = () => {
     const { unitId } = useParams();
-    const navigate = useNavigate();
 
     const [unit, setUnit] = useState(null);
     const [details, setDetails] = useState({ headline: '', description: '', amenities: [], rent: '' });

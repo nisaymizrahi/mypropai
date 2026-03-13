@@ -199,6 +199,9 @@ const ApplicationDetailPage = () => {
   const statusClass = statusStyles[application.status] || "bg-ink-100 text-ink-700";
   const residenceHistory = application.residenceHistory || [];
   const employmentHistory = application.employmentHistory || [];
+  const applicationsQueueHref = application.property?._id
+    ? `/applications?${new URLSearchParams({ propertyId: application.property._id }).toString()}`
+    : "/applications";
 
   return (
     <div className="space-y-6">
@@ -207,24 +210,26 @@ const ApplicationDetailPage = () => {
         <div className="relative grid gap-8 lg:grid-cols-[minmax(0,1.05fr)_minmax(320px,0.95fr)]">
           <div>
             <span className="eyebrow">Application review</span>
-            <h2 className="mt-5 text-4xl font-semibold tracking-tight text-ink-900">
+            <h2 className="page-hero-title">
               {application.applicantInfo?.fullName || "Applicant record"}
             </h2>
             <p className="mt-3 text-lg text-ink-500">
               {application.unit?.name || "Unit"} at {application.property?.address || "Unknown property"}
             </p>
-            <p className="mt-4 max-w-2xl text-base leading-7 text-ink-500">
+            <p className="page-hero-copy">
               Review the applicant profile, confirm fee and screening steps, and make an approval decision with all of the supporting context in one place.
             </p>
 
             <div className="mt-8 flex flex-wrap gap-3">
-              <Link
-                to={application.property?._id ? `/management/${application.property._id}` : "/applications"}
-                className="secondary-action"
-              >
+              <Link to={applicationsQueueHref} className="secondary-action">
                 <ArrowLeftIcon className="mr-2 h-4 w-4" />
-                {application.property?._id ? "Back to property" : "Back to applications"}
+                Back to applications
               </Link>
+              {application.property?._id && (
+                <Link to={`/management/${application.property._id}`} className="secondary-action">
+                  Open property
+                </Link>
+              )}
             </div>
           </div>
 

@@ -1,41 +1,51 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+import toast from "react-hot-toast";
+
+import { API_BASE_URL } from "../config";
 import { getAuthHeaders } from "../utils/api";
 
-const statusColors = {
-  "Not Started": "bg-gray-200 text-gray-800",
-  "In Progress": "bg-yellow-200 text-yellow-900",
-  "Completed": "bg-green-200 text-green-800",
-  "Sold": "bg-blue-200 text-blue-800",
-  "Archived": "bg-gray-100 text-gray-500",
+const statusStyles = {
+  "Not Started": "border border-ink-200 bg-white text-ink-700",
+  "In Progress": "border border-sand-200 bg-sand-50 text-sand-700",
+  Completed: "border border-verdigris-200 bg-verdigris-50 text-verdigris-700",
+  Sold: "border border-clay-200 bg-clay-50 text-clay-700",
+  Archived: "border border-ink-100 bg-ink-50 text-ink-500",
 };
 
-const statusOptions = [
-  "Not Started",
-  "In Progress",
-  "Completed",
-  "Sold",
-  "Archived",
-];
+const statusOptions = ["Not Started", "In Progress", "Completed", "Sold", "Archived"];
 
 const StatusBadge = ({ investment, onUpdate }) => {
   const [editing, setEditing] = useState(false);
-  const [selectedStatus, setSelectedStatus] = useState(investment.status || "Not Started");
+  const [selectedStatus, setSelectedStatus] = useState(investment?.status || "Not Started");
   const [loading, setLoading] = useState(false);
 
-  const handleChange = async (e) => {
-    const newStatus = e.target.value;
-    setSelectedStatus(newStatus);
+  useEffect(() => {
+    setSelectedStatus(investment?.status || "Not Started");
+  }, [investment?.status]);
+
+  const handleChange = async (event) => {
+    const nextStatus = event.target.value;
+    const previousStatus = selectedStatus;
+    setSelectedStatus(nextStatus);
     setLoading(true);
 
     try {
-      await fetch(`${process.env.REACT_APP_API_URL}/api/investments/${investment._id}`, {
+      const response = await fetch(`${API_BASE_URL}/investments/${investment._id}`, {
         method: "PATCH",
         headers: getAuthHeaders(),
-        body: JSON.stringify({ status: newStatus }),
+        body: JSON.stringify({ status: nextStatus }),
       });
+
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(payload.message || payload.error || "Failed to update status");
+      }
+
+      toast.success("Project status updated");
       onUpdate?.();
     } catch (err) {
-      alert("Failed to update status");
+      setSelectedStatus(previousStatus);
+      toast.error(err.message || "Failed to update status");
     } finally {
       setEditing(false);
       setLoading(false);
@@ -47,10 +57,13 @@ const StatusBadge = ({ investment, onUpdate }) => {
       <select
         value={selectedStatus}
         onChange={handleChange}
-        className="border px-2 py-1 rounded-md text-sm"
+        className="auth-input min-w-[170px] py-2.5 text-sm"
+        disabled={loading}
       >
-        {statusOptions.map((s) => (
-          <option key={s} value={s}>{s}</option>
+        {statusOptions.map((status) => (
+          <option key={status} value={status}>
+            {status}
+          </option>
         ))}
       </select>
     );
@@ -58,12 +71,13 @@ const StatusBadge = ({ investment, onUpdate }) => {
 
   return (
     <button
+      type="button"
       onClick={() => setEditing(true)}
       disabled={loading}
-      className={`text-xs font-medium px-3 py-1 rounded-md inline-block cursor-pointer border ${statusColors[selectedStatus] || "bg-gray-200 text-gray-800"}`}
+      className={`inline-flex items-center rounded-full px-4 py-2 text-sm font-semibold transition ${statusStyles[selectedStatus] || statusStyles["Not Started"]}`}
       title="Click to change status"
     >
-      {selectedStatus}
+      {loading ? "Updating..." : selectedStatus}
     </button>
   );
 };

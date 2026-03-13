@@ -21,6 +21,25 @@ import {
   syncBillingCheckoutSession,
   updateUserProfile,
 } from "../utils/api";
+import {
+  FONT_SIZE_OPTIONS,
+  getFontSizeOption,
+  loadFontSizePreference,
+  persistFontSizePreference,
+} from "../utils/fontPreferences";
+import {
+  DENSITY_OPTIONS,
+  getDensityOption,
+  loadDensityPreference,
+  persistDensityPreference,
+} from "../utils/densityPreferences";
+import {
+  getSidebarOption,
+  loadSidebarPreference,
+  persistSidebarPreference,
+  SIDEBAR_OPTIONS,
+  SIDEBAR_PREFERENCE_EVENT,
+} from "../utils/sidebarPreferences";
 
 const formatCurrency = (amountCents = 0, currency = "usd") =>
   new Intl.NumberFormat("en-US", {
@@ -73,6 +92,40 @@ const MetricCard = ({ label, value, detail, icon: Icon, accent = "verdigris" }) 
   );
 };
 
+const PreferenceOptionCard = ({
+  active,
+  label,
+  description,
+  previewText = "Sample workspace text",
+  previewStyle,
+  onClick,
+}) => (
+  <button
+    type="button"
+    onClick={onClick}
+    className={`rounded-[18px] border px-4 py-4 text-left transition ${
+      active
+        ? "border-verdigris-200 bg-verdigris-50 shadow-soft"
+        : "border-ink-100 bg-white hover:border-ink-200 hover:bg-sand-50"
+    }`}
+  >
+    <div className="flex items-start justify-between gap-4">
+      <div>
+        <p className="text-sm font-semibold text-ink-900">{label}</p>
+        <p className="mt-1 text-sm leading-6 text-ink-500">{description}</p>
+      </div>
+      {active ? (
+        <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-verdigris-700">
+          Active
+        </span>
+      ) : null}
+    </div>
+    <p className="mt-4 text-ink-900" style={previewStyle}>
+      {previewText}
+    </p>
+  </button>
+);
+
 const AccountCenter = () => {
   const { user, loading, refreshUser } = useAuth();
   const location = useLocation();
@@ -92,6 +145,9 @@ const AccountCenter = () => {
   const [isBillingLoading, setIsBillingLoading] = useState(true);
   const [isStartingSubscription, setIsStartingSubscription] = useState(false);
   const [isOpeningPortal, setIsOpeningPortal] = useState(false);
+  const [fontSizePreference, setFontSizePreference] = useState(() => loadFontSizePreference());
+  const [densityPreference, setDensityPreference] = useState(() => loadDensityPreference());
+  const [sidebarPreference, setSidebarPreference] = useState(() => loadSidebarPreference());
 
   const loadBillingOverview = useCallback(async () => {
     try {
@@ -145,6 +201,19 @@ const AccountCenter = () => {
 
     syncSession();
   }, [loadBillingOverview, location.search, refreshUser]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return undefined;
+    }
+
+    const handleSidebarPreferenceChange = (event) => {
+      setSidebarPreference(getSidebarOption(event.detail).value);
+    };
+
+    window.addEventListener(SIDEBAR_PREFERENCE_EVENT, handleSidebarPreferenceChange);
+    return () => window.removeEventListener(SIDEBAR_PREFERENCE_EVENT, handleSidebarPreferenceChange);
+  }, []);
 
   const handleProfileChange = (event) => {
     setProfileData((current) => ({
@@ -221,15 +290,37 @@ const AccountCenter = () => {
     }
   };
 
+  const handleFontSizeChange = (value) => {
+    const appliedOption = persistFontSizePreference(value);
+    setFontSizePreference(appliedOption.value);
+    toast.success(`${appliedOption.label} font size applied.`);
+  };
+
+  const handleDensityChange = (value) => {
+    const appliedOption = persistDensityPreference(value);
+    setDensityPreference(appliedOption.value);
+    toast.success(`${appliedOption.label} density applied.`);
+  };
+
+  const handleSidebarChange = (value) => {
+    const appliedOption = persistSidebarPreference(value);
+    setSidebarPreference(appliedOption.value);
+    toast.success(`${appliedOption.label} sidebar applied.`);
+  };
+
   if (loading) {
     return <LoadingSpinner />;
   }
 
   const currentPlan = billingOverview?.plan;
   const catalog = billingOverview?.catalog;
+  const usage = billingOverview?.usage?.compsReport;
   const purchases = billingOverview?.purchases || [];
   const planFeatures = currentPlan?.features || [];
   const oneTimeProducts = catalog?.oneTimeProducts || [];
+  const activeFontSizeOption = getFontSizeOption(fontSizePreference);
+  const activeDensityOption = getDensityOption(densityPreference);
+  const activeSidebarOption = getSidebarOption(sidebarPreference);
 
   return (
     <div className="space-y-6">
@@ -238,10 +329,10 @@ const AccountCenter = () => {
         <div className="relative grid gap-8 lg:grid-cols-[minmax(0,1.05fr)_minmax(320px,0.95fr)]">
           <div>
             <span className="eyebrow">Account and billing</span>
-            <h2 className="mt-5 text-4xl font-semibold tracking-tight text-ink-900">
+            <h2 className="page-hero-title">
               Manage your workspace profile, subscription, and payout setup.
             </h2>
-            <p className="mt-4 max-w-2xl text-base leading-7 text-ink-500">
+            <p className="page-hero-copy">
               Keep your operator identity current, review billing posture, and make sure
               application fees and future rent flows land in the right payout account.
             </p>
@@ -351,9 +442,17 @@ const AccountCenter = () => {
           accent="ink"
         />
         <MetricCard
-          label="Features"
-          value={planFeatures.length}
-          detail="Active capabilities currently included with your plan."
+          label="Comps Left"
+          value={
+            currentPlan?.isActive && usage?.monthlyIncludedLimit
+              ? usage.monthlyIncludedRemainingCount
+              : "Payg"
+          }
+          detail={
+            currentPlan?.isActive && usage?.monthlyIncludedLimit
+              ? `${usage.monthlyIncludedUsedCount} of ${usage.monthlyIncludedLimit} included comps reports used this month.`
+              : "Starter users buy comps reports one at a time."
+          }
           icon={BoltIcon}
           accent="verdigris"
         />
@@ -455,13 +554,22 @@ const AccountCenter = () => {
                         {currentPlan?.name || "Starter"}
                       </h4>
                       <p className="mt-2 text-sm leading-6 text-ink-500">
-                        {currentPlan?.isActive
+                      {currentPlan?.isActive
                           ? `Status: ${currentPlan.status || "active"}`
-                          : "Upgrade to Pro to unlock premium AI workflows and expanded billing tools."}
+                          : "Upgrade to Pro for AI investment reports and 10 included comps reports each month."}
                       </p>
                       {currentPlan?.renewsAt ? (
                         <p className="mt-1 text-sm text-ink-500">
                           Renews on {new Date(currentPlan.renewsAt).toLocaleDateString()}
+                        </p>
+                      ) : null}
+                      {usage?.monthlyIncludedLimit ? (
+                        <p className="mt-2 text-sm text-ink-500">
+                          {usage.monthlyIncludedRemainingCount} of {usage.monthlyIncludedLimit} included comps reports remaining this month
+                          {usage.monthlyIncludedResetsAt
+                            ? `, resets on ${new Date(usage.monthlyIncludedResetsAt).toLocaleDateString()}`
+                            : ''}
+                          .
                         </p>
                       ) : null}
                     </div>
@@ -537,7 +645,12 @@ const AccountCenter = () => {
                               {formatCurrency(product.priceCents, product.currency)}
                             </span>
                           </div>
-                          {product.subscriberPriceCents ? (
+                          {product.monthlyIncludedQuantity ? (
+                            <p className="mt-4 text-xs leading-5 text-ink-400">
+                              Pro includes {product.monthlyIncludedQuantity} free reports each month. After that, the standard price is{" "}
+                              {formatCurrency(product.basePriceCents, product.currency)}.
+                            </p>
+                          ) : product.subscriberPriceCents ? (
                             <p className="mt-4 text-xs leading-5 text-ink-400">
                               Standard price{" "}
                               {formatCurrency(product.basePriceCents, product.currency)}. Pro users
@@ -594,6 +707,99 @@ const AccountCenter = () => {
         </div>
 
         <div className="space-y-6">
+          <div className="section-card p-6 sm:p-7">
+            <span className="eyebrow">Display</span>
+            <p className="mt-4 text-sm leading-6 text-ink-500">
+              Tune readability and spacing without leaving the app. These preferences are saved in
+              this browser for the current user.
+            </p>
+
+            <div className="mt-6 space-y-6">
+              <div>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                  <div>
+                    <h3 className="text-2xl font-semibold text-ink-900">Font size</h3>
+                    <p className="mt-2 text-sm leading-6 text-ink-500">
+                      Choose the text scale that feels best on this device.
+                    </p>
+                  </div>
+                  <div className="rounded-full bg-sand-100 px-4 py-2 text-sm font-semibold text-ink-600">
+                    {activeFontSizeOption.label}
+                  </div>
+                </div>
+
+                <div className="mt-4 grid gap-3">
+                  {FONT_SIZE_OPTIONS.map((option) => (
+                    <PreferenceOptionCard
+                      key={option.value}
+                      active={fontSizePreference === option.value}
+                      label={option.label}
+                      description={option.description}
+                      previewStyle={{ fontSize: option.previewSize, lineHeight: 1.45 }}
+                      onClick={() => handleFontSizeChange(option.value)}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <div className="border-t border-ink-100 pt-6">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                  <div>
+                    <h3 className="text-2xl font-semibold text-ink-900">Density</h3>
+                    <p className="mt-2 text-sm leading-6 text-ink-500">
+                      Adjust spacing on cards, controls, and panels across the workspace.
+                    </p>
+                  </div>
+                  <div className="rounded-full bg-sand-100 px-4 py-2 text-sm font-semibold text-ink-600">
+                    {activeDensityOption.label}
+                  </div>
+                </div>
+
+                <div className="mt-4 grid gap-3">
+                  {DENSITY_OPTIONS.map((option) => (
+                    <PreferenceOptionCard
+                      key={option.value}
+                      active={densityPreference === option.value}
+                      label={option.label}
+                      description={option.description}
+                      previewText="Panels, buttons, and forms follow this spacing mode."
+                      previewStyle={{ lineHeight: 1.45 }}
+                      onClick={() => handleDensityChange(option.value)}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <div className="border-t border-ink-100 pt-6">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                  <div>
+                    <h3 className="text-2xl font-semibold text-ink-900">Sidebar</h3>
+                    <p className="mt-2 text-sm leading-6 text-ink-500">
+                      Choose whether the desktop navigation stays expanded or minimized by default.
+                    </p>
+                  </div>
+                  <div className="rounded-full bg-sand-100 px-4 py-2 text-sm font-semibold text-ink-600">
+                    {activeSidebarOption.label}
+                  </div>
+                </div>
+
+                <div className="mt-4 grid gap-3">
+                  {SIDEBAR_OPTIONS.map((option) => (
+                    <PreferenceOptionCard
+                      key={option.value}
+                      active={sidebarPreference === option.value}
+                      label={option.label}
+                      description={option.description}
+                      previewText="The desktop navigation will open in this mode each time you return."
+                      previewStyle={{ lineHeight: 1.45 }}
+                      onClick={() => handleSidebarChange(option.value)}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div className="section-card p-6 sm:p-7">
             <span className="eyebrow">Payout setup</span>
             <h3 className="mt-4 text-2xl font-semibold text-ink-900">Payments and Stripe</h3>

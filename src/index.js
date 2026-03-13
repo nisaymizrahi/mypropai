@@ -3,6 +3,13 @@ import ReactDOM from 'react-dom/client';
 import './index.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
+import { initializeDensityPreference } from './utils/densityPreferences';
+import { initializeFontSizePreference } from './utils/fontPreferences';
+import { initializeSidebarPreference } from './utils/sidebarPreferences';
+
+initializeDensityPreference();
+initializeFontSizePreference();
+initializeSidebarPreference();
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(

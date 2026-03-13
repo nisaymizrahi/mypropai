@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-// 1. IMPORT THE CORRECT FUNCTION
+import { useNavigate } from 'react-router-dom';
 import { getAuthHeaders } from '../utils/api';
 import { API_BASE_URL } from '../config';
 
@@ -13,13 +13,13 @@ const PromotePropertyModal = ({ isOpen, onClose, onPromoteSuccess }) => {
   const [error, setError] = useState('');
   const [selected, setSelected] = useState(null);
   const [isPromoting, setIsPromoting] = useState(false);
+  const navigate = useNavigate();
 
   const fetchUnmanagedProperties = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
       const res = await fetch(`${API_BASE_URL}/management/unmanaged-properties`, {
-        // 2. USE THE NEW FUNCTION
         headers: getAuthHeaders(),
       });
       if (!res.ok) {
@@ -50,7 +50,6 @@ const PromotePropertyModal = ({ isOpen, onClose, onPromoteSuccess }) => {
     try {
         const res = await fetch(`${API_BASE_URL}/management/promote/${selected}`, {
             method: 'POST',
-            // 3. USE THE NEW FUNCTION
             headers: getAuthHeaders(),
         });
         if(!res.ok) {
@@ -82,20 +81,37 @@ const PromotePropertyModal = ({ isOpen, onClose, onPromoteSuccess }) => {
         {error && <p className="text-red-500 text-sm bg-red-100 p-2 rounded">{error}</p>}
         
         <div className="max-h-64 overflow-y-auto border rounded-md">
-            {loading ? <LoadingSpinner /> : (
+            {loading ? <LoadingSpinner /> : unmanaged.length > 0 ? (
                 <ul className="divide-y">
-                    {unmanaged.length > 0 ? unmanaged.map(prop => (
+                    {unmanaged.map(prop => (
                         <li 
                             key={prop._id}
                             onClick={() => setSelected(prop._id)}
                             className={`p-3 cursor-pointer ${selected === prop._id ? 'bg-brand-turquoise-100' : 'hover:bg-brand-gray-100'}`}
                         >
-                            {prop.address}
+                            <div className="font-medium text-brand-gray-800">{prop.address}</div>
+                            <div className="mt-1 text-sm text-brand-gray-500">
+                              {prop.strategyLabel}
+                              {prop.propertyType ? ` • ${prop.propertyType}` : ''}
+                              {prop.unitCount ? ` • ${prop.unitCount} unit${prop.unitCount === 1 ? '' : 's'}` : ''}
+                            </div>
                         </li>
-                    )) : (
-                        <p className="p-4 text-center text-gray-500">No unmanaged "Fix and Rent" properties found.</p>
-                    )}
+                    ))}
                 </ul>
+            ) : (
+                <div className="p-5 text-center text-gray-500">
+                  <p>No unmanaged Fix &amp; Rent or Rental properties found.</p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onClose();
+                      navigate('/properties/new?workspace=management');
+                    }}
+                    className="mt-4 bg-brand-turquoise hover:bg-brand-turquoise-600 text-white font-semibold px-4 py-2 rounded-md transition"
+                  >
+                    Create Managed Property
+                  </button>
+                </div>
             )}
         </div>
 
