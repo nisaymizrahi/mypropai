@@ -21,7 +21,7 @@ import {
   syncBillingCheckoutSession,
   updateLead,
 } from "../utils/api";
-import { getLocationProviderName, searchAddressSuggestions } from "../utils/locationSearch";
+import { searchAddressSuggestions } from "../utils/locationSearch";
 import BidsTab from "../components/BidsTab";
 
 const occupancyOptions = ["Unknown", "Vacant", "Owner Occupied", "Tenant Occupied"];
@@ -169,8 +169,8 @@ const renovationScopeOptions = [
   },
   {
     value: "structural",
-    label: "Structural and layout changes",
-    description: "Framing, beam work, wall moves, and structural repairs.",
+    label: "Structural",
+    description: "Framing, beam work, support repairs, and structural corrections.",
     trades: ["Structural engineer", "Framing contractor", "General contractor"],
     quoteItems: [
       "Structural review and engineering requirements",
@@ -189,6 +189,16 @@ const renovationScopeOptions = [
       "Landscape refresh or grading allowance",
     ],
   },
+];
+const renovationItemStatusOptions = [
+  { value: "planning", label: "Planning" },
+  { value: "ready-to-quote", label: "Ready to quote" },
+  { value: "quoted", label: "Quoted" },
+  { value: "awarded", label: "Awarded" },
+];
+const renovationCategoryOptions = [
+  ...renovationScopeOptions.map((scope) => ({ value: scope.value, label: scope.label })),
+  { value: "custom", label: "Custom" },
 ];
 
 const formatCurrency = (value) => {
@@ -227,6 +237,124 @@ const toNullableNumber = (value) => {
 };
 
 const toNullableDate = (value) => (value ? value : null);
+
+const buildRenovationItemId = () =>
+  `ren-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+
+const findRenovationScopeOption = (value) =>
+  renovationScopeOptions.find((scope) => scope.value === value) || null;
+
+const getUniqueRenovationItemName = (existingItems = [], baseName) => {
+  const normalizedBaseName = String(baseName || "Custom item").trim() || "Custom item";
+  const existingNames = new Set(
+    existingItems.map((item) => String(item.name || "").trim().toLowerCase()).filter(Boolean)
+  );
+
+  if (!existingNames.has(normalizedBaseName.toLowerCase())) {
+    return normalizedBaseName;
+  }
+
+  let suffix = 2;
+  while (existingNames.has(`${normalizedBaseName} ${suffix}`.toLowerCase())) {
+    suffix += 1;
+  }
+
+  return `${normalizedBaseName} ${suffix}`;
+};
+
+const createRenovationItem = (input = {}, existingItems = []) => {
+  const template = findRenovationScopeOption(input.category || input.value || "");
+  const providedName = typeof input.name === "string" ? input.name.trim() : "";
+  const baseName = providedName || template?.label || "Custom item";
+
+  return {
+    itemId:
+      typeof input.itemId === "string" && input.itemId.trim()
+        ? input.itemId.trim()
+        : buildRenovationItemId(),
+    name: providedName || getUniqueRenovationItemName(existingItems, baseName),
+    category: input.category || template?.value || "custom",
+    budget: input.budget ?? "",
+    status: input.status || "planning",
+    scopeDescription:
+      typeof input.scopeDescription === "string" && input.scopeDescription.trim()
+        ? input.scopeDescription.trim()
+        : template?.description || "",
+  };
+};
+
+const normalizeRenovationItems = (items = []) => {
+  const normalizedItems = [];
+
+  items.forEach((item) => {
+    if (!item || typeof item !== "object" || Array.isArray(item)) {
+      return;
+    }
+
+    const nextItem = createRenovationItem(
+      {
+        itemId: item.itemId,
+        name: item.name,
+        category: item.category,
+        budget: item.budget ?? "",
+        status: item.status,
+        scopeDescription: item.scopeDescription,
+      },
+      normalizedItems
+    );
+
+    if (
+      nextItem.name ||
+      nextItem.scopeDescription ||
+      nextItem.budget !== "" ||
+      nextItem.category !== "custom"
+    ) {
+      normalizedItems.push(nextItem);
+    }
+  });
+
+  return normalizedItems;
+};
+
+const buildLegacyRenovationItems = (plan = {}) => {
+  const items = [];
+
+  if (Array.isArray(plan.selectedScopes)) {
+    plan.selectedScopes.forEach((scope) => {
+      const normalizedScope = String(scope || "").trim();
+      if (!normalizedScope) return;
+
+      items.push(
+        createRenovationItem(
+          {
+            category: normalizedScope,
+          },
+          items
+        )
+      );
+    });
+  }
+
+  const legacyNotes = [plan.layoutChanges, plan.contractorNotes, plan.additionalNotes]
+    .map((value) => String(value || "").trim())
+    .filter(Boolean)
+    .join("\n\n");
+
+  if (!items.length && legacyNotes) {
+    items.push(
+      createRenovationItem(
+        {
+          name: "General renovation notes",
+          category: "custom",
+          scopeDescription: legacyNotes,
+        },
+        items
+      )
+    );
+  }
+
+  return items;
+};
 
 const parseAddressLabel = (value = "") => {
   const [addressLine1 = "", city = "", region = ""] = String(value)
@@ -300,15 +428,14 @@ const buildDetailsForm = (lead = {}) => {
 
 const buildRenovationForm = (lead = {}) => {
   const plan = lead.renovationPlan || {};
+  const items = normalizeRenovationItems(plan.items);
+
   return {
     verifiedSquareFootage: plan.verifiedSquareFootage ?? lead.squareFootage ?? "",
     renovationLevel: plan.renovationLevel || "",
     extensionPlanned: Boolean(plan.extensionPlanned),
     extensionSquareFootage: plan.extensionSquareFootage ?? "",
-    selectedScopes: Array.isArray(plan.selectedScopes) ? plan.selectedScopes : [],
-    layoutChanges: plan.layoutChanges || "",
-    contractorNotes: plan.contractorNotes || "",
-    additionalNotes: plan.additionalNotes || "",
+    items: items.length ? items : buildLegacyRenovationItems(plan),
   };
 };
 
@@ -317,12 +444,33 @@ const buildRenovationPayload = (form) => ({
   renovationLevel: form.renovationLevel || "",
   extensionPlanned: Boolean(form.extensionPlanned),
   extensionSquareFootage: form.extensionPlanned
-    ? toOptionalNumber(form.extensionSquareFootage)
-    : undefined,
-  selectedScopes: Array.isArray(form.selectedScopes) ? form.selectedScopes : [],
-  layoutChanges: form.layoutChanges || "",
-  contractorNotes: form.contractorNotes || "",
-  additionalNotes: form.additionalNotes || "",
+    ? toNullableNumber(form.extensionSquareFootage)
+    : null,
+  items: Array.isArray(form.items)
+    ? form.items
+        .map((item, index) => {
+          const name = String(item?.name || "").trim();
+          const scopeDescription = String(item?.scopeDescription || "").trim();
+          const budget = toNullableNumber(item?.budget);
+
+          if (!name && !scopeDescription && budget === null) {
+            return null;
+          }
+
+          return {
+            itemId:
+              typeof item?.itemId === "string" && item.itemId.trim()
+                ? item.itemId.trim()
+                : `${buildRenovationItemId()}-${index}`,
+            name: name || "Custom item",
+            category: item?.category || "custom",
+            budget,
+            status: item?.status || "planning",
+            scopeDescription,
+          };
+        })
+        .filter(Boolean)
+    : [],
 });
 
 const buildPreviewToDetailsForm = (preview = {}) => ({
@@ -372,62 +520,6 @@ const buildLiveLead = (lead, form) => ({
   motivation: form.motivation,
   notes: form.notes,
 });
-
-const buildRenovationChecklist = (form) => {
-  const selectedScopes = Array.isArray(form.selectedScopes) ? form.selectedScopes : [];
-  const selectedDefinitions = renovationScopeOptions.filter((scope) =>
-    selectedScopes.includes(scope.value)
-  );
-  const tradeSet = new Set();
-  const quotePackages = selectedDefinitions.map((scope) => {
-    scope.trades.forEach((trade) => tradeSet.add(trade));
-    return {
-      title: scope.label,
-      items: scope.quoteItems,
-    };
-  });
-
-  if (form.extensionPlanned) {
-    ["Architect or designer", "Structural engineer", "General contractor", "Framing contractor"].forEach(
-      (trade) => tradeSet.add(trade)
-    );
-    quotePackages.unshift({
-      title: "Extension / addition pricing",
-      items: [
-        "Permit, plan, or design assumptions",
-        "Foundation and framing pricing for the new square footage",
-        "Roof tie-in, exterior enclosure, and weatherproofing",
-        "Electrical, plumbing, and HVAC tie-ins for the addition",
-      ],
-    });
-  }
-
-  return {
-    trades: [...tradeSet],
-    quotePackages,
-  };
-};
-
-const buildRenovationPrompt = (lead, form) => {
-  const scopeLabels = renovationScopeOptions
-    .filter((scope) => form.selectedScopes.includes(scope.value))
-    .map((scope) => scope.label);
-  const verifiedSquareFootage = toOptionalNumber(form.verifiedSquareFootage);
-  const extensionSquareFootage = toOptionalNumber(form.extensionSquareFootage);
-
-  return [
-    `Create a renovation planning and estimate outline for ${lead.address || "this property"}.`,
-    `Current square footage: ${verifiedSquareFootage ? `${verifiedSquareFootage} sqft` : "not confirmed yet"}.`,
-    `Property type: ${lead.propertyType || "not set"}.`,
-    `Renovation level: ${form.renovationLevel || "not selected"}.`,
-    `Extension planned: ${form.extensionPlanned ? "Yes" : "No"}${form.extensionPlanned && extensionSquareFootage ? `, approximately ${extensionSquareFootage} sqft` : ""}.`,
-    `Selected renovation scopes: ${scopeLabels.length ? scopeLabels.join(", ") : "none selected yet"}.`,
-    `Layout or structural notes: ${form.layoutChanges || "none provided"}.`,
-    `Contractor quote priorities: ${form.contractorNotes || "none provided"}.`,
-    `Additional notes: ${form.additionalNotes || "none provided"}.`,
-    "Return a line-item estimate approach, a recommended contractor quote list, a likely trade sequence, and major cost-risk flags.",
-  ].join("\n");
-};
 
 const LoadingSpinner = () => (
   <div className="section-card flex items-center justify-center px-6 py-16">
@@ -480,7 +572,6 @@ const LeadDetailPage = () => {
   const [isSavingDetails, setIsSavingDetails] = useState(false);
   const [suggestions, setSuggestions] = useState([]);
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
-  const [previewMetadata, setPreviewMetadata] = useState(null);
   const [filters, setFilters] = useState({
     radius: "1",
     saleDateMonths: "6",
@@ -488,6 +579,7 @@ const LeadDetailPage = () => {
   });
 
   const [renovationForm, setRenovationForm] = useState(() => buildRenovationForm());
+  const [selectedRenovationItemId, setSelectedRenovationItemId] = useState(null);
   const [isSavingRenovation, setIsSavingRenovation] = useState(false);
 
   const [bids, setBids] = useState([]);
@@ -542,10 +634,21 @@ const LeadDetailPage = () => {
   useEffect(() => {
     if (!lead) return;
     const nextDetailForm = buildDetailsForm(lead);
+    const nextRenovationForm = buildRenovationForm(lead);
     setDetailForm(nextDetailForm);
-    setRenovationForm(buildRenovationForm(lead));
+    setRenovationForm(nextRenovationForm);
     selectedSuggestionRef.current = composeAddress(nextDetailForm);
   }, [lead]);
+
+  useEffect(() => {
+    setSelectedRenovationItemId((current) => {
+      if (renovationForm.items.some((item) => item.itemId === current)) {
+        return current;
+      }
+
+      return renovationForm.items[0]?.itemId || null;
+    });
+  }, [renovationForm.items]);
 
   const loadBillingAccess = useCallback(async () => {
     try {
@@ -641,7 +744,6 @@ const LeadDetailPage = () => {
     });
 
     if (["addressLine1", "city", "state", "zipCode"].includes(name)) {
-      setPreviewMetadata(null);
       if (name === "addressLine1") {
         selectedSuggestionRef.current = "";
       }
@@ -649,24 +751,79 @@ const LeadDetailPage = () => {
   };
 
   const handleRenovationChange = (event) => {
-    const { name, type, checked, value } = event.target;
+    const { name, value } = event.target;
     setRenovationForm((previous) => ({
       ...previous,
-      [name]: type === "checkbox" ? checked : value,
+      [name]: value,
     }));
   };
 
-  const handleScopeToggle = (scopeValue) => {
+  const handleAddRenovationItem = (category = "custom") => {
+    let nextItemId = null;
+
     setRenovationForm((previous) => {
-      const selectedScopes = previous.selectedScopes.includes(scopeValue)
-        ? previous.selectedScopes.filter((scope) => scope !== scopeValue)
-        : [...previous.selectedScopes, scopeValue];
+      const nextItem = createRenovationItem({ category }, previous.items);
+      nextItemId = nextItem.itemId;
 
       return {
         ...previous,
-        selectedScopes,
+        items: [...previous.items, nextItem],
       };
     });
+
+    if (nextItemId) {
+      setSelectedRenovationItemId(nextItemId);
+    }
+  };
+
+  const handleRemoveRenovationItem = (itemId) => {
+    let nextSelectedItemId = null;
+
+    setRenovationForm((previous) => {
+      const remainingItems = previous.items.filter((item) => item.itemId !== itemId);
+      nextSelectedItemId =
+        remainingItems.find((item) => item.itemId === selectedRenovationItemId)?.itemId ||
+        remainingItems[0]?.itemId ||
+        null;
+
+      return {
+        ...previous,
+        items: remainingItems,
+      };
+    });
+
+    setSelectedRenovationItemId(nextSelectedItemId);
+  };
+
+  const handleRenovationItemChange = (itemId, field, value) => {
+    setRenovationForm((previous) => ({
+      ...previous,
+      items: previous.items.map((item) => {
+        if (item.itemId !== itemId) {
+          return item;
+        }
+
+        const nextItem = {
+          ...item,
+          [field]: value,
+        };
+
+        if (field === "category") {
+          const previousTemplate = findRenovationScopeOption(item.category);
+          const nextTemplate = findRenovationScopeOption(value);
+
+          if (!item.name || item.name === previousTemplate?.label) {
+            nextItem.name = nextTemplate?.label || item.name;
+          }
+
+          if (!item.scopeDescription) {
+            nextItem.scopeDescription = nextTemplate?.description || "";
+          }
+        }
+
+        return nextItem;
+      }),
+    }));
   };
 
   const handlePreviewLookup = async (addressOverride, fieldOverrides = {}) => {
@@ -711,7 +868,6 @@ const LeadDetailPage = () => {
         verifiedSquareFootage:
           previous.verifiedSquareFootage || mappedPreview.squareFootage || previous.verifiedSquareFootage,
       }));
-      setPreviewMetadata(preview.metadata || null);
       setSuggestions([]);
       toast.success("Property facts refreshed.");
     } catch (previewError) {
@@ -867,8 +1023,6 @@ const LeadDetailPage = () => {
     ? `/properties/${encodeURIComponent(propertyWorkspaceId)}`
     : "";
   const liveLead = buildLiveLead(lead, detailForm);
-  const quoteChecklist = buildRenovationChecklist(renovationForm);
-  const renovationPrompt = buildRenovationPrompt(liveLead, renovationForm);
   const askVsEstimateLabel = !analysis?.summary?.askingPriceDelta
     ? "No ask vs estimate comparison yet"
     : `${formatCurrency(Math.abs(analysis.summary.askingPriceDelta))} ${
@@ -890,6 +1044,15 @@ const LeadDetailPage = () => {
       ? workingExitValue - workingTargetOffer - (workingRehabEstimate || 0)
       : null;
   const showsUnitCount = detailForm.propertyType === "multi-family";
+  const selectedRenovationItem =
+    renovationForm.items.find((item) => item.itemId === selectedRenovationItemId) || null;
+  const renovationBudgetTotal = renovationForm.items.reduce(
+    (sum, item) => sum + (Number(item.budget) || 0),
+    0
+  );
+  const renovationBudgetedItemCount = renovationForm.items.filter(
+    (item) => item.budget !== "" && item.budget !== null && item.budget !== undefined
+  ).length;
 
   return (
     <div className="space-y-6">
@@ -1012,468 +1175,407 @@ const LeadDetailPage = () => {
       ) : null}
 
       {activeTab === "details" && (
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,1.08fr)_360px]">
-          <div className="section-card p-6 sm:p-7">
-            <span className="eyebrow">Edit lead</span>
-            <h2 className="mt-4 text-2xl font-semibold text-ink-900">Property, seller, and deal details</h2>
-            <p className="mt-2 text-sm leading-6 text-ink-500">
-              Update the core information here whenever you learn something new about the opportunity.
-            </p>
+        <div className="section-card p-6 sm:p-7">
+          <span className="eyebrow">Edit lead</span>
+          <h2 className="mt-4 text-2xl font-semibold text-ink-900">Property, seller, and deal details</h2>
+          <p className="mt-2 text-sm leading-6 text-ink-500">
+            Update the core information here whenever you learn something new about the opportunity.
+          </p>
 
-            <div className="mt-6 grid gap-5 md:grid-cols-2">
-              <div className="relative md:col-span-2">
-                <FormField label="Address line">
+          <div className="mt-6 grid gap-5 md:grid-cols-2">
+            <div className="relative md:col-span-2">
+              <FormField label="Address line">
+                <input
+                  name="addressLine1"
+                  value={detailForm.addressLine1}
+                  onChange={handleDetailChange}
+                  className="auth-input"
+                  placeholder="Start typing the property address..."
+                />
+              </FormField>
+
+              {suggestions.length > 0 ? (
+                <div className="absolute z-20 mt-2 max-h-64 w-full overflow-y-auto rounded-[22px] border border-ink-100 bg-white shadow-luxe">
+                  {suggestions.map((suggestion) => (
+                    <button
+                      key={suggestion.id}
+                      type="button"
+                      onClick={() => handleSelectSuggestion(suggestion)}
+                      className="w-full border-b border-ink-100 px-4 py-3 text-left text-sm text-ink-700 transition hover:bg-sand-50 last:border-b-0"
+                    >
+                      {suggestion.place_name}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+
+            <FormField label="City">
+              <input
+                name="city"
+                value={detailForm.city}
+                onChange={handleDetailChange}
+                className="auth-input"
+                placeholder="City"
+              />
+            </FormField>
+
+            <FormField label="State">
+              <input
+                name="state"
+                value={detailForm.state}
+                onChange={handleDetailChange}
+                className="auth-input"
+                placeholder="State"
+              />
+            </FormField>
+
+            <FormField label="Zip code">
+              <input
+                name="zipCode"
+                value={detailForm.zipCode}
+                onChange={handleDetailChange}
+                className="auth-input"
+                placeholder="Zip code"
+              />
+            </FormField>
+
+            <FormField label="Pipeline status">
+              <select
+                name="status"
+                value={detailForm.status}
+                onChange={handleDetailChange}
+                className="auth-input appearance-none"
+              >
+                {leadStatusOptions.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </FormField>
+
+            <div className="md:col-span-2">
+              <div className="flex flex-wrap items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => handlePreviewLookup()}
+                  disabled={isPreviewLoading || !addressQuery.trim()}
+                  className="secondary-action inline-flex items-center gap-2 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <ArrowPathIcon className={`h-4 w-4 ${isPreviewLoading ? "animate-spin" : ""}`} />
+                  {isPreviewLoading ? "Refreshing details..." : "Refresh property facts"}
+                </button>
+                <p className="text-sm text-ink-500">
+                  Use the lookup after editing the address to refresh property facts and listing info.
+                </p>
+              </div>
+            </div>
+
+            <FormField label="Property type">
+              <select
+                name="propertyType"
+                value={detailForm.propertyType}
+                onChange={handleDetailChange}
+                className="auth-input appearance-none"
+              >
+                {propertyTypeOptions.map((option) => (
+                  <option key={option.value || "empty"} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </FormField>
+
+            <FormField label="Bedrooms">
+              <input
+                name="bedrooms"
+                type="number"
+                value={detailForm.bedrooms}
+                onChange={handleDetailChange}
+                className="auth-input"
+                placeholder="0"
+              />
+            </FormField>
+
+            <FormField label="Bathrooms">
+              <input
+                name="bathrooms"
+                type="number"
+                step="0.5"
+                value={detailForm.bathrooms}
+                onChange={handleDetailChange}
+                className="auth-input"
+                placeholder="0"
+              />
+            </FormField>
+
+            <FormField label="Square footage">
+              <input
+                name="squareFootage"
+                type="number"
+                value={detailForm.squareFootage}
+                onChange={handleDetailChange}
+                className="auth-input"
+                placeholder="0"
+              />
+            </FormField>
+
+            <FormField label="Lot size">
+              <input
+                name="lotSize"
+                type="number"
+                value={detailForm.lotSize}
+                onChange={handleDetailChange}
+                className="auth-input"
+                placeholder="0"
+              />
+            </FormField>
+
+            <FormField label="Year built">
+              <input
+                name="yearBuilt"
+                type="number"
+                value={detailForm.yearBuilt}
+                onChange={handleDetailChange}
+                className="auth-input"
+                placeholder="0"
+              />
+            </FormField>
+
+            {showsUnitCount ? (
+              <FormField label="Unit count">
+                <input
+                  name="unitCount"
+                  type="number"
+                  value={detailForm.unitCount}
+                  onChange={handleDetailChange}
+                  className="auth-input"
+                  placeholder="0"
+                />
+              </FormField>
+            ) : null}
+
+            <div className="md:col-span-2 mt-2 rounded-[24px] border border-ink-100 bg-sand-50/70 p-5">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-ink-900">Sale status</p>
+                  <p className="mt-1 text-sm text-ink-500">
+                    Keep the active listing details here if the property is on market.
+                  </p>
+                </div>
+                <span
+                  className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
+                    liveLead.listingStatus || liveLead.sellerAskingPrice
+                      ? "bg-verdigris-50 text-verdigris-700"
+                      : "bg-white text-ink-600 ring-1 ring-ink-100"
+                  }`}
+                >
+                  {liveLead.listingStatus || liveLead.sellerAskingPrice ? "For sale" : "Not listed"}
+                </span>
+              </div>
+
+              <div className="mt-4 grid gap-5 md:grid-cols-2">
+                <FormField label="Listing status">
                   <input
-                    name="addressLine1"
-                    value={detailForm.addressLine1}
+                    name="listingStatus"
+                    value={detailForm.listingStatus}
                     onChange={handleDetailChange}
                     className="auth-input"
-                    placeholder="Start typing the property address..."
+                    placeholder="For Sale, Pending, Off Market"
                   />
                 </FormField>
 
-                {suggestions.length > 0 ? (
-                  <div className="absolute z-20 mt-2 max-h-64 w-full overflow-y-auto rounded-[22px] border border-ink-100 bg-white shadow-luxe">
-                    {suggestions.map((suggestion) => (
-                      <button
-                        key={suggestion.id}
-                        type="button"
-                        onClick={() => handleSelectSuggestion(suggestion)}
-                        className="w-full border-b border-ink-100 px-4 py-3 text-left text-sm text-ink-700 transition hover:bg-sand-50 last:border-b-0"
-                      >
-                        {suggestion.place_name}
-                      </button>
-                    ))}
-                  </div>
-                ) : null}
-              </div>
-
-              <FormField label="City">
-                <input
-                  name="city"
-                  value={detailForm.city}
-                  onChange={handleDetailChange}
-                  className="auth-input"
-                  placeholder="City"
-                />
-              </FormField>
-
-              <FormField label="State">
-                <input
-                  name="state"
-                  value={detailForm.state}
-                  onChange={handleDetailChange}
-                  className="auth-input"
-                  placeholder="State"
-                />
-              </FormField>
-
-              <FormField label="Zip code">
-                <input
-                  name="zipCode"
-                  value={detailForm.zipCode}
-                  onChange={handleDetailChange}
-                  className="auth-input"
-                  placeholder="Zip code"
-                />
-              </FormField>
-
-              <FormField label="Pipeline status">
-                <select
-                  name="status"
-                  value={detailForm.status}
-                  onChange={handleDetailChange}
-                  className="auth-input appearance-none"
-                >
-                  {leadStatusOptions.map((option) => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
-                </select>
-              </FormField>
-
-              <div className="md:col-span-2">
-                <div className="flex flex-wrap items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => handlePreviewLookup()}
-                    disabled={isPreviewLoading || !addressQuery.trim()}
-                    className="secondary-action inline-flex items-center gap-2 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    <ArrowPathIcon className={`h-4 w-4 ${isPreviewLoading ? "animate-spin" : ""}`} />
-                    {isPreviewLoading ? "Refreshing details..." : "Refresh property facts"}
-                  </button>
-                  <p className="text-sm text-ink-500">
-                    Use the lookup after editing the address to refresh property facts and listing info.
-                  </p>
-                </div>
-              </div>
-
-              <FormField label="Property type">
-                <select
-                  name="propertyType"
-                  value={detailForm.propertyType}
-                  onChange={handleDetailChange}
-                  className="auth-input appearance-none"
-                >
-                  {propertyTypeOptions.map((option) => (
-                    <option key={option.value || "empty"} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </FormField>
-
-              <FormField label="Bedrooms">
-                <input
-                  name="bedrooms"
-                  type="number"
-                  value={detailForm.bedrooms}
-                  onChange={handleDetailChange}
-                  className="auth-input"
-                  placeholder="0"
-                />
-              </FormField>
-
-              <FormField label="Bathrooms">
-                <input
-                  name="bathrooms"
-                  type="number"
-                  step="0.5"
-                  value={detailForm.bathrooms}
-                  onChange={handleDetailChange}
-                  className="auth-input"
-                  placeholder="0"
-                />
-              </FormField>
-
-              <FormField label="Square footage">
-                <input
-                  name="squareFootage"
-                  type="number"
-                  value={detailForm.squareFootage}
-                  onChange={handleDetailChange}
-                  className="auth-input"
-                  placeholder="0"
-                />
-              </FormField>
-
-              <FormField label="Lot size">
-                <input
-                  name="lotSize"
-                  type="number"
-                  value={detailForm.lotSize}
-                  onChange={handleDetailChange}
-                  className="auth-input"
-                  placeholder="0"
-                />
-              </FormField>
-
-              <FormField label="Year built">
-                <input
-                  name="yearBuilt"
-                  type="number"
-                  value={detailForm.yearBuilt}
-                  onChange={handleDetailChange}
-                  className="auth-input"
-                  placeholder="0"
-                />
-              </FormField>
-
-              {showsUnitCount ? (
-                <FormField label="Unit count">
+                <FormField label="Sale price">
                   <input
-                    name="unitCount"
+                    name="sellerAskingPrice"
                     type="number"
-                    value={detailForm.unitCount}
+                    value={detailForm.sellerAskingPrice}
                     onChange={handleDetailChange}
                     className="auth-input"
                     placeholder="0"
                   />
                 </FormField>
-              ) : null}
 
-              <div className="md:col-span-2 mt-2 rounded-[24px] border border-ink-100 bg-sand-50/70 p-5">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-semibold text-ink-900">Sale status</p>
-                    <p className="mt-1 text-sm text-ink-500">
-                      Keep the active listing details here if the property is on market.
-                    </p>
-                  </div>
-                  <span
-                    className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
-                      liveLead.listingStatus || liveLead.sellerAskingPrice
-                        ? "bg-verdigris-50 text-verdigris-700"
-                        : "bg-white text-ink-600 ring-1 ring-ink-100"
-                    }`}
-                  >
-                    {liveLead.listingStatus || liveLead.sellerAskingPrice ? "For sale" : "Not listed"}
-                  </span>
-                </div>
+                <FormField label="Days on market">
+                  <input
+                    name="daysOnMarket"
+                    type="number"
+                    value={detailForm.daysOnMarket}
+                    onChange={handleDetailChange}
+                    className="auth-input"
+                    placeholder="0"
+                  />
+                </FormField>
 
-                <div className="mt-4 grid gap-5 md:grid-cols-2">
-                  <FormField label="Listing status">
-                    <input
-                      name="listingStatus"
-                      value={detailForm.listingStatus}
-                      onChange={handleDetailChange}
-                      className="auth-input"
-                      placeholder="For Sale, Pending, Off Market"
-                    />
-                  </FormField>
+                <FormField label="Last sale price">
+                  <input
+                    name="lastSalePrice"
+                    type="number"
+                    value={detailForm.lastSalePrice}
+                    onChange={handleDetailChange}
+                    className="auth-input"
+                    placeholder="0"
+                  />
+                </FormField>
 
-                  <FormField label="Sale price">
-                    <input
-                      name="sellerAskingPrice"
-                      type="number"
-                      value={detailForm.sellerAskingPrice}
-                      onChange={handleDetailChange}
-                      className="auth-input"
-                      placeholder="0"
-                    />
-                  </FormField>
-
-                  <FormField label="Days on market">
-                    <input
-                      name="daysOnMarket"
-                      type="number"
-                      value={detailForm.daysOnMarket}
-                      onChange={handleDetailChange}
-                      className="auth-input"
-                      placeholder="0"
-                    />
-                  </FormField>
-
-                  <FormField label="Last sale price">
-                    <input
-                      name="lastSalePrice"
-                      type="number"
-                      value={detailForm.lastSalePrice}
-                      onChange={handleDetailChange}
-                      className="auth-input"
-                      placeholder="0"
-                    />
-                  </FormField>
-
-                  <FormField label="Last sale date">
-                    <input
-                      name="lastSaleDate"
-                      type="date"
-                      value={detailForm.lastSaleDate}
-                      onChange={handleDetailChange}
-                      className="auth-input"
-                    />
-                  </FormField>
-                </div>
+                <FormField label="Last sale date">
+                  <input
+                    name="lastSaleDate"
+                    type="date"
+                    value={detailForm.lastSaleDate}
+                    onChange={handleDetailChange}
+                    className="auth-input"
+                  />
+                </FormField>
               </div>
-
-              <div className="md:col-span-2 mt-2">
-                <h3 className="text-lg font-semibold text-ink-900">Seller and deal plan</h3>
-                <p className="mt-1 text-sm text-ink-500">
-                  Save the contact details, pricing targets, and the next move for this lead.
-                </p>
-              </div>
-
-              <FormField label="Seller name">
-                <input
-                  name="sellerName"
-                  value={detailForm.sellerName}
-                  onChange={handleDetailChange}
-                  className="auth-input"
-                />
-              </FormField>
-
-              <FormField label="Lead source">
-                <input
-                  name="leadSource"
-                  value={detailForm.leadSource}
-                  onChange={handleDetailChange}
-                  className="auth-input"
-                  placeholder="Agent, referral, direct mail..."
-                />
-              </FormField>
-
-              <FormField label="Seller phone">
-                <input
-                  name="sellerPhone"
-                  value={detailForm.sellerPhone}
-                  onChange={handleDetailChange}
-                  className="auth-input"
-                />
-              </FormField>
-
-              <FormField label="Seller email">
-                <input
-                  name="sellerEmail"
-                  type="email"
-                  value={detailForm.sellerEmail}
-                  onChange={handleDetailChange}
-                  className="auth-input"
-                />
-              </FormField>
-
-              <FormField label="Occupancy">
-                <select
-                  name="occupancyStatus"
-                  value={detailForm.occupancyStatus}
-                  onChange={handleDetailChange}
-                  className="auth-input appearance-none"
-                >
-                  {occupancyOptions.map((option) => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
-                </select>
-              </FormField>
-
-              <FormField label="Next action">
-                <input
-                  name="nextAction"
-                  value={detailForm.nextAction}
-                  onChange={handleDetailChange}
-                  className="auth-input"
-                  placeholder="Call seller, request photos, line up contractor..."
-                />
-              </FormField>
-
-              <FormField label="Target offer">
-                <input
-                  name="targetOffer"
-                  type="number"
-                  value={detailForm.targetOffer}
-                  onChange={handleDetailChange}
-                  className="auth-input"
-                  placeholder="0"
-                />
-              </FormField>
-
-              <FormField label="Follow-up date">
-                <input
-                  name="followUpDate"
-                  type="date"
-                  value={detailForm.followUpDate}
-                  onChange={handleDetailChange}
-                  className="auth-input"
-                />
-              </FormField>
-
-              <FormField label="ARV / exit value">
-                <input
-                  name="arv"
-                  type="number"
-                  value={detailForm.arv}
-                  onChange={handleDetailChange}
-                  className="auth-input"
-                  placeholder="0"
-                />
-              </FormField>
-
-              <FormField label="Current rehab estimate">
-                <input
-                  name="rehabEstimate"
-                  type="number"
-                  value={detailForm.rehabEstimate}
-                  onChange={handleDetailChange}
-                  className="auth-input"
-                  placeholder="0"
-                />
-              </FormField>
-
-              <FormField label="Seller motivation" className="md:col-span-2">
-                <textarea
-                  rows="3"
-                  name="motivation"
-                  value={detailForm.motivation}
-                  onChange={handleDetailChange}
-                  className="auth-input min-h-[110px]"
-                  placeholder="Why is this seller likely to negotiate, move quickly, or sell below market?"
-                />
-              </FormField>
-
-              <FormField label="Notes" className="md:col-span-2">
-                <textarea
-                  rows="4"
-                  name="notes"
-                  value={detailForm.notes}
-                  onChange={handleDetailChange}
-                  className="auth-input min-h-[140px]"
-                  placeholder="Anything the team should remember about this opportunity..."
-                />
-              </FormField>
             </div>
 
-            <div className="mt-6 flex flex-wrap justify-end gap-3">
-              <button
-                type="button"
-                onClick={handleSaveDetails}
-                disabled={isSavingDetails}
-                className="primary-action disabled:cursor-not-allowed disabled:opacity-70"
+            <div className="md:col-span-2 mt-2">
+              <h3 className="text-lg font-semibold text-ink-900">Seller and deal plan</h3>
+              <p className="mt-1 text-sm text-ink-500">
+                Save the contact details, pricing targets, and the next move for this lead.
+              </p>
+            </div>
+
+            <FormField label="Seller name">
+              <input
+                name="sellerName"
+                value={detailForm.sellerName}
+                onChange={handleDetailChange}
+                className="auth-input"
+              />
+            </FormField>
+
+            <FormField label="Lead source">
+              <input
+                name="leadSource"
+                value={detailForm.leadSource}
+                onChange={handleDetailChange}
+                className="auth-input"
+                placeholder="Agent, referral, direct mail..."
+              />
+            </FormField>
+
+            <FormField label="Seller phone">
+              <input
+                name="sellerPhone"
+                value={detailForm.sellerPhone}
+                onChange={handleDetailChange}
+                className="auth-input"
+              />
+            </FormField>
+
+            <FormField label="Seller email">
+              <input
+                name="sellerEmail"
+                type="email"
+                value={detailForm.sellerEmail}
+                onChange={handleDetailChange}
+                className="auth-input"
+              />
+            </FormField>
+
+            <FormField label="Occupancy">
+              <select
+                name="occupancyStatus"
+                value={detailForm.occupancyStatus}
+                onChange={handleDetailChange}
+                className="auth-input appearance-none"
               >
-                {isSavingDetails ? "Saving..." : "Save details"}
-              </button>
-            </div>
+                {occupancyOptions.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </FormField>
+
+            <FormField label="Next action">
+              <input
+                name="nextAction"
+                value={detailForm.nextAction}
+                onChange={handleDetailChange}
+                className="auth-input"
+                placeholder="Call seller, request photos, line up contractor..."
+              />
+            </FormField>
+
+            <FormField label="Target offer">
+              <input
+                name="targetOffer"
+                type="number"
+                value={detailForm.targetOffer}
+                onChange={handleDetailChange}
+                className="auth-input"
+                placeholder="0"
+              />
+            </FormField>
+
+            <FormField label="Follow-up date">
+              <input
+                name="followUpDate"
+                type="date"
+                value={detailForm.followUpDate}
+                onChange={handleDetailChange}
+                className="auth-input"
+              />
+            </FormField>
+
+            <FormField label="ARV / exit value">
+              <input
+                name="arv"
+                type="number"
+                value={detailForm.arv}
+                onChange={handleDetailChange}
+                className="auth-input"
+                placeholder="0"
+              />
+            </FormField>
+
+            <FormField label="Current rehab estimate">
+              <input
+                name="rehabEstimate"
+                type="number"
+                value={detailForm.rehabEstimate}
+                onChange={handleDetailChange}
+                className="auth-input"
+                placeholder="0"
+              />
+            </FormField>
+
+            <FormField label="Seller motivation" className="md:col-span-2">
+              <textarea
+                rows="3"
+                name="motivation"
+                value={detailForm.motivation}
+                onChange={handleDetailChange}
+                className="auth-input min-h-[110px]"
+                placeholder="Why is this seller likely to negotiate, move quickly, or sell below market?"
+              />
+            </FormField>
+
+            <FormField label="Notes" className="md:col-span-2">
+              <textarea
+                rows="4"
+                name="notes"
+                value={detailForm.notes}
+                onChange={handleDetailChange}
+                className="auth-input min-h-[140px]"
+                placeholder="Anything the team should remember about this opportunity..."
+              />
+            </FormField>
           </div>
 
-          <div className="space-y-5">
-            <div className="section-card p-5">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-400">
-                Autofill
-              </p>
-              <p className="mt-3 text-sm leading-6 text-ink-600">
-                Address suggestions come from {getLocationProviderName()}, and the property lookup refreshes listing status plus any available property facts.
-              </p>
-              {previewMetadata ? (
-                <div className="mt-4 rounded-[18px] bg-sand-50 px-4 py-3 text-sm text-ink-600">
-                  {previewMetadata.propertyFound ? "Property facts found." : "No property facts found."}{" "}
-                  {previewMetadata.activeListingFound
-                    ? "Active sale listing found."
-                    : "No active sale listing found."}
-                </div>
-              ) : null}
-            </div>
-
-            <div className="section-card p-5">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-400">
-                Quick read
-              </p>
-              <div className="mt-4 space-y-3 text-sm">
-                <div className="flex items-center justify-between gap-4">
-                  <span className="text-ink-500">Asking price</span>
-                  <span className="font-semibold text-ink-900">
-                    {formatCurrency(liveLead.sellerAskingPrice)}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between gap-4">
-                  <span className="text-ink-500">Target gap</span>
-                  <span className="font-semibold text-ink-900">{formatCurrency(askGap)}</span>
-                </div>
-                <div className="flex items-center justify-between gap-4">
-                  <span className="text-ink-500">Spread preview</span>
-                  <span className="font-semibold text-ink-900">
-                    {formatCurrency(projectedSpread)}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between gap-4">
-                  <span className="text-ink-500">Follow-up</span>
-                  <span className="font-semibold text-ink-900">
-                    {detailForm.followUpDate ? formatDate(detailForm.followUpDate) : "—"}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div className="section-card p-5">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-400">
-                Next tabs
-              </p>
-              <div className="mt-4 space-y-3 text-sm leading-6 text-ink-600">
-                <p>Suggested next tabs after this phase: documents, photos, contractor contacts, and tasks or timeline.</p>
-                <p>Those fit naturally after the renovation plan and bid workflow are in place.</p>
-              </div>
-            </div>
+          <div className="mt-6 flex flex-wrap justify-end gap-3">
+            <button
+              type="button"
+              onClick={handleSaveDetails}
+              disabled={isSavingDetails}
+              className="primary-action disabled:cursor-not-allowed disabled:opacity-70"
+            >
+              {isSavingDetails ? "Saving..." : "Save details"}
+            </button>
           </div>
         </div>
       )}
@@ -1811,173 +1913,11 @@ const LeadDetailPage = () => {
       )}
 
       {activeTab === "renovation" && (
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,1.02fr)_380px]">
-          <div className="section-card p-6 sm:p-7">
-            <span className="eyebrow">Renovation planning and estimate</span>
-            <h2 className="mt-4 text-2xl font-semibold text-ink-900">
-              Build the scope before you price the job
-            </h2>
-            <p className="mt-2 text-sm leading-6 text-ink-500">
-              Answer the renovation questions here so later we can generate a stronger AI estimate and know exactly what quotes to request from contractors.
-            </p>
-
-            <div className="mt-6 grid gap-5 md:grid-cols-2">
-              <FormField label="Verified square footage" hint="Confirm the usable square footage before building the estimate.">
-                <input
-                  name="verifiedSquareFootage"
-                  type="number"
-                  value={renovationForm.verifiedSquareFootage}
-                  onChange={handleRenovationChange}
-                  className="auth-input"
-                  placeholder="0"
-                />
-              </FormField>
-
-              <FormField label="Renovation level">
-                <select
-                  name="renovationLevel"
-                  value={renovationForm.renovationLevel}
-                  onChange={handleRenovationChange}
-                  className="auth-input appearance-none"
-                >
-                  {renovationLevelOptions.map((option) => (
-                    <option key={option.value || "empty"} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </FormField>
-
-              <FormField label="Will there be an extension?">
-                <select
-                  name="extensionPlanned"
-                  value={renovationForm.extensionPlanned ? "yes" : "no"}
-                  onChange={(event) =>
-                    setRenovationForm((previous) => ({
-                      ...previous,
-                      extensionPlanned: event.target.value === "yes",
-                      extensionSquareFootage:
-                        event.target.value === "yes" ? previous.extensionSquareFootage : "",
-                    }))
-                  }
-                  className="auth-input appearance-none"
-                >
-                  <option value="no">No</option>
-                  <option value="yes">Yes</option>
-                </select>
-              </FormField>
-
-              {renovationForm.extensionPlanned ? (
-                <FormField label="Extension square footage">
-                  <input
-                    name="extensionSquareFootage"
-                    type="number"
-                    value={renovationForm.extensionSquareFootage}
-                    onChange={handleRenovationChange}
-                    className="auth-input"
-                    placeholder="0"
-                  />
-                </FormField>
-              ) : (
-                <div />
-              )}
-
-              <div className="md:col-span-2">
-                <div className="flex items-center justify-between gap-3">
-                  <h3 className="text-lg font-semibold text-ink-900">
-                    What renovations does this property need?
-                  </h3>
-                  <span className="rounded-full bg-sand-100 px-3 py-1 text-xs font-semibold text-ink-600">
-                    {renovationForm.selectedScopes.length} selected
-                  </span>
-                </div>
-                <div className="mt-4 grid gap-3 md:grid-cols-2">
-                  {renovationScopeOptions.map((scope) => {
-                    const isActive = renovationForm.selectedScopes.includes(scope.value);
-                    return (
-                      <button
-                        key={scope.value}
-                        type="button"
-                        onClick={() => handleScopeToggle(scope.value)}
-                        className={`rounded-[20px] border px-4 py-4 text-left transition ${
-                          isActive
-                            ? "border-ink-900 bg-ink-900 text-white shadow-soft"
-                            : "border-ink-100 bg-white text-ink-900 hover:border-ink-200 hover:bg-sand-50"
-                        }`}
-                      >
-                        <div className="flex items-center justify-between gap-3">
-                          <p className="text-sm font-semibold">{scope.label}</p>
-                          <span
-                            className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${
-                              isActive ? "bg-white/15 text-white" : "bg-sand-100 text-ink-500"
-                            }`}
-                          >
-                            {isActive ? "Selected" : "Add"}
-                          </span>
-                        </div>
-                        <p
-                          className={`mt-2 text-sm leading-6 ${
-                            isActive ? "text-white/80" : "text-ink-500"
-                          }`}
-                        >
-                          {scope.description}
-                        </p>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <FormField label="Layout or structural changes" className="md:col-span-2">
-                <textarea
-                  rows="4"
-                  name="layoutChanges"
-                  value={renovationForm.layoutChanges}
-                  onChange={handleRenovationChange}
-                  className="auth-input min-h-[130px]"
-                  placeholder="Will walls move, rooms be reconfigured, or structural work be needed?"
-                />
-              </FormField>
-
-              <FormField label="Contractor quote notes" className="md:col-span-2">
-                <textarea
-                  rows="4"
-                  name="contractorNotes"
-                  value={renovationForm.contractorNotes}
-                  onChange={handleRenovationChange}
-                  className="auth-input min-h-[130px]"
-                  placeholder="What do you want each contractor quote to break out or clarify?"
-                />
-              </FormField>
-
-              <FormField label="Additional renovation notes" className="md:col-span-2">
-                <textarea
-                  rows="4"
-                  name="additionalNotes"
-                  value={renovationForm.additionalNotes}
-                  onChange={handleRenovationChange}
-                  className="auth-input min-h-[130px]"
-                  placeholder="Anything else the AI estimate or contractor scope should know?"
-                />
-              </FormField>
-            </div>
-
-            <div className="mt-6 flex flex-wrap justify-end gap-3">
-              <button
-                type="button"
-                onClick={handleSaveRenovation}
-                disabled={isSavingRenovation}
-                className="primary-action disabled:cursor-not-allowed disabled:opacity-70"
-              >
-                {isSavingRenovation ? "Saving..." : "Save renovation plan"}
-              </button>
-            </div>
-          </div>
-
+        <div className="grid gap-6 xl:grid-cols-[320px_minmax(0,1fr)]">
           <div className="space-y-5">
             <div className="section-card p-5">
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-400">
-                Estimated scope footprint
+                Project setup
               </p>
               <div className="mt-4 space-y-3 text-sm">
                 <div className="flex items-center justify-between gap-4">
@@ -1992,80 +1932,332 @@ const LeadDetailPage = () => {
                   <span className="text-ink-500">Extension</span>
                   <span className="font-semibold text-ink-900">
                     {renovationForm.extensionPlanned
-                      ? `${
-                          renovationForm.extensionSquareFootage
-                            ? `${Number(renovationForm.extensionSquareFootage).toLocaleString()} sqft`
-                            : "Yes"
-                        }`
+                      ? renovationForm.extensionSquareFootage
+                        ? `${Number(renovationForm.extensionSquareFootage).toLocaleString()} sqft`
+                        : "Yes"
                       : "No"}
                   </span>
                 </div>
                 <div className="flex items-center justify-between gap-4">
-                  <span className="text-ink-500">Renovation level</span>
+                  <span className="text-ink-500">Items</span>
+                  <span className="font-semibold text-ink-900">{renovationForm.items.length}</span>
+                </div>
+                <div className="flex items-center justify-between gap-4">
+                  <span className="text-ink-500">Budgeted items</span>
+                  <span className="font-semibold text-ink-900">{renovationBudgetedItemCount}</span>
+                </div>
+                <div className="flex items-center justify-between gap-4">
+                  <span className="text-ink-500">Total planned budget</span>
                   <span className="font-semibold text-ink-900">
-                    {renovationLevelOptions.find((option) => option.value === renovationForm.renovationLevel)
-                      ?.label || "—"}
+                    {renovationBudgetedItemCount ? formatCurrency(renovationBudgetTotal) : "—"}
                   </span>
                 </div>
               </div>
             </div>
 
             <div className="section-card p-5">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-400">
-                Trades to quote
-              </p>
-              <div className="mt-4 flex flex-wrap gap-2">
-                {quoteChecklist.trades.length ? (
-                  quoteChecklist.trades.map((trade) => (
-                    <span
-                      key={trade}
-                      className="rounded-full bg-sand-100 px-3 py-1 text-xs font-semibold text-ink-700"
-                    >
-                      {trade}
-                    </span>
-                  ))
-                ) : (
-                  <p className="text-sm text-ink-500">
-                    Select renovation scopes to build the quote list.
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-400">
+                    Renovation items
                   </p>
-                )}
+                  <h3 className="mt-2 text-lg font-semibold text-ink-900">Build the scope list</h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleAddRenovationItem("custom")}
+                  className="secondary-action"
+                >
+                  Add custom item
+                </button>
               </div>
-            </div>
 
-            <div className="section-card p-5">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-400">
-                Contractor quote checklist
-              </p>
-              <div className="mt-4 space-y-4">
-                {quoteChecklist.quotePackages.length ? (
-                  quoteChecklist.quotePackages.map((quotePackage) => (
-                    <div key={quotePackage.title} className="rounded-[18px] bg-sand-50 px-4 py-4">
-                      <p className="text-sm font-semibold text-ink-900">{quotePackage.title}</p>
-                      <ul className="mt-3 space-y-2 text-sm leading-6 text-ink-600">
-                        {quotePackage.items.map((item) => (
-                          <li key={item}>{item}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-sm text-ink-500">
-                    Once you choose the renovation scopes, this area will show exactly what quotes to request.
-                  </p>
-                )}
-              </div>
-            </div>
-
-            <div className="section-card p-5">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-400">
-                AI prompt preview
-              </p>
               <p className="mt-3 text-sm leading-6 text-ink-500">
-                This is the prompt foundation we can use when we build the renovation estimate AI.
+                Add the work that needs pricing. Each item gets its own budget and contractor-ready scope.
               </p>
-              <pre className="mt-4 whitespace-pre-wrap rounded-[18px] bg-ink-900 px-4 py-4 text-xs leading-6 text-white">
-                {renovationPrompt}
-              </pre>
+
+              <div className="mt-4 flex flex-wrap gap-2">
+                {renovationScopeOptions.map((scope) => (
+                  <button
+                    key={scope.value}
+                    type="button"
+                    onClick={() => handleAddRenovationItem(scope.value)}
+                    className="rounded-full border border-ink-100 bg-sand-50 px-3 py-2 text-xs font-semibold text-ink-700 transition hover:border-ink-200 hover:bg-sand-100"
+                  >
+                    Add {scope.label}
+                  </button>
+                ))}
+              </div>
+
+              <div className="mt-5 space-y-3">
+                {renovationForm.items.length ? (
+                  renovationForm.items.map((item) => {
+                    const isSelected = item.itemId === selectedRenovationItemId;
+                    const categoryLabel =
+                      renovationCategoryOptions.find((option) => option.value === item.category)?.label ||
+                      "Custom";
+
+                    return (
+                      <button
+                        key={item.itemId}
+                        type="button"
+                        onClick={() => setSelectedRenovationItemId(item.itemId)}
+                        className={`w-full rounded-[20px] border px-4 py-4 text-left transition ${
+                          isSelected
+                            ? "border-ink-900 bg-ink-900 text-white shadow-soft"
+                            : "border-ink-100 bg-white text-ink-900 hover:border-ink-200 hover:bg-sand-50"
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="text-sm font-semibold">{item.name || "Untitled item"}</p>
+                            <p className={`mt-1 text-xs ${isSelected ? "text-white/70" : "text-ink-400"}`}>
+                              {categoryLabel}
+                            </p>
+                          </div>
+                          <span
+                            className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+                              isSelected ? "bg-white/15 text-white" : "bg-sand-100 text-ink-500"
+                            }`}
+                          >
+                            {item.budget !== "" && item.budget !== null && item.budget !== undefined
+                              ? formatCurrency(item.budget)
+                              : "No budget"}
+                          </span>
+                        </div>
+                        <p
+                          className={`mt-3 line-clamp-3 text-sm leading-6 ${
+                            isSelected ? "text-white/80" : "text-ink-500"
+                          }`}
+                        >
+                          {item.scopeDescription || "Add the contractor-facing scope for this item."}
+                        </p>
+                      </button>
+                    );
+                  })
+                ) : (
+                  <div className="rounded-[22px] border border-dashed border-ink-200 bg-sand-50/70 px-4 py-5 text-sm text-ink-500">
+                    Start by adding a renovation item from the quick-add list or create a custom one.
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-6">
+            <div className="section-card p-6 sm:p-7">
+              <span className="eyebrow">Renovation planning and estimate</span>
+              <h2 className="mt-4 text-2xl font-semibold text-ink-900">
+                Build the scope before you price the job
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-ink-500">
+                Confirm the project basics here, then write out the scope item by item so contractor bids can be compared cleanly later.
+              </p>
+
+              <div className="mt-6 grid gap-5 md:grid-cols-2">
+                <FormField
+                  label="Verified square footage"
+                  hint="Confirm the usable square footage before building the estimate."
+                >
+                  <input
+                    name="verifiedSquareFootage"
+                    type="number"
+                    value={renovationForm.verifiedSquareFootage}
+                    onChange={handleRenovationChange}
+                    className="auth-input"
+                    placeholder="0"
+                  />
+                </FormField>
+
+                <FormField label="Renovation level">
+                  <select
+                    name="renovationLevel"
+                    value={renovationForm.renovationLevel}
+                    onChange={handleRenovationChange}
+                    className="auth-input appearance-none"
+                  >
+                    {renovationLevelOptions.map((option) => (
+                      <option key={option.value || "empty"} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </FormField>
+
+                <FormField label="Will there be an extension?">
+                  <select
+                    name="extensionPlanned"
+                    value={renovationForm.extensionPlanned ? "yes" : "no"}
+                    onChange={(event) =>
+                      setRenovationForm((previous) => ({
+                        ...previous,
+                        extensionPlanned: event.target.value === "yes",
+                        extensionSquareFootage:
+                          event.target.value === "yes" ? previous.extensionSquareFootage : "",
+                      }))
+                    }
+                    className="auth-input appearance-none"
+                  >
+                    <option value="no">No</option>
+                    <option value="yes">Yes</option>
+                  </select>
+                </FormField>
+
+                {renovationForm.extensionPlanned ? (
+                  <FormField label="Extension square footage">
+                    <input
+                      name="extensionSquareFootage"
+                      type="number"
+                      value={renovationForm.extensionSquareFootage}
+                      onChange={handleRenovationChange}
+                      className="auth-input"
+                      placeholder="0"
+                    />
+                  </FormField>
+                ) : (
+                  <div />
+                )}
+              </div>
+            </div>
+
+            <div className="section-card p-6 sm:p-7">
+              {selectedRenovationItem ? (
+                <>
+                  <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div>
+                      <span className="eyebrow">Selected item</span>
+                      <h3 className="mt-3 text-2xl font-semibold text-ink-900">
+                        {selectedRenovationItem.name || "Renovation item"}
+                      </h3>
+                      <p className="mt-2 text-sm leading-6 text-ink-500">
+                        Write the scope the way you want the contractor to understand and price it.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveRenovationItem(selectedRenovationItem.itemId)}
+                      className="ghost-action text-red-600 hover:bg-red-50 hover:text-red-700"
+                    >
+                      Remove item
+                    </button>
+                  </div>
+
+                  <div className="mt-6 grid gap-5 md:grid-cols-2">
+                    <FormField label="Item name">
+                      <input
+                        value={selectedRenovationItem.name}
+                        onChange={(event) =>
+                          handleRenovationItemChange(
+                            selectedRenovationItem.itemId,
+                            "name",
+                            event.target.value
+                          )
+                        }
+                        className="auth-input"
+                        placeholder="Kitchen remodel"
+                      />
+                    </FormField>
+
+                    <FormField label="Category">
+                      <select
+                        value={selectedRenovationItem.category}
+                        onChange={(event) =>
+                          handleRenovationItemChange(
+                            selectedRenovationItem.itemId,
+                            "category",
+                            event.target.value
+                          )
+                        }
+                        className="auth-input appearance-none"
+                      >
+                        {renovationCategoryOptions.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </FormField>
+
+                    <FormField label="Budget for this item">
+                      <input
+                        type="number"
+                        value={selectedRenovationItem.budget}
+                        onChange={(event) =>
+                          handleRenovationItemChange(
+                            selectedRenovationItem.itemId,
+                            "budget",
+                            event.target.value
+                          )
+                        }
+                        className="auth-input"
+                        placeholder="0"
+                      />
+                    </FormField>
+
+                    <FormField label="Item status">
+                      <select
+                        value={selectedRenovationItem.status}
+                        onChange={(event) =>
+                          handleRenovationItemChange(
+                            selectedRenovationItem.itemId,
+                            "status",
+                            event.target.value
+                          )
+                        }
+                        className="auth-input appearance-none"
+                      >
+                        {renovationItemStatusOptions.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </FormField>
+
+                    <FormField
+                      label="Scope for contractor quote"
+                      hint="Describe exactly what this contractor should price, including the level of finish and any must-haves."
+                      className="md:col-span-2"
+                    >
+                      <textarea
+                        rows="6"
+                        value={selectedRenovationItem.scopeDescription}
+                        onChange={(event) =>
+                          handleRenovationItemChange(
+                            selectedRenovationItem.itemId,
+                            "scopeDescription",
+                            event.target.value
+                          )
+                        }
+                        className="auth-input min-h-[180px]"
+                        placeholder="Example: demo existing kitchen, install shaker cabinets, quartz counters, undermount sink, new faucet, backsplash, and appliance hookups. Quote labor and material separately."
+                      />
+                    </FormField>
+                  </div>
+
+                  <div className="mt-5 rounded-[20px] border border-ink-100 bg-sand-50/80 px-4 py-4 text-sm leading-6 text-ink-600">
+                    This description becomes the source of truth for future quote uploads, AI scope polishing, and bid comparisons.
+                  </div>
+                </>
+              ) : (
+                <div className="rounded-[22px] border border-dashed border-ink-200 bg-sand-50/70 px-5 py-10 text-center">
+                  <h3 className="text-xl font-semibold text-ink-900">No renovation item selected</h3>
+                  <p className="mt-2 text-sm leading-6 text-ink-500">
+                    Add an item on the left, then use this panel to set the budget and write the contractor-ready scope.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="flex flex-wrap justify-end gap-3">
+              <button
+                type="button"
+                onClick={handleSaveRenovation}
+                disabled={isSavingRenovation}
+                className="primary-action disabled:cursor-not-allowed disabled:opacity-70"
+              >
+                {isSavingRenovation ? "Saving..." : "Save renovation plan"}
+              </button>
             </div>
           </div>
         </div>
