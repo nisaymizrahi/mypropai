@@ -38,6 +38,27 @@ export const geocodeAddress = async (address) => {
   return res.json();
 };
 
+export const searchAddressSuggestions = async (query, signal) => {
+  const token = process.env.REACT_APP_MAPBOX_TOKEN;
+  if (!token) throw new Error("Missing REACT_APP_MAPBOX_TOKEN");
+  if (!query?.trim()) return [];
+
+  const url = new URL(
+    `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json`
+  );
+  url.searchParams.set("access_token", token);
+  url.searchParams.set("autocomplete", "true");
+  url.searchParams.set("limit", "5");
+  url.searchParams.set("types", "address");
+  url.searchParams.set("country", "us");
+
+  const res = await fetch(url.toString(), { signal });
+  if (!res.ok) throw new Error("Address search failed");
+
+  const data = await res.json();
+  return data.features || [];
+};
+
 /**
  * ==========================
  *   COMPS (BACKEND-DRIVEN)
@@ -83,6 +104,16 @@ export const createLead = async (data) => {
     body: JSON.stringify(data),
   });
   if (!res.ok) throw new Error((await res.json()).msg || "Failed to create lead");
+  return res.json();
+};
+
+export const previewLeadProperty = async (data) => {
+  const res = await fetch(`${API_BASE_URL}/leads/preview-property`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error((await res.json()).msg || "Failed to preview property details");
   return res.json();
 };
 
