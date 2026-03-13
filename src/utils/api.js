@@ -200,6 +200,16 @@ export const deleteInvestment = async (id) => {
   return res.json();
 };
 
+export const updateInvestment = async (id, data) => {
+  const res = await fetch(`${API_BASE_URL}/investments/${id}`, {
+    method: "PATCH",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error((await res.json()).message || "Failed to update investment");
+  return res.json();
+};
+
 /**
  * ==========================
  *   PROJECT HUB: BUDGET / EXPENSES / DOCS / TASKS
@@ -344,6 +354,9 @@ export const updateProjectTask = async (taskId, updates) => {
   return res.json();
 };
 
+// Backwards-compatible alias used by older components.
+export const updateTask = updateProjectTask;
+
 export const deleteProjectTask = async (taskId) => {
   const res = await fetch(`${API_BASE_URL}/project-tasks/${taskId}`, {
     method: "DELETE",
@@ -380,33 +393,81 @@ export const deleteProjectDocument = async (documentId) => {
   return res.json();
 };
 
+const normalizeManagedDocumentFormData = (formData) => {
+  const normalized = new FormData();
+  const displayName = formData.get("displayName");
+  const file = formData.get("document") || formData.get("file");
+
+  if (displayName) normalized.append("displayName", displayName);
+  if (file) normalized.append("document", file);
+
+  return normalized;
+};
+
+const flattenPropertyDocuments = (data) => {
+  if (Array.isArray(data)) return data;
+  if (!data || typeof data !== "object") return [];
+
+  const propertyWide = Array.isArray(data.propertyWide) ? data.propertyWide : [];
+  const byUnit = data.byUnit && typeof data.byUnit === "object"
+    ? Object.values(data.byUnit).flat()
+    : [];
+
+  return [...propertyWide, ...byUnit];
+};
+
 /**
  * ==========================
- *   UNIT DOCUMENTS (NEW EXPORTS)
+ *   MANAGED PROPERTY DOCUMENTS
  * ==========================
- * These exports fix the Render compile error coming from DocumentsTab.jsx.
- * If your backend uses a different path, the build will still succeed and we can adjust the endpoint next.
  */
+export const getPropertyDocuments = async (propertyId) => {
+  const res = await fetch(`${API_BASE_URL}/managed-documents/property/${propertyId}`, {
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) throw new Error("Failed to fetch property documents");
+  return flattenPropertyDocuments(await res.json());
+};
+
+export const uploadPropertyDocument = async (propertyId, formData) => {
+  const res = await fetch(`${API_BASE_URL}/managed-documents/property/${propertyId}`, {
+    method: "POST",
+    headers: getAuthHeaders(true),
+    body: normalizeManagedDocumentFormData(formData),
+  });
+  if (!res.ok) throw new Error("Failed to upload property document");
+  return res.json();
+};
+
+export const deletePropertyDocument = async (documentId) => {
+  const res = await fetch(`${API_BASE_URL}/managed-documents/${documentId}`, {
+    method: "DELETE",
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) throw new Error("Failed to delete property document");
+  return res.json();
+};
+
 export const getUnitDocuments = async (unitId) => {
-  const res = await fetch(`${API_BASE_URL}/documents/unit/${unitId}`, {
+  const res = await fetch(`${API_BASE_URL}/managed-documents/unit/${unitId}`, {
     headers: getAuthHeaders(),
   });
   if (!res.ok) throw new Error("Failed to fetch unit documents");
   return res.json();
 };
 
-export const uploadUnitDocument = async (formData) => {
-  const res = await fetch(`${API_BASE_URL}/documents/unit`, {
+export const uploadUnitDocument = async (unitId, formData) => {
+  const res = await fetch(`${API_BASE_URL}/managed-documents/unit/${unitId}`, {
     method: "POST",
     headers: getAuthHeaders(true),
-    body: formData,
+    body: normalizeManagedDocumentFormData(formData),
   });
   if (!res.ok) throw new Error("Failed to upload unit document");
   return res.json();
 };
 
 export const deleteUnitDocument = async (documentId) => {
-  const res = await fetch(`${API_BASE_URL}/documents/unit/${documentId}`, {
+  const res = await fetch(`${API_BASE_URL}/managed-documents/${documentId}`, {
     method: "DELETE",
     headers: getAuthHeaders(),
   });
@@ -663,7 +724,7 @@ export const generateAIDescription = async (data) => {
 };
 
 export const generateBudgetLines = async (data) => {
-  const res = await fetch(`${API_BASE_URL}/ai-tools/generate-budget-lines`, {
+  const res = await fetch(`${API_BASE_URL}/investments/generate-budget-lines`, {
     method: "POST",
     headers: getAuthHeaders(),
     body: JSON.stringify(data),
@@ -673,10 +734,9 @@ export const generateBudgetLines = async (data) => {
 };
 
 export const generateAIReport = async (investmentId) => {
-  const res = await fetch(`${API_BASE_URL}/ai-tools/generate-report`, {
+  const res = await fetch(`${API_BASE_URL}/investments/generate-report/${investmentId}`, {
     method: "POST",
     headers: getAuthHeaders(),
-    body: JSON.stringify({ investmentId }),
   });
   if (!res.ok) throw new Error((await res.json()).msg || "Failed to generate AI report");
   return res.json();
@@ -723,7 +783,7 @@ export const getApplicationDetails = async (applicationId) => {
 };
 
 export const updateApplicationStatus = async (applicationId, status) => {
-  const res = await fetch(`${API_BASE_URL}/applications/${applicationId}`, {
+  const res = await fetch(`${API_BASE_URL}/applications/${applicationId}/status`, {
     method: "PATCH",
     headers: getAuthHeaders(),
     body: JSON.stringify({ status }),
@@ -747,7 +807,7 @@ export const initiateScreening = async (applicationId) => {
 export const submitApplication = async (data) => {
   const res = await fetch(`${API_BASE_URL}/applications/submit`, {
     method: "POST",
-    headers: getAuthHeaders(),
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
   if (!res.ok) throw new Error("Failed to submit application");
@@ -768,7 +828,7 @@ export const createApplicationPaymentIntent = async (applicationId) => {
 
 export const getPublicApplicationDetails = async (unitId) => {
   const res = await fetch(`${API_BASE_URL}/applications/public/${unitId}`, {
-    headers: getAuthHeaders(),
+    headers: { "Content-Type": "application/json" },
   });
   if (!res.ok) throw new Error("Failed to fetch application details");
   return res.json();

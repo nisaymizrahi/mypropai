@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { getInvestment, getAuthHeaders } from "../utils/api";
+import { getInvestment, updateInvestment } from "../utils/api";
 
 const FormInput = (props) => (
   <input
@@ -50,12 +50,7 @@ const EditInvestment = () => {
     setMessage("");
     setIsSaving(true);
     try {
-      const res = await fetch(`https://mypropai-server.onrender.com/api/investments/${id}`, {
-        method: "PATCH",
-        headers: getAuthHeaders(),
-        body: JSON.stringify(formData),
-      });
-      if (!res.ok) throw new Error("Failed to update investment");
+      await updateInvestment(id, formData);
       setMessage("✅ Investment updated successfully!");
       setTimeout(() => navigate(`/investments/${id}`), 1500);
     } catch (err) {

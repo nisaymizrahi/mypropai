@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { submitApplication } from '../utils/api';
+import { getPublicApplicationDetails, submitApplication } from '../utils/api';
 
 const ApplicationFormPage = () => {
   const { unitId } = useParams();
@@ -29,8 +29,7 @@ const ApplicationFormPage = () => {
         return;
       }
       try {
-        const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/applications/public/${unitId}`);
-        const data = await res.json();
+        const data = await getPublicApplicationDetails(unitId);
         setUnitInfo(data);
       } catch {
         toast.error("Could not load unit info");

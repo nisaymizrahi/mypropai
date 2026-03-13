@@ -1,19 +1,18 @@
 import React, { useEffect, useState } from 'react';
 import { getAuthHeaders } from '../utils/api';
 import toast from 'react-hot-toast';
+import { API_BASE_URL } from '../config';
 
 const SendApplicationPage = () => {
   const [units, setUnits] = useState([]);
   const [selectedUnit, setSelectedUnit] = useState('');
   const [generatedLink, setGeneratedLink] = useState('');
-  const [customEmail, setCustomEmail] = useState('');
   const [apiError, setApiError] = useState(false);
 
   useEffect(() => {
     const fetchUnits = async () => {
-      const baseURL = import.meta.env.VITE_API_BASE_URL || 'https://mypropai-server.onrender.com';
       try {
-        const res = await fetch(`${baseURL}/api/management/units/vacant`, {
+        const res = await fetch(`${API_BASE_URL}/management/units/vacant`, {
           headers: getAuthHeaders()
         });
         if (!res.ok) throw new Error('Response not OK');
@@ -29,12 +28,10 @@ const SendApplicationPage = () => {
 
   const generateLink = () => {
     const base = window.location.origin;
-    if (selectedUnit === 'none' || apiError) {
-      setGeneratedLink(`${base}/apply?noUnit=true`);
-    } else if (selectedUnit) {
+    if (selectedUnit) {
       setGeneratedLink(`${base}/apply/${selectedUnit}`);
     } else {
-      toast.error('Please select a unit or "None"');
+      toast.error(apiError ? 'Vacant units could not be loaded yet.' : 'Please select a vacant unit.');
     }
   };
 
@@ -60,7 +57,6 @@ const SendApplicationPage = () => {
               {unit.property.address} - {unit.name}
             </option>
           ))}
-          <option value="none">Send application without selecting a unit</option>
         </select>
       </div>
 
