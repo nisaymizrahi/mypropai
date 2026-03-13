@@ -53,7 +53,7 @@ const LoginPage = () => {
 
   useEffect(() => {
     if (!loading && authenticated) {
-      navigate("/dashboard", { replace: true });
+      navigate("/leads", { replace: true });
     }
   }, [authenticated, loading, navigate]);
 

@@ -39,23 +39,18 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     const checkAuth = async () => {
-      console.log('%c[AUTH] Starting auth check...', 'color: blue');
       setLoading(true);
 
       if (!token) {
-        console.log('[AUTH] No token found. Setting as logged out.');
         setAuthenticated(false);
         setUser(null);
         setLoading(false);
         return;
       }
 
-      console.log('[AUTH] Token found, verifying with server...');
       try {
-        const userData = await refreshUser(token);
-        console.log('%c[AUTH] Token verification SUCCESSFUL.', 'color: green', { user: userData });
+        await refreshUser(token);
       } catch (err) {
-        console.error('%c[AUTH] Token verification FAILED.', 'color: red', err);
         const platformManagerToken = localStorage.getItem(PLATFORM_MANAGER_TOKEN_KEY);
 
         if (platformManagerToken && platformManagerToken !== token) {
@@ -69,7 +64,6 @@ export const AuthProvider = ({ children }) => {
           setAuthenticated(false);
         }
       } finally {
-        console.log('[AUTH] Auth check finished.');
         setLoading(false);
       }
     };
@@ -78,7 +72,6 @@ export const AuthProvider = ({ children }) => {
   }, [clearStoredAuth, refreshUser, token]);
 
   const login = (newToken) => {
-    console.log('%c[AUTH] Login function called. Setting new token.', 'color: purple');
     localStorage.setItem(TOKEN_KEY, newToken);
     localStorage.removeItem(PLATFORM_MANAGER_TOKEN_KEY);
     setToken(newToken);
@@ -111,7 +104,6 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = () => {
-    console.log('%c[AUTH] Logout function called. Clearing token.', 'color: orange');
     clearStoredAuth();
     setAuthenticated(false);
     setUser(null);

@@ -2,13 +2,19 @@ import React from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 
-import PlatformShell from "./components/PlatformShell";
+import DashboardLayout from "./components/DashboardLayout";
+import PlatformManagerRoute from "./components/PlatformManagerRoute";
 import ProtectedRoute from "./components/ProtectedRoute";
 import LoginPage from "./pages/LoginPage";
 import LoginContinuePage from "./pages/LoginContinuePage";
 import SignupPage from "./pages/SignupPage";
-import PlatformLandingPage from "./pages/PlatformLandingPage";
-import PlatformWorkspacePage from "./pages/PlatformWorkspacePage";
+import Homepage from "./pages/Homepage";
+import LeadsPage from "./pages/LeadsPage";
+import LeadDetailPage from "./pages/LeadDetailPage";
+import CreatePropertyPage from "./pages/CreatePropertyPage";
+import PropertyWorkspacePage from "./pages/PropertyWorkspacePage";
+import AccountCenter from "./pages/AccountCenter";
+import PlatformManagerPage from "./pages/PlatformManagerPage";
 
 import { AuthProvider } from "./context/AuthContext";
 
@@ -22,16 +28,10 @@ const parkedPublicPaths = [
 
 const parkedProtectedPaths = [
   "/tenant-dashboard",
-  "/account",
-  "/platform-manager",
   "/tools",
   "/comps",
   "/comps-tool",
   "/properties",
-  "/properties/new",
-  "/properties/:propertyKey",
-  "/leads",
-  "/leads/:id",
   "/management",
   "/management/:propertyId",
   "/management/leases/:leaseId",
@@ -45,17 +45,15 @@ const parkedProtectedPaths = [
   "/investments/:id/edit",
 ];
 
-const WorkspaceRoute = () => (
+const ProtectedLayoutRoute = ({ children }) => (
   <ProtectedRoute>
-    <PlatformShell>
-      <PlatformWorkspacePage />
-    </PlatformShell>
+    <DashboardLayout>{children}</DashboardLayout>
   </ProtectedRoute>
 );
 
-const ParkedFeatureRoute = () => (
+const LeadsRedirectRoute = () => (
   <ProtectedRoute>
-    <Navigate to="/dashboard" replace />
+    <Navigate to="/leads" replace />
   </ProtectedRoute>
 );
 
@@ -79,7 +77,7 @@ function App() {
         />
 
         <Routes>
-          <Route path="/" element={<PlatformLandingPage />} />
+          <Route path="/" element={<Homepage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/login-continue" element={<LoginContinuePage />} />
           <Route path="/signup" element={<SignupPage />} />
@@ -87,10 +85,66 @@ function App() {
             <Route key={path} path={path} element={<Navigate to="/" replace />} />
           ))}
 
-          <Route path="/dashboard" element={<WorkspaceRoute />} />
+          <Route path="/dashboard" element={<LeadsRedirectRoute />} />
+
+          <Route
+            path="/leads"
+            element={
+              <ProtectedLayoutRoute>
+                <LeadsPage />
+              </ProtectedLayoutRoute>
+            }
+          />
+
+          <Route
+            path="/leads/:id"
+            element={
+              <ProtectedLayoutRoute>
+                <LeadDetailPage />
+              </ProtectedLayoutRoute>
+            }
+          />
+
+          <Route
+            path="/properties/new"
+            element={
+              <ProtectedLayoutRoute>
+                <CreatePropertyPage />
+              </ProtectedLayoutRoute>
+            }
+          />
+
+          <Route
+            path="/properties/:propertyKey"
+            element={
+              <ProtectedLayoutRoute>
+                <PropertyWorkspacePage />
+              </ProtectedLayoutRoute>
+            }
+          />
+
+          <Route
+            path="/account"
+            element={
+              <ProtectedLayoutRoute>
+                <AccountCenter />
+              </ProtectedLayoutRoute>
+            }
+          />
+
+          <Route
+            path="/platform-manager"
+            element={
+              <PlatformManagerRoute>
+                <DashboardLayout>
+                  <PlatformManagerPage />
+                </DashboardLayout>
+              </PlatformManagerRoute>
+            }
+          />
 
           {parkedProtectedPaths.map((path) => (
-            <Route key={path} path={path} element={<ParkedFeatureRoute />} />
+            <Route key={path} path={path} element={<LeadsRedirectRoute />} />
           ))}
 
           <Route path="*" element={<Navigate to="/" replace />} />

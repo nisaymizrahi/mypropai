@@ -138,7 +138,7 @@ const LeadsPage = () => {
   const [viewMode, setViewMode] = useState('list');
 
   const openUnifiedLeadCreator = () => {
-    navigate('/properties/new?workspace=pipeline');
+    navigate('/properties/new');
   };
 
   const fetchData = useCallback(async () => {
@@ -335,19 +335,18 @@ const LeadsPage = () => {
         <div className="absolute inset-y-0 right-0 hidden w-1/3 bg-[radial-gradient(circle_at_center,rgba(59,143,129,0.18),transparent_62%)] lg:block" />
         <div className="relative grid gap-8 lg:grid-cols-[minmax(0,1.05fr)_minmax(320px,0.95fr)]">
           <div>
-            <span className="eyebrow">Acquisition workspace</span>
+            <span className="eyebrow">Lead pipeline</span>
             <h2 className="mt-5 text-4xl font-semibold tracking-tight text-ink-900">
-              Move from first look to close without losing the thread.
+              Keep potential properties organized from first look to next step.
             </h2>
             <p className="mt-4 max-w-2xl text-base leading-7 text-ink-500">
-              The lead workspace now starts from the shared property creator, so address details stay
-              aligned with the property hub while seller notes and deal planning remain specific to the lead.
+              Review opportunities, track where each one stands, and add new properties without a bulky workflow getting in the way.
             </p>
 
             <div className="mt-8 flex flex-wrap gap-3">
               <button type="button" onClick={openUnifiedLeadCreator} className="primary-action">
                 <PlusIcon className="h-4 w-4" />
-                Add property to leads
+                Add property
               </button>
               <button
                 type="button"
@@ -355,9 +354,6 @@ const LeadsPage = () => {
                 className="secondary-action"
               >
                 {viewMode === 'list' ? 'Open board view' : 'Open list view'}
-              </button>
-              <button type="button" onClick={() => navigate('/properties')} className="secondary-action">
-                Open property hub
               </button>
             </div>
           </div>
@@ -401,10 +397,9 @@ const LeadsPage = () => {
 
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h3 className="text-2xl font-semibold text-ink-900">Lead workspace</h3>
+          <h3 className="text-2xl font-semibold text-ink-900">Potential properties</h3>
           <p className="mt-2 text-sm leading-6 text-ink-500">
-            Choose the layout that matches the job: list view for scanning and sorting, board view
-            for moving deals through the pipeline.
+            Use list view when you need to scan and sort, or board view when you want to move opportunities through the pipeline.
           </p>
         </div>
 
@@ -468,8 +463,8 @@ const LeadsPage = () => {
           emptyTitle={allLeads.length === 0 ? 'No leads yet' : 'No leads match this view'}
           emptyDescription={
             allLeads.length === 0
-              ? 'Start with the unified property creator, pull in the address details, and begin building your acquisition pipeline.'
-              : 'Try a different search term or status filter to pull the right opportunities into view.'
+              ? 'Add your first property to start building the pipeline.'
+              : 'Try a different search term or status filter to surface the right opportunities.'
           }
           emptyActions={
             allLeads.length === 0 ? (
@@ -540,7 +535,7 @@ const LeadsPage = () => {
             <div className="mt-6 rounded-[20px] border border-dashed border-ink-200 bg-sand-50 px-6 py-12 text-center">
               <p className="text-lg font-semibold text-ink-900">No leads in the pipeline yet</p>
               <p className="mt-2 text-sm leading-6 text-ink-500">
-                Add your first property to leads to start tracking shared property details, seller context, and deal progress in one place.
+                Add your first property to start tracking pricing, notes, and deal progress in one place.
               </p>
               <div className="mt-5 flex justify-center">
                 <button type="button" onClick={openUnifiedLeadCreator} className="primary-action">

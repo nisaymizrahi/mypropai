@@ -17,32 +17,12 @@ const propertyTypeOptions = [
   { value: "other", label: "Other" },
 ];
 
-const workspaceDetails = {
-  property_only: {
-    label: "Property only",
-    description: "Create the shared property record first, then decide what to do with it.",
-  },
-  pipeline: {
-    label: "Leads",
-    description: "This property will open in the leads workflow right after it is created.",
-  },
-  acquisitions: {
-    label: "Investments",
-    description: "This property will open in the investment workflow right after it is created.",
-  },
-  management: {
-    label: "Management",
-    description:
-      "This property will open in management after creation using the default rental strategy in the background.",
-  },
-};
-
 const normalizeWorkspaceKey = (value) => {
   if (["property_only", "pipeline", "acquisitions", "management"].includes(value)) {
     return value;
   }
 
-  return "property_only";
+  return "pipeline";
 };
 
 const toOptionalNumber = (value) => {
@@ -162,7 +142,6 @@ const CreatePropertyPage = () => {
     [formData.addressLine1, formData.city, formData.state, formData.zipCode]
   );
 
-  const launchMode = workspaceDetails[formData.workspaceKey] || workspaceDetails.property_only;
   const showsUnitCount = formData.propertyType === "multi-family";
   const isForSale = Boolean(
     previewMetadata?.activeListingFound || formData.listingStatus || formData.sellerAskingPrice
@@ -329,7 +308,7 @@ const CreatePropertyPage = () => {
       }
 
       toast.success("Property created.");
-      navigate("/properties");
+      navigate("/leads");
     } catch (submitError) {
       setError(submitError.message || "Failed to create property.");
     } finally {
@@ -344,26 +323,29 @@ const CreatePropertyPage = () => {
           <div>
             <span className="eyebrow">Add property</span>
             <h2 className="mt-5 text-4xl font-semibold tracking-tight text-ink-900">
-              Start with the address, then fill in only the property facts you need.
+              Start with the address, then fill in only the details you need.
             </h2>
             <p className="mt-4 max-w-2xl text-base leading-7 text-ink-500">
-              This version keeps the entry flow lean: street address, city, state, zip, core
-              property specs, and sale status when the property is actively listed.
+              Add a potential property to the pipeline with one clean form. Address lookup can fill the basics, and sale status appears automatically when the property is actively listed.
             </p>
 
             <div className="mt-8 flex flex-wrap gap-3">
-              <Link to="/properties" className="secondary-action">
-                Back to properties
+              <Link to="/leads" className="secondary-action">
+                Back to leads
               </Link>
             </div>
           </div>
 
           <div className="section-card p-6">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-400">
-              Save target
+              Autofill
             </p>
-            <h3 className="mt-3 text-2xl font-semibold text-ink-900">{launchMode.label}</h3>
-            <p className="mt-3 text-sm leading-6 text-ink-500">{launchMode.description}</p>
+            <h3 className="mt-3 text-2xl font-semibold text-ink-900">
+              Address first, details second
+            </h3>
+            <p className="mt-3 text-sm leading-6 text-ink-500">
+              Start typing an address, choose the right result, and let the lookup prefill any property facts and sale information it can find.
+            </p>
 
             <div className="mt-6 rounded-[22px] border border-ink-100 bg-white/90 p-4">
               <p className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-400">
@@ -634,7 +616,7 @@ const CreatePropertyPage = () => {
           ) : null}
 
           <div className="mt-6 flex flex-wrap justify-end gap-3">
-            <Link to="/properties" className="ghost-action">
+            <Link to="/leads" className="ghost-action">
               Cancel
             </Link>
             <button
@@ -642,7 +624,7 @@ const CreatePropertyPage = () => {
               disabled={isSubmitting}
               className="primary-action disabled:cursor-not-allowed disabled:opacity-70"
             >
-              {isSubmitting ? "Creating..." : "Create property"}
+              {isSubmitting ? "Creating..." : "Add property"}
             </button>
           </div>
         </section>

@@ -228,7 +228,12 @@ const PropertyWorkspacePage = () => {
   }, [propertyKey, syncPropertyState]);
 
   useEffect(() => {
-    const query = composeAddress(formData).trim();
+    const query = composeAddress({
+      addressLine1: formData.addressLine1,
+      city: formData.city,
+      state: formData.state,
+      zipCode: formData.zipCode,
+    }).trim();
     if (query.length < 4 || query === selectedSuggestionRef.current) {
       setSuggestions([]);
       return undefined;

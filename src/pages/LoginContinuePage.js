@@ -45,7 +45,7 @@ const LoginContinuePage = () => {
   useEffect(() => {
     if (!loading) {
       if (authenticated) {
-        navigate("/dashboard", { replace: true });
+        navigate("/leads", { replace: true });
       } else {
         navigate("/login", { replace: true });
       }

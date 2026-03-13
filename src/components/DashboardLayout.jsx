@@ -3,25 +3,15 @@ import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
   ArrowPathIcon,
   Bars3Icon,
-  BriefcaseIcon,
-  BuildingOffice2Icon,
-  ChartBarIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
-  ClipboardDocumentListIcon,
   Cog6ToothIcon,
-  HomeIcon,
-  HomeModernIcon,
-  MagnifyingGlassIcon,
   PlusCircleIcon,
-  RectangleStackIcon,
   ShieldCheckIcon,
   UsersIcon,
   XMarkIcon,
 } from "@heroicons/react/24/outline";
 
-import NotificationBell from "./NotificationBell";
-import CommandPalette from "./CommandPalette";
 import UserInfoBanner from "./UserInfoBanner";
 import { useAuth } from "../context/AuthContext";
 import {
@@ -35,44 +25,11 @@ const visibleNavSections = [
   {
     title: "Workspace",
     links: [
-      { to: "/dashboard", label: "Overview", icon: HomeIcon },
-      { to: "/properties", label: "Properties", icon: HomeModernIcon },
+      { to: "/leads", label: "Potential Properties", icon: UsersIcon },
       { to: "/properties/new", label: "Add Property", icon: PlusCircleIcon },
-      { to: "/account", label: "Account Center", icon: Cog6ToothIcon },
     ],
   },
 ];
-
-// Keep the current feature navigation parked here so we can restore it quickly during the rebuild.
-const parkedFeatureNavSections = [
-  {
-    title: "Command",
-    links: [
-      { to: "/applications", label: "Applications", icon: ClipboardDocumentListIcon },
-      { to: "/applications/send", label: "Send Application", icon: ClipboardDocumentListIcon },
-    ],
-  },
-  {
-    title: "Views",
-    links: [
-      { to: "/leads", label: "Leads", icon: UsersIcon },
-      { to: "/investments", label: "Acquisitions View", icon: BriefcaseIcon },
-      { to: "/management", label: "Management View", icon: BuildingOffice2Icon },
-    ],
-  },
-  {
-    title: "Intelligence",
-    links: [
-      { to: "/comps", label: "Market Intel", icon: ChartBarIcon },
-      { to: "/tools", label: "Financial Tools", icon: RectangleStackIcon },
-    ],
-  },
-];
-
-const parkedFeatureLinkCount = parkedFeatureNavSections.reduce(
-  (count, section) => count + section.links.length,
-  0
-);
 
 const getNavSections = (user) => {
   const sections = visibleNavSections.map((section) => ({
@@ -91,139 +48,43 @@ const getNavSections = (user) => {
 };
 
 const resolvePageMeta = (pathname, user) => {
-  if (pathname.startsWith("/investments/new")) {
-    return {
-      kicker: "Acquisitions",
-      title: "Create Acquisition Workspace",
-      subtitle: "Structure a new acquisitions workspace with underwriting details and assumptions.",
-    };
-  }
-
   if (pathname === "/properties/new") {
     return {
-      kicker: "Property Hub",
-      title: "Create Property",
-      subtitle: "Create a clean property record with the address, core specs, and sale status if it is actively listed.",
-    };
-  }
-
-  if (pathname.startsWith("/investments/") && pathname.endsWith("/edit")) {
-    return {
-      kicker: "Acquisitions",
-      title: "Edit Acquisition Workspace",
-      subtitle: "Refine the underwriting model, assumptions, and return targets for this property.",
-    };
-  }
-
-  if (pathname.startsWith("/investments/")) {
-    return {
-      kicker: "Acquisitions",
-      title: "Acquisition Workspace",
-      subtitle: "Review underwriting, budget exposure, and execution progress for this property.",
-    };
-  }
-
-  if (pathname.startsWith("/management/leases/")) {
-    return {
-      kicker: "Operations",
-      title: "Lease Detail",
-      subtitle: "Track tenant commitments, payment timelines, and lease milestones.",
+      kicker: "Pipeline",
+      title: "Add Property",
+      subtitle: "Capture the address, pull in the basic property facts, and save the opportunity into your pipeline.",
     };
   }
 
   if (pathname.startsWith("/properties/")) {
     return {
-      kicker: "Property Hub",
-      title: "Property Workspace",
-      subtitle: "Edit the core property details once, keep the sale status visible, and add workspaces only when needed.",
+      kicker: "Property",
+      title: "Property Details",
+      subtitle: "Review and update the core record behind this property.",
     };
   }
 
   if (pathname === "/properties") {
     return {
-      kicker: "Property Hub",
+      kicker: "Property",
       title: "Properties",
-      subtitle: "View the unified property record behind every lead, investment, and managed asset in your workspace.",
-    };
-  }
-
-  if (pathname.startsWith("/management/units/")) {
-    return {
-      kicker: "Operations",
-      title: "Listing Command",
-      subtitle: "Coordinate leasing copy, imagery, and readiness for vacant inventory.",
-    };
-  }
-
-  if (pathname.startsWith("/management/")) {
-    return {
-      kicker: "Operations",
-      title: "Management Workspace",
-      subtitle: "Monitor occupancy, leasing pressure, and on-site activity for this asset.",
-    };
-  }
-
-  if (pathname === "/management") {
-    return {
-      kicker: "Operations",
-      title: "Management View",
-      subtitle: "Use the management-filtered view of the property hub to oversee occupancy, vacancies, and leasing operations.",
-    };
-  }
-
-  if (pathname === "/applications/send") {
-    return {
-      kicker: "Pipeline",
-      title: "Send Application",
-      subtitle: "Create a leasing link for the right property and vacant unit without leaving the portfolio context.",
-    };
-  }
-
-  if (pathname.startsWith("/applications/")) {
-    return {
-      kicker: "Pipeline",
-      title: "Application Review",
-      subtitle: "Move applicants from inquiry to signed lease with clarity and speed.",
-    };
-  }
-
-  if (pathname === "/applications") {
-    return {
-      kicker: "Pipeline",
-      title: "Applications",
-      subtitle: "Track applicant volume, quality, and next actions across your portfolio.",
+      subtitle: "Access the property records tied to your lead pipeline.",
     };
   }
 
   if (pathname.startsWith("/leads/")) {
     return {
       kicker: "Pipeline",
-      title: "Lead Detail",
-      subtitle: "Keep acquisition conversations organized and move decisively on promising deals.",
+      title: "Potential Property",
+      subtitle: "Track the latest notes, pricing, and next steps for this opportunity.",
     };
   }
 
   if (pathname === "/leads") {
     return {
       kicker: "Pipeline",
-      title: "Leads",
-      subtitle: "Prioritize outreach, follow-up, and diligence on inbound opportunities.",
-    };
-  }
-
-  if (pathname === "/comps") {
-    return {
-      kicker: "Intelligence",
-      title: "Market Intelligence",
-      subtitle: "Benchmark pricing, demand, and positioning with comparable market data.",
-    };
-  }
-
-  if (pathname === "/tools") {
-    return {
-      kicker: "Intelligence",
-      title: "Financial Toolkit",
-      subtitle: "Run the calculators and underwriting scenarios that support sharper decisions.",
+      title: "Potential Properties",
+      subtitle: "Review opportunities, move them through the pipeline, and focus on the ones worth deeper diligence.",
     };
   }
 
@@ -243,18 +104,10 @@ const resolvePageMeta = (pathname, user) => {
     };
   }
 
-  if (pathname === "/investments") {
-    return {
-      kicker: "Acquisitions",
-      title: "Acquisitions View",
-      subtitle: "Use the acquisitions-filtered view of the property hub to track underwriting, execution, and management readiness.",
-    };
-  }
-
   return {
-    kicker: "Executive",
+    kicker: "Workspace",
     title: `Welcome back${user?.name ? `, ${user.name.split(" ")[0]}` : ""}`,
-    subtitle: "Run acquisitions, operations, and reporting from one professional command center.",
+    subtitle: "Review potential properties and add the next opportunity without extra clutter.",
   };
 };
 
@@ -321,10 +174,10 @@ const SidebarContent = ({ user, onNavigate, collapsed, onToggleCollapse }) => (
     >
       <div className={`flex ${collapsed ? "flex-col items-center gap-3" : "items-center gap-3"}`}>
         <Link
-          to="/dashboard"
+          to="/leads"
           onClick={onNavigate}
           className={collapsed ? "flex items-center justify-center" : "min-w-0 flex-1"}
-          title={collapsed ? "Fliprop dashboard" : undefined}
+          title={collapsed ? "Fliprop workspace" : undefined}
         >
           <div className={`flex items-center ${collapsed ? "justify-center" : "gap-3.5"}`}>
             <div className="flex h-11 w-11 items-center justify-center rounded-[18px] bg-white/10 text-base font-bold">
@@ -333,10 +186,10 @@ const SidebarContent = ({ user, onNavigate, collapsed, onToggleCollapse }) => (
             {!collapsed ? (
               <div className="min-w-0">
                 <p className="font-display text-[1.65rem] leading-none tracking-tight">Fliprop</p>
-                <p className="mt-1 text-sm text-white/65">Develop, flip, and manage in one workspace</p>
+                <p className="mt-1 text-sm text-white/65">Property leads and deal intake</p>
               </div>
             ) : (
-              <span className="sr-only">Fliprop dashboard</span>
+              <span className="sr-only">Fliprop workspace</span>
             )}
           </div>
         </Link>
@@ -376,6 +229,15 @@ const SidebarContent = ({ user, onNavigate, collapsed, onToggleCollapse }) => (
       {collapsed ? (
         <>
           <Link
+            to="/properties/new"
+            onClick={onNavigate}
+            title="Add Property"
+            aria-label="Add Property"
+            className="flex h-11 items-center justify-center rounded-[18px] border border-white/70 bg-white/88 text-ink-700 shadow-soft transition hover:bg-white"
+          >
+            <PlusCircleIcon className="h-5 w-5" />
+          </Link>
+          <Link
             to="/account"
             onClick={onNavigate}
             title="Open Account Center"
@@ -395,14 +257,22 @@ const SidebarContent = ({ user, onNavigate, collapsed, onToggleCollapse }) => (
         <>
           <div className="rounded-[22px] border border-white/80 bg-white/88 p-4 shadow-soft">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-ink-400">
-              Rebuild mode
+              Quick action
             </p>
-            <h3 className="mt-2 text-base font-semibold text-ink-900">Feature links are parked</h3>
+            <h3 className="mt-2 text-base font-semibold text-ink-900">
+              Add the next property to your pipeline
+            </h3>
             <p className="mt-2 text-sm leading-5 text-ink-500">
-              {parkedFeatureLinkCount} existing feature
-              {parkedFeatureLinkCount === 1 ? " link is" : " links are"} hidden from the menu while we
-              rebuild. The routes and screens are still there if we need to bring them back.
+              Start with the address, let the lookup fill in the basics, and keep the workflow focused on real opportunities.
             </p>
+            <Link
+              to="/properties/new"
+              onClick={onNavigate}
+              className="primary-action mt-4 w-full justify-center"
+            >
+              <PlusCircleIcon className="mr-2 h-5 w-5" />
+              Add Property
+            </Link>
           </div>
 
           <div className="rounded-[22px] border border-ink-100 bg-sand-50/90 p-4">
@@ -421,10 +291,7 @@ const SidebarContent = ({ user, onNavigate, collapsed, onToggleCollapse }) => (
 );
 
 function DashboardLayout({ children }) {
-  const isMacLikePlatform =
-    typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [sidebarPreference, setSidebarPreference] = useState(() => loadSidebarPreference());
   const mobileMenuRef = useRef(null);
   const location = useLocation();
@@ -451,25 +318,7 @@ function DashboardLayout({ children }) {
 
   useEffect(() => {
     setIsMobileMenuOpen(false);
-    setIsCommandPaletteOpen(false);
   }, [location.pathname]);
-
-  useEffect(() => {
-    const handleShortcut = (event) => {
-      const isShortcut =
-        (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k";
-
-      if (!isShortcut) {
-        return;
-      }
-
-      event.preventDefault();
-      setIsCommandPaletteOpen((current) => !current);
-    };
-
-    window.addEventListener("keydown", handleShortcut);
-    return () => window.removeEventListener("keydown", handleShortcut);
-  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -578,36 +427,13 @@ function DashboardLayout({ children }) {
               </div>
 
               <div className="flex flex-wrap items-center gap-2.5 lg:justify-end">
-                <button
-                  type="button"
-                  onClick={() => setIsCommandPaletteOpen(true)}
-                  className="flex h-10 w-10 items-center justify-center rounded-full border border-white/70 bg-white/78 text-ink-700 shadow-soft transition hover:bg-white md:hidden"
-                  aria-label="Open search"
-                  title="Open search"
-                >
-                  <MagnifyingGlassIcon className="h-5 w-5" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setIsCommandPaletteOpen(true)}
-                  className="hidden min-w-[250px] items-center justify-between rounded-[16px] border border-white/70 bg-white/78 px-3.5 py-2.5 text-left text-sm text-ink-600 shadow-soft transition hover:bg-white md:flex"
-                >
-                  <span className="inline-flex items-center gap-2 font-medium text-ink-700">
-                    <MagnifyingGlassIcon className="h-4 w-4 text-ink-400" />
-                    Search pages, properties, or people
-                  </span>
-                  <span className="rounded-full bg-sand-100 px-2.5 py-1 font-mono text-[11px] uppercase tracking-[0.16em] text-ink-500">
-                    {isMacLikePlatform ? "Cmd K" : "Ctrl K"}
-                  </span>
-                </button>
                 <div className="hidden rounded-full border border-white/70 bg-white/65 px-3.5 py-1.5 text-sm font-medium text-ink-500 shadow-soft md:block">
                   {todayLabel}
                 </div>
                 <Link to="/properties/new" className="primary-action hidden md:inline-flex">
                   <PlusCircleIcon className="mr-2 h-5 w-5" />
-                  New Property
+                  Add Property
                 </Link>
-                <NotificationBell />
                 <UserInfoBanner />
               </div>
             </div>
@@ -649,12 +475,6 @@ function DashboardLayout({ children }) {
           </main>
         </div>
       </div>
-
-      <CommandPalette
-        isOpen={isCommandPaletteOpen}
-        onClose={() => setIsCommandPaletteOpen(false)}
-        user={user}
-      />
     </div>
   );
 }
