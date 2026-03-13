@@ -4,8 +4,8 @@ import PropertyForm from "../components/PropertyForm";
 import CompTable from "../components/CompTable";
 import ROICalculator from "../components/ROICalculator";
 import ReportDownloader from "../components/ReportDownloader";
-import { geocodeAddress } from "../utils/api";
 import fetchMarketComps from "../utils/fetchMarketComps";
+import { geocodeAddress } from "../utils/locationSearch";
 
 const LoadingSpinner = () => (
     <div className="flex justify-center items-center p-8">

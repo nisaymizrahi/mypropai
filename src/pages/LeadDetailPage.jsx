@@ -10,8 +10,11 @@ import {
   getBillingAccess,
   getLeadDetails,
   syncBillingCheckoutSession,
+  updateLead,
 } from '../utils/api';
 import BidsTab from '../components/BidsTab';
+
+const occupancyOptions = ['Unknown', 'Vacant', 'Owner Occupied', 'Tenant Occupied'];
 
 const LoadingSpinner = () => (
   <div className="flex items-center justify-center p-16">
@@ -35,6 +38,28 @@ const formatDate = (value) => {
   return date.toLocaleDateString();
 };
 
+const formatDateInput = (value) => {
+  if (!value) return '';
+  const date = new Date(value);
+  if (!Number.isFinite(date.valueOf())) return '';
+  return date.toISOString().slice(0, 10);
+};
+
+const buildWorkspaceForm = (lead = {}) => ({
+  sellerName: lead.sellerName || '',
+  sellerPhone: lead.sellerPhone || '',
+  sellerEmail: lead.sellerEmail || '',
+  leadSource: lead.leadSource || '',
+  occupancyStatus: lead.occupancyStatus || 'Unknown',
+  motivation: lead.motivation || '',
+  targetOffer: lead.targetOffer ?? '',
+  arv: lead.arv ?? '',
+  rehabEstimate: lead.rehabEstimate ?? '',
+  nextAction: lead.nextAction || '',
+  followUpDate: formatDateInput(lead.followUpDate),
+  notes: lead.notes || '',
+});
+
 const AnalysisStat = ({ label, value, hint }) => (
   <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
     <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">{label}</p>
@@ -43,45 +68,85 @@ const AnalysisStat = ({ label, value, hint }) => (
   </div>
 );
 
-const LeadSnapshot = ({ lead }) => (
-  <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-    <div className="flex flex-wrap items-start justify-between gap-4">
-      <div>
-        <h1 className="text-3xl font-bold text-brand-gray-900">Lead Workspace</h1>
-        <p className="mt-1 text-lg text-brand-gray-500">{lead.address}</p>
-      </div>
-      <span className="rounded-full bg-brand-turquoise/10 px-3 py-1 text-sm font-semibold text-brand-turquoise">
-        {lead.status}
-      </span>
-    </div>
+const LeadSnapshot = ({ lead }) => {
+  const exitValue = lead.arv ?? lead.compsAnalysis?.estimatedValue ?? null;
+  const projectedSpread =
+    exitValue !== null && lead.targetOffer !== null && lead.targetOffer !== undefined
+      ? exitValue - lead.targetOffer - (lead.rehabEstimate || 0)
+      : null;
 
-    <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-      <AnalysisStat label="Asking Price" value={formatCurrency(lead.sellerAskingPrice)} />
-      <AnalysisStat
-        label="Property Facts"
-        value={[lead.propertyType, lead.squareFootage ? `${lead.squareFootage} sqft` : null].filter(Boolean).join(' • ') || '—'}
-        hint={[lead.bedrooms ? `${lead.bedrooms} bd` : null, lead.bathrooms ? `${lead.bathrooms} ba` : null, lead.yearBuilt ? `Built ${lead.yearBuilt}` : null].filter(Boolean).join(' • ')}
-      />
-      <AnalysisStat
-        label="Listing Status"
-        value={lead.listingStatus || 'Not listed'}
-        hint={lead.daysOnMarket ? `${lead.daysOnMarket} days on market` : 'No active listing found'}
-      />
-      <AnalysisStat
-        label="Last Sale"
-        value={formatCurrency(lead.lastSalePrice)}
-        hint={formatDate(lead.lastSaleDate)}
-      />
-    </div>
-
-    {lead.notes ? (
-      <div className="mt-6 rounded-xl border border-gray-200 bg-gray-50 p-4">
-        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Notes</p>
-        <p className="mt-2 whitespace-pre-wrap text-sm text-gray-700">{lead.notes}</p>
+  return (
+    <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-brand-gray-900">Lead Workspace</h1>
+          <p className="mt-1 text-lg text-brand-gray-500">{lead.address}</p>
+        </div>
+        <span className="rounded-full bg-brand-turquoise/10 px-3 py-1 text-sm font-semibold text-brand-turquoise">
+          {lead.status}
+        </span>
       </div>
-    ) : null}
-  </div>
-);
+
+      <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <AnalysisStat label="Asking Price" value={formatCurrency(lead.sellerAskingPrice)} />
+        <AnalysisStat
+          label="Target Offer"
+          value={formatCurrency(lead.targetOffer)}
+          hint={lead.nextAction || 'No acquisition plan saved yet'}
+        />
+        <AnalysisStat
+          label="Exit Value"
+          value={formatCurrency(exitValue)}
+          hint={lead.arv ? 'Manual ARV saved' : lead.compsAnalysis?.estimatedValue ? 'Using latest AI estimate' : 'No exit value yet'}
+        />
+        <AnalysisStat
+          label="Projected Spread"
+          value={formatCurrency(projectedSpread)}
+          hint={lead.rehabEstimate ? `After ${formatCurrency(lead.rehabEstimate)} rehab budget` : 'Add rehab budget for a truer spread'}
+        />
+        <AnalysisStat
+          label="Property Facts"
+          value={[lead.propertyType, lead.squareFootage ? `${lead.squareFootage} sqft` : null].filter(Boolean).join(' • ') || '—'}
+          hint={[lead.bedrooms ? `${lead.bedrooms} bd` : null, lead.bathrooms ? `${lead.bathrooms} ba` : null, lead.yearBuilt ? `Built ${lead.yearBuilt}` : null].filter(Boolean).join(' • ')}
+        />
+        <AnalysisStat
+          label="Listing Status"
+          value={lead.listingStatus || 'Not listed'}
+          hint={lead.daysOnMarket ? `${lead.daysOnMarket} days on market` : 'No active listing found'}
+        />
+      </div>
+
+      {(lead.notes || lead.motivation || lead.sellerName || lead.targetOffer || lead.followUpDate) ? (
+        <div className="mt-6 grid gap-4 lg:grid-cols-3">
+          {(lead.notes || lead.motivation) && (
+            <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 lg:col-span-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Acquisition Notes</p>
+              {lead.motivation ? (
+                <p className="mt-2 whitespace-pre-wrap text-sm text-gray-700">
+                  <span className="font-semibold text-gray-900">Seller motivation:</span> {lead.motivation}
+                </p>
+              ) : null}
+              {lead.notes ? (
+                <p className="mt-2 whitespace-pre-wrap text-sm text-gray-700">{lead.notes}</p>
+              ) : null}
+            </div>
+          )}
+
+          <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Seller Intel</p>
+            <div className="mt-2 space-y-2 text-sm text-gray-700">
+              <p>{lead.sellerName || 'Seller name not added yet'}</p>
+              {lead.sellerPhone ? <p>{lead.sellerPhone}</p> : null}
+              {lead.sellerEmail ? <p>{lead.sellerEmail}</p> : null}
+              <p>{[lead.leadSource || null, lead.occupancyStatus || null].filter(Boolean).join(' • ') || 'Source and occupancy not set'}</p>
+              <p>{lead.followUpDate ? `Follow up ${formatDate(lead.followUpDate)}` : 'No follow-up date scheduled'}</p>
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+};
 
 const LeadDetailPage = () => {
   const { id } = useParams();
@@ -93,6 +158,8 @@ const LeadDetailPage = () => {
 
   const [analysis, setAnalysis] = useState(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [workspaceForm, setWorkspaceForm] = useState(() => buildWorkspaceForm());
+  const [isSavingWorkspace, setIsSavingWorkspace] = useState(false);
   const [filters, setFilters] = useState({
     radius: '1',
     saleDateMonths: '6',
@@ -146,6 +213,12 @@ const LeadDetailPage = () => {
     fetchData();
   }, [fetchData]);
 
+  useEffect(() => {
+    if (lead) {
+      setWorkspaceForm(buildWorkspaceForm(lead));
+    }
+  }, [lead]);
+
   const loadBillingAccess = useCallback(async () => {
     try {
       setIsBillingAccessLoading(true);
@@ -186,6 +259,11 @@ const LeadDetailPage = () => {
   const handleFilterChange = (event) => {
     const { name, value } = event.target;
     setFilters((previous) => ({ ...previous, [name]: value }));
+  };
+
+  const handleWorkspaceChange = (event) => {
+    const { name, value } = event.target;
+    setWorkspaceForm((previous) => ({ ...previous, [name]: value }));
   };
 
   const handleRunAnalysis = async () => {
@@ -242,6 +320,54 @@ const LeadDetailPage = () => {
     const direction = delta > 0 ? 'above' : 'below';
     return `${formatCurrency(Math.abs(delta))} ${direction} the estimated value`;
   }, [analysis]);
+
+  const workingTargetOffer =
+    workspaceForm.targetOffer === '' ? null : Number(workspaceForm.targetOffer);
+  const workingRehabEstimate =
+    workspaceForm.rehabEstimate === '' ? null : Number(workspaceForm.rehabEstimate);
+  const workingExitValue =
+    workspaceForm.arv === ''
+      ? analysis?.summary?.estimatedValue ?? null
+      : Number(workspaceForm.arv);
+  const askGap =
+    lead.sellerAskingPrice && workingTargetOffer !== null
+      ? lead.sellerAskingPrice - workingTargetOffer
+      : null;
+  const projectedSpread =
+    workingExitValue !== null && workingTargetOffer !== null
+      ? workingExitValue - workingTargetOffer - (workingRehabEstimate || 0)
+      : null;
+
+  const handleSaveWorkspace = async () => {
+    setIsSavingWorkspace(true);
+    setError('');
+    try {
+      const updatedLead = await updateLead(id, workspaceForm);
+      setLead(updatedLead);
+      setAnalysis((previous) =>
+        previous
+          ? {
+              ...previous,
+              subject: { ...previous.subject, ...updatedLead },
+            }
+          : previous
+      );
+      toast.success('Lead workspace saved.');
+    } catch (err) {
+      setError(err.message || 'Failed to save lead workspace.');
+    } finally {
+      setIsSavingWorkspace(false);
+    }
+  };
+
+  const handleApplyAiOffer = () => {
+    if (!analysis?.summary?.recommendedOfferHigh) return;
+    setWorkspaceForm((previous) => ({
+      ...previous,
+      targetOffer: String(analysis.summary.recommendedOfferHigh),
+    }));
+    toast.success('AI recommended offer copied into the deal plan.');
+  };
 
   if (loading) return <LoadingSpinner />;
   if (error && !lead) return <p className="p-4 text-center text-red-500">{error}</p>;
@@ -390,6 +516,187 @@ const LeadDetailPage = () => {
                   <dd className="text-right font-medium text-gray-900">{formatCurrency(lead.sellerAskingPrice)}</dd>
                 </div>
               </dl>
+            </div>
+
+            <div className="rounded-2xl border bg-white p-6 shadow-sm">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h3 className="text-xl font-semibold">Seller &amp; Deal Plan</h3>
+                  <p className="mt-1 text-sm text-gray-500">
+                    Keep your contact notes, offer strategy, and follow-up plan on the lead itself.
+                  </p>
+                </div>
+                {analysis?.summary?.recommendedOfferHigh ? (
+                  <button
+                    type="button"
+                    onClick={handleApplyAiOffer}
+                    className="rounded-md border border-brand-gray-300 px-3 py-2 text-xs font-semibold text-brand-gray-700"
+                  >
+                    Use AI Offer
+                  </button>
+                ) : null}
+              </div>
+
+              <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                <div className="rounded-xl bg-gray-50 p-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Target Gap</p>
+                  <p className="mt-2 text-lg font-semibold text-gray-900">{formatCurrency(askGap)}</p>
+                  <p className="mt-1 text-xs text-gray-500">Ask minus target offer</p>
+                </div>
+                <div className="rounded-xl bg-gray-50 p-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Spread Preview</p>
+                  <p className="mt-2 text-lg font-semibold text-gray-900">{formatCurrency(projectedSpread)}</p>
+                  <p className="mt-1 text-xs text-gray-500">Exit value less target offer and rehab</p>
+                </div>
+                <div className="rounded-xl bg-gray-50 p-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Next Follow-Up</p>
+                  <p className="mt-2 text-lg font-semibold text-gray-900">{workspaceForm.followUpDate ? formatDate(workspaceForm.followUpDate) : '—'}</p>
+                  <p className="mt-1 text-xs text-gray-500">{workspaceForm.nextAction || 'No next action yet'}</p>
+                </div>
+              </div>
+
+              <div className="mt-5 grid gap-4 md:grid-cols-2">
+                <div>
+                  <label className="block text-sm font-medium">Seller name</label>
+                  <input
+                    type="text"
+                    name="sellerName"
+                    value={workspaceForm.sellerName}
+                    onChange={handleWorkspaceChange}
+                    className="mt-1 block w-full rounded-md border p-2"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium">Lead source</label>
+                  <input
+                    type="text"
+                    name="leadSource"
+                    value={workspaceForm.leadSource}
+                    onChange={handleWorkspaceChange}
+                    placeholder="Agent, direct mail, referral..."
+                    className="mt-1 block w-full rounded-md border p-2"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium">Seller phone</label>
+                  <input
+                    type="text"
+                    name="sellerPhone"
+                    value={workspaceForm.sellerPhone}
+                    onChange={handleWorkspaceChange}
+                    className="mt-1 block w-full rounded-md border p-2"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium">Seller email</label>
+                  <input
+                    type="email"
+                    name="sellerEmail"
+                    value={workspaceForm.sellerEmail}
+                    onChange={handleWorkspaceChange}
+                    className="mt-1 block w-full rounded-md border p-2"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium">Occupancy</label>
+                  <select
+                    name="occupancyStatus"
+                    value={workspaceForm.occupancyStatus}
+                    onChange={handleWorkspaceChange}
+                    className="mt-1 block w-full rounded-md border p-2"
+                  >
+                    {occupancyOptions.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium">Next action</label>
+                  <input
+                    type="text"
+                    name="nextAction"
+                    value={workspaceForm.nextAction}
+                    onChange={handleWorkspaceChange}
+                    placeholder="Call seller, request rehab bid..."
+                    className="mt-1 block w-full rounded-md border p-2"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium">Target offer</label>
+                  <input
+                    type="number"
+                    name="targetOffer"
+                    value={workspaceForm.targetOffer}
+                    onChange={handleWorkspaceChange}
+                    className="mt-1 block w-full rounded-md border p-2"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium">Follow-up date</label>
+                  <input
+                    type="date"
+                    name="followUpDate"
+                    value={workspaceForm.followUpDate}
+                    onChange={handleWorkspaceChange}
+                    className="mt-1 block w-full rounded-md border p-2"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium">ARV / exit value</label>
+                  <input
+                    type="number"
+                    name="arv"
+                    value={workspaceForm.arv}
+                    onChange={handleWorkspaceChange}
+                    className="mt-1 block w-full rounded-md border p-2"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium">Rehab estimate</label>
+                  <input
+                    type="number"
+                    name="rehabEstimate"
+                    value={workspaceForm.rehabEstimate}
+                    onChange={handleWorkspaceChange}
+                    className="mt-1 block w-full rounded-md border p-2"
+                  />
+                </div>
+              </div>
+
+              <div className="mt-4">
+                <label className="block text-sm font-medium">Seller motivation</label>
+                <textarea
+                  rows="3"
+                  name="motivation"
+                  value={workspaceForm.motivation}
+                  onChange={handleWorkspaceChange}
+                  placeholder="Why is this seller likely to move, negotiate, or close quickly?"
+                  className="mt-1 block w-full rounded-md border p-2"
+                />
+              </div>
+
+              <div className="mt-4">
+                <label className="block text-sm font-medium">Notes</label>
+                <textarea
+                  rows="4"
+                  name="notes"
+                  value={workspaceForm.notes}
+                  onChange={handleWorkspaceChange}
+                  placeholder="Anything else the acquisitions team should remember about this lead..."
+                  className="mt-1 block w-full rounded-md border p-2"
+                />
+              </div>
+
+              <button
+                type="button"
+                onClick={handleSaveWorkspace}
+                disabled={isSavingWorkspace}
+                className="mt-5 w-full rounded-md bg-brand-gray-900 py-2 font-semibold text-white disabled:opacity-50"
+              >
+                {isSavingWorkspace ? 'Saving workspace...' : 'Save Lead Workspace'}
+              </button>
             </div>
           </div>
 
@@ -549,7 +856,7 @@ const LeadDetailPage = () => {
                   <>
                     <h3 className="text-xl font-semibold text-gray-900">No comps report yet</h3>
                     <p className="mt-2 text-gray-500">
-                      Run the report to pull sold comps, estimate value, and generate an AI recommendation.
+                      Run the report to pull comparable properties, estimate value, and generate an AI recommendation.
                     </p>
                   </>
                 )}

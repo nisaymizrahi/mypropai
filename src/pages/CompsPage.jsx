@@ -5,8 +5,8 @@ import PropertyForm from "../components/PropertyForm";
 import CompTable from "../components/CompTable";
 import ROICalculator from "../components/ROICalculator";
 import ReportDownloader from "../components/ReportDownloader";
-import { geocodeAddress } from "../utils/api";
 import fetchMarketComps from "../utils/fetchMarketComps";
+import { geocodeAddress } from "../utils/locationSearch";
 
 const CompsPage = () => {
   const [coords, setCoords] = useState({ lat: 40.7484, lng: -73.9857 }); // default: Manhattan
