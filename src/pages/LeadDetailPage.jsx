@@ -1169,18 +1169,12 @@ const LeadDetailPage = () => {
       } the estimated value`;
   const workingTargetOffer =
     detailForm.targetOffer === "" ? null : Number(detailForm.targetOffer);
-  const workingRehabEstimate =
-    detailForm.rehabEstimate === "" ? null : Number(detailForm.rehabEstimate);
   const workingExitValue =
     detailForm.arv === "" ? analysis?.summary?.estimatedValue ?? null : Number(detailForm.arv);
   const askingPrice = liveLead.sellerAskingPrice;
   const askGap =
     askingPrice !== null && askingPrice !== undefined && workingTargetOffer !== null
       ? askingPrice - workingTargetOffer
-      : null;
-  const projectedSpread =
-    workingExitValue !== null && workingTargetOffer !== null
-      ? workingExitValue - workingTargetOffer - (workingRehabEstimate || 0)
       : null;
   const showsUnitCount = detailForm.propertyType === "multi-family";
   const renovationBudgetTotal = renovationForm.items.reduce(
@@ -1205,18 +1199,15 @@ const LeadDetailPage = () => {
         ) : null}
       </div>
 
-      <section className="surface-panel px-6 py-6 sm:px-7">
+      <section className="surface-panel px-5 py-4 sm:px-6">
         <div>
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0 flex-1">
               <span className="eyebrow">Lead detail</span>
-              <h1 className="mt-4 font-display text-[2.6rem] leading-[0.96] text-ink-900 sm:text-[3.1rem]">
+              <h1 className="mt-2 font-display text-[1.8rem] leading-[1.02] text-ink-900 sm:text-[2.25rem]">
                 {liveLead.address}
               </h1>
-              <p className="mt-3 max-w-2xl text-sm leading-6 text-ink-500">
-                Keep the property facts, seller context, renovation plan, comps work, and contractor bid workflow connected on one lead.
-              </p>
-              <div className="mt-4 flex flex-wrap gap-2">
+              <div className="mt-3 flex flex-wrap gap-2">
                 <span className="rounded-full bg-ink-900 px-3 py-1 text-[11px] font-medium text-white">
                   {liveLead.status || "Potential"}
                 </span>
@@ -1238,14 +1229,14 @@ const LeadDetailPage = () => {
               </div>
             </div>
 
-            <div className="section-card min-w-[250px] p-4">
+            <div className="rounded-[20px] border border-ink-100 bg-white/85 px-4 py-3 sm:min-w-[220px]">
               <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-ink-400">
                 Next action
               </p>
-              <p className="mt-3 text-base font-medium text-ink-900">
+              <p className="mt-2 text-sm font-medium text-ink-900">
                 {liveLead.nextAction || "No next action yet"}
               </p>
-              <p className="mt-2 text-sm text-ink-500">
+              <p className="mt-1 text-xs text-ink-500">
                 {liveLead.followUpDate
                   ? `Follow up ${formatDate(liveLead.followUpDate)}`
                   : "No follow-up date scheduled"}
@@ -1253,7 +1244,7 @@ const LeadDetailPage = () => {
             </div>
           </div>
 
-          <div className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             <SummaryStat label="Asking Price" value={formatCurrency(liveLead.sellerAskingPrice)} />
             <SummaryStat
               label="Target Offer"
@@ -1266,12 +1257,12 @@ const LeadDetailPage = () => {
               hint={detailForm.arv ? "Using your saved ARV" : "Falls back to AI comps estimate"}
             />
             <SummaryStat
-              label="Projected Spread"
-              value={formatCurrency(projectedSpread)}
+              label="Renovation Budget"
+              value={renovationBudgetedItemCount ? formatCurrency(renovationBudgetTotal) : "—"}
               hint={
-                workingRehabEstimate
-                  ? `After ${formatCurrency(workingRehabEstimate)} rehab estimate`
-                  : "Add rehab estimate for a better spread"
+                renovationBudgetedItemCount
+                  ? `${renovationBudgetedItemCount} of ${renovationItemsCount} items budgeted`
+                  : "Add budgets in renovation plan"
               }
             />
           </div>
