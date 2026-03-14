@@ -1,6 +1,10 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useRef, useState } from "react";
+import toast from "react-hot-toast";
+import { ArrowDownTrayIcon } from "@heroicons/react/24/outline";
 
+import CompsReportPdfTemplate from "./CompsReportPdfTemplate";
 import { formatCurrency, formatDate } from "../utils/compsReport";
+import { exportElementToPdf, sanitizePdfFilename } from "../utils/pdfExport";
 
 const formatNumber = (value, suffix = "") => {
   if (value === null || value === undefined || value === "") return "—";
@@ -48,10 +52,30 @@ const CompsSavedReportView = ({
   emptyMessage = "No saved comparable sales are available for this property yet.",
   tableIntro = "This saved report captures the comparable properties selected for this address.",
 }) => {
+  const exportRef = useRef(null);
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
   const recentComps = useMemo(
     () => (Array.isArray(report?.recentComps) ? report.recentComps : []),
     [report]
   );
+
+  const handleExportPdf = async () => {
+    if (!report?.generatedAt || !exportRef.current) return;
+
+    setIsExportingPdf(true);
+    try {
+      await exportElementToPdf({
+        element: exportRef.current,
+        filename: `${sanitizePdfFilename(report.title || report.address || "comps-report")}.pdf`,
+      });
+      toast.success("PDF downloaded.");
+    } catch (error) {
+      console.error("Comps report PDF export failed", error);
+      toast.error(error.message || "Failed to export the PDF.");
+    } finally {
+      setIsExportingPdf(false);
+    }
+  };
 
   if (!report?.generatedAt) {
     return (
@@ -65,6 +89,36 @@ const CompsSavedReportView = ({
 
   return (
     <div className="space-y-6">
+      <section className="surface-panel-strong overflow-hidden px-6 py-7 sm:px-7">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <span className="eyebrow">Saved comps report</span>
+            <h2 className="mt-4 font-display text-[2.3rem] leading-[0.95] text-ink-900">
+              {report.title || report.address}
+            </h2>
+            <p className="mt-3 max-w-2xl text-sm leading-7 text-ink-600">
+              Review the final comp set, reopen the AI memo, and export a polished printable report
+              for sellers, partners, or internal deal review.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap gap-3">
+            <div className="rounded-full border border-sand-200 bg-sand-50 px-4 py-2 text-sm font-semibold text-sand-700">
+              Generated {formatDate(report.generatedAt)}
+            </div>
+            <button
+              type="button"
+              onClick={handleExportPdf}
+              disabled={isExportingPdf}
+              className="secondary-action gap-2 disabled:opacity-50"
+            >
+              <ArrowDownTrayIcon className="h-4 w-4" />
+              {isExportingPdf ? "Exporting PDF..." : "Export PDF"}
+            </button>
+          </div>
+        </div>
+      </section>
+
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetricTile
           label="Estimated value"
@@ -207,6 +261,22 @@ const CompsSavedReportView = ({
           </table>
         </div>
       </section>
+
+      <div
+        aria-hidden="true"
+        style={{
+          position: "fixed",
+          left: "-200vw",
+          top: 0,
+          width: "980px",
+          pointerEvents: "none",
+          zIndex: -1,
+        }}
+      >
+        <div ref={exportRef}>
+          <CompsReportPdfTemplate report={report} />
+        </div>
+      </div>
     </div>
   );
 };
