@@ -7,6 +7,7 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   ClipboardDocumentListIcon,
+  BuildingOffice2Icon,
   Cog6ToothIcon,
   PlusCircleIcon,
   ShieldCheckIcon,
@@ -30,6 +31,7 @@ const visibleNavSections = [
     title: "Workspace",
     links: [
       { to: "/leads", label: "Potential Properties", icon: UsersIcon },
+      { to: "/properties", label: "Property Workspace", icon: BuildingOffice2Icon },
       { to: "/comps-report", label: "Comps Report", icon: ChartBarIcon },
       { to: "/tasks", label: "Tasks", icon: ClipboardDocumentListIcon },
       { to: "/vendors", label: "Vendors", icon: WrenchScrewdriverIcon },
@@ -61,6 +63,14 @@ const resolvePageMeta = (pathname, user) => {
       kicker: "Pipeline",
       title: "Add Property",
       subtitle: "Capture a new opportunity and keep the intake process simple.",
+    };
+  }
+
+  if (pathname === "/properties") {
+    return {
+      kicker: "Property",
+      title: "Property Workspace",
+      subtitle: "Browse shared property records and open the right workspace from one place.",
     };
   }
 

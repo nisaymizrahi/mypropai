@@ -13,6 +13,7 @@ import CompsReportPage from "./pages/CompsReportPage";
 import LeadsPage from "./pages/LeadsPage";
 import LeadDetailPage from "./pages/LeadDetailPage";
 import CreatePropertyPage from "./pages/CreatePropertyPage";
+import PropertiesPage from "./pages/PropertiesPage";
 import PropertyWorkspacePage from "./pages/PropertyWorkspacePage";
 import TasksPage from "./pages/TasksPage";
 import VendorsPage from "./pages/VendorsPage";
@@ -32,7 +33,6 @@ const parkedPublicPaths = [
 const parkedProtectedPaths = [
   "/tenant-dashboard",
   "/tools",
-  "/properties",
   "/management",
   "/management/:propertyId",
   "/management/leases/:leaseId",
@@ -193,6 +193,15 @@ function App() {
             element={
               <ProtectedLayoutRoute>
                 <VendorsPage />
+              </ProtectedLayoutRoute>
+            }
+          />
+
+          <Route
+            path="/properties"
+            element={
+              <ProtectedLayoutRoute>
+                <PropertiesPage />
               </ProtectedLayoutRoute>
             }
           />
