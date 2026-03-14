@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 
 import AddBudgetItemModal from "./AddBudgetItemModal";
 import AddExpenseModal from "./AddExpenseModal";
@@ -46,10 +47,15 @@ const DashboardTab = ({
   expenses,
   tasks,
   vendors = [],
+  sourceLeadSnapshot = null,
+  sourceLeadId = "",
   onUpdate,
 }) => {
   const [showTaskModal, setShowTaskModal] = useState(false);
-  const [showExpenseModal, setShowExpenseModal] = useState(false);
+  const [expenseModalState, setExpenseModalState] = useState({
+    isOpen: false,
+    mode: "manual",
+  });
   const [showBudgetModal, setShowBudgetModal] = useState(false);
 
   const financial = useMemo(() => {
@@ -58,7 +64,8 @@ const DashboardTab = ({
     return {
       purchasePrice: metrics.purchasePrice,
       loan: metrics.loanAmount,
-      rehab: metrics.totalBudget,
+      rehab: metrics.totalOriginalBudget,
+      committed: metrics.totalCommitted,
       spent: metrics.totalSpent,
       remaining: metrics.remainingBudget,
       totalCost: metrics.allInCost,
@@ -95,10 +102,12 @@ const DashboardTab = ({
         onSuccess={onUpdate}
       />
       <AddExpenseModal
-        isOpen={showExpenseModal}
-        onClose={() => setShowExpenseModal(false)}
+        isOpen={expenseModalState.isOpen}
+        onClose={() => setExpenseModalState({ isOpen: false, mode: "manual" })}
         investmentId={investment._id}
         budgetItems={budgetItems}
+        vendors={vendors}
+        initialMode={expenseModalState.mode}
         onSuccess={onUpdate}
       />
       <AddBudgetItemModal
@@ -112,13 +121,52 @@ const DashboardTab = ({
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <SnapshotTile label="Purchase price" value={formatCurrency(financial.purchasePrice)} />
           <SnapshotTile label="Loan amount" value={formatCurrency(financial.loan)} />
-          <SnapshotTile label="All-in cost" value={formatCurrency(financial.totalCost)} />
+          <SnapshotTile label="Original rehab budget" value={formatCurrency(financial.rehab)} />
           <SnapshotTile
-            label="Projected profit"
-            value={formatCurrency(financial.profit)}
-            tone={financial.profit >= 0 ? "text-verdigris-700" : "text-clay-700"}
+            label="Committed / spent"
+            value={`${formatCurrency(financial.committed)} / ${formatCurrency(financial.spent)}`}
+            tone={financial.committed >= financial.spent ? "text-ink-900" : "text-clay-700"}
           />
         </div>
+
+        {sourceLeadSnapshot ? (
+          <section className="section-card p-6 sm:p-7">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+              <div>
+                <span className="eyebrow">Original deal snapshot</span>
+                <h3 className="mt-4 text-3xl font-semibold text-ink-900">
+                  Carried over from the potential property
+                </h3>
+                <p className="mt-3 max-w-2xl text-sm leading-6 text-ink-500">
+                  This section keeps the assumptions and notes that existed before the property
+                  moved into project management.
+                </p>
+              </div>
+
+              {sourceLeadId ? (
+                <Link to={`/leads/${sourceLeadId}`} className="secondary-action">
+                  Open original lead
+                </Link>
+              ) : null}
+            </div>
+
+            <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              <SnapshotTile
+                label="Seller ask"
+                value={formatCurrency(sourceLeadSnapshot.sellerAskingPrice)}
+              />
+              <SnapshotTile
+                label="Target offer"
+                value={formatCurrency(sourceLeadSnapshot.targetOffer)}
+              />
+              <SnapshotTile label="ARV" value={formatCurrency(sourceLeadSnapshot.arv)} />
+              <SnapshotTile
+                label="Lead rehab estimate"
+                value={formatCurrency(sourceLeadSnapshot.rehabEstimate)}
+              />
+            </div>
+          </section>
+        ) : null}
 
         <section className="section-card p-6 sm:p-7">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
@@ -132,14 +180,25 @@ const DashboardTab = ({
           </div>
 
           <div className="mt-8 flex flex-wrap gap-3">
-            <button type="button" onClick={() => setShowExpenseModal(true)} className="primary-action">
+            <button
+              type="button"
+              onClick={() => setExpenseModalState({ isOpen: true, mode: "manual" })}
+              className="primary-action"
+            >
               Add expense
+            </button>
+            <button
+              type="button"
+              onClick={() => setExpenseModalState({ isOpen: true, mode: "receipt" })}
+              className="secondary-action"
+            >
+              Scan receipt with AI
             </button>
             <button type="button" onClick={() => setShowTaskModal(true)} className="secondary-action">
               Add task
             </button>
             <button type="button" onClick={() => setShowBudgetModal(true)} className="ghost-action">
-              Add budget line
+              Add scope item
             </button>
           </div>
         </section>

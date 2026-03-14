@@ -37,7 +37,7 @@ const GROUP_ORDER = [
   "Applications",
   "Tenants & Leases",
   "Leads",
-  "Investments",
+  "Project Management",
   "Platform",
 ];
 
@@ -177,11 +177,11 @@ const buildQuickActions = (user) => {
     createEntry({
       id: "quick-investments",
       group: "Quick Actions",
-      title: "Open investment portfolio",
-      subtitle: "Underwriting, project progress, and return targets",
-      to: "/investments",
+      title: "Open project management",
+      subtitle: "Saved lead comps, execution budgets, vendors, and project spend",
+      to: "/project-management",
       icon: BriefcaseIcon,
-      keywords: ["acquisitions deals projects"],
+      keywords: ["projects execution budgets acquisitions deals"],
       priority: 182,
       pinned: true,
     }),
@@ -289,12 +289,12 @@ const buildInvestmentEntries = (investments) =>
 
     return createEntry({
       id: `investment-${investment._id}`,
-      group: "Investments",
-      title: investment.address || "Untitled investment",
+      group: "Project Management",
+      title: investment.address || "Untitled project",
       subtitle: [strategyLabel, investment.status, investment.progress ? `${investment.progress}% progress` : null]
         .filter(Boolean)
         .join(" • "),
-      to: `/investments/${investment._id}`,
+      to: `/project-management/${investment._id}`,
       icon: BriefcaseIcon,
       tone: "clay",
       keywords: [investment.exitStrategy, investment.notes, investment.city, investment.state],

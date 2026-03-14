@@ -28,6 +28,7 @@ const visibleNavSections = [
     title: "Workspace",
     links: [
       { to: "/leads", label: "Potential Properties", icon: UsersIcon },
+      { to: "/project-management", label: "Project Management", icon: ClipboardDocumentListIcon },
       { to: "/tasks", label: "Tasks", icon: ClipboardDocumentListIcon },
       { to: "/vendors", label: "Vendors", icon: WrenchScrewdriverIcon },
       { to: "/properties/new", label: "Add Property", icon: PlusCircleIcon },
@@ -66,6 +67,22 @@ const resolvePageMeta = (pathname, user) => {
       kicker: "Property",
       title: "Property Details",
       subtitle: "Review and update the core record behind this property.",
+    };
+  }
+
+  if (pathname === "/project-management") {
+    return {
+      kicker: "Projects",
+      title: "Project Management",
+      subtitle: "Track active projects, original deal assumptions, vendor commitments, and spend.",
+    };
+  }
+
+  if (pathname.startsWith("/project-management/")) {
+    return {
+      kicker: "Projects",
+      title: "Project Workspace",
+      subtitle: "Manage execution from saved comps and scope assumptions through actual expenses.",
     };
   }
 

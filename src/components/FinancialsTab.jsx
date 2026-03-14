@@ -3,14 +3,20 @@ import {
   BanknotesIcon,
   CpuChipIcon,
   DocumentChartBarIcon,
-  WrenchScrewdriverIcon,
+  SparklesIcon,
 } from "@heroicons/react/24/outline";
 
 import AddBudgetItemModal from "./AddBudgetItemModal";
 import AddExpenseModal from "./AddExpenseModal";
 import AIRehabBuilderModal from "./AIRehabBuilderModal";
 import AnalysisCalculator from "./AnalysisCalculator";
+import BudgetAwardModal from "./BudgetAwardModal";
 import BudgetLineItem from "./BudgetLineItem";
+import {
+  addBudgetAward,
+  deleteBudgetAward,
+  updateBudgetAward,
+} from "../utils/api";
 import { formatCurrency, getInvestmentAnalysisMetrics } from "../utils/investmentMetrics";
 
 const MetricTile = ({ icon: Icon, label, value, hint, tone = "text-ink-900" }) => (
@@ -24,24 +30,85 @@ const MetricTile = ({ icon: Icon, label, value, hint, tone = "text-ink-900" }) =
   </div>
 );
 
+const formatDate = (value) => {
+  if (!value) return "—";
+  const parsed = new Date(value);
+  if (!Number.isFinite(parsed.valueOf())) return "—";
+  return parsed.toLocaleDateString();
+};
+
 const FinancialsTab = ({ investment, budgetItems, expenses, vendors = [], onUpdate }) => {
-  const [showAddExpenseModal, setShowAddExpenseModal] = useState(false);
+  const [expenseModalState, setExpenseModalState] = useState({
+    isOpen: false,
+    budgetItemId: "",
+    awardId: "",
+    mode: "manual",
+  });
   const [showAddBudgetModal, setShowAddBudgetModal] = useState(false);
   const [showAIBuilderModal, setShowAIBuilderModal] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState(null);
+  const [awardModalState, setAwardModalState] = useState({
+    isOpen: false,
+    budgetItem: null,
+    award: null,
+  });
 
   const metrics = useMemo(
     () => getInvestmentAnalysisMetrics(investment, { budgetItems, expenses }),
     [investment, budgetItems, expenses]
   );
 
+  const projectLevelExpenses = useMemo(
+    () => expenses.filter((expense) => !expense.budgetItem),
+    [expenses]
+  );
+
+  const handleOpenExpenseModal = ({ budgetItemId = "", awardId = "", mode = "manual" } = {}) => {
+    setExpenseModalState({
+      isOpen: true,
+      budgetItemId,
+      awardId,
+      mode,
+    });
+  };
+
+  const handleSaveAward = async (payload) => {
+    if (!awardModalState.budgetItem?._id) {
+      return;
+    }
+
+    if (awardModalState.award?.awardId) {
+      await updateBudgetAward(
+        awardModalState.budgetItem._id,
+        awardModalState.award.awardId,
+        payload
+      );
+    } else {
+      await addBudgetAward(awardModalState.budgetItem._id, payload);
+    }
+
+    await onUpdate?.();
+  };
+
+  const handleDeleteAward = async (budgetItem, award) => {
+    if (!window.confirm("Remove this selected vendor from the scope item?")) {
+      return;
+    }
+
+    await deleteBudgetAward(budgetItem._id, award.awardId);
+    await onUpdate?.();
+  };
+
   return (
     <>
       <AddExpenseModal
-        isOpen={showAddExpenseModal}
-        onClose={() => setShowAddExpenseModal(false)}
+        isOpen={expenseModalState.isOpen}
+        onClose={() =>
+          setExpenseModalState({ isOpen: false, budgetItemId: "", awardId: "", mode: "manual" })
+        }
         investmentId={investment._id}
-        defaultCategory={selectedCategory}
+        defaultBudgetItemId={expenseModalState.budgetItemId}
+        defaultAwardId={expenseModalState.awardId}
+        initialMode={expenseModalState.mode}
         onSuccess={onUpdate}
         budgetItems={budgetItems}
         vendors={vendors}
@@ -58,33 +125,41 @@ const FinancialsTab = ({ investment, budgetItems, expenses, vendors = [], onUpda
         investmentId={investment._id}
         onSuccess={onUpdate}
       />
+      <BudgetAwardModal
+        isOpen={awardModalState.isOpen}
+        onClose={() => setAwardModalState({ isOpen: false, budgetItem: null, award: null })}
+        onSave={handleSaveAward}
+        vendors={vendors}
+        budgetItem={awardModalState.budgetItem}
+        initialAward={awardModalState.award}
+      />
 
       <div className="space-y-6">
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <MetricTile
             icon={BanknotesIcon}
-            label="Total budget"
-            value={formatCurrency(metrics.totalBudget)}
-            hint="Combined budget across all project categories."
+            label="Original budget"
+            value={formatCurrency(metrics.totalOriginalBudget)}
+            hint="Imported from the original renovation assumptions."
           />
           <MetricTile
             icon={DocumentChartBarIcon}
-            label="Total spent"
-            value={formatCurrency(metrics.totalSpent)}
-            hint={`${metrics.budgetPercent.toFixed(1)}% of current budget used.`}
+            label="Committed"
+            value={formatCurrency(metrics.totalCommitted)}
+            hint="Chosen vendors and supplier commitments across all scope items."
           />
           <MetricTile
-            icon={WrenchScrewdriverIcon}
-            label="Remaining budget"
-            value={formatCurrency(metrics.remainingBudget)}
-            tone={metrics.remainingBudget >= 0 ? "text-verdigris-700" : "text-clay-700"}
-            hint="Negative values indicate the project is over budget."
+            icon={SparklesIcon}
+            label="Actual spent"
+            value={formatCurrency(metrics.totalSpent)}
+            hint={`${formatCurrency(metrics.unassignedSpent)} outside any specific scope item.`}
           />
           <MetricTile
             icon={CpuChipIcon}
-            label="All-in cost"
-            value={formatCurrency(metrics.allInCost)}
-            hint="Acquisition, rehab, hold, finance, and exit assumptions combined."
+            label="Outstanding"
+            value={formatCurrency(metrics.outstandingCommitted)}
+            tone={metrics.outstandingCommitted >= 0 ? "text-ink-900" : "text-clay-700"}
+            hint="Committed amount still not paid out yet."
           />
         </div>
 
@@ -92,27 +167,33 @@ const FinancialsTab = ({ investment, budgetItems, expenses, vendors = [], onUpda
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <span className="eyebrow">Capital actions</span>
-              <h3 className="mt-4 text-3xl font-semibold text-ink-900">Control the budget in one place</h3>
+              <h3 className="mt-4 text-3xl font-semibold text-ink-900">
+                Control the project budget in one place
+              </h3>
               <p className="mt-3 max-w-2xl text-sm leading-6 text-ink-500">
-                Add budget lines, log expenses, or use AI to create a starting budget structure for
-                the project.
+                Keep the original budget, commit vendors to each scope item, and capture actual
+                payments as they happen.
               </p>
             </div>
           </div>
 
           <div className="mt-8 flex flex-wrap gap-3">
             <button type="button" onClick={() => setShowAddBudgetModal(true)} className="primary-action">
-              Add budget line
+              Add scope item
             </button>
             <button
               type="button"
-              onClick={() => {
-                setSelectedCategory(null);
-                setShowAddExpenseModal(true);
-              }}
+              onClick={() => handleOpenExpenseModal()}
               className="secondary-action"
             >
-              Add expense
+              Add manual expense
+            </button>
+            <button
+              type="button"
+              onClick={() => handleOpenExpenseModal({ mode: "receipt" })}
+              className="secondary-action"
+            >
+              Scan receipt with AI
             </button>
             <button type="button" onClick={() => setShowAIBuilderModal(true)} className="ghost-action">
               Generate AI budget
@@ -123,11 +204,11 @@ const FinancialsTab = ({ investment, budgetItems, expenses, vendors = [], onUpda
         <section className="section-card p-6 sm:p-7">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <span className="eyebrow">Budget overview</span>
-              <h3 className="mt-4 text-3xl font-semibold text-ink-900">Line-item control</h3>
+              <span className="eyebrow">Scope control</span>
+              <h3 className="mt-4 text-3xl font-semibold text-ink-900">Budget items</h3>
               <p className="mt-3 max-w-2xl text-sm leading-6 text-ink-500">
-                Review each budget category, see what has been spent, and add new expenses directly
-                from the matching line item.
+                Each item tracks the original budget, the selected vendors you committed to, and
+                the actual expenses already paid.
               </p>
             </div>
           </div>
@@ -139,17 +220,78 @@ const FinancialsTab = ({ investment, budgetItems, expenses, vendors = [], onUpda
                   key={item._id}
                   item={item}
                   expenses={expenses.filter(
-                    (expense) => expense.budgetItem === item._id || expense.category === item.category
+                    (expense) =>
+                      (typeof expense.budgetItem === "object"
+                        ? expense.budgetItem?._id
+                        : expense.budgetItem) === item._id
                   )}
-                  onAddExpense={() => {
-                    setSelectedCategory(item.category);
-                    setShowAddExpenseModal(true);
-                  }}
+                  onAddExpense={() => handleOpenExpenseModal({ budgetItemId: item._id })}
+                  onAddAward={() =>
+                    setAwardModalState({ isOpen: true, budgetItem: item, award: null })
+                  }
+                  onEditAward={(award) =>
+                    setAwardModalState({ isOpen: true, budgetItem: item, award })
+                  }
+                  onDeleteAward={(award) => handleDeleteAward(item, award)}
                 />
               ))
             ) : (
               <div className="rounded-[24px] border border-dashed border-ink-200 bg-ink-50/40 p-6 text-center text-sm leading-6 text-ink-500">
-                No budget lines yet. Add one manually or generate a draft with AI.
+                No scope items yet. Add one manually or generate a draft with AI.
+              </div>
+            )}
+          </div>
+        </section>
+
+        <section className="section-card p-6 sm:p-7">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <span className="eyebrow">Project-level expenses</span>
+              <h3 className="mt-4 text-3xl font-semibold text-ink-900">Custom expenses</h3>
+              <p className="mt-3 max-w-2xl text-sm leading-6 text-ink-500">
+                Use this for payments that do not belong to a single scope item or vendor
+                commitment, like permits, dumpsters, or one-off fees.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => handleOpenExpenseModal()}
+              className="secondary-action"
+            >
+              Add custom expense
+            </button>
+          </div>
+
+          <div className="mt-8 space-y-3">
+            {projectLevelExpenses.length > 0 ? (
+              projectLevelExpenses.map((expense) => (
+                <div
+                  key={expense._id}
+                  className="rounded-[22px] border border-ink-100 bg-white/85 p-5"
+                >
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <p className="text-base font-semibold text-ink-900">{expense.title}</p>
+                      <p className="mt-1 text-sm text-ink-500">
+                        {(expense.vendor?.name || expense.payeeName || "Custom expense") +
+                          (expense.description ? ` • ${expense.description}` : "")}
+                      </p>
+                      <p className="mt-2 text-xs font-semibold uppercase tracking-[0.16em] text-ink-400">
+                        {formatDate(expense.date)}
+                      </p>
+                      {expense.notes ? (
+                        <p className="mt-3 text-sm leading-6 text-ink-500">{expense.notes}</p>
+                      ) : null}
+                    </div>
+                    <p className="text-lg font-semibold text-ink-900">
+                      {formatCurrency(expense.amount)}
+                    </p>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="rounded-[24px] border border-dashed border-ink-200 bg-ink-50/40 p-6 text-center text-sm leading-6 text-ink-500">
+                No project-level custom expenses yet.
               </div>
             )}
           </div>
@@ -160,7 +302,7 @@ const FinancialsTab = ({ investment, budgetItems, expenses, vendors = [], onUpda
             <span className="eyebrow">Deal analysis</span>
             <h3 className="text-3xl font-semibold text-ink-900">Underwriting summary</h3>
             <p className="max-w-2xl text-sm leading-6 text-ink-500">
-              Validate costs, returns, and AI-generated analysis using the latest project inputs.
+              Validate costs, returns, and analysis using the latest project inputs.
             </p>
           </div>
 

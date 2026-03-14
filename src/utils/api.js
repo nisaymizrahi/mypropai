@@ -271,6 +271,15 @@ export const deleteBid = async (bidId) => {
   return res.json();
 };
 
+export const promoteLeadToProject = async (leadId) => {
+  const res = await fetch(`${API_BASE_URL}/leads/${leadId}/promote-to-project`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to create project"));
+  return res.json();
+};
+
 /**
  * ==========================
  *   UNIVERSAL TASKS
@@ -411,6 +420,35 @@ export const updateBudgetItem = async (id, data) => {
   return res.json();
 };
 
+export const addBudgetAward = async (budgetItemId, data) => {
+  const res = await fetch(`${API_BASE_URL}/budget-items/${budgetItemId}/awards`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to add vendor commitment"));
+  return res.json();
+};
+
+export const updateBudgetAward = async (budgetItemId, awardId, data) => {
+  const res = await fetch(`${API_BASE_URL}/budget-items/${budgetItemId}/awards/${awardId}`, {
+    method: "PATCH",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to update vendor commitment"));
+  return res.json();
+};
+
+export const deleteBudgetAward = async (budgetItemId, awardId) => {
+  const res = await fetch(`${API_BASE_URL}/budget-items/${budgetItemId}/awards/${awardId}`, {
+    method: "DELETE",
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to delete vendor commitment"));
+  return res.json();
+};
+
 export const deleteBudgetItem = async (id) => {
   const res = await fetch(`${API_BASE_URL}/budget-items/${id}`, {
     method: "DELETE",
@@ -434,7 +472,7 @@ export const createExpense = async (formData) => {
     headers: getAuthHeaders(true),
     body: formData,
   });
-  if (!res.ok) throw new Error("Failed to create expense");
+  if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to create expense"));
   return res.json();
 };
 
@@ -444,7 +482,7 @@ export const updateExpense = async (id, data) => {
     headers: getAuthHeaders(),
     body: JSON.stringify(data),
   });
-  if (!res.ok) throw new Error("Failed to update expense");
+  if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to update expense"));
   return res.json();
 };
 
@@ -453,7 +491,17 @@ export const deleteExpense = async (id) => {
     method: "DELETE",
     headers: getAuthHeaders(),
   });
-  if (!res.ok) throw new Error("Failed to delete expense");
+  if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to delete expense"));
+  return res.json();
+};
+
+export const analyzeExpenseReceipt = async (formData) => {
+  const res = await fetch(`${API_BASE_URL}/expenses/analyze-receipt`, {
+    method: "POST",
+    headers: getAuthHeaders(true),
+    body: formData,
+  });
+  if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to analyze receipt"));
   return res.json();
 };
 

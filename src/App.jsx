@@ -1,5 +1,5 @@
 import React from "react";
-import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Navigate, useParams } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 
 import DashboardLayout from "./components/DashboardLayout";
@@ -12,6 +12,10 @@ import Homepage from "./pages/Homepage";
 import LeadsPage from "./pages/LeadsPage";
 import LeadDetailPage from "./pages/LeadDetailPage";
 import CreatePropertyPage from "./pages/CreatePropertyPage";
+import EditInvestment from "./pages/EditInvestment";
+import InvestmentDetail from "./pages/InvestmentDetail";
+import MyInvestments from "./pages/MyInvestments";
+import NewInvestment from "./pages/NewInvestment";
 import PropertyWorkspacePage from "./pages/PropertyWorkspacePage";
 import TasksPage from "./pages/TasksPage";
 import VendorsPage from "./pages/VendorsPage";
@@ -40,10 +44,6 @@ const parkedProtectedPaths = [
   "/applications",
   "/applications/send",
   "/applications/:id",
-  "/investments",
-  "/investments/new",
-  "/investments/:id",
-  "/investments/:id/edit",
 ];
 
 const ProtectedLayoutRoute = ({ children }) => (
@@ -57,6 +57,26 @@ const LeadsRedirectRoute = () => (
     <Navigate to="/leads" replace />
   </ProtectedRoute>
 );
+
+const LegacyInvestmentDetailRedirect = () => {
+  const { id } = useParams();
+
+  return (
+    <ProtectedRoute>
+      <Navigate to={`/project-management/${encodeURIComponent(id)}`} replace />
+    </ProtectedRoute>
+  );
+};
+
+const LegacyInvestmentEditRedirect = () => {
+  const { id } = useParams();
+
+  return (
+    <ProtectedRoute>
+      <Navigate to={`/project-management/${encodeURIComponent(id)}/edit`} replace />
+    </ProtectedRoute>
+  );
+};
 
 function App() {
   return (
@@ -131,6 +151,70 @@ function App() {
                 <CreatePropertyPage />
               </ProtectedLayoutRoute>
             }
+          />
+
+          <Route
+            path="/project-management"
+            element={
+              <ProtectedLayoutRoute>
+                <MyInvestments />
+              </ProtectedLayoutRoute>
+            }
+          />
+
+          <Route
+            path="/project-management/new"
+            element={
+              <ProtectedLayoutRoute>
+                <NewInvestment />
+              </ProtectedLayoutRoute>
+            }
+          />
+
+          <Route
+            path="/project-management/:id"
+            element={
+              <ProtectedLayoutRoute>
+                <InvestmentDetail />
+              </ProtectedLayoutRoute>
+            }
+          />
+
+          <Route
+            path="/project-management/:id/edit"
+            element={
+              <ProtectedLayoutRoute>
+                <EditInvestment />
+              </ProtectedLayoutRoute>
+            }
+          />
+
+          <Route
+            path="/investments"
+            element={
+              <ProtectedRoute>
+                <Navigate to="/project-management" replace />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/investments/new"
+            element={
+              <ProtectedRoute>
+                <Navigate to="/project-management/new" replace />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/investments/:id"
+            element={<LegacyInvestmentDetailRedirect />}
+          />
+
+          <Route
+            path="/investments/:id/edit"
+            element={<LegacyInvestmentEditRedirect />}
           />
 
           <Route

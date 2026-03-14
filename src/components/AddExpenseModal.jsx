@@ -1,44 +1,178 @@
-import React, { useState, useEffect } from "react";
-import { createExpense } from "../utils/api";
+import React, { useEffect, useMemo, useState } from "react";
 
-const AddExpenseModal = ({ isOpen, onClose, investmentId, defaultCategory = null, onSuccess, budgetItems = [] }) => {
-  const [formData, setFormData] = useState({
-    budgetItemId: "",
+import { analyzeExpenseReceipt, createExpense } from "../utils/api";
+
+const buildInitialForm = ({
+  budgetItems = [],
+  defaultBudgetItemId = "",
+  defaultAwardId = "",
+}) => {
+  const fallbackBudgetItem =
+    budgetItems.find((item) => item._id === defaultBudgetItemId) || budgetItems[0] || null;
+  const nextBudgetItemId = defaultBudgetItemId || "";
+  const matchingAward = fallbackBudgetItem?.awards?.find((award) => award.awardId === defaultAwardId);
+
+  return {
+    budgetItemId: nextBudgetItemId,
+    awardId: matchingAward?.awardId || "",
+    vendorId:
+      typeof matchingAward?.vendor === "object"
+        ? matchingAward?.vendor?._id || ""
+        : matchingAward?.vendor || "",
+    payeeName: matchingAward?.vendorName || "",
+    title: "",
     description: "",
     amount: "",
     date: new Date().toISOString().split("T")[0],
     notes: "",
-  });
+    entryMethod: "manual",
+  };
+};
 
+const AddExpenseModal = ({
+  isOpen,
+  onClose,
+  investmentId,
+  defaultBudgetItemId = "",
+  defaultAwardId = "",
+  initialMode = "manual",
+  onSuccess,
+  budgetItems = [],
+  vendors = [],
+}) => {
+  const [mode, setMode] = useState(initialMode === "receipt" ? "receipt" : "manual");
+  const [formData, setFormData] = useState(() =>
+    buildInitialForm({ budgetItems, defaultBudgetItemId, defaultAwardId })
+  );
   const [receipt, setReceipt] = useState(null);
+  const [receiptAnalysis, setReceiptAnalysis] = useState(null);
   const [error, setError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   useEffect(() => {
-    if (isOpen) {
-      const defaultBudget = budgetItems.find((item) => item.category === defaultCategory);
-      setFormData({
-        budgetItemId: defaultBudget?._id || "",
-        description: "",
-        amount: "",
-        date: new Date().toISOString().split("T")[0],
-        notes: "",
-      });
-      setReceipt(null);
-      setError("");
+    if (!isOpen) {
+      return;
     }
-  }, [isOpen, defaultCategory, budgetItems]);
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    setMode(initialMode === "receipt" ? "receipt" : "manual");
+    setFormData(buildInitialForm({ budgetItems, defaultBudgetItemId, defaultAwardId }));
+    setReceipt(null);
+    setReceiptAnalysis(null);
+    setError("");
+    setIsSaving(false);
+    setIsAnalyzing(false);
+  }, [budgetItems, defaultAwardId, defaultBudgetItemId, initialMode, isOpen]);
+
+  const selectedBudgetItem = useMemo(
+    () => budgetItems.find((item) => item._id === formData.budgetItemId) || null,
+    [budgetItems, formData.budgetItemId]
+  );
+
+  const selectedAward = useMemo(
+    () =>
+      selectedBudgetItem?.awards?.find((award) => award.awardId === formData.awardId) || null,
+    [selectedBudgetItem, formData.awardId]
+  );
+
+  if (!isOpen) return null;
+
+  const handleClose = () => {
+    onClose();
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleChange = (event) => {
+    const { name, value } = event.target;
 
-    if (!formData.budgetItemId || !formData.description || !formData.amount) {
-      setError("Please fill in all required fields.");
+    setFormData((current) => {
+      const next = {
+        ...current,
+        [name]: value,
+      };
+
+      if (name === "budgetItemId") {
+        next.awardId = "";
+      }
+
+      if (name === "awardId") {
+        const nextAward = selectedBudgetItem?.awards?.find((award) => award.awardId === value);
+        if (nextAward) {
+          next.vendorId =
+            typeof nextAward.vendor === "object"
+              ? nextAward.vendor?._id || ""
+              : nextAward.vendor || "";
+          next.payeeName = nextAward.vendorName || "";
+        }
+      }
+
+      if (name === "vendorId" && value) {
+        next.payeeName = "";
+      }
+
+      return next;
+    });
+  };
+
+  const handleAnalyzeReceipt = async () => {
+    if (!receipt) {
+      setError("Add a receipt image first.");
+      return;
+    }
+
+    setError("");
+    setIsAnalyzing(true);
+
+    try {
+      const payload = new FormData();
+      payload.append("investmentId", investmentId);
+      payload.append("receipt", receipt);
+
+      const analysis = await analyzeExpenseReceipt(payload);
+      const suggestedBudgetItemId = analysis?.suggestedBudgetItem?._id || "";
+      const nextBudgetItem =
+        budgetItems.find((item) => item._id === suggestedBudgetItemId) || null;
+      const suggestedVendorId = analysis?.suggestedVendor?._id || "";
+      const matchedAward =
+        nextBudgetItem?.awards?.find((award) => {
+          const vendorId =
+            typeof award.vendor === "object" ? award.vendor?._id || "" : award.vendor || "";
+          return vendorId && vendorId === suggestedVendorId;
+        }) || null;
+
+      setReceiptAnalysis(analysis);
+      setFormData((current) => ({
+        ...current,
+        budgetItemId: suggestedBudgetItemId || current.budgetItemId,
+        awardId: matchedAward?.awardId || "",
+        vendorId: suggestedVendorId || current.vendorId,
+        payeeName: analysis?.extracted?.vendorName || current.payeeName,
+        title: analysis?.extracted?.title || current.title,
+        description: analysis?.extracted?.description || current.description,
+        amount:
+          analysis?.extracted?.amount !== null && analysis?.extracted?.amount !== undefined
+            ? String(analysis.extracted.amount)
+            : current.amount,
+        date: analysis?.extracted?.expenseDate || current.date,
+        notes: analysis?.extracted?.notes || current.notes,
+        entryMethod: "receipt_ai",
+      }));
+    } catch (analysisError) {
+      setError(analysisError.message || "Failed to analyze receipt.");
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+
+    if (!formData.title || !formData.amount) {
+      setError("Title and amount are required.");
+      return;
+    }
+
+    if (!formData.vendorId && !formData.payeeName.trim() && !formData.awardId) {
+      setError("Choose a vendor, select a vendor commitment, or enter the payee name.");
       return;
     }
 
@@ -48,72 +182,297 @@ const AddExpenseModal = ({ isOpen, onClose, investmentId, defaultCategory = null
     try {
       const payload = new FormData();
       payload.append("investmentId", investmentId);
-      payload.append("budgetItemId", formData.budgetItemId);
-      payload.append("description", formData.description);
+      if (formData.budgetItemId) payload.append("budgetItemId", formData.budgetItemId);
+      if (formData.awardId) payload.append("awardId", formData.awardId);
+      if (formData.vendorId) payload.append("vendor", formData.vendorId);
+      if (formData.payeeName.trim()) payload.append("payeeName", formData.payeeName.trim());
+      payload.append("title", formData.title.trim());
+      payload.append("description", formData.description.trim());
       payload.append("amount", formData.amount);
       payload.append("date", formData.date);
-      payload.append("notes", formData.notes);
+      payload.append("notes", formData.notes.trim());
+      payload.append("entryMethod", formData.entryMethod);
+      if (receiptAnalysis) {
+        payload.append(
+          "receiptExtraction",
+          JSON.stringify({
+            extracted: receiptAnalysis.extracted || null,
+            suggestedVendor: receiptAnalysis.suggestedVendor || null,
+            suggestedBudgetItem: receiptAnalysis.suggestedBudgetItem || null,
+          })
+        );
+      }
       if (receipt) payload.append("receipt", receipt);
 
       await createExpense(payload);
-      onSuccess();
-      onClose();
-    } catch (err) {
-      setError(err.message || "Failed to save expense.");
+      await onSuccess?.();
+      handleClose();
+    } catch (saveError) {
+      setError(saveError.message || "Failed to save expense.");
     } finally {
       setIsSaving(false);
     }
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-40 z-50 flex items-center justify-center p-4">
-      <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-md space-y-4">
-        <h2 className="text-xl font-bold text-brand-gray-800">Add Expense</h2>
-        <form onSubmit={handleSubmit} className="space-y-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink-950/60 p-4 backdrop-blur-sm">
+      <div className="surface-panel-strong max-h-[92vh] w-full max-w-3xl overflow-y-auto px-6 py-6 sm:px-7">
+        <div className="flex items-start justify-between gap-4">
           <div>
-            <label className="block text-sm font-medium">Budget Category</label>
-            <select
-              name="budgetItemId"
-              value={formData.budgetItemId}
+            <span className="eyebrow">Expense capture</span>
+            <h2 className="mt-4 text-[2rem] font-medium tracking-tight text-ink-900">
+              Add project expense
+            </h2>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-ink-500">
+              Capture a manual payment, tie it to a chosen vendor commitment, or let AI read a
+              receipt image and prefill the details.
+            </p>
+          </div>
+
+          <button type="button" onClick={handleClose} className="ghost-action">
+            Close
+          </button>
+        </div>
+
+        <div className="mt-8 flex flex-wrap gap-3">
+          <button
+            type="button"
+            onClick={() => setMode("manual")}
+            className={mode === "manual" ? "primary-action" : "secondary-action"}
+          >
+            Manual expense
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode("receipt")}
+            className={mode === "receipt" ? "primary-action" : "secondary-action"}
+          >
+            Receipt assist
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="mt-8 space-y-6">
+          {mode === "receipt" ? (
+            <section className="rounded-[24px] border border-ink-100 bg-white/90 p-5">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm font-semibold text-ink-900">Upload a receipt image</p>
+                  <p className="mt-1 text-sm text-ink-500">
+                    AI will suggest the vendor, scope item, amount, and payment date before you save.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleAnalyzeReceipt}
+                  disabled={!receipt || isAnalyzing}
+                  className="secondary-action disabled:cursor-not-allowed disabled:opacity-70"
+                >
+                  {isAnalyzing ? "Reading receipt..." : "Use AI to read receipt"}
+                </button>
+              </div>
+
+              <label className="mt-5 block rounded-[20px] border border-dashed border-ink-200 bg-ink-50/60 px-4 py-5 text-sm text-ink-600">
+                <span className="block font-medium text-ink-800">Receipt image</span>
+                <span className="mt-1 block">PNG or JPG works best for AI matching.</span>
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/jpg"
+                  onChange={(event) => setReceipt(event.target.files?.[0] || null)}
+                  className="mt-4 block w-full text-sm text-ink-600"
+                />
+              </label>
+
+              {receiptAnalysis ? (
+                <div className="mt-5 rounded-[20px] border border-verdigris-200 bg-verdigris-50 px-4 py-4 text-sm text-verdigris-800">
+                  <p className="font-semibold">Receipt suggestions ready</p>
+                  <p className="mt-2">
+                    Vendor:{" "}
+                    {receiptAnalysis?.suggestedVendor?.name ||
+                      receiptAnalysis?.extracted?.vendorName ||
+                      "No match"}
+                  </p>
+                  <p className="mt-1">
+                    Scope item: {receiptAnalysis?.suggestedBudgetItem?.category || "No match"}
+                  </p>
+                </div>
+              ) : null}
+            </section>
+          ) : null}
+
+          <div className="grid gap-5 md:grid-cols-2">
+            <label className="block space-y-2">
+              <span className="text-sm font-medium text-ink-700">Scope item</span>
+              <select
+                name="budgetItemId"
+                value={formData.budgetItemId}
+                onChange={handleChange}
+                className="auth-input appearance-none"
+              >
+                <option value="">Project-level / custom expense</option>
+                {budgetItems.map((item) => (
+                  <option key={item._id} value={item._id}>
+                    {item.category}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="block space-y-2">
+              <span className="text-sm font-medium text-ink-700">Selected vendor commitment</span>
+              <select
+                name="awardId"
+                value={formData.awardId}
+                onChange={handleChange}
+                className="auth-input appearance-none"
+                disabled={!selectedBudgetItem?.awards?.length}
+              >
+                <option value="">No specific commitment</option>
+                {(selectedBudgetItem?.awards || []).map((award) => (
+                  <option key={award.awardId} value={award.awardId}>
+                    {(typeof award.vendor === "object" ? award.vendor?.name : "") ||
+                      award.vendorName ||
+                      "Selected vendor"}
+                    {award.description ? ` - ${award.description}` : ""}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+
+          <div className="grid gap-5 md:grid-cols-2">
+            <label className="block space-y-2">
+              <span className="text-sm font-medium text-ink-700">Vendor from your list</span>
+              <select
+                name="vendorId"
+                value={formData.vendorId}
+                onChange={handleChange}
+                className="auth-input appearance-none"
+              >
+                <option value="">No linked vendor</option>
+                {vendors.map((vendor) => (
+                  <option key={vendor._id} value={vendor._id}>
+                    {vendor.name}
+                    {vendor.trade ? ` - ${vendor.trade}` : ""}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="block space-y-2">
+              <span className="text-sm font-medium text-ink-700">Payee name</span>
+              <input
+                name="payeeName"
+                value={formData.payeeName}
+                onChange={handleChange}
+                className="auth-input"
+                placeholder="Use this for stores or one-off custom expenses"
+              />
+            </label>
+          </div>
+
+          <div className="grid gap-5 md:grid-cols-[minmax(0,1fr)_180px]">
+            <label className="block space-y-2">
+              <span className="text-sm font-medium text-ink-700">Title</span>
+              <input
+                name="title"
+                value={formData.title}
+                onChange={handleChange}
+                className="auth-input"
+                placeholder="Deposit, appliance order, permit fee, cabinet payment"
+                required
+              />
+            </label>
+
+            <label className="block space-y-2">
+              <span className="text-sm font-medium text-ink-700">Amount</span>
+              <input
+                name="amount"
+                type="number"
+                min="0"
+                step="0.01"
+                value={formData.amount}
+                onChange={handleChange}
+                className="auth-input"
+                required
+              />
+            </label>
+          </div>
+
+          <div className="grid gap-5 md:grid-cols-[minmax(0,1fr)_220px]">
+            <label className="block space-y-2">
+              <span className="text-sm font-medium text-ink-700">Description</span>
+              <textarea
+                name="description"
+                rows="3"
+                value={formData.description}
+                onChange={handleChange}
+                className="auth-input"
+                placeholder="Optional note about what was purchased or paid."
+              />
+            </label>
+
+            <label className="block space-y-2">
+              <span className="text-sm font-medium text-ink-700">Date</span>
+              <input
+                name="date"
+                type="date"
+                value={formData.date}
+                onChange={handleChange}
+                className="auth-input"
+              />
+            </label>
+          </div>
+
+          <label className="block space-y-2">
+            <span className="text-sm font-medium text-ink-700">Notes</span>
+            <textarea
+              name="notes"
+              rows="3"
+              value={formData.notes}
               onChange={handleChange}
-              className="w-full border rounded-md p-2"
-              required
+              className="auth-input"
+              placeholder="Optional internal note."
+            />
+          </label>
+
+          <label className="block space-y-2">
+            <span className="text-sm font-medium text-ink-700">Attach receipt</span>
+            <input
+              type="file"
+              accept="image/png,image/jpeg,image/jpg,application/pdf"
+              onChange={(event) => setReceipt(event.target.files?.[0] || null)}
+              className="auth-input file:mr-4 file:rounded-full file:border-0 file:bg-verdigris-50 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-verdigris-700"
+            />
+          </label>
+
+          {selectedAward ? (
+            <div className="rounded-[20px] border border-sand-200 bg-sand-50 px-4 py-4 text-sm text-sand-800">
+              <p className="font-semibold">Expense will be tied to a selected vendor commitment</p>
+              <p className="mt-2">
+                {(typeof selectedAward.vendor === "object" ? selectedAward.vendor?.name : "") ||
+                  selectedAward.vendorName ||
+                  "Selected vendor"}
+                {selectedAward.description ? ` • ${selectedAward.description}` : ""}
+              </p>
+            </div>
+          ) : null}
+
+          {error ? (
+            <div className="rounded-[18px] border border-clay-200 bg-clay-50 px-4 py-3 text-sm text-clay-700">
+              {error}
+            </div>
+          ) : null}
+
+          <div className="flex flex-wrap justify-end gap-3">
+            <button type="button" onClick={handleClose} className="ghost-action" disabled={isSaving}>
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isSaving}
+              className="primary-action disabled:cursor-not-allowed disabled:opacity-70"
             >
-              <option value="">Select a budget line</option>
-              {budgetItems.map((item) => (
-                <option key={item._id} value={item._id}>
-                  {item.category}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium">Description</label>
-            <input name="description" type="text" value={formData.description} onChange={handleChange} className="w-full border rounded-md p-2" required />
-          </div>
-          <div>
-            <label className="block text-sm font-medium">Amount</label>
-            <input name="amount" type="number" step="0.01" value={formData.amount} onChange={handleChange} className="w-full border rounded-md p-2" required />
-          </div>
-          <div>
-            <label className="block text-sm font-medium">Date</label>
-            <input name="date" type="date" value={formData.date} onChange={handleChange} className="w-full border rounded-md p-2" />
-          </div>
-          <div>
-            <label className="block text-sm font-medium">Notes</label>
-            <textarea name="notes" rows="2" value={formData.notes} onChange={handleChange} className="w-full border rounded-md p-2" />
-          </div>
-          <div>
-            <label className="block text-sm font-medium">Upload Receipt</label>
-            <input type="file" onChange={(e) => setReceipt(e.target.files[0])} />
-          </div>
-          {error && <p className="text-red-500 text-sm">{error}</p>}
-          <div className="flex justify-end gap-4 pt-4">
-            <button type="button" onClick={onClose} className="px-4 py-2 border rounded-md">Cancel</button>
-            <button type="submit" disabled={isSaving} className="bg-brand-turquoise text-white px-4 py-2 rounded-md disabled:opacity-50">
-              {isSaving ? "Saving..." : "Save Expense"}
+              {isSaving ? "Saving..." : "Save expense"}
             </button>
           </div>
         </form>

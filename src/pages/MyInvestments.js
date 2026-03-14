@@ -57,7 +57,7 @@ const MyInvestments = () => {
         const data = await getInvestments();
         setInvestments(data);
       } catch (err) {
-        setError(err.message || "Failed to load acquisition properties.");
+        setError(err.message || "Failed to load project management workspaces.");
       } finally {
         setLoading(false);
       }
@@ -86,7 +86,7 @@ const MyInvestments = () => {
       <div className="surface-panel flex items-center justify-center px-6 py-20">
         <div className="flex items-center gap-4 text-ink-500">
           <div className="h-10 w-10 animate-spin rounded-full border-2 border-ink-200 border-t-verdigris-500" />
-          <p className="text-sm font-medium">Loading acquisition properties...</p>
+          <p className="text-sm font-medium">Loading project management workspaces...</p>
         </div>
       </div>
     );
@@ -101,14 +101,13 @@ const MyInvestments = () => {
       <section className="surface-panel-strong relative overflow-hidden px-6 py-7 sm:px-8">
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1.18fr)_360px]">
           <div>
-            <span className="eyebrow">Acquisitions view</span>
+            <span className="eyebrow">Project management</span>
             <h1 className="mt-5 max-w-3xl font-display text-4xl leading-tight text-ink-900 sm:text-5xl">
-              Properties currently active in acquisitions.
+              Closed deals now active in project management.
             </h1>
             <p className="mt-4 max-w-2xl text-base leading-7 text-ink-600 sm:text-lg">
-              This is a filtered view of the property hub for assets with acquisitions workspaces.
-              Keep underwriting, pricing, and management readiness in motion without losing the
-              shared property context.
+              Keep the original lead assumptions, saved comps, vendor commitments, and actual
+              expenses together without losing the shared property context underneath.
             </p>
 
             <div className="mt-6 flex flex-wrap gap-3">
@@ -120,12 +119,12 @@ const MyInvestments = () => {
                 onClick={() => navigate("/properties/new?workspace=acquisitions")}
                 className="primary-action"
               >
-                New acquisition property
+                New project property
               </button>
             </div>
             <div className="mt-6 flex flex-wrap gap-3">
               <span className="rounded-full border border-verdigris-200 bg-verdigris-50 px-4 py-2 text-sm font-medium text-verdigris-700">
-                {investments.length} acquisition propert{investments.length === 1 ? "y" : "ies"}
+                {investments.length} active project{investments.length === 1 ? "" : "s"}
               </span>
               <span className="rounded-full border border-ink-200 bg-white/90 px-4 py-2 text-sm font-medium text-ink-700">
                 {linkedProfiles} linked shared profile{linkedProfiles === 1 ? "" : "s"}
@@ -153,7 +152,7 @@ const MyInvestments = () => {
             </div>
 
             <p className="mt-5 text-sm leading-6 text-ink-500">
-              Every acquisition here is anchored to a canonical property record. Jump back to the
+              Every project here is anchored to a canonical property record. Jump back to the
               hub when you need to edit shared facts once or place a property into a different
               workspace.
             </p>
@@ -181,10 +180,10 @@ const MyInvestments = () => {
             <HomeModernIcon className="h-5 w-5" />
           </div>
           <p className="mt-5 text-sm font-semibold uppercase tracking-[0.18em] text-ink-400">
-            Acquisition properties
+            Active projects
           </p>
           <p className="mt-2 text-3xl font-semibold text-ink-900">{investments.length}</p>
-          <p className="mt-2 text-sm text-ink-500">Properties currently carrying an acquisitions workspace.</p>
+          <p className="mt-2 text-sm text-ink-500">Properties currently carrying a project-management workspace.</p>
         </div>
 
         <div className="metric-tile p-5">
@@ -192,10 +191,10 @@ const MyInvestments = () => {
             <ChartBarIcon className="h-5 w-5" />
           </div>
           <p className="mt-5 text-sm font-semibold uppercase tracking-[0.18em] text-ink-400">
-            Active acquisitions
+            In execution
           </p>
           <p className="mt-2 text-3xl font-semibold text-ink-900">{activeProjects}</p>
-          <p className="mt-2 text-sm text-ink-500">Acquisition workspaces not yet sold or archived.</p>
+          <p className="mt-2 text-sm text-ink-500">Project workspaces not yet sold or archived.</p>
         </div>
 
         <div className="metric-tile p-5">
@@ -217,7 +216,7 @@ const MyInvestments = () => {
             Already in management
           </p>
           <p className="mt-2 text-3xl font-semibold text-ink-900">{inManagement}</p>
-          <p className="mt-2 text-sm text-ink-500">Acquisition properties already linked into operations.</p>
+          <p className="mt-2 text-sm text-ink-500">Projects already linked into long-term operations.</p>
         </div>
       </section>
 
@@ -226,10 +225,10 @@ const MyInvestments = () => {
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <span className="eyebrow">Filtered from property hub</span>
-              <h2 className="mt-4 text-3xl font-semibold text-ink-900">Acquisition properties</h2>
+              <h2 className="mt-4 text-3xl font-semibold text-ink-900">Project workspaces</h2>
               <p className="mt-3 max-w-2xl text-sm leading-6 text-ink-500">
-                Each card shows the acquisitions workspace for a property while keeping the shared
-                property profile one click away.
+                Each card keeps the original property context close by while the execution work
+                happens inside the project workspace.
               </p>
             </div>
           </div>
@@ -316,7 +315,7 @@ const MyInvestments = () => {
 
                     <div>
                       <div className="mb-2 flex items-center justify-between text-xs font-semibold uppercase tracking-[0.18em] text-ink-400">
-                        <span>Acquisition progress</span>
+                        <span>Project progress</span>
                         <span>{progress}%</span>
                       </div>
                       <div className="h-2.5 rounded-full bg-ink-100">
@@ -343,14 +342,14 @@ const MyInvestments = () => {
                         </span>
                       ) : (
                         <span className="rounded-full border border-ink-200 bg-white px-3 py-1 text-xs font-semibold text-ink-600">
-                          Acquisition stage
+                          Project setup
                         </span>
                       )}
                     </div>
 
                     <div className="flex flex-wrap gap-3">
-                      <Link to={`/investments/${investment._id}`} className="primary-action">
-                        Open acquisition workspace
+                      <Link to={`/project-management/${investment._id}`} className="primary-action">
+                        Open project workspace
                         <ArrowRightIcon className="ml-2 h-5 w-5" />
                       </Link>
                       {propertyWorkspacePath ? (
@@ -369,10 +368,10 @@ const MyInvestments = () => {
                       ) : (
                         <button
                           type="button"
-                          onClick={() => navigate(`/investments/${investment._id}/edit`)}
+                          onClick={() => navigate(`/project-management/${investment._id}/edit`)}
                           className="ghost-action"
                         >
-                          Edit acquisition plan
+                          Edit project assumptions
                         </button>
                       )}
                     </div>
@@ -385,9 +384,9 @@ const MyInvestments = () => {
       ) : (
         <EmptyState
           icon="🏡"
-          title="No acquisition workspaces yet"
-          message="Create a property and place it into the acquisitions view when you are ready to start underwriting, budgeting, and execution."
-          buttonText="Create acquisition property"
+          title="No project workspaces yet"
+          message="Create a property and place it into project management when you are ready to start budgeting, vendor selection, and execution."
+          buttonText="Create project property"
           onButtonClick={() => navigate("/properties/new?workspace=acquisitions")}
         />
       )}

@@ -16,6 +16,23 @@ export const formatCurrency = (value = 0, options = {}) =>
 const sumBudgetItems = (budgetItems = []) =>
   budgetItems.reduce((sum, item) => sum + toNumber(item?.budgetedAmount, 0), 0);
 
+const sumOriginalBudgetItems = (budgetItems = []) =>
+  budgetItems.reduce(
+    (sum, item) =>
+      sum + toNumber(item?.originalBudgetAmount ?? item?.budgetedAmount, 0),
+    0
+  );
+
+const sumCommittedBudgetItems = (budgetItems = []) =>
+  budgetItems.reduce(
+    (sum, item) =>
+      sum +
+      (Array.isArray(item?.awards)
+        ? item.awards.reduce((awardSum, award) => awardSum + toNumber(award?.amount, 0), 0)
+        : 0),
+    0
+  );
+
 const sumLegacyBudget = (investment) =>
   Array.isArray(investment?.budget)
     ? investment.budget.reduce((sum, item) => sum + toNumber(item?.amount, 0), 0)
@@ -74,7 +91,15 @@ export const getInvestmentAnalysisMetrics = (investment = {}, options = {}) => {
     sumBudgetItems(budgetItems) ||
     toNumber(investment?.totalBudget, 0) ||
     sumLegacyBudget(investment);
+  const totalOriginalBudget =
+    sumOriginalBudgetItems(budgetItems) ||
+    toNumber(investment?.totalBudget, 0) ||
+    sumLegacyBudget(investment);
+  const totalCommitted = sumCommittedBudgetItems(budgetItems);
   const totalSpent = expenses.reduce((sum, item) => sum + toNumber(item?.amount, 0), 0);
+  const unassignedSpent = expenses
+    .filter((item) => !item?.budgetItem)
+    .reduce((sum, item) => sum + toNumber(item?.amount, 0), 0);
 
   const calcBuyingCost = buyClosingIsPercent
     ? (purchasePrice * buyClosingInput) / 100
@@ -111,7 +136,10 @@ export const getInvestmentAnalysisMetrics = (investment = {}, options = {}) => {
     sellClosingInput,
     sellClosingIsPercent,
     totalBudget,
+    totalOriginalBudget,
+    totalCommitted,
     totalSpent,
+    unassignedSpent,
     calcBuyingCost,
     calcFinanceCost,
     calcHoldingCost,
@@ -128,6 +156,9 @@ export const getInvestmentAnalysisMetrics = (investment = {}, options = {}) => {
     progress,
     breakevenARV: totalCost + calcSellCost,
     remainingBudget: totalBudget - totalSpent,
+    remainingOriginalBudget: totalOriginalBudget - totalSpent,
+    committedVariance: totalCommitted - totalOriginalBudget,
+    outstandingCommitted: totalCommitted - totalSpent,
     budgetPercent: totalBudget > 0 ? (totalSpent / totalBudget) * 100 : 0,
   };
 };

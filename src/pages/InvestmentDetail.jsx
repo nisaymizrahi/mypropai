@@ -8,11 +8,13 @@ import {
   SparklesIcon,
 } from "@heroicons/react/24/outline";
 
+import AddExpenseModal from "../components/AddExpenseModal";
+import BidsTab from "../components/BidsTab";
 import DashboardTab from "../components/DashboardTab";
 import DealCalculatorTab from "../components/DealCalculatorTab";
-import DealPerformanceTab from "../components/DealPerformanceTab";
 import DocumentsTab from "../components/DocumentsTab";
 import FinancialsTab from "../components/FinancialsTab";
+import ProjectCompsTab from "../components/ProjectCompsTab";
 import ScheduleTab from "../components/ScheduleTab";
 import StatusBadge from "../components/StatusBadge";
 import TeamTab from "../components/TeamTab";
@@ -20,6 +22,7 @@ import TimelineTab from "../components/TimelineTab";
 import {
   deleteInvestment,
   getBudgetItems,
+  getBidsForLead,
   getExpenses,
   getInvestment,
   getProjectTasks,
@@ -69,18 +72,19 @@ const ProjectSettings = ({ onDelete }) => (
       onClick={onDelete}
       className="mt-8 inline-flex items-center justify-center rounded-full bg-clay-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-clay-700"
     >
-      Delete this investment project
+      Delete this project
     </button>
   </div>
 );
 
 const tabConfig = [
-  { id: "dashboard", label: "Dashboard" },
-  { id: "financials", label: "Financials" },
-  { id: "performance", label: "Performance" },
+  { id: "details", label: "Details" },
+  { id: "comps", label: "Comps" },
+  { id: "financials", label: "Budget & Financials" },
+  { id: "bids", label: "Bids" },
   { id: "schedule", label: "Schedule" },
   { id: "documents", label: "Documents" },
-  { id: "team", label: "Team" },
+  { id: "team", label: "Vendors" },
   { id: "timeline", label: "Timeline" },
   { id: "dealcalc", label: "Deal calculator" },
   { id: "settings", label: "Settings" },
@@ -95,22 +99,33 @@ const InvestmentDetail = () => {
   const [expenses, setExpenses] = useState([]);
   const [tasks, setTasks] = useState([]);
   const [vendors, setVendors] = useState([]);
+  const [bids, setBids] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [actionError, setActionError] = useState("");
-  const [activeTab, setActiveTab] = useState("dashboard");
+  const [activeTab, setActiveTab] = useState("details");
   const [isStartingManagement, setIsStartingManagement] = useState(false);
+  const [heroExpenseModalState, setHeroExpenseModalState] = useState({
+    isOpen: false,
+    mode: "manual",
+  });
 
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
 
-      const [investmentData, budgetData, expenseData, taskData, vendorData] = await Promise.all([
-        getInvestment(id),
+      const investmentData = await getInvestment(id);
+      const sourceLeadId =
+        typeof investmentData?.sourceLead === "object"
+          ? investmentData?.sourceLead?._id
+          : investmentData?.sourceLead;
+
+      const [budgetData, expenseData, taskData, vendorData, bidsData] = await Promise.all([
         getBudgetItems(id),
         getExpenses(id),
         getProjectTasks(id),
         getVendors(),
+        sourceLeadId ? getBidsForLead(sourceLeadId) : Promise.resolve([]),
       ]);
 
       setInvestment(investmentData);
@@ -118,6 +133,7 @@ const InvestmentDetail = () => {
       setExpenses(expenseData);
       setTasks(taskData);
       setVendors(vendorData);
+      setBids(bidsData);
       setError("");
     } catch (err) {
       setError(err.message || "Failed to load project data.");
@@ -141,7 +157,7 @@ const InvestmentDetail = () => {
 
     try {
       await deleteInvestment(id);
-      navigate("/investments");
+      navigate("/project-management");
     } catch (err) {
       setError(err.message || "Failed to delete investment.");
     }
@@ -181,33 +197,54 @@ const InvestmentDetail = () => {
       : investment.managedProperty;
   const propertyWorkspaceId =
     typeof investment.property === "object" ? investment.property?._id : investment.property;
+  const sourceLeadId =
+    typeof investment.sourceLead === "object" ? investment.sourceLead?._id : investment.sourceLead;
+  const sourceLeadSnapshot = investment.sourceLeadSnapshot || null;
   const hasManagedProperty = Boolean(managedPropertyId);
   const hasPropertyWorkspace = Boolean(propertyWorkspaceId);
-  const totalBudget = budgetItems.reduce((sum, item) => sum + Number(item.budgetedAmount || 0), 0);
+  const totalBudget = budgetItems.reduce(
+    (sum, item) =>
+      sum + Number(item.originalBudgetAmount ?? item.budgetedAmount ?? 0),
+    0
+  );
   const totalSpent = expenses.reduce((sum, item) => sum + Number(item.amount || 0), 0);
   const openTasks = tasks.filter((task) => task.status !== "Complete").length;
   const progress = Number(investment.progress || 0);
 
   return (
     <div className="space-y-6">
+      <AddExpenseModal
+        isOpen={heroExpenseModalState.isOpen}
+        onClose={() => setHeroExpenseModalState({ isOpen: false, mode: "manual" })}
+        investmentId={investment._id}
+        initialMode={heroExpenseModalState.mode}
+        budgetItems={budgetItems}
+        vendors={vendors}
+        onSuccess={fetchData}
+      />
+
       <section className="surface-panel-strong relative overflow-hidden px-6 py-7 sm:px-8">
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1.18fr)_360px]">
           <div>
             <div className="flex flex-wrap items-center gap-3">
-              <button type="button" onClick={() => navigate("/investments")} className="ghost-action">
+              <button
+                type="button"
+                onClick={() => navigate("/project-management")}
+                className="ghost-action"
+              >
                 <ArrowLeftIcon className="mr-2 h-5 w-5" />
-                Back to investments
+                Back to project management
               </button>
               <StatusBadge investment={investment} onUpdate={fetchData} />
             </div>
 
-            <span className="eyebrow mt-6">Project hub</span>
+            <span className="eyebrow mt-6">Project management</span>
             <h1 className="mt-5 max-w-3xl font-display text-4xl leading-tight text-ink-900 sm:text-5xl">
               {investment.address}
             </h1>
             <p className="mt-4 max-w-2xl text-base leading-7 text-ink-600 sm:text-lg">
-              Track acquisition progress, project spend, and the operational handoff from a single
-              investment workspace.
+              Track the full execution phase here, from the saved lead comps and scope assumptions
+              through vendor commitments, actual spend, and the management handoff.
             </p>
 
             <div className="mt-6 flex flex-wrap gap-3">
@@ -233,8 +270,34 @@ const InvestmentDetail = () => {
                 >
                   <BuildingOffice2Icon className="mr-2 h-5 w-5" />
                   Open property hub
+                  </button>
+              ) : null}
+
+              {sourceLeadId ? (
+                <button
+                  type="button"
+                  onClick={() => navigate(`/leads/${sourceLeadId}`)}
+                  className="secondary-action"
+                >
+                  Open original lead
                 </button>
               ) : null}
+
+              <button
+                type="button"
+                onClick={() => setHeroExpenseModalState({ isOpen: true, mode: "manual" })}
+                className="secondary-action"
+              >
+                Add expense
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setHeroExpenseModalState({ isOpen: true, mode: "receipt" })}
+                className="secondary-action"
+              >
+                Scan receipt with AI
+              </button>
 
               {hasManagedProperty ? (
                 <button
@@ -259,11 +322,11 @@ const InvestmentDetail = () => {
 
               <button
                 type="button"
-                onClick={() => navigate(`/investments/${id}/edit`)}
+                onClick={() => navigate(`/project-management/${id}/edit`)}
                 className="ghost-action"
               >
                 <PencilSquareIcon className="mr-2 h-5 w-5" />
-                Edit deal assumptions
+                Edit project assumptions
               </button>
             </div>
           </div>
@@ -328,7 +391,11 @@ const InvestmentDetail = () => {
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetricTile label="Purchase price" value={formatCurrency(investment.purchasePrice)} />
         <MetricTile label="ARV / future value" value={formatCurrency(investment.arv)} />
-        <MetricTile label="Budgeted rehab" value={formatCurrency(totalBudget)} hint={`${openTasks} open task${openTasks === 1 ? "" : "s"}`} />
+        <MetricTile
+          label="Original rehab budget"
+          value={formatCurrency(totalBudget)}
+          hint={`${openTasks} open task${openTasks === 1 ? "" : "s"}`}
+        />
         <MetricTile label="Total spent" value={formatCurrency(totalSpent)} hint={`${progress}% project progress`} />
       </section>
 
@@ -352,16 +419,19 @@ const InvestmentDetail = () => {
       </section>
 
       <div className="pb-2">
-        {activeTab === "dashboard" && (
+        {activeTab === "details" && (
           <DashboardTab
             investment={investment}
             budgetItems={budgetItems}
             expenses={expenses}
             tasks={tasks}
             vendors={vendors}
+            sourceLeadSnapshot={sourceLeadSnapshot}
+            sourceLeadId={sourceLeadId}
             onUpdate={fetchData}
           />
         )}
+        {activeTab === "comps" && <ProjectCompsTab snapshot={sourceLeadSnapshot} />}
         {activeTab === "financials" && (
           <FinancialsTab
             investment={investment}
@@ -371,8 +441,24 @@ const InvestmentDetail = () => {
             onUpdate={fetchData}
           />
         )}
-        {activeTab === "performance" && (
-          <DealPerformanceTab investment={investment} budgetItems={budgetItems} expenses={expenses} />
+        {activeTab === "bids" && (
+          sourceLeadId ? (
+            <BidsTab
+              leadId={sourceLeadId}
+              bids={bids}
+              renovationItems={sourceLeadSnapshot?.renovationPlan?.items || []}
+              onUpdate={fetchData}
+            />
+          ) : (
+            <div className="section-card p-6 sm:p-7">
+              <span className="eyebrow">Bids</span>
+              <h3 className="mt-4 text-3xl font-semibold text-ink-900">No source lead found</h3>
+              <p className="mt-3 max-w-2xl text-sm leading-6 text-ink-500">
+                This project was not created from a potential property, so there are no saved bid
+                records to carry over here.
+              </p>
+            </div>
+          )
         )}
         {activeTab === "schedule" && (
           <ScheduleTab investment={investment} tasks={tasks} vendors={vendors} onUpdate={fetchData} />
