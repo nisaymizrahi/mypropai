@@ -1,6 +1,6 @@
 import React from "react";
 
-import brandLogo from "../logo.svg";
+const brandLogo = `${process.env.PUBLIC_URL}/logo.png`;
 
 const BrandLogo = ({
   caption = "",
