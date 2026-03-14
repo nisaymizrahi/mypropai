@@ -20,7 +20,6 @@ import { AuthProvider } from "./context/AuthContext";
 
 const parkedPublicPaths = [
   "/invite/:token",
-  "/tenant-login",
   "/apply",
   "/apply/:unitId",
   "/apply/success",

@@ -2,25 +2,10 @@ import React from "react";
 import { Link } from "react-router-dom";
 import { ArrowRightIcon } from "@heroicons/react/24/outline";
 
-const summaryRows = [
-  {
-    title: "Acquisitions",
-    description: "Track leads, underwriting, and next actions in a cleaner pipeline.",
-  },
-  {
-    title: "Execution",
-    description: "Keep rehab and leasing workflows inside a lighter operating view.",
-  },
-  {
-    title: "Reporting",
-    description: "Present updates and decisions with less visual weight around them.",
-  },
-];
-
-const reasons = [
-  "Smaller typography for easier scanning",
-  "Fewer panels competing for attention",
-  "Flatter surfaces with lighter contrast",
+const focusPoints = [
+  "Cleaner hierarchy",
+  "Smaller typography",
+  "No tenant portal entry",
 ];
 
 const Homepage = () => {
@@ -51,52 +36,46 @@ const Homepage = () => {
         </header>
 
         <main className="flex flex-1 items-center py-10 lg:py-12">
-          <div className="grid w-full gap-6 xl:grid-cols-[minmax(0,1fr)_360px] xl:gap-8">
-            <section className="flex flex-col justify-center reveal-up">
-              <span className="eyebrow">Minimal workspace redesign</span>
-              <h1 className="mt-5 max-w-4xl font-display text-[3rem] leading-[0.96] text-balance text-ink-900 sm:text-[3.9rem] xl:text-[4.6rem]">
-                Underwrite deals, manage properties, and keep operations organized without the clutter.
-              </h1>
-              <p className="mt-5 max-w-2xl text-sm leading-7 text-ink-600 sm:text-base">
-                Fliprop is now moving toward a lighter interface: smaller type, simpler hierarchy,
-                and less visual bulk around the work that matters.
-              </p>
+          <section className="surface-panel-strong w-full px-6 py-8 sm:px-8 sm:py-10 reveal-up">
+            <span className="eyebrow">Minimal workspace redesign</span>
+            <h1 className="mt-5 max-w-4xl font-display text-[3rem] leading-[0.96] text-balance text-ink-900 sm:text-[3.8rem] xl:text-[4.4rem]">
+              Underwrite deals, manage properties, and keep operations organized without the clutter.
+            </h1>
+            <p className="mt-5 max-w-2xl text-sm leading-7 text-ink-600 sm:text-base">
+              Fliprop is moving toward a simpler public entry: one operator-focused homepage,
+              smaller type, and less visual bulk around the main actions.
+            </p>
 
-              <div className="mt-7 flex flex-wrap items-center gap-3">
-                <Link to="/signup" className="primary-action">
-                  Create workspace account
-                  <ArrowRightIcon className="ml-2 h-4 w-4" />
-                </Link>
-                <Link to="/login" className="secondary-action">
-                  Sign in
-                </Link>
-              </div>
-            </section>
+            <div className="mt-7 flex flex-wrap items-center gap-3">
+              <Link to="/signup" className="primary-action">
+                Create workspace account
+                <ArrowRightIcon className="ml-2 h-4 w-4" />
+              </Link>
+              <Link to="/login" className="secondary-action">
+                Sign in
+              </Link>
+            </div>
 
-            <aside className="surface-panel-strong p-6 reveal-up" style={{ animationDelay: "90ms" }}>
-              <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-ink-400">
-                Why it feels different
-              </p>
-              <div className="soft-list mt-4">
-                {reasons.map((reason) => (
-                  <div key={reason} className="py-4 first:pt-0 last:pb-0">
-                    <p className="text-sm leading-6 text-ink-600">{reason}</p>
-                  </div>
-                ))}
-              </div>
-            </aside>
-          </div>
+            <div className="mt-8 flex flex-wrap gap-2.5">
+              {focusPoints.map((point) => (
+                <span key={point} className="glass-chip">
+                  {point}
+                </span>
+              ))}
+            </div>
+          </section>
         </main>
 
-        <section className="grid gap-3 pb-8 md:grid-cols-3">
-          {summaryRows.map((row) => (
-            <div key={row.title} className="surface-panel p-5">
-              <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-ink-400">
-                {row.title}
-              </p>
-              <p className="mt-3 text-sm leading-6 text-ink-600">{row.description}</p>
-            </div>
-          ))}
+        <section className="pb-8">
+          <div className="surface-panel px-5 py-5">
+            <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-ink-400">
+              Focus
+            </p>
+            <p className="mt-3 max-w-3xl text-sm leading-6 text-ink-600">
+              The public entry now stays centered on one path: create an operator account or sign in
+              to the workspace. Tenant login is no longer promoted on the main homepage.
+            </p>
+          </div>
         </section>
       </div>
     </div>
