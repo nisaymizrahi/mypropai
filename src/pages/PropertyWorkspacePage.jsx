@@ -29,6 +29,7 @@ import {
   buildAnalysisFromSavedReport,
   buildCompsFilters,
   buildSavedReportFromLegacySnapshot,
+  countSavableComparables,
 } from "../utils/compsReport";
 import { getLocationProviderName, searchAddressSuggestions } from "../utils/locationSearch";
 import BidsTab from "../components/BidsTab";
@@ -647,6 +648,13 @@ const PropertyWorkspacePage = () => {
   }) => {
     if (!pipelineLeadId) {
       toast.error("Add this property to leads first.");
+      return;
+    }
+
+    if (countSavableComparables(selectedComps) < 3) {
+      const message = "Select at least 3 comparable sales before saving.";
+      setLeadWorkspaceError(message);
+      toast.error(message);
       return;
     }
 

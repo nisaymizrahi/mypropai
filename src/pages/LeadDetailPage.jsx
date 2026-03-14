@@ -32,6 +32,7 @@ import { searchAddressSuggestions } from "../utils/locationSearch";
 import {
   buildAnalysisFromSavedReport,
   buildSavedReportFromLegacySnapshot,
+  countSavableComparables,
 } from "../utils/compsReport";
 import BidsTab from "../components/BidsTab";
 import CompsReportWorkspace from "../components/CompsReportWorkspace";
@@ -1199,6 +1200,13 @@ const LeadDetailPage = () => {
   };
 
   const handleSaveReport = async ({ subject, filters: reportFilters, valuationContext, selectedComps }) => {
+    if (countSavableComparables(selectedComps) < 3) {
+      const message = "Select at least 3 comparable sales before saving.";
+      setError(message);
+      toast.error(message);
+      return;
+    }
+
     setIsSavingReport(true);
     setError("");
 
