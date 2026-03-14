@@ -30,7 +30,7 @@ const disableGoogleMaps = () => {
   googleMapsPromise = null;
 };
 
-const loadGoogleMaps = async () => {
+export const loadGoogleMaps = async () => {
   if (!hasGoogleMapsKey() || typeof window === "undefined") {
     return null;
   }

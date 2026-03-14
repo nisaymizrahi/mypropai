@@ -22,6 +22,7 @@ import {
   buildCompsReportForm,
   buildPreviewToCompsReportForm,
   buildStandaloneCompsSubject,
+  countSavableComparables,
   composeAddress,
   formatCurrency,
   formatDate,
@@ -317,6 +318,11 @@ const CompsReportPage = () => {
   };
 
   const handleSaveReport = async ({ subject: reportSubject, filters: reportFilters, valuationContext, selectedComps }) => {
+    if (countSavableComparables(selectedComps) < 3) {
+      toast.error("Select at least 3 comparable sales before saving.");
+      return;
+    }
+
     setIsSavingReport(true);
     try {
       const savedReport = await saveCompsReport({

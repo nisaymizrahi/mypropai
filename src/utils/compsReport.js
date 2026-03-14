@@ -244,6 +244,14 @@ export const normalizeComparableRecord = (comp = {}, fallbackIndex = 0) => {
   };
 };
 
+export const countSavableComparables = (comps = []) =>
+  comps
+    .map((comp, index) => normalizeComparableRecord(comp, index))
+    .filter(
+      (comp) =>
+        Boolean(comp.address) && comp.salePrice !== null && comp.salePrice !== undefined
+    ).length;
+
 const average = (values = []) => {
   if (!values.length) return null;
   return values.reduce((sum, value) => sum + value, 0) / values.length;
