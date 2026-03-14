@@ -51,8 +51,12 @@ const tabOptions = [
   { id: "saved", label: "Saved Reports" },
 ];
 
+const isSavedReportsBackendUnavailable = (error) =>
+  String(error?.message || "").includes("Saved reports are not available on the server yet");
+
 const CompsReportPage = () => {
   const selectedSuggestionRef = useRef("");
+  const suppressSuggestionsRef = useRef(false);
   const [activeTab, setActiveTab] = useState("comps");
   const [detailForm, setDetailForm] = useState(() => buildCompsReportForm());
   const [suggestions, setSuggestions] = useState([]);
@@ -137,7 +141,9 @@ const CompsReportPage = () => {
       });
       setSavedReports(reports);
     } catch (error) {
-      console.error("Failed to load standalone saved reports", error);
+      if (!isSavedReportsBackendUnavailable(error)) {
+        console.error("Failed to load standalone saved reports", error);
+      }
       setSavedReports([]);
     } finally {
       setSavedReportsLoading(false);
@@ -156,7 +162,7 @@ const CompsReportPage = () => {
       zipCode: detailForm.zipCode,
     }).trim();
 
-    if (query.length < 4 || query === selectedSuggestionRef.current) {
+    if (suppressSuggestionsRef.current || query.length < 4 || query === selectedSuggestionRef.current) {
       setSuggestions([]);
       return undefined;
     }
@@ -181,6 +187,10 @@ const CompsReportPage = () => {
 
   const handleFormChange = (event) => {
     const { name, value } = event.target;
+    if (["addressLine1", "city", "state", "zipCode"].includes(name)) {
+      suppressSuggestionsRef.current = false;
+      selectedSuggestionRef.current = "";
+    }
     setDetailForm((previous) => {
       if (name === "propertyType" && value !== "multi-family") {
         return {
@@ -225,12 +235,16 @@ const CompsReportPage = () => {
         address: lookupAddress,
       });
 
-      setDetailForm((previous) => ({
-        ...previous,
-        ...buildPreviewToCompsReportForm(preview),
-      }));
-
-      selectedSuggestionRef.current = lookupAddress;
+      const mappedPreview = buildPreviewToCompsReportForm(preview);
+      suppressSuggestionsRef.current = true;
+      setDetailForm((previous) => {
+        const next = {
+          ...previous,
+          ...mappedPreview,
+        };
+        selectedSuggestionRef.current = composeAddress(next) || lookupAddress;
+        return next;
+      });
       setSuggestions([]);
       resetReports();
       toast.success("Property facts refreshed.");
@@ -243,6 +257,7 @@ const CompsReportPage = () => {
 
   const handleSelectSuggestion = async (suggestion) => {
     const parsedAddress = parseAddressLabel(suggestion.place_name);
+    suppressSuggestionsRef.current = true;
     selectedSuggestionRef.current = composeAddress(parsedAddress) || suggestion.place_name;
     setSuggestions([]);
     setDetailForm((previous) => ({

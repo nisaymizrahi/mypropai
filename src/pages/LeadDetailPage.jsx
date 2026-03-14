@@ -581,6 +581,9 @@ const LoadingSpinner = () => (
   </div>
 );
 
+const isSavedReportsBackendUnavailable = (error) =>
+  String(error?.message || "").includes("Saved reports are not available on the server yet");
+
 const buildLeadCompsAnalysisSnapshotFromReport = (report) => {
   if (!report?.generatedAt) return null;
 
@@ -756,6 +759,7 @@ const LeadDetailPage = () => {
   const location = useLocation();
   const { refreshUser } = useAuth();
   const selectedSuggestionRef = useRef("");
+  const suppressSuggestionsRef = useRef(false);
 
   const [lead, setLead] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -802,7 +806,9 @@ const LeadDetailPage = () => {
           contextType: "lead",
           leadId: id,
         }).catch((savedReportsError) => {
-          console.error("Failed to load saved lead reports", savedReportsError);
+          if (!isSavedReportsBackendUnavailable(savedReportsError)) {
+            console.error("Failed to load saved lead reports", savedReportsError);
+          }
           return [];
         }),
       ]);
@@ -901,7 +907,7 @@ const LeadDetailPage = () => {
 
   useEffect(() => {
     const query = addressQuery.trim();
-    if (query.length < 4 || query === selectedSuggestionRef.current) {
+    if (suppressSuggestionsRef.current || query.length < 4 || query === selectedSuggestionRef.current) {
       setSuggestions([]);
       return undefined;
     }
@@ -985,9 +991,8 @@ const LeadDetailPage = () => {
     });
 
     if (["addressLine1", "city", "state", "zipCode"].includes(name)) {
-      if (name === "addressLine1") {
-        selectedSuggestionRef.current = "";
-      }
+      suppressSuggestionsRef.current = false;
+      selectedSuggestionRef.current = "";
     }
   };
 
@@ -1122,10 +1127,15 @@ const LeadDetailPage = () => {
       });
 
       const mappedPreview = buildPreviewToDetailsForm(preview);
-      setDetailForm((previous) => ({
-        ...previous,
-        ...mappedPreview,
-      }));
+      suppressSuggestionsRef.current = true;
+      setDetailForm((previous) => {
+        const next = {
+          ...previous,
+          ...mappedPreview,
+        };
+        selectedSuggestionRef.current = composeAddress(next) || address;
+        return next;
+      });
       setRenovationForm((previous) => ({
         ...previous,
         verifiedSquareFootage:
@@ -1142,6 +1152,7 @@ const LeadDetailPage = () => {
 
   const handleSelectSuggestion = async (suggestion) => {
     const parsedAddress = parseAddressLabel(suggestion.place_name);
+    suppressSuggestionsRef.current = true;
     selectedSuggestionRef.current = composeAddress(parsedAddress) || suggestion.place_name;
     setSuggestions([]);
     setDetailForm((previous) => ({

@@ -260,6 +260,11 @@ export const getPropertyReports = async (params = {}) => {
   const res = await fetch(path, {
     headers: getAuthHeaders(),
   });
+  if (res.status === 404) {
+    throw new Error(
+      "Saved reports are not available on the server yet. Redeploy the backend and try again."
+    );
+  }
   if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to load saved reports"));
   return res.json();
 };
@@ -270,6 +275,11 @@ export const saveCompsReport = async (payload) => {
     headers: getAuthHeaders(),
     body: JSON.stringify(payload),
   });
+  if (res.status === 404) {
+    throw new Error(
+      "Saved reports are not available on the server yet. Redeploy the backend and try again."
+    );
+  }
   if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to save comps report"));
   return res.json();
 };
