@@ -21,11 +21,36 @@ const MapView = ({ latitude, longitude, markers = [], zoom = 14 }) => {
   }, [latitude, longitude, zoom]);
 
   useEffect(() => {
-    if (mapRef.current) {
-      mapRef.current.setCenter([longitude, latitude]);
-      mapRef.current.setZoom(zoom);
+    if (!mapRef.current) return;
+
+    const points = [{ lat: latitude, lng: longitude }, ...markers].filter(
+      (point) =>
+        point &&
+        point.lat !== null &&
+        point.lat !== undefined &&
+        point.lng !== null &&
+        point.lng !== undefined
+    );
+
+    if (points.length > 1) {
+      const bounds = points.slice(1).reduce(
+        (accumulator, point) => accumulator.extend([point.lng, point.lat]),
+        new mapboxgl.LngLatBounds(
+          [points[0].lng, points[0].lat],
+          [points[0].lng, points[0].lat]
+        )
+      );
+
+      mapRef.current.fitBounds(bounds, {
+        padding: 60,
+        maxZoom: zoom,
+      });
+      return;
     }
-  }, [latitude, longitude, zoom]);
+
+    mapRef.current.setCenter([longitude, latitude]);
+    mapRef.current.setZoom(zoom);
+  }, [latitude, longitude, markers, zoom]);
 
   useEffect(() => {
     if (!mapRef.current) return;

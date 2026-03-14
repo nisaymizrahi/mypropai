@@ -88,7 +88,7 @@ const EditInvestment = () => {
       } catch (err) {
         setMessage({
           type: "error",
-          text: "Error loading investment data.",
+          text: "Error loading project data.",
         });
       } finally {
         setLoading(false);
@@ -117,10 +117,10 @@ const EditInvestment = () => {
       await updateInvestment(id, buildInvestmentStagePayload(formData));
       setMessage({
         type: "success",
-        text: "Investment updated successfully. Returning to the project hub...",
+        text: "Project workspace updated successfully. Returning to the project hub...",
       });
       window.setTimeout(() => {
-        navigate(`/investments/${id}`);
+        navigate(`/project-management/${id}`);
       }, 1200);
     } catch (err) {
       setMessage({
@@ -137,7 +137,7 @@ const EditInvestment = () => {
       <div className="surface-panel flex items-center justify-center px-6 py-20">
         <div className="flex items-center gap-4 text-ink-500">
           <div className="h-10 w-10 animate-spin rounded-full border-2 border-ink-200 border-t-verdigris-500" />
-          <p className="text-sm font-medium">Loading investment details...</p>
+          <p className="text-sm font-medium">Loading project details...</p>
         </div>
       </div>
     );
@@ -146,7 +146,7 @@ const EditInvestment = () => {
   if (!formData) {
     return (
       <div className="section-card px-6 py-10 text-center text-clay-700">
-        Investment not found.
+        Project not found.
       </div>
     );
   }
@@ -155,8 +155,8 @@ const EditInvestment = () => {
 
   return (
     <InvestmentEditor
-      eyebrow="Edit investment"
-      title="Refine the deal plan and underwriting assumptions."
+      eyebrow="Edit project"
+      title="Refine the project plan and underwriting assumptions."
       description="Shared property details now live in the Property Workspace. Use this page for strategy, pricing, financing, and execution inputs."
       formData={formData}
       onChange={handleChange}
@@ -165,7 +165,7 @@ const EditInvestment = () => {
       isSubmitting={isSaving}
       submitLabel="Save changes"
       submittingLabel="Saving changes..."
-      onCancel={() => navigate(`/investments/${id}`)}
+      onCancel={() => navigate(`/project-management/${id}`)}
       cancelLabel="Back to project hub"
       sharedProfileLocked={Boolean(propertyWorkspacePath)}
       propertyWorkspacePath={propertyWorkspacePath}

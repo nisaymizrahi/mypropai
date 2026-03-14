@@ -29,7 +29,7 @@ const strategySummaries = {
   flip: {
     title: "Resale-focused underwriting",
     description:
-      "Track acquisition, rehab, financing, holding costs, and exit assumptions in one profile.",
+      "Track purchase, rehab, financing, holding costs, and exit assumptions in one profile.",
     icon: ChartBarIcon,
   },
   fix_and_rent: {
@@ -96,7 +96,7 @@ const InvestmentEditor = ({
   submitLabel,
   submittingLabel,
   onCancel,
-  cancelLabel = "Back to investments",
+  cancelLabel = "Back to project management",
   sharedProfileLocked = false,
   propertyWorkspacePath = "",
 }) => {
@@ -152,7 +152,7 @@ const InvestmentEditor = ({
               </div>
               <div>
                 <p className="text-sm font-semibold uppercase tracking-[0.18em] text-ink-400">
-                  Investment brief
+                  Project brief
                 </p>
                 <p className="mt-1 text-lg font-semibold text-ink-900">
                   {strategySummary.title}
@@ -207,7 +207,7 @@ const InvestmentEditor = ({
       <form onSubmit={onSubmit} className="space-y-6">
         <Section
           eyebrow="Asset profile"
-          title={sharedProfileLocked ? "Shared property identity" : "Core investment details"}
+          title={sharedProfileLocked ? "Shared property identity" : "Core project details"}
           description={
             sharedProfileLocked
               ? "Strategy stays editable here, while address and physical specs now live in the shared property workspace."
@@ -303,7 +303,7 @@ const InvestmentEditor = ({
 
         <Section
           eyebrow={sharedProfileLocked ? "Deal pricing" : "Property specs"}
-          title={sharedProfileLocked ? "Investment-specific valuation inputs" : "Physical and pricing inputs"}
+          title={sharedProfileLocked ? "Project-specific valuation inputs" : "Physical and pricing inputs"}
           description={
             sharedProfileLocked
               ? "Keep the deal math here. Physical asset details are now maintained in the shared property workspace."
@@ -402,7 +402,7 @@ const InvestmentEditor = ({
         <Section
           eyebrow="Deal analysis"
           title="Financing and hold assumptions"
-          description="These values feed the acquisition and performance tools used to assess project viability."
+          description="These values feed the budgeting and performance tools used to assess project viability."
         >
           <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
             <Field label="Buy closing cost">

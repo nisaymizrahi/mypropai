@@ -137,7 +137,7 @@ const DashboardPage = () => {
               </span>{" "}
               pipeline,{" "}
               <span className="font-semibold text-ink-900">{acquisitionWorkspaces}</span>{" "}
-              acquisitions, and{" "}
+              project management, and{" "}
               <span className="font-semibold text-ink-900">
                 {workspaceCounts.management}
               </span>{" "}
@@ -219,7 +219,7 @@ const DashboardPage = () => {
                 </span>
               </div>
               <div className="flex items-center justify-between rounded-[18px] bg-white px-4 py-3 ring-1 ring-ink-100">
-                <span className="text-sm font-medium text-ink-600">Acquisitions</span>
+                <span className="text-sm font-medium text-ink-600">Project management</span>
                 <span className="text-sm font-semibold text-ink-900">{acquisitionWorkspaces}</span>
               </div>
               <div className="flex items-center justify-between rounded-[18px] bg-clay-50 px-4 py-3">
@@ -258,7 +258,7 @@ const DashboardPage = () => {
         <MetricCard
           title="Active workspaces"
           value={activeWorkspaces}
-          detail="Combined pipeline, acquisitions, and management placements across the portfolio."
+          detail="Combined pipeline, project management, and management placements across the portfolio."
           accent="clay"
           icon={RectangleStackIcon}
           linkTo="/properties"

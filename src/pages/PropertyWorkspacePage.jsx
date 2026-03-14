@@ -443,7 +443,7 @@ const PropertyWorkspacePage = () => {
       }
 
       if (workspaceKey === "acquisitions") {
-        toast.success("Investment workspace created.");
+        toast.success("Project management workspace created.");
         return;
       }
 
@@ -518,7 +518,7 @@ const PropertyWorkspacePage = () => {
                 </Link>
               ) : property.workspaces.acquisitions ? (
                 <Link to={property.workspaces.acquisitions.path} className="primary-action">
-                  Open investment
+                  Open project management
                 </Link>
               ) : null}
             </div>
@@ -549,7 +549,7 @@ const PropertyWorkspacePage = () => {
                 </span>
               </div>
               <div className="flex items-center justify-between rounded-[14px] bg-sand-50 px-4 py-3">
-                <span className="text-sm font-medium text-ink-600">Investments</span>
+                <span className="text-sm font-medium text-ink-600">Project management</span>
                 <span className="text-sm font-semibold text-ink-900">
                   {property.workspaces.acquisitions
                     ? property.workspaces.acquisitions.strategyLabel
@@ -592,8 +592,8 @@ const PropertyWorkspacePage = () => {
             Edit the core property details once
           </h3>
           <p className="mt-2 text-sm leading-6 text-ink-500">
-            The address lookup here feeds the shared property profile, so leads, investments, and
-            management all stay anchored to the same property data.
+            The address lookup here feeds the shared property profile, so leads, project
+            management, and management all stay anchored to the same property data.
           </p>
 
           <div className="mt-6 grid gap-5 md:grid-cols-2">
@@ -858,23 +858,23 @@ const PropertyWorkspacePage = () => {
           />
 
           <WorkspaceCard
-            eyebrow="Investments"
-            title="Investment workspace"
+            eyebrow="Project management"
+            title="Project management workspace"
             status={
               property.workspaces.acquisitions
                 ? property.workspaces.acquisitions.strategyLabel
-                : "No investment workspace yet"
+                : "No project management workspace yet"
             }
             detail={
               property.workspaces.acquisitions
-                ? "Underwriting, budgets, and execution stay linked back to this core property record."
-                : "Create an investment workspace when the property moves from lead tracking into underwriting or project execution."
+                ? "Budgets, bids, vendors, and execution stay linked back to this core property record."
+                : "Create a project management workspace when the property moves from lead tracking into budgeting or active execution."
             }
             action={
               property.workspaces.acquisitions ? (
                 <Link to={property.workspaces.acquisitions.path} className="secondary-action w-full">
                   <BriefcaseIcon className="mr-2 h-5 w-5" />
-                  Open investment
+                  Open project management
                 </Link>
               ) : (
                 <div className="space-y-3">
@@ -898,7 +898,7 @@ const PropertyWorkspacePage = () => {
                     <BriefcaseIcon className="mr-2 h-5 w-5" />
                     {activeWorkspaceAction === "acquisitions"
                       ? "Creating..."
-                      : "Create investment workspace"}
+                      : "Create project management workspace"}
                   </button>
                 </div>
               )
@@ -920,8 +920,8 @@ const PropertyWorkspacePage = () => {
               property.workspaces.management
                 ? "Units, leasing, and operations continue from the active management dashboard."
                 : property.workspaces.acquisitions
-                  ? "Start management here and we will keep the shared property details, reuse the linked investment, and update the strategy if needed."
-                  : "Start management here and we will create a linked investment first, then open the operations workspace without losing the shared property profile."
+                  ? "Start management here and we will keep the shared property details, reuse the linked project workspace, and update the strategy if needed."
+                  : "Start management here and we will create a linked project workspace first, then open the operations workspace without losing the shared property profile."
             }
             action={
               property.workspaces.management ? (

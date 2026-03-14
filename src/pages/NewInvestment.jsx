@@ -79,10 +79,10 @@ const NewInvestment = () => {
       const newInvestment = await createInvestment(payload);
       setMessage({
         type: "success",
-        text: "Investment saved successfully. Opening the project hub...",
+        text: "Project workspace saved successfully. Opening it now...",
       });
       window.setTimeout(() => {
-        navigate(`/investments/${newInvestment._id}`);
+        navigate(`/project-management/${newInvestment._id}`);
       }, 1200);
     } catch (err) {
       setMessage({
@@ -96,17 +96,17 @@ const NewInvestment = () => {
 
   return (
     <InvestmentEditor
-      eyebrow="New investment"
-      title="Create a polished acquisition profile for your next property."
+      eyebrow="New project"
+      title="Create a polished project workspace for your next property."
       description="Set the asset basics and underwriting assumptions now so the rest of the project workspace starts from a clean operational baseline."
       formData={formData}
       onChange={handleChange}
       onSubmit={handleSubmit}
       message={message}
       isSubmitting={isLoading}
-      submitLabel="Create investment"
-      submittingLabel="Creating investment..."
-      onCancel={() => navigate("/investments")}
+      submitLabel="Create project workspace"
+      submittingLabel="Creating project workspace..."
+      onCancel={() => navigate("/project-management")}
     />
   );
 };

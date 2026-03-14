@@ -148,7 +148,7 @@ const InvestmentDetail = () => {
 
   const handleDeleteInvestment = async () => {
     const confirmed = window.confirm(
-      "Are you sure you want to delete this entire investment? This action cannot be undone."
+      "Are you sure you want to delete this entire project workspace? This action cannot be undone."
     );
 
     if (!confirmed) {
@@ -159,7 +159,7 @@ const InvestmentDetail = () => {
       await deleteInvestment(id);
       navigate("/project-management");
     } catch (err) {
-      setError(err.message || "Failed to delete investment.");
+      setError(err.message || "Failed to delete the project workspace.");
     }
   };
 
@@ -373,7 +373,7 @@ const InvestmentDetail = () => {
                       ? "Already linked to active management."
                       : isManagementEligible
                         ? "Eligible to move into operations."
-                        : "Still in acquisition setup."}
+                        : "Still in project setup."}
                   </p>
                 </div>
               </div>

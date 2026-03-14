@@ -13,7 +13,7 @@ import { getProperties } from "../utils/api";
 const FILTERS = [
   { value: "all", label: "All properties" },
   { value: "pipeline", label: "Leads" },
-  { value: "acquisitions", label: "Investments" },
+  { value: "acquisitions", label: "Project Management" },
   { value: "management", label: "Managed properties" },
 ];
 
@@ -192,7 +192,7 @@ const PropertiesPage = () => {
             ) : null}
             {property.workspaces.acquisitions ? (
               <span className={`rounded-full px-3 py-1 text-xs font-semibold ${workspaceStyles.acquisitions}`}>
-                Investments: {property.workspaces.acquisitions.strategyLabel}
+                Project Management: {property.workspaces.acquisitions.strategyLabel}
               </span>
             ) : null}
             {property.workspaces.management ? (
@@ -230,7 +230,7 @@ const PropertiesPage = () => {
                 className="inline-flex items-center rounded-full bg-verdigris-50 px-3.5 py-2 text-xs font-semibold text-verdigris-700 transition hover:bg-verdigris-100"
               >
                 <BriefcaseIcon className="mr-1.5 h-3.5 w-3.5" />
-                Investment
+                Project
               </Link>
             ) : null}
             {property.workspaces.management?.path ? (
@@ -276,8 +276,8 @@ const PropertiesPage = () => {
               One property record, multiple workspaces.
             </h2>
             <p className="mt-4 max-w-2xl text-base leading-7 text-ink-500">
-              See where each property lives across pipeline, acquisitions, and management, then
-              open the shared workspace to edit the common property profile once.
+              See where each property lives across pipeline, project management, and management,
+              then open the shared workspace to edit the common property profile once.
             </p>
 
             <div className="mt-8 flex flex-wrap gap-3">
@@ -312,7 +312,7 @@ const PropertiesPage = () => {
                 <span className="text-sm font-semibold text-ink-900">{summary.pipeline}</span>
               </div>
               <div className="flex items-center justify-between rounded-[18px] bg-sand-50 px-4 py-3">
-                <span className="text-sm font-medium text-ink-600">In acquisitions</span>
+                <span className="text-sm font-medium text-ink-600">In project management</span>
                 <span className="text-sm font-semibold text-ink-900">{summary.acquisitions}</span>
               </div>
               <div className="flex items-center justify-between rounded-[18px] bg-clay-50 px-4 py-3">
@@ -336,9 +336,9 @@ const PropertiesPage = () => {
           detail="Properties carrying seller or lead workflow activity."
         />
         <SummaryCard
-          label="Investment workspaces"
+          label="Project workspaces"
           value={summary.acquisitions}
-          detail="Properties with underwriting, strategy, or project execution."
+          detail="Properties with budgeting, vendor planning, or active project execution."
         />
         <SummaryCard
           label="Managed property workspaces"

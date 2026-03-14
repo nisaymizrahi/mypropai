@@ -13,6 +13,7 @@ import {
   ArrowRightIcon,
   BriefcaseIcon,
   BuildingOffice2Icon,
+  ChartBarIcon,
   ClipboardDocumentListIcon,
   HomeIcon,
   HomeModernIcon,
@@ -131,7 +132,7 @@ const buildQuickActions = (user) => {
       id: "quick-properties",
       group: "Quick Actions",
       title: "Open property hub",
-      subtitle: "Shared property records across pipeline, acquisitions, and management",
+      subtitle: "Shared property records across pipeline, project management, and management",
       to: "/properties",
       icon: HomeModernIcon,
       keywords: ["property hub workspace records"],
@@ -167,11 +168,23 @@ const buildQuickActions = (user) => {
       id: "quick-leads",
       group: "Quick Actions",
       title: "Open leads pipeline",
-      subtitle: "Inbound opportunities, diligence, and acquisition status",
+      subtitle: "Inbound opportunities, diligence, and deal status",
       to: "/leads",
       icon: UserGroupIcon,
       keywords: ["pipeline acquisition leads"],
       priority: 185,
+      pinned: true,
+    }),
+    createEntry({
+      id: "quick-comps-report",
+      group: "Quick Actions",
+      title: "Open comps report",
+      subtitle: "Run a comps report directly from an address and property snapshot",
+      to: "/comps-report",
+      icon: ChartBarIcon,
+      keywords: ["comps report valuation arv comparables address ai"],
+      tone: "sand",
+      priority: 184,
       pinned: true,
     }),
     createEntry({
@@ -235,7 +248,7 @@ const buildPropertyEntries = (properties) =>
     const workspaceBits = [
       property.workspaces?.pipeline ? `Pipeline: ${property.workspaces.pipeline.status}` : null,
       property.workspaces?.acquisitions
-        ? `Acquisitions: ${property.workspaces.acquisitions.strategyLabel}`
+        ? `Project Management: ${property.workspaces.acquisitions.strategyLabel}`
         : null,
       property.workspaces?.management ? `Management: ${property.workspaces.management.status}` : null,
     ].filter(Boolean);

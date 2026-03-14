@@ -224,6 +224,26 @@ export const analyzeLeadComps = async (leadId, filters) => {
   return res.json();
 };
 
+export const analyzeStandaloneComps = async (subject, filters) => {
+  const res = await fetch(`${API_BASE_URL}/comps/report`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ subject, ...filters }),
+  });
+  if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to analyze comps"));
+  return res.json();
+};
+
+export const analyzeFullPropertyReport = async (subject, filters = {}) => {
+  const res = await fetch(`${API_BASE_URL}/comps/report/full`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ subject, ...filters }),
+  });
+  if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to analyze property"));
+  return res.json();
+};
+
 export const getBidsForLead = async (leadId) => {
   const res = await fetch(`${API_BASE_URL}/bids/lead/${leadId}`, {
     headers: getAuthHeaders(),
@@ -276,6 +296,11 @@ export const promoteLeadToProject = async (leadId) => {
     method: "POST",
     headers: getAuthHeaders(),
   });
+  if (res.status === 404) {
+    throw new Error(
+      "The project promotion endpoint is not available on the server yet. Redeploy the backend and try again."
+    );
+  }
   if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to create project"));
   return res.json();
 };
@@ -1015,7 +1040,10 @@ export const getBillingOverview = async () => {
 };
 
 export const getBillingAccess = async (kind, resourceId) => {
-  const params = new URLSearchParams({ kind, resourceId });
+  const params = new URLSearchParams({ kind });
+  if (resourceId) {
+    params.set("resourceId", resourceId);
+  }
   const res = await fetch(`${API_BASE_URL}/billing/access?${params.toString()}`, {
     headers: getAuthHeaders(),
   });

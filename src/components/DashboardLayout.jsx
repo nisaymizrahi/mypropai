@@ -3,6 +3,7 @@ import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
   ArrowPathIcon,
   Bars3Icon,
+  ChartBarIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   ClipboardDocumentListIcon,
@@ -28,6 +29,7 @@ const visibleNavSections = [
     title: "Workspace",
     links: [
       { to: "/leads", label: "Potential Properties", icon: UsersIcon },
+      { to: "/comps-report", label: "Comps Report", icon: ChartBarIcon },
       { to: "/project-management", label: "Project Management", icon: ClipboardDocumentListIcon },
       { to: "/tasks", label: "Tasks", icon: ClipboardDocumentListIcon },
       { to: "/vendors", label: "Vendors", icon: WrenchScrewdriverIcon },
@@ -75,6 +77,14 @@ const resolvePageMeta = (pathname, user) => {
       kicker: "Projects",
       title: "Project Management",
       subtitle: "Track active projects, original deal assumptions, vendor commitments, and spend.",
+    };
+  }
+
+  if (pathname === "/comps-report") {
+    return {
+      kicker: "Analysis",
+      title: "Comps Report",
+      subtitle: "Run the same comps workflow from the deal tabs without creating a lead first.",
     };
   }
 
