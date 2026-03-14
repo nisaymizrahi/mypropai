@@ -1,27 +1,9 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import {
-  BriefcaseIcon,
-  BuildingOffice2Icon,
-  HomeModernIcon,
-  UsersIcon,
-} from "@heroicons/react/24/outline";
+import { HomeModernIcon } from "@heroicons/react/24/outline";
 
 import WorkspaceDataTable from "../components/WorkspaceDataTable";
 import { getProperties } from "../utils/api";
-
-const FILTERS = [
-  { value: "all", label: "All properties" },
-  { value: "pipeline", label: "Leads" },
-  { value: "acquisitions", label: "Project Management" },
-  { value: "management", label: "Managed properties" },
-];
-
-const workspaceStyles = {
-  pipeline: "bg-sand-100 text-ink-700",
-  acquisitions: "bg-verdigris-50 text-verdigris-700",
-  management: "bg-clay-50 text-clay-700",
-};
 
 const SummaryCard = ({ label, value, detail }) => (
   <div className="metric-tile p-5">
@@ -40,6 +22,13 @@ const formatCurrency = (value) => {
     currency: "USD",
     maximumFractionDigits: 0,
   }).format(parsed);
+};
+
+const formatDate = (value) => {
+  if (!value) return "—";
+  const parsed = new Date(value);
+  if (!Number.isFinite(parsed.valueOf())) return "—";
+  return parsed.toLocaleDateString();
 };
 
 const formatPropertyDetails = (property) => {
@@ -63,7 +52,7 @@ const formatListingSummary = (property) => {
     return "";
   }
 
-  const bits = ["For sale"];
+  const bits = [property.sharedProfile.listingStatus || "For sale"];
   if (property.sharedProfile.sellerAskingPrice) {
     bits.push(formatCurrency(property.sharedProfile.sellerAskingPrice));
   }
@@ -71,13 +60,14 @@ const formatListingSummary = (property) => {
   return bits.join(" • ");
 };
 
-const countActiveWorkspaces = (property) =>
-  ["pipeline", "acquisitions", "management"].filter((workspaceKey) => property.workspaces[workspaceKey])
-    .length;
+const isInPropertyWorkspace = (property) =>
+  Boolean(
+    property?.workspaces?.pipeline?.inPropertyWorkspace &&
+      property?.workspaces?.pipeline?.status === "Closed - Won"
+  );
 
 const PropertiesPage = () => {
   const [properties, setProperties] = useState([]);
-  const [filter, setFilter] = useState("all");
   const [searchValue, setSearchValue] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -86,10 +76,11 @@ const PropertiesPage = () => {
     const fetchProperties = async () => {
       try {
         setLoading(true);
+        setError("");
         const data = await getProperties();
         setProperties(data);
       } catch (fetchError) {
-        setError(fetchError.message || "Failed to load properties.");
+        setError(fetchError.message || "Failed to load property workspaces.");
       } finally {
         setLoading(false);
       }
@@ -98,42 +89,44 @@ const PropertiesPage = () => {
     fetchProperties();
   }, []);
 
-  const summary = useMemo(
-    () => ({
-      total: properties.length,
-      pipeline: properties.filter((property) => property.workspaces.pipeline).length,
-      acquisitions: properties.filter((property) => property.workspaces.acquisitions).length,
-      management: properties.filter((property) => property.workspaces.management).length,
-    }),
+  const workspaceProperties = useMemo(
+    () => properties.filter((property) => isInPropertyWorkspace(property)),
     [properties]
   );
 
-  const filteredProperties = useMemo(() => {
-    if (filter === "all") {
-      return properties;
-    }
-
-    return properties.filter((property) => property.workspaces[filter]);
-  }, [filter, properties]);
+  const summary = useMemo(
+    () => ({
+      total: workspaceProperties.length,
+      listed: workspaceProperties.filter(
+        (property) =>
+          Boolean(property.sharedProfile.listingStatus) ||
+          Boolean(property.sharedProfile.sellerAskingPrice)
+      ).length,
+      updatedRecently: workspaceProperties.filter((property) => {
+        if (!property.updatedAt) return false;
+        const updatedAt = new Date(property.updatedAt).valueOf();
+        if (!Number.isFinite(updatedAt)) return false;
+        return updatedAt >= Date.now() - 1000 * 60 * 60 * 24 * 30;
+      }).length,
+    }),
+    [workspaceProperties]
+  );
 
   const visibleProperties = useMemo(() => {
     const normalizedQuery = searchValue.trim().toLowerCase();
 
     if (!normalizedQuery) {
-      return filteredProperties;
+      return workspaceProperties;
     }
 
-    return filteredProperties.filter((property) => {
+    return workspaceProperties.filter((property) => {
       const haystack = [
         property.title,
-        property.placement,
         property.propertyKey,
         property.sharedProfile.propertyType,
         formatPropertyDetails(property),
         formatListingSummary(property),
         property.workspaces.pipeline?.status,
-        property.workspaces.acquisitions?.strategyLabel,
-        property.workspaces.management?.status,
       ]
         .filter(Boolean)
         .join(" ")
@@ -141,14 +134,14 @@ const PropertiesPage = () => {
 
       return haystack.includes(normalizedQuery);
     });
-  }, [filteredProperties, searchValue]);
+  }, [searchValue, workspaceProperties]);
 
   const propertyColumns = useMemo(
     () => [
       {
         id: "property",
         label: "Property",
-        sortValue: (property) => property.title || property.placement || property.propertyKey,
+        sortValue: (property) => property.title || property.propertyKey,
         render: (property) => (
           <div>
             <Link
@@ -157,7 +150,7 @@ const PropertiesPage = () => {
             >
               {property.title}
             </Link>
-            <p className="mt-1 text-sm text-ink-500">{property.placement}</p>
+            <p className="mt-1 text-sm text-ink-500">{property.propertyKey}</p>
             {formatListingSummary(property) ? (
               <p className="mt-2 text-sm font-medium text-verdigris-700">
                 {formatListingSummary(property)}
@@ -167,8 +160,24 @@ const PropertiesPage = () => {
         ),
       },
       {
+        id: "source",
+        label: "Source lead",
+        sortValue: (property) => property.updatedAt || "",
+        render: (property) => (
+          <div>
+            <p className="font-medium text-ink-800">Closed - Won</p>
+            <p className="mt-1 text-sm text-ink-500">
+              Moved into Property Workspace
+            </p>
+            <p className="mt-2 text-xs font-medium uppercase tracking-[0.16em] text-ink-400">
+              Updated {formatDate(property.updatedAt)}
+            </p>
+          </div>
+        ),
+      },
+      {
         id: "profile",
-        label: "Shared profile",
+        label: "Property details",
         sortValue: (property) => property.sharedProfile.propertyType || "",
         render: (property) => (
           <div>
@@ -180,68 +189,17 @@ const PropertiesPage = () => {
         ),
       },
       {
-        id: "workspaces",
-        label: "Active workspaces",
-        sortValue: (property) => countActiveWorkspaces(property),
-        render: (property) => (
-          <div className="flex flex-wrap gap-2">
-            {property.workspaces.pipeline ? (
-              <span className={`rounded-full px-3 py-1 text-xs font-semibold ${workspaceStyles.pipeline}`}>
-                Leads: {property.workspaces.pipeline.status}
-              </span>
-            ) : null}
-            {property.workspaces.acquisitions ? (
-              <span className={`rounded-full px-3 py-1 text-xs font-semibold ${workspaceStyles.acquisitions}`}>
-                Project Management: {property.workspaces.acquisitions.strategyLabel}
-              </span>
-            ) : null}
-            {property.workspaces.management ? (
-              <span className={`rounded-full px-3 py-1 text-xs font-semibold ${workspaceStyles.management}`}>
-                Managed: {property.workspaces.management.status}
-              </span>
-            ) : null}
-          </div>
-        ),
-      },
-      {
         id: "actions",
-        label: "Shortcuts",
+        label: "Action",
         align: "right",
         render: (property) => (
-          <div className="flex flex-wrap justify-end gap-2">
+          <div className="flex justify-end">
             <Link
               to={`/properties/${encodeURIComponent(property.propertyKey)}`}
               className="inline-flex items-center rounded-full bg-ink-900 px-3.5 py-2 text-xs font-semibold text-white transition hover:bg-ink-800"
             >
               Open property
             </Link>
-            {property.workspaces.pipeline?.path ? (
-              <Link
-                to={property.workspaces.pipeline.path}
-                className="inline-flex items-center rounded-full bg-sand-100 px-3.5 py-2 text-xs font-semibold text-ink-700 transition hover:bg-sand-200"
-              >
-                <UsersIcon className="mr-1.5 h-3.5 w-3.5" />
-                Lead
-              </Link>
-            ) : null}
-            {property.workspaces.acquisitions?.path ? (
-              <Link
-                to={property.workspaces.acquisitions.path}
-                className="inline-flex items-center rounded-full bg-verdigris-50 px-3.5 py-2 text-xs font-semibold text-verdigris-700 transition hover:bg-verdigris-100"
-              >
-                <BriefcaseIcon className="mr-1.5 h-3.5 w-3.5" />
-                Project
-              </Link>
-            ) : null}
-            {property.workspaces.management?.path ? (
-              <Link
-                to={property.workspaces.management.path}
-                className="inline-flex items-center rounded-full bg-clay-50 px-3.5 py-2 text-xs font-semibold text-clay-700 transition hover:bg-clay-100"
-              >
-                <BuildingOffice2Icon className="mr-1.5 h-3.5 w-3.5" />
-                Managed Properties
-              </Link>
-            ) : null}
           </div>
         ),
       },
@@ -252,7 +210,7 @@ const PropertiesPage = () => {
   if (loading) {
     return (
       <div className="section-card px-6 py-10 text-center text-ink-500">
-        Loading properties...
+        Loading property workspaces...
       </div>
     );
   }
@@ -271,24 +229,18 @@ const PropertiesPage = () => {
         <div className="absolute inset-y-0 right-0 hidden w-1/3 bg-[radial-gradient(circle_at_center,rgba(59,143,129,0.18),transparent_62%)] lg:block" />
         <div className="relative grid gap-8 lg:grid-cols-[minmax(0,1.05fr)_minmax(320px,0.95fr)]">
           <div>
-            <span className="eyebrow">Unified property hub</span>
+            <span className="eyebrow">Property Workspace</span>
             <h2 className="mt-5 text-4xl font-semibold tracking-tight text-ink-900">
-              One property record, multiple workspaces.
+              Closed deals you intentionally moved here.
             </h2>
             <p className="mt-4 max-w-2xl text-base leading-7 text-ink-500">
-              See where each property lives across pipeline, project management, and management,
-              then open the shared workspace to edit the common property profile once.
+              This page only shows properties that were moved into Property Workspace from a
+              Closed - Won lead. Use the lead record when you want to move another property in.
             </p>
 
             <div className="mt-8 flex flex-wrap gap-3">
-              <Link to="/properties/new?workspace=pipeline" className="secondary-action">
-                Start in pipeline
-              </Link>
-              <Link to="/properties/new" className="primary-action">
-                New property
-              </Link>
-              <Link to="/properties/new?workspace=management" className="secondary-action">
-                Start in management
+              <Link to="/leads" className="secondary-action">
+                Open leads
               </Link>
             </div>
           </div>
@@ -297,7 +249,7 @@ const PropertiesPage = () => {
             <div className="flex items-center justify-between gap-4">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-400">
-                  Property records
+                  Property workspaces
                 </p>
                 <h3 className="mt-2 text-2xl font-semibold text-ink-900">{summary.total}</h3>
               </div>
@@ -308,102 +260,68 @@ const PropertiesPage = () => {
 
             <div className="mt-8 space-y-3">
               <div className="flex items-center justify-between rounded-[18px] bg-white px-4 py-3 ring-1 ring-ink-100">
-                <span className="text-sm font-medium text-ink-600">In pipeline</span>
-                <span className="text-sm font-semibold text-ink-900">{summary.pipeline}</span>
+                <span className="text-sm font-medium text-ink-600">Currently listed</span>
+                <span className="text-sm font-semibold text-ink-900">{summary.listed}</span>
               </div>
               <div className="flex items-center justify-between rounded-[18px] bg-sand-50 px-4 py-3">
-                <span className="text-sm font-medium text-ink-600">In project management</span>
-                <span className="text-sm font-semibold text-ink-900">{summary.acquisitions}</span>
-              </div>
-              <div className="flex items-center justify-between rounded-[18px] bg-clay-50 px-4 py-3">
-                <span className="text-sm font-medium text-ink-600">In management</span>
-                <span className="text-sm font-semibold text-ink-900">{summary.management}</span>
+                <span className="text-sm font-medium text-ink-600">Updated in 30 days</span>
+                <span className="text-sm font-semibold text-ink-900">{summary.updatedRecently}</span>
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+      <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
         <SummaryCard
-          label="Total properties"
+          label="Property workspaces"
           value={summary.total}
-          detail="Canonical property records currently visible in the workspace."
+          detail="Properties currently visible in this dedicated workspace."
         />
         <SummaryCard
-          label="Lead workspaces"
-          value={summary.pipeline}
-          detail="Properties carrying seller or lead workflow activity."
+          label="Listed properties"
+          value={summary.listed}
+          detail="Workspaces still carrying live sale status or asking price data."
         />
         <SummaryCard
-          label="Project workspaces"
-          value={summary.acquisitions}
-          detail="Properties with budgeting, vendor planning, or active project execution."
-        />
-        <SummaryCard
-          label="Managed property workspaces"
-          value={summary.management}
-          detail="Properties currently active in operations and leasing."
+          label="Updated recently"
+          value={summary.updatedRecently}
+          detail="Properties touched in the last 30 days."
         />
       </section>
 
       <WorkspaceDataTable
-        title="Properties"
-        description="Filter by workspace, search shared details, and open the right record without scanning large cards."
+        title="Property Workspace"
+        description="Search the moved property list and open the right workspace without extra filters."
         columns={propertyColumns}
         rows={visibleProperties}
         rowKey={(property) => property.propertyKey}
         defaultSort={{ columnId: "property", direction: "asc" }}
         searchValue={searchValue}
         onSearchValueChange={setSearchValue}
-        searchPlaceholder="Search property name, placement, type, or workspace"
+        searchPlaceholder="Search address, property type, or details"
         toolbarContent={
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex flex-wrap gap-2">
-              {FILTERS.map((filterOption) => (
-                <button
-                  key={filterOption.value}
-                  type="button"
-                  onClick={() => setFilter(filterOption.value)}
-                  className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
-                    filter === filterOption.value
-                      ? "bg-ink-900 text-white"
-                      : "bg-sand-50 text-ink-600 hover:bg-sand-100"
-                  }`}
-                >
-                  {filterOption.label}
-                </button>
-              ))}
-            </div>
-
+          <div className="flex justify-end">
             <div className="rounded-full bg-sand-100 px-4 py-2 text-sm font-semibold text-ink-600">
-              Showing {visibleProperties.length} of {filteredProperties.length}
+              Showing {visibleProperties.length} of {workspaceProperties.length}
             </div>
           </div>
         }
         emptyTitle={
-          filteredProperties.length === 0
-            ? "No properties in this view yet"
+          workspaceProperties.length === 0
+            ? "No properties in Property Workspace yet"
             : "No properties match this search"
         }
         emptyDescription={
-          filteredProperties.length === 0
-            ? "Start with a standalone property record, or add a lead to seed a new shared asset."
-            : "Try a different workspace filter or search term to pull the right properties into view."
+          workspaceProperties.length === 0
+            ? "Move a Closed - Won lead into Property Workspace from the lead detail screen."
+            : "Try a different search term to find the property you want."
         }
         emptyActions={
-          filteredProperties.length === 0 ? (
-            <>
-              <Link to="/properties/new?workspace=pipeline" className="secondary-action">
-                Start in pipeline
-              </Link>
-              <Link to="/properties/new" className="primary-action">
-                New property
-              </Link>
-              <Link to="/properties/new?workspace=management" className="secondary-action">
-                Start in management
-              </Link>
-            </>
+          workspaceProperties.length === 0 ? (
+            <Link to="/leads" className="primary-action">
+              Open leads
+            </Link>
           ) : null
         }
       />

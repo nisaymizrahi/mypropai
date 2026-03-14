@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   CheckCircleIcon,
   ClipboardDocumentListIcon,
+  Cog6ToothIcon,
   HomeModernIcon,
   PencilSquareIcon,
   SparklesIcon,
@@ -13,7 +14,6 @@ import toast from "react-hot-toast";
 
 import {
   analyzeLeadComps,
-  createPropertyWorkspace,
   createSubscriptionCheckout,
   getBidsForLead,
   getBillingAccess,
@@ -22,6 +22,7 @@ import {
   getPropertyWorkspace,
   previewLeadProperty,
   saveCompsReport,
+  updateLead,
   updatePropertyWorkspace,
 } from "../utils/api";
 import {
@@ -142,24 +143,6 @@ const buildFormState = (property) => ({
   sellerAskingPrice: property?.sharedProfile.sellerAskingPrice ?? "",
 });
 
-const WorkspaceCard = ({ title, eyebrow, status, detail, action, tone = "sand" }) => {
-  const toneClasses = {
-    sand: "bg-sand-50",
-    verdigris: "bg-verdigris-50",
-    clay: "bg-clay-50",
-  };
-
-  return (
-    <div className={`rounded-[16px] ${toneClasses[tone]} p-4`}>
-      <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-ink-400">{eyebrow}</p>
-      <h3 className="mt-3 text-base font-medium text-ink-900">{title}</h3>
-      <p className="mt-2 text-sm font-medium text-ink-700">{status}</p>
-      <p className="mt-3 text-sm leading-6 text-ink-500">{detail}</p>
-      <div className="mt-4">{action}</div>
-    </div>
-  );
-};
-
 const TabButton = ({ active, icon: Icon, label, onClick }) => (
   <button
     type="button"
@@ -223,8 +206,7 @@ const PropertyWorkspacePage = () => {
   const [error, setError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
-  const [isAddingLeadWorkspace, setIsAddingLeadWorkspace] = useState(false);
-  const [activeTab, setActiveTab] = useState("overview");
+  const [activeTab, setActiveTab] = useState("details");
   const [leadWorkspace, setLeadWorkspace] = useState(null);
   const [leadWorkspaceLoading, setLeadWorkspaceLoading] = useState(false);
   const [leadWorkspaceError, setLeadWorkspaceError] = useState("");
@@ -239,9 +221,11 @@ const PropertyWorkspacePage = () => {
   const [billingAccess, setBillingAccess] = useState(null);
   const [isBillingAccessLoading, setIsBillingAccessLoading] = useState(false);
   const [isStartingSubscription, setIsStartingSubscription] = useState(false);
+  const [isUpdatingWorkspaceStatus, setIsUpdatingWorkspaceStatus] = useState(false);
 
   const pipelineLeadId = property?.workspaces?.pipeline?.id || "";
   const pipelineLeadPath = property?.workspaces?.pipeline?.path || "";
+  const propertyWorkspaceActive = Boolean(property?.workspaces?.pipeline?.inPropertyWorkspace);
 
   const syncPropertyState = useCallback(
     (nextProperty) => {
@@ -601,19 +585,6 @@ const PropertyWorkspacePage = () => {
     }
   };
 
-  const handleCreateLeadWorkspace = async () => {
-    try {
-      setIsAddingLeadWorkspace(true);
-      const response = await createPropertyWorkspace(propertyKey, "pipeline");
-      syncPropertyState(response.property);
-      toast.success("Lead workspace added.");
-    } catch (workspaceError) {
-      toast.error(workspaceError.message || "Failed to add the lead workspace.");
-    } finally {
-      setIsAddingLeadWorkspace(false);
-    }
-  };
-
   const handleLeadFilterChange = (event) => {
     const { name, value } = event.target;
     setFilters((previous) => ({ ...previous, [name]: value }));
@@ -761,6 +732,35 @@ const PropertyWorkspacePage = () => {
     }
   }, [pipelineLeadId]);
 
+  const handleUpdatePropertyWorkspaceStatus = async (nextValue) => {
+    if (!pipelineLeadId) {
+      toast.error("This property is not linked to a lead.");
+      return;
+    }
+
+    try {
+      setIsUpdatingWorkspaceStatus(true);
+      const updatedLead = await updateLead(pipelineLeadId, {
+        inPropertyWorkspace: nextValue,
+      });
+      const refreshedProperty = await getPropertyWorkspace(propertyKey);
+      syncPropertyState(refreshedProperty);
+      handleLeadUpdated(updatedLead);
+      await loadLeadWorkspace();
+
+      if (nextValue) {
+        toast.success("Moved to Property Workspace.");
+      } else {
+        toast.success("Removed from Property Workspace. The lead stays in Closed - Won.");
+        navigate(`/leads/${pipelineLeadId}`);
+      }
+    } catch (workspaceStatusError) {
+      toast.error(workspaceStatusError.message || "Failed to update Property Workspace.");
+    } finally {
+      setIsUpdatingWorkspaceStatus(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="section-card px-6 py-10 text-center text-ink-500">
@@ -787,23 +787,20 @@ const PropertyWorkspacePage = () => {
 
   const renderLeadWorkspaceRequiredState = ({
     eyebrow = "Linked lead workspace",
-    title = "Add this property to leads first",
-    description = "This section uses the lead workspace for saved reports, AI analysis, renovation planning, and bid management.",
+    title = "This property is not active in Property Workspace",
+    description = "Property Workspace is only for deals you explicitly move over from Closed - Won in the lead pipeline.",
   } = {}) => (
     <section className="section-card p-6 sm:p-7">
       <span className="eyebrow">{eyebrow}</span>
       <h3 className="mt-4 text-3xl font-semibold text-ink-900">{title}</h3>
       <p className="mt-3 max-w-2xl text-sm leading-6 text-ink-500">{description}</p>
-      <div className="mt-6 flex flex-wrap gap-3">
-        <button
-          type="button"
-          onClick={handleCreateLeadWorkspace}
-          disabled={isAddingLeadWorkspace}
-          className="primary-action disabled:cursor-not-allowed disabled:opacity-70"
-        >
-          {isAddingLeadWorkspace ? "Adding..." : "Add to leads"}
-        </button>
-      </div>
+      {pipelineLeadPath ? (
+        <div className="mt-6 flex flex-wrap gap-3">
+          <Link to={pipelineLeadPath} className="primary-action">
+            Open source lead
+          </Link>
+        </div>
+      ) : null}
     </section>
   );
 
@@ -834,6 +831,14 @@ const PropertyWorkspacePage = () => {
   const renderLeadTabContent = (renderContent, loadingLabel) => {
     if (!pipelineLeadId) {
       return renderLeadWorkspaceRequiredState();
+    }
+
+    if (!propertyWorkspaceActive && activeTab !== "settings") {
+      return renderLeadWorkspaceRequiredState({
+        title: "Move this deal into Property Workspace first",
+        description:
+          "The lead stays in Closed - Won, but it has to be explicitly moved into Property Workspace before these tabs are active.",
+      });
     }
 
     if (leadWorkspaceLoading && !leadWorkspace) {
@@ -869,8 +874,8 @@ const PropertyWorkspacePage = () => {
             ) : null}
 
             <div className="mt-6 flex flex-wrap gap-3">
-              <Link to="/leads" className="secondary-action">
-                Back to leads
+              <Link to="/properties" className="secondary-action">
+                Back to Property Workspace
               </Link>
               {property.workspaces.pipeline ? (
                 <Link to={property.workspaces.pipeline.path} className="secondary-action">
@@ -882,7 +887,7 @@ const PropertyWorkspacePage = () => {
 
           <div className="section-card p-5">
             <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-ink-400">
-              Active workspaces
+              Property workspace status
             </p>
             {listingSummary ? (
               <div className="mt-4 rounded-[14px] bg-verdigris-50 px-4 py-3">
@@ -899,22 +904,20 @@ const PropertyWorkspacePage = () => {
             ) : null}
             <div className="mt-4 space-y-2.5">
               <div className="flex items-center justify-between rounded-[14px] bg-verdigris-50 px-4 py-3">
-                <span className="text-sm font-medium text-ink-600">Property workspace</span>
-                <span className="text-sm font-semibold text-ink-900">Active</span>
+                <span className="text-sm font-medium text-ink-600">In Property Workspace</span>
+                <span className="text-sm font-semibold text-ink-900">
+                  {propertyWorkspaceActive ? "Yes" : "No"}
+                </span>
               </div>
               <div className="flex items-center justify-between rounded-[14px] bg-white px-4 py-3 ring-1 ring-ink-100">
-                <span className="text-sm font-medium text-ink-600">Lead record</span>
+                <span className="text-sm font-medium text-ink-600">Source lead stage</span>
                 <span className="text-sm font-semibold text-ink-900">
                   {property.workspaces.pipeline ? property.workspaces.pipeline.status : "Missing"}
                 </span>
               </div>
               <div className="flex items-center justify-between rounded-[14px] bg-sand-50 px-4 py-3">
-                <span className="text-sm font-medium text-ink-600">Execution data</span>
-                <span className="text-sm font-semibold text-ink-900">
-                  {property.workspaces.acquisitions
-                    ? property.workspaces.acquisitions.strategyLabel
-                    : "Missing"}
-                </span>
+                <span className="text-sm font-medium text-ink-600">Saved reports</span>
+                <span className="text-sm font-semibold text-ink-900">{savedReports.length}</span>
               </div>
             </div>
           </div>
@@ -923,10 +926,10 @@ const PropertyWorkspacePage = () => {
 
       <div className="section-card flex flex-wrap items-center gap-2 p-1.5">
         <TabButton
-          active={activeTab === "overview"}
+          active={activeTab === "details"}
           icon={HomeModernIcon}
-          label="Overview"
-          onClick={() => setActiveTab("overview")}
+          label="Details"
+          onClick={() => setActiveTab("details")}
         />
         <TabButton
           active={activeTab === "comps"}
@@ -937,7 +940,7 @@ const PropertyWorkspacePage = () => {
         <TabButton
           active={activeTab === "saved-reports"}
           icon={PencilSquareIcon}
-          label="Saved AI Reports"
+          label="Saved Reports"
           onClick={() => setActiveTab("saved-reports")}
         />
         <TabButton
@@ -958,15 +961,21 @@ const PropertyWorkspacePage = () => {
           label="Tasks"
           onClick={() => setActiveTab("tasks")}
         />
+        <TabButton
+          active={activeTab === "settings"}
+          icon={Cog6ToothIcon}
+          label="Settings"
+          onClick={() => setActiveTab("settings")}
+        />
       </div>
 
-      {leadWorkspaceError && activeTab !== "overview" ? (
+      {leadWorkspaceError && activeTab !== "details" ? (
         <div className="rounded-[16px] border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
           {leadWorkspaceError}
         </div>
       ) : null}
 
-      {activeTab === "overview" ? (
+      {activeTab === "details" ? (
         <section className="grid gap-4 xl:grid-cols-[minmax(0,1.16fr)_minmax(320px,0.84fr)]">
         <form onSubmit={handleSave} className="section-card p-6 sm:p-7">
           <span className="eyebrow">Shared profile</span>
@@ -1205,48 +1214,22 @@ const PropertyWorkspacePage = () => {
         </form>
 
         <div className="space-y-4">
-          <WorkspaceCard
-            eyebrow="Leads"
-            title="Lead workspace"
-            status={
-              property.workspaces.pipeline
-                ? property.workspaces.pipeline.status
-                : "No lead workspace yet"
-            }
-            detail={
-              property.workspaces.pipeline
-                ? "Seller-facing notes, outreach, and lead tracking stay connected to this shared property."
-                : "Add this property into leads whenever you need seller outreach, follow-up, or pipeline tracking."
-            }
-            action={
-              property.workspaces.pipeline ? (
-                <Link to={property.workspaces.pipeline.path} className="secondary-action w-full">
+          <div className="section-card p-5">
+            <span className="eyebrow">Source lead</span>
+            <h4 className="mt-4 text-xl font-semibold text-ink-900">Lead-linked workspace</h4>
+            <p className="mt-2 text-sm leading-6 text-ink-500">
+              This property keeps using the same lead data for comps, saved reports, renovation, bids,
+              and tasks.
+            </p>
+            <div className="mt-5 flex flex-wrap gap-3">
+              {pipelineLeadPath ? (
+                <Link to={pipelineLeadPath} className="secondary-action">
                   <UsersIcon className="mr-2 h-5 w-5" />
                   Open lead
                 </Link>
-              ) : (
-                <button
-                  type="button"
-                  onClick={handleCreateLeadWorkspace}
-                  disabled={isAddingLeadWorkspace}
-                  className="secondary-action w-full disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  <UsersIcon className="mr-2 h-5 w-5" />
-                  {isAddingLeadWorkspace ? "Adding..." : "Add to leads"}
-                </button>
-              )
-            }
-            tone="sand"
-          />
-
-          <WorkspaceCard
-            eyebrow="Unified workspace"
-            title="Work from the property workspace"
-            status="Single workspace active"
-            detail="Project-management and management navigation are being retired, so this shared property record is now the main place to work."
-            action={null}
-            tone="verdigris"
-          />
+              ) : null}
+            </div>
+          </div>
 
           <div className="section-card p-4">
             <div className="flex items-center gap-3">
@@ -1258,6 +1241,16 @@ const PropertyWorkspacePage = () => {
                 <code className="text-sm text-ink-500">{property.propertyKey}</code>
               </div>
             </div>
+          </div>
+
+          <div className="section-card p-5">
+            <span className="eyebrow">Workspace state</span>
+            <h4 className="mt-4 text-xl font-semibold text-ink-900">Current placement</h4>
+            <p className="mt-2 text-sm leading-6 text-ink-500">
+              {propertyWorkspaceActive
+                ? "This deal is active in Property Workspace and still remains in Closed - Won in the lead pipeline."
+                : "This deal is not currently active in Property Workspace."}
+            </p>
           </div>
         </div>
       </section>
@@ -1337,13 +1330,13 @@ const PropertyWorkspacePage = () => {
             <SavedCompsReportsTab
               reports={savedReports}
               isLoading={savedReportsLoading}
-              title="Saved property AI reports"
+              title="Saved property reports"
               description="Every saved comps snapshot for this property's linked lead lives here so you can compare different comp sets over time."
-              emptyTitle="No property AI reports saved yet"
+              emptyTitle="No property reports saved yet"
               emptyMessage="Run the AI comps analysis, choose the comps you want to keep, and save the report to build the property's comps history."
             />
           ),
-          "Loading saved AI reports..."
+          "Loading saved reports..."
         )
       ) : activeTab === "renovation" ? (
         renderLeadTabContent(
@@ -1367,6 +1360,67 @@ const PropertyWorkspacePage = () => {
             />
           ),
           "Loading bid management..."
+        )
+      ) : activeTab === "settings" ? (
+        renderLeadTabContent(
+          () => (
+            <section className="section-card p-6 sm:p-7">
+              <span className="eyebrow">Workspace settings</span>
+              <h3 className="mt-4 text-3xl font-semibold text-ink-900">Control where this deal lives</h3>
+              <p className="mt-3 max-w-2xl text-sm leading-6 text-ink-500">
+                Property Workspace is separate from the lead pipeline list. Removing it from here
+                does not delete the deal and does not remove it from Closed - Won.
+              </p>
+
+              <div className="mt-8 grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(320px,0.9fr)]">
+                <div className="rounded-[24px] border border-ink-100 bg-sand-50/70 p-5">
+                  <p className="text-sm font-semibold text-ink-900">Current status</p>
+                  <p className="mt-2 text-sm leading-6 text-ink-500">
+                    {propertyWorkspaceActive
+                      ? "This lead is active in Property Workspace."
+                      : "This lead is not currently active in Property Workspace."}
+                  </p>
+                  <div className="mt-5 flex flex-wrap gap-3">
+                    {propertyWorkspaceActive ? (
+                      <button
+                        type="button"
+                        onClick={() => handleUpdatePropertyWorkspaceStatus(false)}
+                        disabled={isUpdatingWorkspaceStatus}
+                        className="primary-action disabled:cursor-not-allowed disabled:opacity-70"
+                      >
+                        {isUpdatingWorkspaceStatus ? "Updating..." : "Move Back to Potential Properties"}
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => handleUpdatePropertyWorkspaceStatus(true)}
+                        disabled={isUpdatingWorkspaceStatus}
+                        className="primary-action disabled:cursor-not-allowed disabled:opacity-70"
+                      >
+                        {isUpdatingWorkspaceStatus ? "Updating..." : "Move to Property Workspace"}
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <div className="rounded-[24px] border border-ink-100 bg-white p-5">
+                  <p className="text-sm font-semibold text-ink-900">Source lead</p>
+                  <p className="mt-2 text-sm leading-6 text-ink-500">
+                    The lead remains in the pipeline under <span className="font-semibold text-ink-900">Closed - Won</span>.
+                    Use that record whenever you want to review or change the original lead details.
+                  </p>
+                  {pipelineLeadPath ? (
+                    <div className="mt-5">
+                      <Link to={pipelineLeadPath} className="secondary-action">
+                        Open source lead
+                      </Link>
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            </section>
+          ),
+          "Loading workspace settings..."
         )
       ) : (
         <TasksPanel

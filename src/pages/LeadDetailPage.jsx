@@ -793,6 +793,7 @@ const LeadDetailPage = () => {
   const [isBillingAccessLoading, setIsBillingAccessLoading] = useState(true);
   const [isStartingSubscription, setIsStartingSubscription] = useState(false);
   const [isStartingCheckout, setIsStartingCheckout] = useState(false);
+  const [isMovingToPropertyWorkspace, setIsMovingToPropertyWorkspace] = useState(false);
 
   const fetchData = useCallback(async () => {
     try {
@@ -1352,6 +1353,7 @@ const LeadDetailPage = () => {
 
   const propertyWorkspaceId =
     typeof lead.property === "object" ? lead.property?._id : lead.property;
+  const propertyWorkspaceActive = Boolean(lead.inPropertyWorkspace && propertyWorkspaceId);
   const liveLead = buildLiveLead(lead, detailForm);
   const workingTargetOffer =
     detailForm.targetOffer === "" ? null : Number(detailForm.targetOffer);
@@ -1380,19 +1382,54 @@ const LeadDetailPage = () => {
     navigate(`/properties/${encodeURIComponent(propertyWorkspaceId)}`);
   };
 
+  const handleMoveToPropertyWorkspace = async () => {
+    if (!propertyWorkspaceId) {
+      toast.error("This lead is not linked to a property workspace yet.");
+      return;
+    }
+
+    if ((lead.status || detailForm.status) !== "Closed - Won") {
+      toast.error("Only Closed - Won leads can move into the property workspace.");
+      return;
+    }
+
+    try {
+      setIsMovingToPropertyWorkspace(true);
+      const updatedLead = await updateLead(id, {
+        inPropertyWorkspace: true,
+      });
+      setLead(updatedLead);
+      toast.success("Moved to Property Workspace.");
+      navigate(`/properties/${encodeURIComponent(propertyWorkspaceId)}`);
+    } catch (moveError) {
+      toast.error(moveError.message || "Failed to move this lead into Property Workspace.");
+    } finally {
+      setIsMovingToPropertyWorkspace(false);
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Link to="/leads" className="ghost-action">
           Back to leads
         </Link>
-        {propertyWorkspaceId ? (
+        {propertyWorkspaceActive ? (
           <button
             type="button"
             onClick={handleOpenPropertyWorkspace}
             className="primary-action"
           >
             Open Property Workspace
+          </button>
+        ) : propertyWorkspaceId && liveLead.status === "Closed - Won" ? (
+          <button
+            type="button"
+            onClick={handleMoveToPropertyWorkspace}
+            disabled={isMovingToPropertyWorkspace}
+            className="primary-action disabled:cursor-not-allowed disabled:opacity-70"
+          >
+            {isMovingToPropertyWorkspace ? "Moving..." : "Move to Property Workspace"}
           </button>
         ) : null}
       </div>
