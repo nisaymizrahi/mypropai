@@ -737,6 +737,7 @@ const LeadDetailPage = () => {
   const [error, setError] = useState("");
 
   const [analysis, setAnalysis] = useState(null);
+  const [compsNotice, setCompsNotice] = useState("");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [detailForm, setDetailForm] = useState(() => buildDetailsForm());
   const [isSavingDetails, setIsSavingDetails] = useState(false);
@@ -791,8 +792,10 @@ const LeadDetailPage = () => {
           filters: leadData.compsAnalysis.filters || buildCompsFilters(leadData),
           generatedAt: leadData.compsAnalysis.generatedAt,
         });
+        setCompsNotice("");
       } else {
         setAnalysis(null);
+        setCompsNotice("");
       }
 
       setFilters(buildCompsFilters(leadData, leadData.compsAnalysis?.filters || {}));
@@ -1119,15 +1122,31 @@ const LeadDetailPage = () => {
   const handleRunAnalysis = async () => {
     setIsAnalyzing(true);
     setError("");
+    setCompsNotice("");
     try {
       const result = await analyzeLeadComps(id, filters);
+      if (result?.noResults) {
+        setAnalysis(null);
+        setCompsNotice(
+          result.msg ||
+            "No comparable properties matched the selected filters. Try widening the radius or relaxing the size filters."
+        );
+        setLead((previous) => ({
+          ...previous,
+          ...(result.subject || {}),
+        }));
+        toast(result.msg || "No comparable properties matched the selected filters.");
+        return;
+      }
       setAnalysis(result);
+      setCompsNotice("");
       setLead((previous) => ({
         ...previous,
         ...result.subject,
       }));
       await loadBillingAccess();
     } catch (err) {
+      setCompsNotice("");
       setError(err.message || "Analysis failed.");
       toast.error(err.message || "Analysis failed.");
     } finally {
@@ -2090,6 +2109,12 @@ const LeadDetailPage = () => {
           </div>
 
           <div className="space-y-6">
+            {compsNotice ? (
+              <div className="rounded-[16px] border border-sand-200 bg-sand-50 px-5 py-4 text-sm text-sand-800">
+                {compsNotice}
+              </div>
+            ) : null}
+
             {analysis ? (
               <>
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">

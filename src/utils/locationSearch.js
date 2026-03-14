@@ -1,6 +1,7 @@
 const GOOGLE_MAPS_API_KEY = process.env.REACT_APP_GOOGLE_MAPS_API_KEY;
 const MAPBOX_TOKEN = process.env.REACT_APP_MAPBOX_TOKEN;
 const GOOGLE_MAPS_LOAD_TIMEOUT_MS = 5000;
+const GOOGLE_MAPS_CALLBACK_NAME = "__flipropGoogleMapsReady";
 
 let googleMapsPromise = null;
 let googleMapsDisabled = false;
@@ -43,14 +44,17 @@ const loadGoogleMaps = async () => {
   }
 
   googleMapsPromise = new Promise((resolve, reject) => {
-    const callbackName = "__flipropGoogleMapsReady";
     const existingScript = document.querySelector('script[data-google-maps-loader="fliprop"]');
     const previousAuthFailure = window.gm_authFailure;
     let settled = false;
 
+    if (typeof window[GOOGLE_MAPS_CALLBACK_NAME] !== "function") {
+      window[GOOGLE_MAPS_CALLBACK_NAME] = () => {};
+    }
+
     const cleanup = () => {
       window.clearTimeout(timeoutId);
-      delete window[callbackName];
+      window[GOOGLE_MAPS_CALLBACK_NAME] = () => {};
 
       if (previousAuthFailure) {
         window.gm_authFailure = previousAuthFailure;
@@ -90,7 +94,7 @@ const loadGoogleMaps = async () => {
       rejectWith(new Error("Google Maps failed to initialize."));
     }, GOOGLE_MAPS_LOAD_TIMEOUT_MS);
 
-    window[callbackName] = () => {
+    window[GOOGLE_MAPS_CALLBACK_NAME] = () => {
       resolveMaps();
     };
 
@@ -126,7 +130,7 @@ const loadGoogleMaps = async () => {
     const script = document.createElement("script");
     script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(
       GOOGLE_MAPS_API_KEY
-    )}&libraries=places&loading=async&callback=${callbackName}`;
+    )}&libraries=places&loading=async&callback=${GOOGLE_MAPS_CALLBACK_NAME}`;
     script.async = true;
     script.defer = true;
     script.dataset.googleMapsLoader = "fliprop";
