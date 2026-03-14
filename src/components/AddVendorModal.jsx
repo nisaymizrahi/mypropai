@@ -2,26 +2,38 @@ import React, { useEffect, useState } from "react";
 
 import { createVendor } from "../utils/api";
 
-const initialFormState = {
+const buildInitialFormState = (initialValues = {}) => ({
   name: "",
   trade: "",
+  contactName: "",
   email: "",
   phone: "",
+  address: "",
   notes: "",
-};
+  ...initialValues,
+});
 
-const AddVendorModal = ({ isOpen, onClose, onSuccess }) => {
-  const [formData, setFormData] = useState(initialFormState);
+const AddVendorModal = ({
+  isOpen,
+  onClose,
+  onSuccess,
+  initialValues = {},
+  title = "Add vendor",
+  eyebrow = "Vendor roster",
+  description = "Save a contractor or specialist so they can be reused across tasks and expenses.",
+  submitLabel = "Save vendor",
+}) => {
+  const [formData, setFormData] = useState(() => buildInitialFormState(initialValues));
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
-      setFormData(initialFormState);
+      setFormData(buildInitialFormState(initialValues));
       setError("");
       setIsSubmitting(false);
     }
-  }, [isOpen]);
+  }, [initialValues, isOpen]);
 
   const handleChange = (event) => {
     const { name, value } = event.target;
@@ -29,7 +41,7 @@ const AddVendorModal = ({ isOpen, onClose, onSuccess }) => {
   };
 
   const handleClose = () => {
-    setFormData(initialFormState);
+    setFormData(buildInitialFormState(initialValues));
     setError("");
     setIsSubmitting(false);
     onClose?.();
@@ -47,17 +59,19 @@ const AddVendorModal = ({ isOpen, onClose, onSuccess }) => {
       setIsSubmitting(true);
       setError("");
 
-      await createVendor({
+      const savedVendor = await createVendor({
         name: formData.name.trim(),
         trade: formData.trade.trim(),
         notes: formData.notes.trim(),
         contactInfo: {
+          contactName: formData.contactName.trim(),
           email: formData.email.trim(),
           phone: formData.phone.trim(),
+          address: formData.address.trim(),
         },
       });
 
-      onSuccess?.();
+      onSuccess?.(savedVendor);
       handleClose();
     } catch (err) {
       setError(err.message || "Failed to save vendor.");
@@ -75,10 +89,10 @@ const AddVendorModal = ({ isOpen, onClose, onSuccess }) => {
       <div className="surface-panel-strong w-full max-w-2xl rounded-[32px] p-6 sm:p-7">
         <div className="flex items-start justify-between gap-6">
           <div>
-            <span className="eyebrow">Vendor roster</span>
-            <h2 className="mt-4 text-3xl font-semibold text-ink-900">Add vendor</h2>
+            <span className="eyebrow">{eyebrow}</span>
+            <h2 className="mt-4 text-3xl font-semibold text-ink-900">{title}</h2>
             <p className="mt-3 max-w-xl text-sm leading-6 text-ink-500">
-              Save a contractor or specialist so they can be reused across tasks and expenses.
+              {description}
             </p>
           </div>
         </div>
@@ -99,6 +113,22 @@ const AddVendorModal = ({ isOpen, onClose, onSuccess }) => {
             </div>
 
             <div>
+              <label className="mb-2 block text-sm font-medium text-ink-700">
+                Primary contact name
+              </label>
+              <input
+                name="contactName"
+                type="text"
+                value={formData.contactName}
+                onChange={handleChange}
+                className="auth-input"
+                placeholder="Maria Alvarez"
+              />
+            </div>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <div>
               <label className="mb-2 block text-sm font-medium text-ink-700">Trade</label>
               <input
                 name="trade"
@@ -108,6 +138,18 @@ const AddVendorModal = ({ isOpen, onClose, onSuccess }) => {
                 className="auth-input"
                 placeholder="Plumbing"
                 required
+              />
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-medium text-ink-700">Address</label>
+              <input
+                name="address"
+                type="text"
+                value={formData.address}
+                onChange={handleChange}
+                className="auth-input"
+                placeholder="123 Main St, Philadelphia, PA"
               />
             </div>
           </div>
@@ -162,7 +204,7 @@ const AddVendorModal = ({ isOpen, onClose, onSuccess }) => {
               Cancel
             </button>
             <button type="submit" disabled={isSubmitting} className="primary-action">
-              {isSubmitting ? "Saving..." : "Save vendor"}
+              {isSubmitting ? "Saving..." : submitLabel}
             </button>
           </div>
         </form>

@@ -242,6 +242,26 @@ export const importBid = async (formData) => {
   return res.json();
 };
 
+export const createBid = async (data) => {
+  const res = await fetch(`${API_BASE_URL}/bids`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to create bid"));
+  return res.json();
+};
+
+export const updateBid = async (bidId, data) => {
+  const res = await fetch(`${API_BASE_URL}/bids/${bidId}`, {
+    method: "PATCH",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to update bid"));
+  return res.json();
+};
+
 export const deleteBid = async (bidId) => {
   const res = await fetch(`${API_BASE_URL}/bids/${bidId}`, {
     method: "DELETE",

@@ -48,6 +48,20 @@ const BidDetailModal = ({ isOpen, onClose, bid }) => {
             : [],
         }))
     : [];
+  const linkedVendorName =
+    bid.vendor && typeof bid.vendor === "object" && !Array.isArray(bid.vendor)
+      ? normalizeText(bid.vendor.name, "")
+      : "";
+  const vendorSnapshot =
+    bid.vendorSnapshot && typeof bid.vendorSnapshot === "object" && !Array.isArray(bid.vendorSnapshot)
+      ? {
+          name: normalizeText(bid.vendorSnapshot.name, ""),
+          contactName: normalizeText(bid.vendorSnapshot.contactName, ""),
+          email: normalizeText(bid.vendorSnapshot.email, ""),
+          phone: normalizeText(bid.vendorSnapshot.phone, ""),
+          address: normalizeText(bid.vendorSnapshot.address, ""),
+        }
+      : null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-4">
@@ -60,6 +74,11 @@ const BidDetailModal = ({ isOpen, onClose, bid }) => {
             <p className="mt-1 text-sm text-ink-500">
               Total amount: <span className="font-semibold text-ink-900">{formatCurrency(bid.totalAmount)}</span>
             </p>
+            {linkedVendorName ? (
+              <p className="mt-1 text-xs text-verdigris-700">Linked vendor: {linkedVendorName}</p>
+            ) : vendorSnapshot?.name ? (
+              <p className="mt-1 text-xs text-ink-500">Contractor on quote: {vendorSnapshot.name}</p>
+            ) : null}
             {normalizeText(bid.sourceFileName) ? (
               <p className="mt-1 text-xs text-ink-400">{normalizeText(bid.sourceFileName)}</p>
             ) : null}
@@ -71,6 +90,30 @@ const BidDetailModal = ({ isOpen, onClose, bid }) => {
         </div>
 
         <div className="max-h-[calc(90vh-96px)] overflow-y-auto px-6 py-6">
+          {normalizeText(bid.notes) ? (
+            <div className="mb-6 rounded-[22px] border border-ink-100 bg-sand-50/70 px-5 py-5">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-400">
+                Quote notes
+              </p>
+              <p className="mt-3 text-sm leading-6 text-ink-600">{normalizeText(bid.notes)}</p>
+            </div>
+          ) : null}
+
+          {!linkedVendorName && vendorSnapshot && Object.values(vendorSnapshot).some(Boolean) ? (
+            <div className="mb-6 rounded-[22px] border border-ink-100 bg-white px-5 py-5">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-400">
+                Contractor details found on quote
+              </p>
+              <div className="mt-4 grid gap-3 md:grid-cols-2">
+                <DetailField label="Company" value={vendorSnapshot.name} />
+                <DetailField label="Contact" value={vendorSnapshot.contactName} />
+                <DetailField label="Email" value={vendorSnapshot.email} />
+                <DetailField label="Phone" value={vendorSnapshot.phone} />
+                <DetailField label="Address" value={vendorSnapshot.address} className="md:col-span-2" />
+              </div>
+            </div>
+          ) : null}
+
           {assignments.length ? (
             <div className="mb-6 rounded-[22px] border border-ink-100 bg-sand-50/70 px-5 py-5">
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-400">
@@ -164,5 +207,12 @@ const BidDetailModal = ({ isOpen, onClose, bid }) => {
     </div>
   );
 };
+
+const DetailField = ({ label, value, className = "" }) => (
+  <div className={className}>
+    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-400">{label}</p>
+    <p className="mt-1 text-sm text-ink-700">{value || "—"}</p>
+  </div>
+);
 
 export default BidDetailModal;
