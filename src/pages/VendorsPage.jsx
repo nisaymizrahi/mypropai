@@ -37,6 +37,10 @@ const MetricTile = ({ label, value, hint }) => (
 );
 
 const matchesFilter = (vendor, filterId) => {
+  if (!vendor || typeof vendor !== "object" || Array.isArray(vendor)) {
+    return false;
+  }
+
   const complianceState = getVendorComplianceState(vendor);
 
   switch (filterId) {
@@ -70,7 +74,11 @@ const VendorsPage = () => {
       setLoading(true);
       setError("");
       const vendorData = await getVendors();
-      setVendors(Array.isArray(vendorData) ? vendorData : []);
+      setVendors(
+        Array.isArray(vendorData)
+          ? vendorData.filter((vendor) => vendor && typeof vendor === "object" && !Array.isArray(vendor))
+          : []
+      );
     } catch (fetchError) {
       setError(fetchError.message || "Failed to load vendors.");
     } finally {

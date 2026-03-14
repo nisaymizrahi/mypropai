@@ -62,6 +62,9 @@ const REQUIRED_DOCUMENT_MATCHERS = [
 
 const EXPIRING_WINDOW_DAYS = 30;
 
+const normalizeVendorObject = (vendor) =>
+  vendor && typeof vendor === "object" && !Array.isArray(vendor) ? vendor : {};
+
 const toDate = (value) => {
   if (!value) return null;
   const parsed = new Date(value);
@@ -79,11 +82,13 @@ export const formatVendorDate = (value, fallback = "Not set") => {
 };
 
 export const getVendorSpecialties = (vendor = {}) => {
-  if (Array.isArray(vendor.specialties) && vendor.specialties.length > 0) {
-    return vendor.specialties.filter(Boolean);
+  const safeVendor = normalizeVendorObject(vendor);
+
+  if (Array.isArray(safeVendor.specialties) && safeVendor.specialties.length > 0) {
+    return safeVendor.specialties.filter(Boolean);
   }
 
-  return vendor.trade ? [vendor.trade] : [];
+  return safeVendor.trade ? [safeVendor.trade] : [];
 };
 
 export const getVendorStatusLabel = (value) =>
@@ -132,12 +137,14 @@ export const getVendorDocumentStateLabel = (document = {}) => {
 };
 
 export const getVendorComplianceState = (vendor = {}) => {
-  if (vendor.status === "inactive") {
+  const safeVendor = normalizeVendorObject(vendor);
+
+  if (safeVendor.status === "inactive") {
     return "inactive";
   }
 
-  const documents = Array.isArray(vendor.documents) ? vendor.documents : [];
-  const legacyCompliance = vendor.compliance || {};
+  const documents = Array.isArray(safeVendor.documents) ? safeVendor.documents : [];
+  const legacyCompliance = safeVendor.compliance || {};
   const normalizedCategories = documents.map((document) =>
     String(document.category || "").trim().toLowerCase()
   );
@@ -221,20 +228,21 @@ export const getVendorComplianceClasses = (vendor = {}) => {
 };
 
 export const vendorMatchesSearch = (vendor = {}, searchValue = "") => {
+  const safeVendor = normalizeVendorObject(vendor);
   const normalizedQuery = String(searchValue || "").trim().toLowerCase();
   if (!normalizedQuery) return true;
 
   return [
-    vendor.name,
-    vendor.trade,
-    ...(getVendorSpecialties(vendor) || []),
-    vendor.description,
-    vendor.notes,
-    vendor.serviceArea,
-    vendor.contactInfo?.contactName,
-    vendor.contactInfo?.email,
-    vendor.contactInfo?.phone,
-    vendor.contactInfo?.address,
+    safeVendor.name,
+    safeVendor.trade,
+    ...(getVendorSpecialties(safeVendor) || []),
+    safeVendor.description,
+    safeVendor.notes,
+    safeVendor.serviceArea,
+    safeVendor.contactInfo?.contactName,
+    safeVendor.contactInfo?.email,
+    safeVendor.contactInfo?.phone,
+    safeVendor.contactInfo?.address,
   ]
     .filter(Boolean)
     .join(" ")
