@@ -5,15 +5,19 @@ import { ArrowPathIcon } from "@heroicons/react/24/outline";
 import CompsReportWorkspace from "../components/CompsReportWorkspace";
 import MapView from "../components/MapView";
 import PropertyAnalysisWorkspace from "../components/PropertyAnalysisWorkspace";
+import SavedCompsReportsTab from "../components/SavedCompsReportsTab";
 import {
   analyzeFullPropertyReport,
   analyzeStandaloneComps,
   createSubscriptionCheckout,
   getBillingAccess,
+  getPropertyReports,
   previewLeadProperty,
+  saveCompsReport,
 } from "../utils/api";
 import { searchAddressSuggestions } from "../utils/locationSearch";
 import {
+  buildAnalysisFromSavedReport,
   buildCompsFilters,
   buildCompsReportForm,
   buildPreviewToCompsReportForm,
@@ -44,6 +48,7 @@ const SnapshotCard = ({ label, value, hint }) => (
 const tabOptions = [
   { id: "comps", label: "Comps Report" },
   { id: "analysis", label: "Full Property Analysis" },
+  { id: "saved", label: "Saved Reports" },
 ];
 
 const CompsReportPage = () => {
@@ -53,6 +58,9 @@ const CompsReportPage = () => {
   const [suggestions, setSuggestions] = useState([]);
   const [analysis, setAnalysis] = useState(null);
   const [fullReport, setFullReport] = useState(null);
+  const [savedReports, setSavedReports] = useState([]);
+  const [savedReportsLoading, setSavedReportsLoading] = useState(true);
+  const [isSavingReport, setIsSavingReport] = useState(false);
   const [filters, setFilters] = useState(() => buildCompsFilters());
   const [compsNotice, setCompsNotice] = useState("");
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
@@ -119,6 +127,26 @@ const CompsReportPage = () => {
   useEffect(() => {
     loadBillingAccess();
   }, [loadBillingAccess]);
+
+  const loadSavedReports = useCallback(async () => {
+    try {
+      setSavedReportsLoading(true);
+      const reports = await getPropertyReports({
+        kind: "comps",
+        contextType: "standalone",
+      });
+      setSavedReports(reports);
+    } catch (error) {
+      console.error("Failed to load standalone saved reports", error);
+      setSavedReports([]);
+    } finally {
+      setSavedReportsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadSavedReports();
+  }, [loadSavedReports]);
 
   useEffect(() => {
     const query = composeAddress({
@@ -270,6 +298,31 @@ const CompsReportPage = () => {
       toast.error(error.message || "Property analysis failed.");
     } finally {
       setIsAnalyzingFullReport(false);
+    }
+  };
+
+  const handleSaveReport = async ({ subject: reportSubject, filters: reportFilters, valuationContext, selectedComps }) => {
+    setIsSavingReport(true);
+    try {
+      const savedReport = await saveCompsReport({
+        contextType: "standalone",
+        subject: reportSubject,
+        filters: reportFilters,
+        valuationContext,
+        selectedComps,
+      });
+
+      setSavedReports((previous) => [
+        savedReport,
+        ...previous.filter((report) => report._id !== savedReport._id),
+      ]);
+      setAnalysis(buildAnalysisFromSavedReport(savedReport, reportSubject));
+      setActiveTab("saved");
+      toast.success("Comps report saved.");
+    } catch (error) {
+      toast.error(error.message || "Failed to save comps report.");
+    } finally {
+      setIsSavingReport(false);
     }
   };
 
@@ -605,9 +658,21 @@ const CompsReportPage = () => {
           isBillingAccessLoading={isBillingAccessLoading}
           onStartSubscription={handleStartSubscription}
           isStartingSubscription={isStartingSubscription}
+          onSaveReport={handleSaveReport}
+          isSavingReport={isSavingReport}
+          saveButtonLabel="Save Report"
           showOneTimeCheckout={false}
           compsNotice={compsNotice}
           runDisabled={!subject.address}
+        />
+      ) : activeTab === "saved" ? (
+        <SavedCompsReportsTab
+          reports={savedReports}
+          isLoading={savedReportsLoading}
+          title="Standalone comps reports"
+          description="Saved comps snapshots from the main reports page live here so you can reopen any comp set without building a lead first."
+          emptyTitle="No standalone comps reports saved yet"
+          emptyMessage="Run a comps report from this page, choose the comp set you want, and save it to build your report library."
         />
       ) : (
         <PropertyAnalysisWorkspace

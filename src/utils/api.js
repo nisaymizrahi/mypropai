@@ -244,6 +244,36 @@ export const analyzeFullPropertyReport = async (subject, filters = {}) => {
   return res.json();
 };
 
+export const getPropertyReports = async (params = {}) => {
+  const query = new URLSearchParams();
+
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== "") {
+      query.set(key, value);
+    }
+  });
+
+  const path = query.toString()
+    ? `${API_BASE_URL}/property-reports?${query.toString()}`
+    : `${API_BASE_URL}/property-reports`;
+
+  const res = await fetch(path, {
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to load saved reports"));
+  return res.json();
+};
+
+export const saveCompsReport = async (payload) => {
+  const res = await fetch(`${API_BASE_URL}/property-reports/comps`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to save comps report"));
+  return res.json();
+};
+
 export const getBidsForLead = async (leadId) => {
   const res = await fetch(`${API_BASE_URL}/bids/lead/${leadId}`, {
     headers: getAuthHeaders(),

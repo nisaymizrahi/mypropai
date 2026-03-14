@@ -6,8 +6,8 @@ module.exports = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ["Plus Jakarta Sans", ...defaultTheme.fontFamily.sans],
-        display: ["Cormorant Garamond", ...defaultTheme.fontFamily.serif],
+        sans: ["Manrope", ...defaultTheme.fontFamily.sans],
+        display: ["Fraunces", ...defaultTheme.fontFamily.serif],
       },
       colors: {
         ink: {

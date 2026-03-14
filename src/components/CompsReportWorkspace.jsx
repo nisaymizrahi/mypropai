@@ -1,6 +1,12 @@
-import React from "react";
+import React, { useEffect, useMemo, useState } from "react";
 
-import { compsPropertyTypeOptions, formatCurrency, formatDate } from "../utils/compsReport";
+import {
+  buildSelectionSummary,
+  compsPropertyTypeOptions,
+  formatCurrency,
+  formatDate,
+  normalizeComparableRecord,
+} from "../utils/compsReport";
 
 const SummaryStat = ({ label, value, hint }) => (
   <div className="metric-tile p-4">
@@ -24,7 +30,36 @@ const LoadingSpinner = () => (
   </div>
 );
 
+const BandCard = ({ label, low, median, high, suffix = "" }) => {
+  const formatValue = (value) => {
+    if (value === null || value === undefined || value === "") return "—";
+    if (suffix) return `${Number(value).toLocaleString()}${suffix}`;
+    return formatCurrency(value);
+  };
+
+  return (
+    <div className="rounded-[24px] border border-ink-100 bg-white/85 p-5">
+      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-400">{label}</p>
+      <div className="mt-4 grid gap-3 sm:grid-cols-3">
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-400">Low</p>
+          <p className="mt-1 text-sm font-semibold text-ink-900">{formatValue(low)}</p>
+        </div>
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-400">Median</p>
+          <p className="mt-1 text-sm font-semibold text-ink-900">{formatValue(median)}</p>
+        </div>
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-400">High</p>
+          <p className="mt-1 text-sm font-semibold text-ink-900">{formatValue(high)}</p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const CompsReportWorkspace = ({
+  subject = null,
   analysis,
   filters,
   onFilterChange,
@@ -36,20 +71,93 @@ const CompsReportWorkspace = ({
   isStartingSubscription,
   onBuyReport,
   isStartingCheckout,
+  onSaveReport,
+  isSavingReport = false,
   showOneTimeCheckout = false,
   compsNotice = "",
   renderSubjectPanel,
   runDisabled = false,
   runButtonLabel = "Run AI Comps Report",
+  saveButtonLabel = "Save Selected Report",
   emptyTitle = "No comps report yet",
   emptyMessage = "Run the report to pull comparable properties, estimate value, and generate an AI recommendation.",
 }) => {
-  const askVsEstimateLabel = !analysis?.summary?.askingPriceDelta
-    ? null
-    : `${formatCurrency(Math.abs(analysis.summary.askingPriceDelta))} ${
-        analysis.summary.askingPriceDelta > 0 ? "above" : "below"
-      } ask`;
+  const [selectedCompIds, setSelectedCompIds] = useState([]);
   const canRun = Boolean(billingAccess?.accessGranted) && !runDisabled;
+
+  const normalizedComps = useMemo(
+    () => (analysis?.comps || []).map((comp, index) => normalizeComparableRecord(comp, index)),
+    [analysis?.comps]
+  );
+
+  useEffect(() => {
+    setSelectedCompIds(normalizedComps.map((comp) => comp.id));
+  }, [normalizedComps]);
+
+  const selectedComps = useMemo(
+    () => normalizedComps.filter((comp) => selectedCompIds.includes(comp.id)),
+    [normalizedComps, selectedCompIds]
+  );
+
+  const valuationContext = useMemo(
+    () =>
+      analysis?.valuationContext || {
+        price: analysis?.summary?.estimatedValue ?? null,
+        priceRangeLow: analysis?.summary?.estimatedValueLow ?? null,
+        priceRangeHigh: analysis?.summary?.estimatedValueHigh ?? null,
+      },
+    [analysis?.summary, analysis?.valuationContext]
+  );
+
+  const activeSummary = useMemo(() => {
+    if (!analysis) return null;
+    return buildSelectionSummary(subject || analysis.subject || {}, selectedComps, valuationContext);
+  }, [analysis, selectedComps, subject, valuationContext]);
+
+  const allSelected =
+    normalizedComps.length > 0 && normalizedComps.every((comp) => selectedCompIds.includes(comp.id));
+  const selectionChanged =
+    normalizedComps.length > 0 &&
+    (selectedComps.length !== normalizedComps.length || !allSelected);
+  const askVsEstimateLabel = !activeSummary?.askingPriceDelta
+    ? null
+    : `${formatCurrency(Math.abs(activeSummary.askingPriceDelta))} ${
+        activeSummary.askingPriceDelta > 0 ? "above" : "below"
+      } ask`;
+  const canSave =
+    Boolean(onSaveReport) &&
+    Boolean(analysis) &&
+    selectedComps.length >= 3 &&
+    !isAnalyzing &&
+    !isSavingReport;
+
+  const toggleComp = (compId) => {
+    setSelectedCompIds((previous) =>
+      previous.includes(compId)
+        ? previous.filter((id) => id !== compId)
+        : [...previous, compId]
+    );
+  };
+
+  const handleSelectAll = () => {
+    setSelectedCompIds(normalizedComps.map((comp) => comp.id));
+  };
+
+  const handleClearSelection = () => {
+    setSelectedCompIds([]);
+  };
+
+  const handleSaveReport = async () => {
+    if (!onSaveReport || !analysis) return;
+
+    await onSaveReport({
+      subject: subject || analysis.subject || {},
+      filters: analysis.filters || filters || {},
+      valuationContext,
+      selectedComps,
+      summary: activeSummary,
+    });
+  };
 
   return (
     <div className="grid grid-cols-1 gap-6 xl:grid-cols-[340px_minmax(0,1fr)]">
@@ -57,8 +165,8 @@ const CompsReportWorkspace = ({
         <div className="section-card p-6">
           <h3 className="text-xl font-semibold text-ink-900">Run comps analysis</h3>
           <p className="mt-1 text-sm text-ink-500">
-            Pull market comps around this property, generate pricing guidance, and summarize it
-            with AI.
+            Pull market comps around this property, select the ones you want to keep, and build a
+            saved comps report from the final set.
           </p>
 
           <div className="mt-4 rounded-[20px] border border-ink-100 bg-sand-50/70 p-4 text-sm">
@@ -155,10 +263,7 @@ const CompsReportWorkspace = ({
               />
             </FormField>
 
-            <FormField
-              label="Property type"
-              hint="Keep the report focused on the same asset class."
-            >
+            <FormField label="Property type" hint="Keep the report focused on the same asset class.">
               <select
                 name="propertyType"
                 value={filters.propertyType}
@@ -201,10 +306,7 @@ const CompsReportWorkspace = ({
               </div>
             </FormField>
 
-            <FormField
-              label="Lot size range"
-              hint="Use the same unit your property facts are stored in."
-            >
+            <FormField label="Lot size range" hint="Use the same unit your property facts are stored in.">
               <div className="grid grid-cols-2 gap-3">
                 <input
                   type="number"
@@ -263,43 +365,75 @@ const CompsReportWorkspace = ({
           </div>
         ) : null}
 
-        {analysis ? (
+        {analysis && activeSummary ? (
           <>
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
               <SummaryStat
-                label="Estimated Value"
-                value={formatCurrency(analysis.summary.estimatedValue)}
-                hint={
-                  analysis.summary.estimatedValueLow && analysis.summary.estimatedValueHigh
-                    ? `${formatCurrency(analysis.summary.estimatedValueLow)} to ${formatCurrency(
-                        analysis.summary.estimatedValueHigh
-                      )}`
-                    : null
-                }
+                label="Low Estimate"
+                value={formatCurrency(activeSummary.estimatedValueLow)}
+                hint={`Median ${formatCurrency(activeSummary.estimatedValue)}`}
               />
               <SummaryStat
-                label="Recommended Offer"
-                value={formatCurrency(analysis.summary.recommendedOfferHigh)}
-                hint={
-                  analysis.summary.recommendedOfferLow
-                    ? `${formatCurrency(analysis.summary.recommendedOfferLow)} to ${formatCurrency(
-                        analysis.summary.recommendedOfferHigh
-                      )}`
-                    : null
-                }
+                label="High Estimate"
+                value={formatCurrency(activeSummary.estimatedValueHigh)}
+                hint={`Offer high ${formatCurrency(activeSummary.recommendedOfferHigh)}`}
               />
               <SummaryStat
                 label="Median Comp Price"
-                value={formatCurrency(analysis.summary.medianSoldPrice)}
-                hint={`${analysis.summary.saleCompCount || 0} comps used`}
+                value={formatCurrency(activeSummary.medianSoldPrice)}
+                hint={`${activeSummary.saleCompCount || 0} selected comps`}
               />
               <SummaryStat
                 label="Median Comp $ / Sqft"
-                value={
-                  analysis.summary.medianPricePerSqft ? `$${analysis.summary.medianPricePerSqft}` : "—"
-                }
+                value={activeSummary.medianPricePerSqft ? `$${activeSummary.medianPricePerSqft}` : "—"}
                 hint={askVsEstimateLabel}
               />
+            </div>
+
+            <div className="grid gap-5 lg:grid-cols-3">
+              <BandCard
+                label="Sold price band"
+                low={activeSummary.lowSoldPrice}
+                median={activeSummary.medianSoldPrice}
+                high={activeSummary.highSoldPrice}
+              />
+              <BandCard
+                label="Price per sqft band"
+                low={activeSummary.lowPricePerSqft}
+                median={activeSummary.medianPricePerSqft}
+                high={activeSummary.highPricePerSqft}
+                suffix=" / sqft"
+              />
+              <BandCard
+                label="Days on market"
+                low={activeSummary.lowDaysOnMarket}
+                median={activeSummary.medianDaysOnMarket}
+                high={activeSummary.highDaysOnMarket}
+                suffix=" days"
+              />
+            </div>
+
+            <div className="section-card p-6">
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div>
+                  <h3 className="text-2xl font-semibold text-ink-900">Comp selection</h3>
+                  <p className="mt-1 text-sm text-ink-500">
+                    Choose the comparables you want included in the saved report.
+                  </p>
+                </div>
+                <div className="rounded-full border border-sand-200 bg-sand-50 px-4 py-2 text-sm font-semibold text-sand-700">
+                  {selectedComps.length} of {normalizedComps.length} selected
+                </div>
+              </div>
+
+              <div className="mt-5 flex flex-wrap gap-3">
+                <button type="button" onClick={handleSelectAll} className="ghost-action">
+                  Select all
+                </button>
+                <button type="button" onClick={handleClearSelection} className="ghost-action">
+                  Clear selection
+                </button>
+              </div>
             </div>
 
             <div className="section-card p-6">
@@ -318,6 +452,13 @@ const CompsReportWorkspace = ({
                   </span>
                 ) : null}
               </div>
+
+              {selectionChanged ? (
+                <div className="mt-5 rounded-[18px] border border-sand-200 bg-sand-50 px-4 py-3 text-sm text-sand-800">
+                  The pricing stats above already reflect your selected comp set. Save the report to
+                  regenerate the AI memo from those selected comps.
+                </div>
+              ) : null}
 
               <div className="mt-6 grid gap-6 lg:grid-cols-2">
                 <div className="space-y-5">
@@ -390,6 +531,7 @@ const CompsReportWorkspace = ({
                 <table className="min-w-full text-sm">
                   <thead className="bg-sand-50 text-left text-ink-500">
                     <tr>
+                      <th className="p-3 font-semibold">Include</th>
                       <th className="p-3 font-semibold">Address</th>
                       <th className="p-3 font-semibold">Comp Price</th>
                       <th className="p-3 font-semibold">$ / Sqft</th>
@@ -400,45 +542,83 @@ const CompsReportWorkspace = ({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-ink-100">
-                    {analysis.comps.map((comp) => (
-                      <tr key={`${comp.address}-${comp.saleDate}`}>
-                        <td className="p-3 font-medium text-ink-900">
-                          <div>
-                            <p>{comp.address}</p>
-                            <p className="mt-1 text-xs font-normal text-ink-500">
-                              {[comp.propertyType, comp.unitCount ? `${comp.unitCount} units` : null]
-                                .filter(Boolean)
-                                .join(" • ") || "Comparable property"}
-                            </p>
-                          </div>
-                        </td>
-                        <td className="p-3 text-ink-700">{formatCurrency(comp.salePrice)}</td>
-                        <td className="p-3 text-ink-700">
-                          {comp.pricePerSqft ? `$${Math.round(comp.pricePerSqft)}` : "—"}
-                        </td>
-                        <td className="p-3 text-ink-700">
-                          <div>
-                            <p>{comp.squareFootage || "—"}</p>
-                            <p className="mt-1 text-xs text-ink-500">
-                              Lot {comp.lotSize ? Number(comp.lotSize).toLocaleString() : "—"}
-                            </p>
-                          </div>
-                        </td>
-                        <td className="p-3 text-ink-700">
-                          {[comp.bedrooms ?? "—", comp.bathrooms ?? "—"].join(" / ")}
-                        </td>
-                        <td className="p-3 text-ink-700">
-                          {comp.distance !== null && comp.distance !== undefined
-                            ? `${comp.distance.toFixed(2)} mi`
-                            : "—"}
-                        </td>
-                        <td className="p-3 text-ink-700">{formatDate(comp.saleDate)}</td>
-                      </tr>
-                    ))}
+                    {normalizedComps.map((comp) => {
+                      const isSelected = selectedCompIds.includes(comp.id);
+
+                      return (
+                        <tr key={comp.id} className={isSelected ? "" : "bg-ink-50/50"}>
+                          <td className="p-3">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => toggleComp(comp.id)}
+                              className="h-4 w-4 rounded border-ink-300 text-verdigris-600 focus:ring-verdigris-400"
+                            />
+                          </td>
+                          <td className="p-3 font-medium text-ink-900">
+                            <div>
+                              <p>{comp.address}</p>
+                              <p className="mt-1 text-xs font-normal text-ink-500">
+                                {[comp.propertyType, comp.unitCount ? `${comp.unitCount} units` : null]
+                                  .filter(Boolean)
+                                  .join(" • ") || "Comparable property"}
+                              </p>
+                            </div>
+                          </td>
+                          <td className="p-3 text-ink-700">{formatCurrency(comp.salePrice)}</td>
+                          <td className="p-3 text-ink-700">
+                            {comp.pricePerSqft ? `$${Math.round(comp.pricePerSqft)}` : "—"}
+                          </td>
+                          <td className="p-3 text-ink-700">
+                            <div>
+                              <p>{comp.squareFootage || "—"}</p>
+                              <p className="mt-1 text-xs text-ink-500">
+                                Lot {comp.lotSize ? Number(comp.lotSize).toLocaleString() : "—"}
+                              </p>
+                            </div>
+                          </td>
+                          <td className="p-3 text-ink-700">
+                            {[comp.bedrooms ?? "—", comp.bathrooms ?? "—"].join(" / ")}
+                          </td>
+                          <td className="p-3 text-ink-700">
+                            {comp.distance !== null && comp.distance !== undefined
+                              ? `${comp.distance.toFixed(2)} mi`
+                              : "—"}
+                          </td>
+                          <td className="p-3 text-ink-700">{formatDate(comp.saleDate)}</td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
             </div>
+
+            {onSaveReport ? (
+              <div className="section-card p-6">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <h3 className="text-xl font-semibold text-ink-900">Save this report</h3>
+                    <p className="mt-1 text-sm text-ink-500">
+                      Save the selected comps as a versioned report snapshot for later review.
+                    </p>
+                    {selectedComps.length < 3 ? (
+                      <p className="mt-2 text-sm text-clay-700">
+                        Select at least 3 comparables before saving.
+                      </p>
+                    ) : null}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleSaveReport}
+                    disabled={!canSave}
+                    className="primary-action justify-center disabled:opacity-50"
+                  >
+                    {isSavingReport ? "Saving..." : saveButtonLabel}
+                  </button>
+                </div>
+              </div>
+            ) : null}
           </>
         ) : (
           <div className="section-card px-6 py-12 text-center">

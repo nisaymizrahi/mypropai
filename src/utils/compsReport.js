@@ -196,3 +196,200 @@ export const buildStandaloneCompsSubject = (form = {}) => ({
   lastSalePrice: toNullableNumber(form.lastSalePrice),
   lastSaleDate: form.lastSaleDate || null,
 });
+
+export const buildComparableId = (comp = {}, fallbackIndex = 0) => {
+  if (comp.id) return String(comp.id);
+
+  const parts = [
+    comp.address,
+    comp.saleDate,
+    comp.salePrice ?? comp.price,
+    comp.latitude ?? comp.lat,
+    comp.longitude ?? comp.lng,
+    fallbackIndex,
+  ]
+    .map((value) => String(value || "").trim())
+    .filter(Boolean);
+
+  return parts.join("|") || `comp-${fallbackIndex}`;
+};
+
+export const normalizeComparableRecord = (comp = {}, fallbackIndex = 0) => {
+  const salePrice = toNullableNumber(comp.salePrice ?? comp.price);
+  const squareFootage = toNullableNumber(comp.squareFootage ?? comp.sqft);
+  const rawPricePerSqft =
+    toNullableNumber(comp.pricePerSqft) ??
+    (salePrice !== null && squareFootage ? salePrice / squareFootage : null);
+
+  return {
+    id: buildComparableId(comp, fallbackIndex),
+    address: comp.address || "",
+    propertyType: comp.propertyType || "",
+    unitCount: toNullableNumber(comp.unitCount),
+    salePrice,
+    saleDate: comp.saleDate || null,
+    distance: toNullableNumber(comp.distance),
+    bedrooms: toNullableNumber(comp.bedrooms ?? comp.beds),
+    bathrooms: toNullableNumber(comp.bathrooms ?? comp.baths),
+    squareFootage,
+    lotSize: toNullableNumber(comp.lotSize),
+    yearBuilt: toNullableNumber(comp.yearBuilt),
+    latitude: toNullableNumber(comp.latitude ?? comp.lat),
+    longitude: toNullableNumber(comp.longitude ?? comp.lng),
+    pricePerSqft: rawPricePerSqft,
+    status: comp.status || "",
+    listingType: comp.listingType || "",
+    removedDate: comp.removedDate || null,
+    daysOnMarket: toNullableNumber(comp.daysOnMarket),
+  };
+};
+
+const average = (values = []) => {
+  if (!values.length) return null;
+  return values.reduce((sum, value) => sum + value, 0) / values.length;
+};
+
+const median = (values = []) => {
+  if (!values.length) return null;
+  const sorted = [...values].sort((a, b) => a - b);
+  const middle = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 0
+    ? (sorted[middle - 1] + sorted[middle]) / 2
+    : sorted[middle];
+};
+
+const roundCurrency = (value) => {
+  if (value === null || value === undefined) return null;
+  return Math.round(Number(value) / 1000) * 1000;
+};
+
+export const buildSelectionSummary = (subject = {}, comps = [], valuationContext = null) => {
+  const normalizedComps = comps
+    .map((comp, index) => normalizeComparableRecord(comp, index))
+    .filter((comp) => comp.address && comp.salePrice);
+
+  const salePrices = normalizedComps.map((comp) => comp.salePrice).filter((value) => value !== null);
+  const pricePerSqftValues = normalizedComps
+    .map((comp) => comp.pricePerSqft)
+    .filter((value) => value !== null && value !== undefined);
+  const daysOnMarketValues = normalizedComps
+    .map((comp) => comp.daysOnMarket)
+    .filter((value) => value !== null && value !== undefined);
+  const medianPricePerSqft = median(pricePerSqftValues);
+  const subjectSquareFootage = toNullableNumber(subject.squareFootage ?? subject.sqft);
+  const soldEstimate =
+    subjectSquareFootage && medianPricePerSqft
+      ? medianPricePerSqft * subjectSquareFootage
+      : median(salePrices);
+
+  const estimatedValue = valuationContext?.price ?? soldEstimate;
+  const estimatedValueLow =
+    valuationContext?.priceRangeLow ?? (estimatedValue ? estimatedValue * 0.94 : null);
+  const estimatedValueHigh =
+    valuationContext?.priceRangeHigh ?? (estimatedValue ? estimatedValue * 1.06 : null);
+  const askingPrice = toNullableNumber(subject.sellerAskingPrice);
+  const askingPriceDelta = askingPrice && estimatedValue ? askingPrice - estimatedValue : null;
+
+  return {
+    saleCompCount: normalizedComps.length,
+    averageSoldPrice: roundCurrency(average(salePrices)),
+    medianSoldPrice: roundCurrency(median(salePrices)),
+    lowSoldPrice: salePrices.length ? roundCurrency(Math.min(...salePrices)) : null,
+    highSoldPrice: salePrices.length ? roundCurrency(Math.max(...salePrices)) : null,
+    averagePricePerSqft: average(pricePerSqftValues)
+      ? Math.round(average(pricePerSqftValues))
+      : null,
+    medianPricePerSqft: medianPricePerSqft ? Math.round(medianPricePerSqft) : null,
+    lowPricePerSqft: pricePerSqftValues.length ? Math.round(Math.min(...pricePerSqftValues)) : null,
+    highPricePerSqft: pricePerSqftValues.length ? Math.round(Math.max(...pricePerSqftValues)) : null,
+    averageDaysOnMarket: daysOnMarketValues.length ? Math.round(average(daysOnMarketValues)) : null,
+    medianDaysOnMarket: daysOnMarketValues.length ? Math.round(median(daysOnMarketValues)) : null,
+    lowDaysOnMarket: daysOnMarketValues.length ? Math.min(...daysOnMarketValues) : null,
+    highDaysOnMarket: daysOnMarketValues.length ? Math.max(...daysOnMarketValues) : null,
+    estimatedValue: roundCurrency(estimatedValue),
+    estimatedValueLow: roundCurrency(estimatedValueLow),
+    estimatedValueHigh: roundCurrency(estimatedValueHigh),
+    askingPrice,
+    askingPriceDelta: roundCurrency(askingPriceDelta),
+    recommendedOfferLow: estimatedValueLow ? roundCurrency(estimatedValueLow * 0.98) : null,
+    recommendedOfferHigh: estimatedValue ? roundCurrency(estimatedValue) : null,
+  };
+};
+
+export const buildAnalysisFromSavedReport = (report = {}, fallbackSubject = {}) => {
+  if (!report?.generatedAt) return null;
+
+  return {
+    subject: report.subjectSnapshot || fallbackSubject || {},
+    summary: {
+      saleCompCount: report.saleCompCount ?? null,
+      estimatedValue: report.estimatedValue ?? null,
+      estimatedValueLow: report.estimatedValueLow ?? null,
+      estimatedValueHigh: report.estimatedValueHigh ?? null,
+      averageSoldPrice: report.averageSoldPrice ?? null,
+      medianSoldPrice: report.medianSoldPrice ?? null,
+      lowSoldPrice: report.lowSoldPrice ?? null,
+      highSoldPrice: report.highSoldPrice ?? null,
+      averagePricePerSqft: report.averagePricePerSqft ?? null,
+      medianPricePerSqft: report.medianPricePerSqft ?? null,
+      lowPricePerSqft: report.lowPricePerSqft ?? null,
+      highPricePerSqft: report.highPricePerSqft ?? null,
+      averageDaysOnMarket: report.averageDaysOnMarket ?? null,
+      medianDaysOnMarket: report.medianDaysOnMarket ?? null,
+      lowDaysOnMarket: report.lowDaysOnMarket ?? null,
+      highDaysOnMarket: report.highDaysOnMarket ?? null,
+      askingPrice: toNullableNumber(
+        fallbackSubject?.sellerAskingPrice ?? report.subjectSnapshot?.sellerAskingPrice
+      ),
+      askingPriceDelta: report.askingPriceDelta ?? null,
+      recommendedOfferLow: report.recommendedOfferLow ?? null,
+      recommendedOfferHigh: report.recommendedOfferHigh ?? null,
+    },
+    comps: Array.isArray(report.recentComps) ? report.recentComps : [],
+    ai: report.report || null,
+    filters: report.filters || buildCompsFilters(fallbackSubject || report.subjectSnapshot || {}),
+    valuationContext: report.valuationContext || null,
+    generatedAt: report.generatedAt,
+  };
+};
+
+export const buildSavedReportFromLegacySnapshot = (
+  subject = {},
+  snapshot = {},
+  fallbackId = "legacy-comps-report"
+) => {
+  if (!snapshot?.generatedAt) return null;
+
+  return {
+    _id: fallbackId,
+    kind: "comps",
+    contextType: "lead",
+    title: `${subject.address || "Property"} - Saved comps snapshot`,
+    address: subject.address || "",
+    generatedAt: snapshot.generatedAt,
+    subjectSnapshot: subject,
+    filters: snapshot.filters || null,
+    valuationContext: snapshot.valuationContext || null,
+    estimatedValue: snapshot.estimatedValue ?? null,
+    estimatedValueLow: snapshot.estimatedValueLow ?? null,
+    estimatedValueHigh: snapshot.estimatedValueHigh ?? null,
+    averageSoldPrice: snapshot.averageSoldPrice ?? null,
+    medianSoldPrice: snapshot.medianSoldPrice ?? null,
+    lowSoldPrice: snapshot.lowSoldPrice ?? null,
+    highSoldPrice: snapshot.highSoldPrice ?? null,
+    averagePricePerSqft: snapshot.averagePricePerSqft ?? null,
+    medianPricePerSqft: snapshot.medianPricePerSqft ?? null,
+    lowPricePerSqft: snapshot.lowPricePerSqft ?? null,
+    highPricePerSqft: snapshot.highPricePerSqft ?? null,
+    averageDaysOnMarket: snapshot.averageDaysOnMarket ?? null,
+    medianDaysOnMarket: snapshot.medianDaysOnMarket ?? null,
+    lowDaysOnMarket: snapshot.lowDaysOnMarket ?? null,
+    highDaysOnMarket: snapshot.highDaysOnMarket ?? null,
+    saleCompCount: snapshot.saleCompCount ?? null,
+    askingPriceDelta: snapshot.askingPriceDelta ?? null,
+    recommendedOfferLow: snapshot.recommendedOfferLow ?? null,
+    recommendedOfferHigh: snapshot.recommendedOfferHigh ?? null,
+    report: snapshot.report || null,
+    recentComps: Array.isArray(snapshot.recentComps) ? snapshot.recentComps : [],
+  };
+};
