@@ -5,6 +5,7 @@ import {
   Bars3Icon,
   ChevronLeftIcon,
   ChevronRightIcon,
+  ClipboardDocumentListIcon,
   Cog6ToothIcon,
   PlusCircleIcon,
   ShieldCheckIcon,
@@ -26,6 +27,7 @@ const visibleNavSections = [
     title: "Workspace",
     links: [
       { to: "/leads", label: "Potential Properties", icon: UsersIcon },
+      { to: "/tasks", label: "Tasks", icon: ClipboardDocumentListIcon },
       { to: "/properties/new", label: "Add Property", icon: PlusCircleIcon },
       { to: "/account", label: "Account", icon: Cog6ToothIcon },
     ],
@@ -86,6 +88,14 @@ const resolvePageMeta = (pathname, user) => {
       kicker: "Workspace",
       title: "Account Center",
       subtitle: "Manage profile settings and workspace preferences.",
+    };
+  }
+
+  if (pathname === "/tasks") {
+    return {
+      kicker: "Workspace",
+      title: "Tasks",
+      subtitle: "Track work across leads, property records, and general operations from one view.",
     };
   }
 

@@ -253,6 +253,60 @@ export const deleteBid = async (bidId) => {
 
 /**
  * ==========================
+ *   UNIVERSAL TASKS
+ * ==========================
+ */
+export const getTaskList = async (params = {}) => {
+  const query = new URLSearchParams();
+
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== "") {
+      query.set(key, value);
+    }
+  });
+
+  const path = query.toString()
+    ? `${API_BASE_URL}/tasks?${query.toString()}`
+    : `${API_BASE_URL}/tasks`;
+
+  const res = await fetch(path, {
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to fetch tasks"));
+  return res.json();
+};
+
+export const createWorkspaceTask = async (data) => {
+  const res = await fetch(`${API_BASE_URL}/tasks`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to create task"));
+  return res.json();
+};
+
+export const updateWorkspaceTask = async (taskId, data) => {
+  const res = await fetch(`${API_BASE_URL}/tasks/${taskId}`, {
+    method: "PATCH",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to update task"));
+  return res.json();
+};
+
+export const deleteWorkspaceTask = async (taskId) => {
+  const res = await fetch(`${API_BASE_URL}/tasks/${taskId}`, {
+    method: "DELETE",
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to delete task"));
+  return res.json();
+};
+
+/**
+ * ==========================
  *   INVESTMENTS
  * ==========================
  */

@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   BriefcaseIcon,
   BuildingOffice2Icon,
+  ClipboardDocumentListIcon,
   HomeModernIcon,
   UsersIcon,
 } from "@heroicons/react/24/outline";
@@ -16,6 +17,7 @@ import {
 } from "../utils/api";
 import { getLocationProviderName, searchAddressSuggestions } from "../utils/locationSearch";
 import { PROPERTY_STRATEGIES } from "../utils/propertyStrategy";
+import TasksPanel from "../components/TasksPanel";
 
 const managementStrategyOptions = PROPERTY_STRATEGIES.filter(
   (option) => option.value === "fix_and_rent" || option.value === "rental"
@@ -156,6 +158,21 @@ const WorkspaceCard = ({ title, eyebrow, status, detail, action, tone = "sand" }
   );
 };
 
+const TabButton = ({ active, icon: Icon, label, onClick }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition ${
+      active
+        ? "bg-ink-900 text-white"
+        : "border border-ink-100 bg-white text-ink-600 hover:bg-ink-50"
+    }`}
+  >
+    <Icon className="h-4 w-4" />
+    {label}
+  </button>
+);
+
 const PropertyWorkspacePage = () => {
   const { propertyKey } = useParams();
   const navigate = useNavigate();
@@ -172,6 +189,7 @@ const PropertyWorkspacePage = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
   const [activeWorkspaceAction, setActiveWorkspaceAction] = useState("");
+  const [activeTab, setActiveTab] = useState("overview");
 
   const syncPropertyState = useCallback(
     (nextProperty) => {
@@ -551,7 +569,23 @@ const PropertyWorkspacePage = () => {
         </div>
       </section>
 
-      <section className="grid gap-4 xl:grid-cols-[minmax(0,1.16fr)_minmax(320px,0.84fr)]">
+      <div className="section-card flex flex-wrap items-center gap-2 p-1.5">
+        <TabButton
+          active={activeTab === "overview"}
+          icon={HomeModernIcon}
+          label="Overview"
+          onClick={() => setActiveTab("overview")}
+        />
+        <TabButton
+          active={activeTab === "tasks"}
+          icon={ClipboardDocumentListIcon}
+          label="Tasks"
+          onClick={() => setActiveTab("tasks")}
+        />
+      </div>
+
+      {activeTab === "overview" ? (
+        <section className="grid gap-4 xl:grid-cols-[minmax(0,1.16fr)_minmax(320px,0.84fr)]">
         <form onSubmit={handleSave} className="section-card p-6 sm:p-7">
           <span className="eyebrow">Shared profile</span>
           <h3 className="mt-4 font-display text-[2rem] leading-none text-ink-900">
@@ -938,6 +972,24 @@ const PropertyWorkspacePage = () => {
           </div>
         </div>
       </section>
+      ) : (
+        <TasksPanel
+          eyebrow="Property tasks"
+          title="Tasks for this property"
+          description="Use this tab for property-wide action items, vendor follow-ups, and general work that should stay attached to this shared property record."
+          query={{
+            propertyKey: property.propertyKey,
+          }}
+          defaults={{
+            sourceType: "property",
+            sourceId: property.propertyKey,
+            sourceLabel: property.title || "Property",
+            propertyKey: property.propertyKey,
+          }}
+          emptyTitle="No property tasks yet"
+          emptyDescription="Add the first task for this property and it will also show up in the main task center."
+        />
+      )}
     </div>
   );
 };

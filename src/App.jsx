@@ -13,6 +13,7 @@ import LeadsPage from "./pages/LeadsPage";
 import LeadDetailPage from "./pages/LeadDetailPage";
 import CreatePropertyPage from "./pages/CreatePropertyPage";
 import PropertyWorkspacePage from "./pages/PropertyWorkspacePage";
+import TasksPage from "./pages/TasksPage";
 import AccountCenter from "./pages/AccountCenter";
 import PlatformManagerPage from "./pages/PlatformManagerPage";
 
@@ -100,6 +101,15 @@ function App() {
             element={
               <ProtectedLayoutRoute>
                 <LeadDetailPage />
+              </ProtectedLayoutRoute>
+            }
+          />
+
+          <Route
+            path="/tasks"
+            element={
+              <ProtectedLayoutRoute>
+                <TasksPage />
               </ProtectedLayoutRoute>
             }
           />
