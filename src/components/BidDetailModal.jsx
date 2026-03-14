@@ -1,5 +1,18 @@
 import React from "react";
 
+const normalizeText = (value, fallback = "") => {
+  if (typeof value === "string") {
+    return value;
+  }
+  if (value === null || value === undefined) {
+    return fallback;
+  }
+  if (typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+  return fallback;
+};
+
 const formatCurrency = (value) => {
   if (value === null || value === undefined || value === "") return "—";
   return new Intl.NumberFormat("en-US", {
@@ -12,8 +25,29 @@ const formatCurrency = (value) => {
 const BidDetailModal = ({ isOpen, onClose, bid }) => {
   if (!isOpen || !bid) return null;
 
-  const items = Array.isArray(bid.items) ? bid.items : [];
-  const assignments = Array.isArray(bid.renovationAssignments) ? bid.renovationAssignments : [];
+  const items = Array.isArray(bid.items)
+    ? bid.items
+        .filter((item) => item && typeof item === "object" && !Array.isArray(item))
+        .map((item) => ({
+          description: normalizeText(item.description, ""),
+          category: normalizeText(item.category, "—"),
+          cost: item.cost,
+        }))
+        .filter((item) => item.description || item.cost !== null)
+    : [];
+  const assignments = Array.isArray(bid.renovationAssignments)
+    ? bid.renovationAssignments
+        .filter((item) => item && typeof item === "object" && !Array.isArray(item))
+        .map((item, index) => ({
+          renovationItemId: normalizeText(item.renovationItemId, `assignment-${index}`),
+          renovationItemName: normalizeText(item.renovationItemName, "Matched item"),
+          amount: item.amount,
+          scopeSummary: normalizeText(item.scopeSummary, ""),
+          matchedLineItems: Array.isArray(item.matchedLineItems)
+            ? item.matchedLineItems.map((entry) => normalizeText(entry)).filter(Boolean)
+            : [],
+        }))
+    : [];
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-4">
@@ -21,13 +55,13 @@ const BidDetailModal = ({ isOpen, onClose, bid }) => {
         <div className="flex items-start justify-between gap-4 border-b border-ink-100 px-6 py-5">
           <div>
             <h2 className="text-2xl font-semibold text-ink-900">
-              {bid.contractorName || "Contractor quote"}
+              {normalizeText(bid.contractorName, "Contractor quote")}
             </h2>
             <p className="mt-1 text-sm text-ink-500">
               Total amount: <span className="font-semibold text-ink-900">{formatCurrency(bid.totalAmount)}</span>
             </p>
-            {bid.sourceFileName ? (
-              <p className="mt-1 text-xs text-ink-400">{bid.sourceFileName}</p>
+            {normalizeText(bid.sourceFileName) ? (
+              <p className="mt-1 text-xs text-ink-400">{normalizeText(bid.sourceFileName)}</p>
             ) : null}
           </div>
 
@@ -82,9 +116,9 @@ const BidDetailModal = ({ isOpen, onClose, bid }) => {
           <div className="overflow-hidden rounded-[22px] border border-ink-100">
             <div className="flex items-center justify-between bg-sand-50 px-4 py-3">
               <p className="text-sm font-semibold text-ink-900">Extracted line items</p>
-              {bid.sourceDocumentUrl ? (
+              {normalizeText(bid.sourceDocumentUrl) ? (
                 <a
-                  href={bid.sourceDocumentUrl}
+                  href={normalizeText(bid.sourceDocumentUrl)}
                   target="_blank"
                   rel="noreferrer"
                   className="text-sm font-semibold text-verdigris-700 hover:underline"

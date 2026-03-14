@@ -4,6 +4,19 @@ import toast from "react-hot-toast";
 import { deleteBid, importBid } from "../utils/api";
 import BidDetailModal from "./BidDetailModal";
 
+const normalizeText = (value, fallback = "") => {
+  if (typeof value === "string") {
+    return value;
+  }
+  if (value === null || value === undefined) {
+    return fallback;
+  }
+  if (typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+  return fallback;
+};
+
 const formatCurrency = (value) => {
   if (value === null || value === undefined || value === "") return "—";
   return new Intl.NumberFormat("en-US", {
@@ -34,13 +47,57 @@ const normalizeRenovationItems = (items) => {
   return items
     .filter((item) => item && typeof item === "object" && !Array.isArray(item))
     .map((item, index) => ({
-      itemId: String(item.itemId || `renovation-item-${index}`),
-      name: String(item.name || "Untitled item"),
-      category: String(item.category || "custom"),
+      itemId: normalizeText(item.itemId, `renovation-item-${index}`),
+      name: normalizeText(item.name, "Untitled item"),
+      category: normalizeText(item.category, "custom"),
       budget: normalizeAmount(item.budget),
-      status: String(item.status || "planning"),
-      scopeDescription: String(item.scopeDescription || ""),
+      status: normalizeText(item.status, "planning"),
+      scopeDescription: normalizeText(item.scopeDescription, ""),
     }));
+};
+
+const normalizeMatchedLineItems = (items) => {
+  if (!Array.isArray(items)) {
+    return [];
+  }
+
+  return items
+    .map((item) => normalizeText(item))
+    .map((item) => item.trim())
+    .filter(Boolean);
+};
+
+const normalizeBidAssignments = (items) => {
+  if (!Array.isArray(items)) {
+    return [];
+  }
+
+  return items
+    .filter((item) => item && typeof item === "object" && !Array.isArray(item))
+    .map((item, index) => ({
+      renovationItemId: normalizeText(item.renovationItemId, `assignment-${index}`),
+      renovationItemName: normalizeText(item.renovationItemName, "Matched item"),
+      amount: normalizeAmount(item.amount),
+      confidence: normalizeAmount(item.confidence),
+      scopeSummary: normalizeText(item.scopeSummary, ""),
+      matchedLineItems: normalizeMatchedLineItems(item.matchedLineItems),
+    }))
+    .filter((item) => item.amount !== null || item.scopeSummary || item.matchedLineItems.length);
+};
+
+const normalizeBidItems = (items) => {
+  if (!Array.isArray(items)) {
+    return [];
+  }
+
+  return items
+    .filter((item) => item && typeof item === "object" && !Array.isArray(item))
+    .map((item) => ({
+      description: normalizeText(item.description, ""),
+      category: normalizeText(item.category, "—"),
+      cost: normalizeAmount(item.cost),
+    }))
+    .filter((item) => item.description || item.cost !== null);
 };
 
 const normalizeBids = (items) => {
@@ -48,7 +105,18 @@ const normalizeBids = (items) => {
     return [];
   }
 
-  return items.filter((item) => item && typeof item === "object" && !Array.isArray(item));
+  return items
+    .filter((item) => item && typeof item === "object" && !Array.isArray(item))
+    .map((item, index) => ({
+      _id: normalizeText(item._id, `bid-${index}`),
+      contractorName: normalizeText(item.contractorName, "Unknown contractor"),
+      totalAmount: normalizeAmount(item.totalAmount),
+      bidDate: item.bidDate || item.createdAt || null,
+      sourceDocumentUrl: normalizeText(item.sourceDocumentUrl, ""),
+      sourceFileName: normalizeText(item.sourceFileName, ""),
+      items: normalizeBidItems(item.items),
+      renovationAssignments: normalizeBidAssignments(item.renovationAssignments),
+    }));
 };
 
 class BidsTabErrorBoundary extends React.Component {
@@ -101,10 +169,7 @@ const BidsTabContent = ({ leadId, bids = [], renovationItems = [], onUpdate }) =
     return safeRenovationItems.map((item) => {
       const matchedQuotes = safeBids
         .flatMap((bid) =>
-          (Array.isArray(bid.renovationAssignments) ? bid.renovationAssignments : [])
-            .filter(
-              (assignment) => assignment && typeof assignment === "object" && !Array.isArray(assignment)
-            )
+              (Array.isArray(bid.renovationAssignments) ? bid.renovationAssignments : [])
             .filter((assignment) => assignment.renovationItemId === item.itemId)
             .map((assignment) => ({
               bidId: bid._id,
@@ -112,9 +177,7 @@ const BidsTabContent = ({ leadId, bids = [], renovationItems = [], onUpdate }) =
               amount: normalizeAmount(assignment.amount),
               confidence: normalizeAmount(assignment.confidence),
               scopeSummary: assignment.scopeSummary || "",
-              matchedLineItems: Array.isArray(assignment.matchedLineItems)
-                ? assignment.matchedLineItems
-                : [],
+              matchedLineItems: assignment.matchedLineItems,
               bidDate: bid.bidDate,
               totalAmount: bid.totalAmount,
               sourceDocumentUrl: bid.sourceDocumentUrl,
@@ -540,12 +603,6 @@ const BidsTabContent = ({ leadId, bids = [], renovationItems = [], onUpdate }) =
                       <div className="mt-3 flex flex-wrap gap-2">
                         {Array.isArray(bid.renovationAssignments) && bid.renovationAssignments.length ? (
                           bid.renovationAssignments
-                            .filter(
-                              (assignment) =>
-                                assignment &&
-                                typeof assignment === "object" &&
-                                !Array.isArray(assignment)
-                            )
                             .map((assignment) => (
                             <span
                               key={`${bid._id}-${assignment.renovationItemId}`}
