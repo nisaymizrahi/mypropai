@@ -1,5 +1,6 @@
 import React, { useMemo } from "react";
 
+import logo from "../logo.svg";
 import { formatCurrency, formatDate } from "../utils/compsReport";
 
 const formatNumber = (value, suffix = "") => {
@@ -138,14 +139,29 @@ const CompsReportPdfTemplate = ({ report = null }) => {
         className="relative overflow-hidden rounded-[34px] bg-[#1f4f49] px-9 py-9 text-white"
         style={{ breakInside: "avoid" }}
       >
+        <div className="absolute inset-y-0 right-0 w-[320px] bg-gradient-to-l from-[#173f3b]/95 to-transparent" />
         <div className="absolute -right-16 -top-12 h-48 w-48 rounded-full bg-[#e0c796]/18" />
         <div className="absolute right-20 top-24 h-28 w-28 rounded-full bg-white/8" />
+        <div className="absolute -bottom-12 right-8 h-56 w-56 rounded-full border border-white/10 bg-white/[0.03]" />
+        <img
+          src={logo}
+          alt="Fliprop"
+          className="absolute right-8 top-8 h-32 w-32 object-contain opacity-[0.07] saturate-0 brightness-200"
+        />
         <div className="relative">
           <div className="flex items-start justify-between gap-6">
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-white/70">
-                Fliprop AI comps report
-              </p>
+              <div className="inline-flex items-center gap-4 rounded-full border border-white/12 bg-white/10 px-4 py-3">
+                <div className="rounded-[16px] bg-white px-3 py-2">
+                  <img src={logo} alt="Fliprop logo" className="h-8 w-auto object-contain" />
+                </div>
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-white/65">
+                    Fliprop
+                  </p>
+                  <p className="mt-1 text-sm font-semibold text-white">AI comps report</p>
+                </div>
+              </div>
               <h1 className="mt-5 max-w-3xl font-display text-[3rem] leading-[0.92]">
                 {report.title || "Comparable sales report"}
               </h1>
@@ -155,11 +171,19 @@ const CompsReportPdfTemplate = ({ report = null }) => {
               </p>
             </div>
 
-            <div className="rounded-[24px] border border-white/15 bg-white/10 px-5 py-4 text-right">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-white/70">
-                Generated
-              </p>
-              <p className="mt-2 text-sm font-semibold">{formatDate(report.generatedAt)}</p>
+            <div className="space-y-3">
+              <div className="rounded-[24px] border border-white/15 bg-white/10 px-5 py-4 text-right">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-white/70">
+                  Generated
+                </p>
+                <p className="mt-2 text-sm font-semibold">{formatDate(report.generatedAt)}</p>
+              </div>
+              <div className="rounded-[24px] border border-[#e0c796]/20 bg-[#e0c796]/10 px-5 py-4 text-right">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-[#f5e7c8]">
+                  Report type
+                </p>
+                <p className="mt-2 text-sm font-semibold text-white">Comparable sales valuation</p>
+              </div>
             </div>
           </div>
 
@@ -202,6 +226,11 @@ const CompsReportPdfTemplate = ({ report = null }) => {
                   : "Market timing unavailable"
               }
             />
+          </div>
+
+          <div className="mt-6 flex items-center justify-between gap-4 border-t border-white/10 pt-5 text-xs text-white/62">
+            <p>Prepared in Fliprop using the selected saved comp set and AI market summary.</p>
+            <p>{report.address || "Property report"}</p>
           </div>
         </div>
       </section>
@@ -427,6 +456,14 @@ const CompsReportPdfTemplate = ({ report = null }) => {
           </div>
         </div>
       </section>
+
+      <footer className="mt-6 flex items-center justify-between rounded-[24px] border border-[#ddd4c9] bg-white/72 px-6 py-4 text-xs text-[#6d5e55]">
+        <div className="flex items-center gap-3">
+          <img src={logo} alt="Fliprop logo" className="h-7 w-auto object-contain opacity-90" />
+          <span>Fliprop AI comps report</span>
+        </div>
+        <span>Generated {formatDate(report.generatedAt)}</span>
+      </footer>
     </div>
   );
 };
