@@ -10,6 +10,7 @@ import {
 } from "@heroicons/react/24/outline";
 import toast from "react-hot-toast";
 
+import BrandLogo from "../components/BrandLogo";
 import { getPublicApplicationDetails, submitApplication } from "../utils/api";
 
 const applicantFields = [
@@ -687,13 +688,7 @@ const ApplicationFormPage = () => {
       <div className="relative mx-auto max-w-[1460px] px-4 py-5 sm:px-6 lg:px-8">
         <header className="surface-panel flex items-center justify-between px-5 py-4">
           <Link to="/" className="flex items-center gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-ink-900 text-lg font-bold text-white">
-              FL
-            </div>
-            <div>
-              <p className="font-display text-2xl leading-none text-ink-900">Fliprop</p>
-              <p className="mt-1 text-sm text-ink-500">Rental application</p>
-            </div>
+            <BrandLogo caption="Rental application" imageClassName="sm:h-12 sm:max-w-[190px]" />
           </Link>
 
           <Link to="/" className="ghost-action">

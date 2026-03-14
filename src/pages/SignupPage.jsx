@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { ArrowRightIcon } from "@heroicons/react/24/outline";
 
 import { API_BASE_URL } from "../config";
+import BrandLogo from "../components/BrandLogo";
 import { useAuth } from "../context/AuthContext";
 import { signupUser } from "../utils/api";
 
@@ -73,13 +74,7 @@ const SignupPage = () => {
       <div className="mx-auto flex min-h-screen max-w-[1240px] flex-col px-4 py-4 sm:px-6 lg:px-8">
         <header className="surface-panel flex items-center justify-between gap-4 px-5 py-4">
           <Link to="/" className="flex items-center gap-3">
-            <div className="brand-mark flex h-10 w-10 items-center justify-center rounded-[14px] text-sm font-semibold text-white">
-              FL
-            </div>
-            <div>
-              <p className="font-display text-[1.9rem] leading-none text-ink-900">Fliprop</p>
-              <p className="mt-1 text-xs text-ink-500">Workspace onboarding</p>
-            </div>
+            <BrandLogo caption="Workspace onboarding" />
           </Link>
 
           <Link to="/login" className="ghost-action">

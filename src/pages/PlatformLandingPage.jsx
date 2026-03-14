@@ -2,6 +2,8 @@ import React from "react";
 import { Link } from "react-router-dom";
 import { ArrowRightIcon } from "@heroicons/react/24/outline";
 
+import BrandLogo from "../components/BrandLogo";
+
 const quietMetrics = [
   { label: "Direction", value: "Minimal" },
   { label: "Typography", value: "Smaller" },
@@ -50,13 +52,7 @@ function PlatformLandingPage() {
       <div className="mx-auto flex min-h-screen max-w-[1280px] flex-col px-4 py-4 sm:px-6 lg:px-8">
         <header className="surface-panel flex flex-wrap items-center justify-between gap-4 px-5 py-4">
           <Link to="/" className="flex items-center gap-3">
-            <div className="brand-mark flex h-10 w-10 items-center justify-center rounded-[14px] text-sm font-semibold text-white">
-              FL
-            </div>
-            <div>
-              <p className="font-display text-[1.9rem] leading-none text-ink-900">Fliprop</p>
-              <p className="mt-1 text-xs text-ink-500">Minimal editorial redesign</p>
-            </div>
+            <BrandLogo caption="Minimal editorial redesign" />
           </Link>
 
           <div className="flex flex-wrap items-center gap-2.5">

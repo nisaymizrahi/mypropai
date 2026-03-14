@@ -2,6 +2,7 @@ import React, { useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ArrowPathIcon } from "@heroicons/react/24/outline";
 
+import BrandLogo from "../components/BrandLogo";
 import { useAuth } from "../context/AuthContext";
 
 const statusPoints = [
@@ -49,13 +50,7 @@ const LoginContinuePage = () => {
       <div className="mx-auto flex min-h-screen max-w-[1120px] flex-col px-4 py-4 sm:px-6 lg:px-8">
         <header className="surface-panel flex items-center justify-between gap-4 px-5 py-4">
           <Link to="/" className="flex items-center gap-3">
-            <div className="brand-mark flex h-10 w-10 items-center justify-center rounded-[14px] text-sm font-semibold text-white">
-              FL
-            </div>
-            <div>
-              <p className="font-display text-[1.9rem] leading-none text-ink-900">Fliprop</p>
-              <p className="mt-1 text-xs text-ink-500">Secure handoff</p>
-            </div>
+            <BrandLogo caption="Secure handoff" />
           </Link>
 
           <Link to="/login" className="ghost-action">
@@ -85,9 +80,6 @@ const LoginContinuePage = () => {
             </section>
 
             <section className="auth-card flex flex-col items-center justify-center p-6 text-center reveal-up" style={{ animationDelay: "90ms" }}>
-              <div className="brand-mark flex h-12 w-12 items-center justify-center rounded-[16px] text-sm font-semibold text-white">
-                FL
-              </div>
               <div className="loading-ring mt-5 flex h-12 w-12 animate-spin items-center justify-center rounded-full">
                 <ArrowPathIcon className="h-5 w-5 text-verdigris-600" />
               </div>

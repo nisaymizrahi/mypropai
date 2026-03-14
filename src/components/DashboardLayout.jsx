@@ -16,6 +16,7 @@ import {
 } from "@heroicons/react/24/outline";
 
 import UserInfoBanner from "./UserInfoBanner";
+import BrandLogo from "./BrandLogo";
 import { useAuth } from "../context/AuthContext";
 import {
   getSidebarOption,
@@ -194,20 +195,11 @@ const SidebarContent = ({ user, onNavigate, collapsed, onToggleCollapse }) => (
       <Link
         to="/leads"
         onClick={onNavigate}
-        className={collapsed ? "flex items-center justify-center" : "flex items-center gap-3"}
+        className={collapsed ? "flex items-center justify-center" : "flex items-center"}
         title={collapsed ? "Fliprop workspace" : undefined}
       >
-        <div className="brand-mark flex h-10 w-10 items-center justify-center rounded-[14px] text-sm font-semibold text-white">
-          FL
-        </div>
-        {!collapsed ? (
-          <div>
-            <p className="font-display text-[1.8rem] leading-none text-ink-900">Fliprop</p>
-            <p className="mt-1 text-xs text-ink-500">Lead pipeline</p>
-          </div>
-        ) : (
-          <span className="sr-only">Fliprop workspace</span>
-        )}
+        {collapsed ? <BrandLogo compact /> : <BrandLogo caption="Lead pipeline" />}
+        <span className="sr-only">Fliprop workspace</span>
       </Link>
 
       {onToggleCollapse ? (
@@ -359,9 +351,7 @@ function DashboardLayout({ children }) {
                   <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-ink-400">
                     Navigation
                   </p>
-                  <h2 className="mt-1 font-display text-[1.8rem] leading-none text-ink-900">
-                    Fliprop
-                  </h2>
+                  <BrandLogo className="mt-2" />
                 </div>
                 <button
                   type="button"
