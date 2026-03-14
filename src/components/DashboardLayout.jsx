@@ -30,7 +30,6 @@ const visibleNavSections = [
     links: [
       { to: "/leads", label: "Potential Properties", icon: UsersIcon },
       { to: "/comps-report", label: "Comps Report", icon: ChartBarIcon },
-      { to: "/project-management", label: "Project Management", icon: ClipboardDocumentListIcon },
       { to: "/tasks", label: "Tasks", icon: ClipboardDocumentListIcon },
       { to: "/vendors", label: "Vendors", icon: WrenchScrewdriverIcon },
       { to: "/properties/new", label: "Add Property", icon: PlusCircleIcon },
@@ -72,27 +71,11 @@ const resolvePageMeta = (pathname, user) => {
     };
   }
 
-  if (pathname === "/project-management") {
-    return {
-      kicker: "Projects",
-      title: "Project Management",
-      subtitle: "Track active projects, original deal assumptions, vendor commitments, and spend.",
-    };
-  }
-
   if (pathname === "/comps-report") {
     return {
       kicker: "Analysis",
       title: "Comps Report",
       subtitle: "Run the same comps workflow from the deal tabs without creating a lead first.",
-    };
-  }
-
-  if (pathname.startsWith("/project-management/")) {
-    return {
-      kicker: "Projects",
-      title: "Project Workspace",
-      subtitle: "Manage execution from saved comps and scope assumptions through actual expenses.",
     };
   }
 

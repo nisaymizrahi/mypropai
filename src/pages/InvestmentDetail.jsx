@@ -1,12 +1,6 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import {
-  ArrowLeftIcon,
-  BuildingOffice2Icon,
-  ChartBarIcon,
-  PencilSquareIcon,
-  SparklesIcon,
-} from "@heroicons/react/24/outline";
+import { ArrowLeftIcon, BuildingOffice2Icon, ChartBarIcon } from "@heroicons/react/24/outline";
 
 import AddExpenseModal from "../components/AddExpenseModal";
 import BidsTab from "../components/BidsTab";
@@ -27,13 +21,8 @@ import {
   getInvestment,
   getProjectTasks,
   getVendors,
-  promoteInvestmentToManagement,
 } from "../utils/api";
-import {
-  canStartManagement,
-  getInvestmentStrategy,
-  getInvestmentStrategyLabel,
-} from "../utils/propertyStrategy";
+import { getInvestmentStrategy, getInvestmentStrategyLabel } from "../utils/propertyStrategy";
 
 const formatCurrency = (value = 0) =>
   new Intl.NumberFormat("en-US", {
@@ -102,9 +91,7 @@ const InvestmentDetail = () => {
   const [bids, setBids] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [actionError, setActionError] = useState("");
   const [activeTab, setActiveTab] = useState("details");
-  const [isStartingManagement, setIsStartingManagement] = useState(false);
   const [heroExpenseModalState, setHeroExpenseModalState] = useState({
     isOpen: false,
     mode: "manual",
@@ -157,22 +144,9 @@ const InvestmentDetail = () => {
 
     try {
       await deleteInvestment(id);
-      navigate("/project-management");
+      navigate("/leads");
     } catch (err) {
       setError(err.message || "Failed to delete the project workspace.");
-    }
-  };
-
-  const handleStartManagement = async () => {
-    try {
-      setActionError("");
-      setIsStartingManagement(true);
-      const managedProperty = await promoteInvestmentToManagement(id);
-      navigate(`/management/${managedProperty._id}`);
-    } catch (err) {
-      setActionError(err.message || "Failed to start management.");
-    } finally {
-      setIsStartingManagement(false);
     }
   };
 
@@ -190,17 +164,11 @@ const InvestmentDetail = () => {
 
   const strategy = getInvestmentStrategy(investment);
   const strategyLabel = getInvestmentStrategyLabel(strategy);
-  const isManagementEligible = canStartManagement(investment);
-  const managedPropertyId =
-    typeof investment.managedProperty === "object"
-      ? investment.managedProperty?._id
-      : investment.managedProperty;
   const propertyWorkspaceId =
     typeof investment.property === "object" ? investment.property?._id : investment.property;
   const sourceLeadId =
     typeof investment.sourceLead === "object" ? investment.sourceLead?._id : investment.sourceLead;
   const sourceLeadSnapshot = investment.sourceLeadSnapshot || null;
-  const hasManagedProperty = Boolean(managedPropertyId);
   const hasPropertyWorkspace = Boolean(propertyWorkspaceId);
   const totalBudget = budgetItems.reduce(
     (sum, item) =>
@@ -210,6 +178,9 @@ const InvestmentDetail = () => {
   const totalSpent = expenses.reduce((sum, item) => sum + Number(item.amount || 0), 0);
   const openTasks = tasks.filter((task) => task.status !== "Complete").length;
   const progress = Number(investment.progress || 0);
+  const backTarget = propertyWorkspaceId
+    ? `/properties/${encodeURIComponent(propertyWorkspaceId)}`
+    : "/leads";
 
   return (
     <div className="space-y-6">
@@ -229,11 +200,11 @@ const InvestmentDetail = () => {
             <div className="flex flex-wrap items-center gap-3">
               <button
                 type="button"
-                onClick={() => navigate("/project-management")}
+                onClick={() => navigate(backTarget)}
                 className="ghost-action"
               >
                 <ArrowLeftIcon className="mr-2 h-5 w-5" />
-                Back to project management
+                Back to property workspace
               </button>
               <StatusBadge investment={investment} onUpdate={fetchData} />
             </div>
@@ -299,35 +270,17 @@ const InvestmentDetail = () => {
                 Scan receipt with AI
               </button>
 
-              {hasManagedProperty ? (
+              {propertyWorkspaceId ? (
                 <button
                   type="button"
-                  onClick={() => navigate(`/management/${managedPropertyId}`)}
-                  className="secondary-action"
-                >
-                  <BuildingOffice2Icon className="mr-2 h-5 w-5" />
-                  Open management
-                </button>
-              ) : isManagementEligible ? (
-                <button
-                  type="button"
-                  onClick={handleStartManagement}
-                  disabled={isStartingManagement}
                   className="primary-action"
+                  onClick={() =>
+                    navigate(`/properties/${encodeURIComponent(propertyWorkspaceId)}`)
+                  }
                 >
-                  {isStartingManagement ? "Starting management..." : "Start management"}
-                  {!isStartingManagement && <SparklesIcon className="ml-2 h-5 w-5" />}
+                  Open property workspace
                 </button>
               ) : null}
-
-              <button
-                type="button"
-                onClick={() => navigate(`/project-management/${id}/edit`)}
-                className="ghost-action"
-              >
-                <PencilSquareIcon className="mr-2 h-5 w-5" />
-                Edit project assumptions
-              </button>
             </div>
           </div>
 
@@ -366,14 +319,12 @@ const InvestmentDetail = () => {
 
                 <div className="rounded-[24px] border border-ink-100 bg-white/90 p-5">
                   <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-400">
-                    Management handoff
+                    Property workspace
                   </p>
                   <p className="mt-2 text-sm font-semibold text-ink-900">
-                    {hasManagedProperty
-                      ? "Already linked to active management."
-                      : isManagementEligible
-                        ? "Eligible to move into operations."
-                        : "Still in project setup."}
+                    {hasPropertyWorkspace
+                      ? "Use the shared property record as the main workspace."
+                      : "Shared property link unavailable."}
                   </p>
                 </div>
               </div>
@@ -381,12 +332,6 @@ const InvestmentDetail = () => {
           </div>
         </div>
       </section>
-
-      {actionError ? (
-        <div className="rounded-[26px] border border-clay-200 bg-clay-50 px-5 py-4 text-sm text-clay-700">
-          {actionError}
-        </div>
-      ) : null}
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetricTile label="Purchase price" value={formatCurrency(investment.purchasePrice)} />

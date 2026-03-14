@@ -18,11 +18,11 @@ const propertyTypeOptions = [
 ];
 
 const normalizeWorkspaceKey = (value) => {
-  if (["property_only", "pipeline", "acquisitions", "management"].includes(value)) {
+  if (["property_only", "pipeline"].includes(value)) {
     return value;
   }
 
-  return "pipeline";
+  return "property_only";
 };
 
 const toOptionalNumber = (value) => {
@@ -274,37 +274,21 @@ const CreatePropertyPage = () => {
         listingStatus: isForSale ? formData.listingStatus || "For Sale" : undefined,
         sellerAskingPrice: isForSale ? toOptionalNumber(formData.sellerAskingPrice) : undefined,
         workspaceKey: formData.workspaceKey,
-        strategy:
-          formData.workspaceKey === "management"
-            ? "rental"
-            : formData.workspaceKey === "acquisitions"
-              ? "flip"
-              : undefined,
       };
 
       const result = await createProperty(payload);
 
-      if (result.managedPropertyId) {
-        toast.success("Property created and launched into management.");
-        navigate(`/management/${result.managedPropertyId}`);
-        return;
-      }
-
-      if (result.investmentId) {
-        toast.success("Property created and sent to project management.");
-        navigate(`/project-management/${result.investmentId}`);
+      if (result.property?.propertyKey) {
+        toast.success(
+          result.leadId ? "Property created and added to leads." : "Property created."
+        );
+        navigate(`/properties/${encodeURIComponent(result.property.propertyKey)}`);
         return;
       }
 
       if (result.leadId) {
         toast.success("Property created and added to leads.");
         navigate(`/leads/${result.leadId}`);
-        return;
-      }
-
-      if (result.property?.propertyKey) {
-        toast.success("Property created.");
-        navigate(`/properties/${encodeURIComponent(result.property.propertyKey)}`);
         return;
       }
 

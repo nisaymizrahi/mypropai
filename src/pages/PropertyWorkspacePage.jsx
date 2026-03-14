@@ -1,8 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
-  BriefcaseIcon,
-  BuildingOffice2Icon,
   ClipboardDocumentListIcon,
   HomeModernIcon,
   UsersIcon,
@@ -16,12 +14,7 @@ import {
   updatePropertyWorkspace,
 } from "../utils/api";
 import { getLocationProviderName, searchAddressSuggestions } from "../utils/locationSearch";
-import { PROPERTY_STRATEGIES } from "../utils/propertyStrategy";
 import TasksPanel from "../components/TasksPanel";
-
-const managementStrategyOptions = PROPERTY_STRATEGIES.filter(
-  (option) => option.value === "fix_and_rent" || option.value === "rental"
-);
 
 const propertyTypeOptions = [
   { value: "", label: "Select property type" },
@@ -34,17 +27,6 @@ const propertyTypeOptions = [
   { value: "land", label: "Land" },
   { value: "other", label: "Other" },
 ];
-
-const normalizeStrategy = (value, fallback = "flip") => {
-  if (PROPERTY_STRATEGIES.some((option) => option.value === value)) {
-    return value;
-  }
-
-  return fallback;
-};
-
-const normalizeManagementStrategy = (value) =>
-  managementStrategyOptions.some((option) => option.value === value) ? value : "rental";
 
 const toOptionalNumber = (value) => {
   if (value === "" || value === null || value === undefined) {
@@ -180,15 +162,13 @@ const PropertyWorkspacePage = () => {
 
   const [property, setProperty] = useState(null);
   const [formData, setFormData] = useState(buildFormState(null));
-  const [acquisitionStrategy, setAcquisitionStrategy] = useState("flip");
-  const [managementStrategy, setManagementStrategy] = useState("rental");
   const [suggestions, setSuggestions] = useState([]);
   const [previewMetadata, setPreviewMetadata] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
-  const [activeWorkspaceAction, setActiveWorkspaceAction] = useState("");
+  const [isAddingLeadWorkspace, setIsAddingLeadWorkspace] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
 
   const syncPropertyState = useCallback(
@@ -199,12 +179,6 @@ const PropertyWorkspacePage = () => {
 
       setProperty(nextProperty);
       setFormData(buildFormState(nextProperty));
-      setAcquisitionStrategy(
-        normalizeStrategy(nextProperty.workspaces.acquisitions?.strategy, "flip")
-      );
-      setManagementStrategy(
-        normalizeManagementStrategy(nextProperty.workspaces.acquisitions?.strategy)
-      );
       setPreviewMetadata(null);
       selectedSuggestionRef.current = "";
 
@@ -423,38 +397,16 @@ const PropertyWorkspacePage = () => {
     }
   };
 
-  const handleCreateWorkspace = async (workspaceKey) => {
+  const handleCreateLeadWorkspace = async () => {
     try {
-      setActiveWorkspaceAction(workspaceKey);
-
-      const payload =
-        workspaceKey === "acquisitions"
-          ? { strategy: acquisitionStrategy }
-          : workspaceKey === "management"
-            ? { strategy: managementStrategy }
-            : {};
-
-      const response = await createPropertyWorkspace(propertyKey, workspaceKey, payload);
+      setIsAddingLeadWorkspace(true);
+      const response = await createPropertyWorkspace(propertyKey, "pipeline");
       syncPropertyState(response.property);
-
-      if (workspaceKey === "pipeline") {
-        toast.success("Lead workspace added.");
-        return;
-      }
-
-      if (workspaceKey === "acquisitions") {
-        toast.success("Project management workspace created.");
-        return;
-      }
-
-      toast.success("Management workspace started.");
-      if (response.managedPropertyId) {
-        navigate(`/management/${response.managedPropertyId}`);
-      }
+      toast.success("Lead workspace added.");
     } catch (workspaceError) {
-      toast.error(workspaceError.message || "Failed to create the workspace.");
+      toast.error(workspaceError.message || "Failed to add the lead workspace.");
     } finally {
-      setActiveWorkspaceAction("");
+      setIsAddingLeadWorkspace(false);
     }
   };
 
@@ -512,15 +464,6 @@ const PropertyWorkspacePage = () => {
                   Open lead
                 </Link>
               ) : null}
-              {property.workspaces.management ? (
-                <Link to={property.workspaces.management.path} className="primary-action">
-                  Open management
-                </Link>
-              ) : property.workspaces.acquisitions ? (
-                <Link to={property.workspaces.acquisitions.path} className="primary-action">
-                  Open project management
-                </Link>
-              ) : null}
             </div>
           </div>
 
@@ -542,26 +485,22 @@ const PropertyWorkspacePage = () => {
               </div>
             ) : null}
             <div className="mt-4 space-y-2.5">
+              <div className="flex items-center justify-between rounded-[14px] bg-verdigris-50 px-4 py-3">
+                <span className="text-sm font-medium text-ink-600">Property workspace</span>
+                <span className="text-sm font-semibold text-ink-900">Active</span>
+              </div>
               <div className="flex items-center justify-between rounded-[14px] bg-white px-4 py-3 ring-1 ring-ink-100">
-                <span className="text-sm font-medium text-ink-600">Leads</span>
+                <span className="text-sm font-medium text-ink-600">Lead record</span>
                 <span className="text-sm font-semibold text-ink-900">
                   {property.workspaces.pipeline ? property.workspaces.pipeline.status : "Missing"}
                 </span>
               </div>
               <div className="flex items-center justify-between rounded-[14px] bg-sand-50 px-4 py-3">
-                <span className="text-sm font-medium text-ink-600">Project management</span>
+                <span className="text-sm font-medium text-ink-600">Execution data</span>
                 <span className="text-sm font-semibold text-ink-900">
                   {property.workspaces.acquisitions
                     ? property.workspaces.acquisitions.strategyLabel
                     : "Missing"}
-                </span>
-              </div>
-              <div className="flex items-center justify-between rounded-[14px] bg-clay-50 px-4 py-3">
-                <span className="text-sm font-medium text-ink-600">Managed properties</span>
-                <span className="text-sm font-semibold text-ink-900">
-                  {property.workspaces.management
-                    ? property.workspaces.management.status
-                    : "Not started"}
                 </span>
               </div>
             </div>
@@ -592,8 +531,8 @@ const PropertyWorkspacePage = () => {
             Edit the core property details once
           </h3>
           <p className="mt-2 text-sm leading-6 text-ink-500">
-            The address lookup here feeds the shared property profile, so leads, project
-            management, and management all stay anchored to the same property data.
+            The address lookup here feeds the shared property profile, so every lead and connected
+            property tool stays anchored to the same property data.
           </p>
 
           <div className="mt-6 grid gap-5 md:grid-cols-2">
@@ -845,12 +784,12 @@ const PropertyWorkspacePage = () => {
               ) : (
                 <button
                   type="button"
-                  onClick={() => handleCreateWorkspace("pipeline")}
-                  disabled={!!activeWorkspaceAction}
+                  onClick={handleCreateLeadWorkspace}
+                  disabled={isAddingLeadWorkspace}
                   className="secondary-action w-full disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   <UsersIcon className="mr-2 h-5 w-5" />
-                  {activeWorkspaceAction === "pipeline" ? "Adding..." : "Add to leads"}
+                  {isAddingLeadWorkspace ? "Adding..." : "Add to leads"}
                 </button>
               )
             }
@@ -858,105 +797,12 @@ const PropertyWorkspacePage = () => {
           />
 
           <WorkspaceCard
-            eyebrow="Project management"
-            title="Project management workspace"
-            status={
-              property.workspaces.acquisitions
-                ? property.workspaces.acquisitions.strategyLabel
-                : "No project management workspace yet"
-            }
-            detail={
-              property.workspaces.acquisitions
-                ? "Budgets, bids, vendors, and execution stay linked back to this core property record."
-                : "Create a project management workspace when the property moves from lead tracking into budgeting or active execution."
-            }
-            action={
-              property.workspaces.acquisitions ? (
-                <Link to={property.workspaces.acquisitions.path} className="secondary-action w-full">
-                  <BriefcaseIcon className="mr-2 h-5 w-5" />
-                  Open project management
-                </Link>
-              ) : (
-                <div className="space-y-3">
-                  <select
-                    value={acquisitionStrategy}
-                    onChange={(event) => setAcquisitionStrategy(event.target.value)}
-                    className="auth-input"
-                  >
-                    {PROPERTY_STRATEGIES.map((strategy) => (
-                      <option key={strategy.value} value={strategy.value}>
-                        {strategy.label}
-                      </option>
-                    ))}
-                  </select>
-                  <button
-                    type="button"
-                    onClick={() => handleCreateWorkspace("acquisitions")}
-                    disabled={!!activeWorkspaceAction}
-                    className="primary-action w-full disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    <BriefcaseIcon className="mr-2 h-5 w-5" />
-                    {activeWorkspaceAction === "acquisitions"
-                      ? "Creating..."
-                      : "Create project management workspace"}
-                  </button>
-                </div>
-              )
-            }
+            eyebrow="Unified workspace"
+            title="Work from the property workspace"
+            status="Single workspace active"
+            detail="Project-management and management navigation are being retired, so this shared property record is now the main place to work."
+            action={null}
             tone="verdigris"
-          />
-
-          <WorkspaceCard
-            eyebrow="Managed Properties"
-            title="Management workspace"
-            status={
-              property.workspaces.management
-                ? property.workspaces.management.status
-                : property.workspaces.acquisitions
-                  ? `Ready to start from ${property.workspaces.acquisitions.strategyLabel}`
-                  : "No management workspace yet"
-            }
-            detail={
-              property.workspaces.management
-                ? "Units, leasing, and operations continue from the active management dashboard."
-                : property.workspaces.acquisitions
-                  ? "Start management here and we will keep the shared property details, reuse the linked project workspace, and update the strategy if needed."
-                  : "Start management here and we will create a linked project workspace first, then open the operations workspace without losing the shared property profile."
-            }
-            action={
-              property.workspaces.management ? (
-                <Link to={property.workspaces.management.path} className="secondary-action w-full">
-                  <BuildingOffice2Icon className="mr-2 h-5 w-5" />
-                  Open management
-                </Link>
-              ) : (
-                <div className="space-y-3">
-                  <select
-                    value={managementStrategy}
-                    onChange={(event) => setManagementStrategy(event.target.value)}
-                    className="auth-input"
-                  >
-                    {managementStrategyOptions.map((strategy) => (
-                      <option key={strategy.value} value={strategy.value}>
-                        {strategy.label}
-                      </option>
-                    ))}
-                  </select>
-                  <button
-                    type="button"
-                    onClick={() => handleCreateWorkspace("management")}
-                    disabled={!!activeWorkspaceAction}
-                    className="primary-action w-full disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    <BuildingOffice2Icon className="mr-2 h-5 w-5" />
-                    {activeWorkspaceAction === "management"
-                      ? "Starting..."
-                      : "Start management"}
-                  </button>
-                </div>
-              )
-            }
-            tone="clay"
           />
 
           <div className="section-card p-4">

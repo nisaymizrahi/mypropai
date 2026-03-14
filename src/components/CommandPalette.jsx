@@ -17,28 +17,20 @@ import {
   ClipboardDocumentListIcon,
   HomeIcon,
   HomeModernIcon,
-  KeyIcon,
   MagnifyingGlassIcon,
   UserGroupIcon,
 } from "@heroicons/react/24/outline";
 
 import {
-  getApplicationsForProperty,
-  getInvestments,
   getLeads,
-  getManagedProperties,
   getProperties,
 } from "../utils/api";
-import { getInvestmentStrategyLabel, normalizeInvestmentStrategy } from "../utils/propertyStrategy";
 
 const GROUP_ORDER = [
   "Quick Actions",
   "Properties",
-  "Management",
   "Applications",
-  "Tenants & Leases",
   "Leads",
-  "Project Management",
   "Platform",
 ];
 
@@ -129,18 +121,6 @@ const buildQuickActions = (user) => {
       pinned: true,
     }),
     createEntry({
-      id: "quick-properties",
-      group: "Quick Actions",
-      title: "Open property hub",
-      subtitle: "Shared property records across pipeline, project management, and management",
-      to: "/properties",
-      icon: HomeModernIcon,
-      keywords: ["property hub workspace records"],
-      tone: "verdigris",
-      priority: 195,
-      pinned: true,
-    }),
-    createEntry({
       id: "quick-applications",
       group: "Quick Actions",
       title: "Review applications",
@@ -150,18 +130,6 @@ const buildQuickActions = (user) => {
       keywords: ["leasing applicants screening"],
       tone: "sand",
       priority: 190,
-      pinned: true,
-    }),
-    createEntry({
-      id: "quick-management",
-      group: "Quick Actions",
-      title: "Open management workspace",
-      subtitle: "Occupancy, vacancies, units, and property operations",
-      to: "/management",
-      icon: BuildingOffice2Icon,
-      keywords: ["operations occupancy vacancies rent roll"],
-      tone: "clay",
-      priority: 188,
       pinned: true,
     }),
     createEntry({
@@ -188,24 +156,13 @@ const buildQuickActions = (user) => {
       pinned: true,
     }),
     createEntry({
-      id: "quick-investments",
-      group: "Quick Actions",
-      title: "Open project management",
-      subtitle: "Saved lead comps, execution budgets, vendors, and project spend",
-      to: "/project-management",
-      icon: BriefcaseIcon,
-      keywords: ["projects execution budgets acquisitions deals"],
-      priority: 182,
-      pinned: true,
-    }),
-    createEntry({
       id: "quick-new-property",
       group: "Quick Actions",
       title: "Create new property",
-      subtitle: "Start a property record and place it into the right workspace",
+      subtitle: "Start a property record and work from the shared property workspace",
       to: "/properties/new",
       icon: BriefcaseIcon,
-      keywords: ["new create add property lead investment management"],
+      keywords: ["new create add property lead workspace"],
       tone: "verdigris",
       priority: 180,
       pinned: true,
@@ -248,9 +205,8 @@ const buildPropertyEntries = (properties) =>
     const workspaceBits = [
       property.workspaces?.pipeline ? `Pipeline: ${property.workspaces.pipeline.status}` : null,
       property.workspaces?.acquisitions
-        ? `Project Management: ${property.workspaces.acquisitions.strategyLabel}`
+        ? `Execution data: ${property.workspaces.acquisitions.strategyLabel}`
         : null,
-      property.workspaces?.management ? `Management: ${property.workspaces.management.status}` : null,
     ].filter(Boolean);
 
     return createEntry({
@@ -293,108 +249,6 @@ const buildLeadEntries = (leads) =>
       priority: 130,
     })
   );
-
-const buildInvestmentEntries = (investments) =>
-  (investments || []).map((investment) => {
-    const strategyLabel = getInvestmentStrategyLabel(
-      normalizeInvestmentStrategy(investment.strategy || investment.type)
-    );
-
-    return createEntry({
-      id: `investment-${investment._id}`,
-      group: "Project Management",
-      title: investment.address || "Untitled project",
-      subtitle: [strategyLabel, investment.status, investment.progress ? `${investment.progress}% progress` : null]
-        .filter(Boolean)
-        .join(" • "),
-      to: `/project-management/${investment._id}`,
-      icon: BriefcaseIcon,
-      tone: "clay",
-      keywords: [investment.exitStrategy, investment.notes, investment.city, investment.state],
-      priority: 125,
-    });
-  });
-
-const buildManagedPropertyEntries = (managedProperties) =>
-  (managedProperties || []).map((property) =>
-    createEntry({
-      id: `managed-${property._id}`,
-      group: "Management",
-      title: property.address || "Managed property",
-      subtitle: [
-        property.isActive ? "Active property" : "Archived property",
-        `${property.units?.length || 0} unit${property.units?.length === 1 ? "" : "s"}`,
-      ].join(" • "),
-      to: `/management/${property._id}`,
-      icon: BuildingOffice2Icon,
-      tone: "clay",
-      keywords: [property.address, property.city, property.state],
-      priority: 145,
-    })
-  );
-
-const buildLeaseEntries = (managedProperties) =>
-  (managedProperties || []).flatMap((property) =>
-    (property.units || [])
-      .filter((unit) => unit.currentLease?._id)
-      .map((unit) =>
-        createEntry({
-          id: `lease-${unit.currentLease._id}`,
-          group: "Tenants & Leases",
-          title: unit.currentLease?.tenant?.fullName || `${property.address} ${unit.name}`,
-          subtitle: [
-            property.address,
-            unit.name,
-            unit.currentLease?.tenant?.email || "Active lease",
-          ]
-            .filter(Boolean)
-            .join(" • "),
-          to: `/management/leases/${unit.currentLease._id}`,
-          icon: KeyIcon,
-          tone: "verdigris",
-          keywords: [
-            unit.currentLease?.tenant?.phone,
-            unit.currentLease?.tenant?.email,
-            unit.name,
-            property.address,
-          ],
-          priority: 135,
-        })
-      )
-  );
-
-const buildApplicationEntries = (managedProperties, applicationGroups) =>
-  applicationGroups.flatMap((result, index) => {
-    if (result.status !== "fulfilled") {
-      return [];
-    }
-
-    const property = managedProperties[index];
-    return (result.value || []).map((application) =>
-      createEntry({
-        id: `application-${application._id}`,
-        group: "Applications",
-        title: application.applicantInfo?.fullName || "Unnamed applicant",
-        subtitle: [
-          application.property?.address || property?.address,
-          application.unit?.name ? `Unit ${application.unit.name}` : null,
-          application.status,
-        ]
-          .filter(Boolean)
-          .join(" • "),
-        to: `/applications/${application._id}`,
-        icon: ClipboardDocumentListIcon,
-        tone: "sand",
-        keywords: [
-          application.applicantInfo?.email,
-          application.applicantInfo?.phone,
-          application.status,
-          property?.address,
-        ],
-        priority: 132,
-      })
-    );
-  });
 
 const dedupeEntries = (entries) => {
   const seen = new Set();
@@ -491,41 +345,17 @@ const CommandPalette = ({ isOpen, onClose, user }) => {
       setLoadError("");
 
       try {
-        const [propertiesResult, leadsResult, investmentsResult, managedPropertiesResult] =
-          await Promise.allSettled([
-            getProperties(),
-            getLeads(),
-            getInvestments(),
-            getManagedProperties(),
-          ]);
-
-        const managedProperties =
-          managedPropertiesResult.status === "fulfilled"
-            ? managedPropertiesResult.value || []
-            : [];
-
-        const applicationResults = managedProperties.length
-          ? await Promise.allSettled(
-              managedProperties.map((property) => getApplicationsForProperty(property._id))
-            )
-          : [];
+        const [propertiesResult, leadsResult] = await Promise.allSettled([
+          getProperties(),
+          getLeads(),
+        ]);
 
         const nextEntries = dedupeEntries([
           ...buildQuickActions(user),
           ...(propertiesResult.status === "fulfilled"
             ? buildPropertyEntries(propertiesResult.value)
             : []),
-          ...(managedPropertiesResult.status === "fulfilled"
-            ? buildManagedPropertyEntries(managedProperties)
-            : []),
-          ...(managedPropertiesResult.status === "fulfilled"
-            ? buildLeaseEntries(managedProperties)
-            : []),
           ...(leadsResult.status === "fulfilled" ? buildLeadEntries(leadsResult.value) : []),
-          ...(investmentsResult.status === "fulfilled"
-            ? buildInvestmentEntries(investmentsResult.value)
-            : []),
-          ...buildApplicationEntries(managedProperties, applicationResults),
         ]);
 
         startTransition(() => {
@@ -574,9 +404,7 @@ const CommandPalette = ({ isOpen, onClose, user }) => {
       return dedupeEntries([
         ...searchEntries.filter((entry) => entry.pinned).slice(0, 7),
         ...searchEntries
-          .filter((entry) =>
-            ["Management", "Properties", "Applications", "Tenants & Leases"].includes(entry.group)
-          )
+          .filter((entry) => ["Properties", "Applications", "Leads"].includes(entry.group))
           .slice(0, 6),
       ]).slice(0, 12);
     }

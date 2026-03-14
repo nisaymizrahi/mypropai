@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate, useParams } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 
@@ -13,10 +13,6 @@ import CompsReportPage from "./pages/CompsReportPage";
 import LeadsPage from "./pages/LeadsPage";
 import LeadDetailPage from "./pages/LeadDetailPage";
 import CreatePropertyPage from "./pages/CreatePropertyPage";
-import EditInvestment from "./pages/EditInvestment";
-import InvestmentDetail from "./pages/InvestmentDetail";
-import MyInvestments from "./pages/MyInvestments";
-import NewInvestment from "./pages/NewInvestment";
 import PropertyWorkspacePage from "./pages/PropertyWorkspacePage";
 import TasksPage from "./pages/TasksPage";
 import VendorsPage from "./pages/VendorsPage";
@@ -24,6 +20,7 @@ import AccountCenter from "./pages/AccountCenter";
 import PlatformManagerPage from "./pages/PlatformManagerPage";
 
 import { AuthProvider } from "./context/AuthContext";
+import { getInvestment } from "./utils/api";
 
 const parkedPublicPaths = [
   "/invite/:token",
@@ -57,22 +54,52 @@ const LeadsRedirectRoute = () => (
   </ProtectedRoute>
 );
 
-const LegacyInvestmentDetailRedirect = () => {
+const LegacyProjectWorkspaceRedirect = () => {
   const { id } = useParams();
+  const [target, setTarget] = useState("");
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const resolveTarget = async () => {
+      if (!id) {
+        if (isMounted) {
+          setTarget("/leads");
+        }
+        return;
+      }
+
+      try {
+        const investment = await getInvestment(id);
+        const propertyWorkspaceId =
+          typeof investment?.property === "object"
+            ? investment.property?._id
+            : investment?.property;
+
+        if (isMounted) {
+          setTarget(
+            propertyWorkspaceId
+              ? `/properties/${encodeURIComponent(propertyWorkspaceId)}`
+              : "/leads"
+          );
+        }
+      } catch (error) {
+        if (isMounted) {
+          setTarget("/leads");
+        }
+      }
+    };
+
+    resolveTarget();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [id]);
 
   return (
     <ProtectedRoute>
-      <Navigate to={`/project-management/${encodeURIComponent(id)}`} replace />
-    </ProtectedRoute>
-  );
-};
-
-const LegacyInvestmentEditRedirect = () => {
-  const { id } = useParams();
-
-  return (
-    <ProtectedRoute>
-      <Navigate to={`/project-management/${encodeURIComponent(id)}/edit`} replace />
+      {target ? <Navigate to={target} replace /> : null}
     </ProtectedRoute>
   );
 };
@@ -181,66 +208,50 @@ function App() {
 
           <Route
             path="/project-management"
-            element={
-              <ProtectedLayoutRoute>
-                <MyInvestments />
-              </ProtectedLayoutRoute>
-            }
+            element={<LeadsRedirectRoute />}
           />
 
           <Route
             path="/project-management/new"
             element={
-              <ProtectedLayoutRoute>
-                <NewInvestment />
-              </ProtectedLayoutRoute>
+              <ProtectedRoute>
+                <Navigate to="/properties/new" replace />
+              </ProtectedRoute>
             }
           />
 
           <Route
             path="/project-management/:id"
-            element={
-              <ProtectedLayoutRoute>
-                <InvestmentDetail />
-              </ProtectedLayoutRoute>
-            }
+            element={<LegacyProjectWorkspaceRedirect />}
           />
 
           <Route
             path="/project-management/:id/edit"
-            element={
-              <ProtectedLayoutRoute>
-                <EditInvestment />
-              </ProtectedLayoutRoute>
-            }
+            element={<LegacyProjectWorkspaceRedirect />}
           />
 
           <Route
             path="/investments"
-            element={
-              <ProtectedRoute>
-                <Navigate to="/project-management" replace />
-              </ProtectedRoute>
-            }
+            element={<LeadsRedirectRoute />}
           />
 
           <Route
             path="/investments/new"
             element={
               <ProtectedRoute>
-                <Navigate to="/project-management/new" replace />
+                <Navigate to="/properties/new" replace />
               </ProtectedRoute>
             }
           />
 
           <Route
             path="/investments/:id"
-            element={<LegacyInvestmentDetailRedirect />}
+            element={<LegacyProjectWorkspaceRedirect />}
           />
 
           <Route
             path="/investments/:id/edit"
-            element={<LegacyInvestmentEditRedirect />}
+            element={<LegacyProjectWorkspaceRedirect />}
           />
 
           <Route

@@ -70,6 +70,7 @@ jest.mock("./pages/Homepage", () => () => <div>Homepage screen</div>);
 jest.mock("./pages/LoginPage", () => () => <div>Workspace login screen</div>);
 jest.mock("./pages/LoginContinuePage", () => () => <div>Login continue screen</div>);
 jest.mock("./pages/SignupPage", () => () => <div>Signup screen</div>);
+jest.mock("./pages/CompsReportPage", () => () => <div>Comps report screen</div>);
 jest.mock("./pages/LeadsPage", () => () => <div>Leads screen</div>);
 jest.mock("./pages/LeadDetailPage", () => () => <div>Lead detail screen</div>);
 jest.mock("./pages/TasksPage", () => () => <div>Tasks screen</div>);
@@ -117,6 +118,13 @@ describe("App routes", () => {
     expect(screen.getByText("Tasks screen")).toBeInTheDocument();
   });
 
+  test("renders the comps report workspace inside the dashboard layout", () => {
+    renderAtPath("/comps-report");
+
+    expect(screen.getByTestId("dashboard-layout")).toBeInTheDocument();
+    expect(screen.getByText("Comps report screen")).toBeInTheDocument();
+  });
+
   test("renders the vendors workspace inside the dashboard layout", () => {
     renderAtPath("/vendors");
 
@@ -129,6 +137,18 @@ describe("App routes", () => {
 
     expect(screen.getByTestId("dashboard-layout")).toBeInTheDocument();
     expect(screen.getByText("Create property screen")).toBeInTheDocument();
+  });
+
+  test("redirects retired project workspace routes away from the old hub", () => {
+    renderAtPath("/project-management");
+
+    expect(screen.getByText("Navigate:/leads")).toBeInTheDocument();
+  });
+
+  test("redirects retired project creation routes into add property", () => {
+    renderAtPath("/project-management/new");
+
+    expect(screen.getByText("Navigate:/properties/new")).toBeInTheDocument();
   });
 
   test("redirects parked protected feature routes into leads", () => {

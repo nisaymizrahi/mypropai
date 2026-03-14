@@ -2,7 +2,6 @@ import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   ArrowRightIcon,
-  BuildingOffice2Icon,
   ChartBarIcon,
   HomeModernIcon,
   SparklesIcon,
@@ -10,11 +9,7 @@ import {
 
 import EmptyState from "../components/EmptyState";
 import { getInvestments } from "../utils/api";
-import {
-  canStartManagement,
-  getInvestmentStrategyLabel,
-  normalizeInvestmentStrategy,
-} from "../utils/propertyStrategy";
+import { getInvestmentStrategyLabel, normalizeInvestmentStrategy } from "../utils/propertyStrategy";
 
 const formatCurrency = (value = 0) =>
   new Intl.NumberFormat("en-US", {
@@ -69,10 +64,6 @@ const MyInvestments = () => {
   const activeProjects = investments.filter(
     (investment) => !["Archived", "Sold"].includes(investment.status)
   ).length;
-  const managementReady = investments.filter(
-    (investment) => canStartManagement(investment) && !investment.managedProperty
-  ).length;
-  const inManagement = investments.filter((investment) => Boolean(investment.managedProperty)).length;
   const linkedProfiles = investments.filter((investment) => Boolean(investment.property)).length;
   const averageProgress = investments.length
     ? Math.round(
@@ -116,10 +107,10 @@ const MyInvestments = () => {
               </Link>
               <button
                 type="button"
-                onClick={() => navigate("/properties/new?workspace=acquisitions")}
+                onClick={() => navigate("/properties/new")}
                 className="primary-action"
               >
-                New project property
+                Add property
               </button>
             </div>
             <div className="mt-6 flex flex-wrap gap-3">
@@ -128,9 +119,6 @@ const MyInvestments = () => {
               </span>
               <span className="rounded-full border border-ink-200 bg-white/90 px-4 py-2 text-sm font-medium text-ink-700">
                 {linkedProfiles} linked shared profile{linkedProfiles === 1 ? "" : "s"}
-              </span>
-              <span className="rounded-full border border-ink-200 bg-white/90 px-4 py-2 text-sm font-medium text-ink-700">
-                {managementReady} management-ready
               </span>
               <span className="rounded-full border border-sand-200 bg-sand-50 px-4 py-2 text-sm font-medium text-sand-700">
                 {averageProgress}% average progress
@@ -163,7 +151,7 @@ const MyInvestments = () => {
               </Link>
               <button
                 type="button"
-                onClick={() => navigate("/properties/new?workspace=acquisitions")}
+                onClick={() => navigate("/properties/new")}
                 className="primary-action w-full"
               >
                 Add new property
@@ -183,7 +171,7 @@ const MyInvestments = () => {
             Active projects
           </p>
           <p className="mt-2 text-3xl font-semibold text-ink-900">{investments.length}</p>
-          <p className="mt-2 text-sm text-ink-500">Properties currently carrying a project-management workspace.</p>
+          <p className="mt-2 text-sm text-ink-500">Properties currently carrying project execution data.</p>
         </div>
 
         <div className="metric-tile p-5">
@@ -202,21 +190,10 @@ const MyInvestments = () => {
             <SparklesIcon className="h-5 w-5" />
           </div>
           <p className="mt-5 text-sm font-semibold uppercase tracking-[0.18em] text-ink-400">
-            Management ready
+            Shared property links
           </p>
-          <p className="mt-2 text-3xl font-semibold text-ink-900">{managementReady}</p>
-          <p className="mt-2 text-sm text-ink-500">Eligible to move into active property operations.</p>
-        </div>
-
-        <div className="metric-tile p-5">
-          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-ink-50 text-ink-700">
-            <BuildingOffice2Icon className="h-5 w-5" />
-          </div>
-          <p className="mt-5 text-sm font-semibold uppercase tracking-[0.18em] text-ink-400">
-            Already in management
-          </p>
-          <p className="mt-2 text-3xl font-semibold text-ink-900">{inManagement}</p>
-          <p className="mt-2 text-sm text-ink-500">Projects already linked into long-term operations.</p>
+          <p className="mt-2 text-3xl font-semibold text-ink-900">{linkedProfiles}</p>
+          <p className="mt-2 text-sm text-ink-500">Projects already tied back to a shared property record.</p>
         </div>
       </section>
 
@@ -239,10 +216,6 @@ const MyInvestments = () => {
               const progress = Number(investment.progress || 0);
               const status = investment.status || "Not Started";
               const propertyWorkspacePath = getPropertyWorkspacePath(investment);
-              const managedPropertyId =
-                typeof investment.managedProperty === "object"
-                  ? investment.managedProperty?._id
-                  : investment.managedProperty;
 
               return (
                 <div key={investment._id} className="section-card overflow-hidden border-white/70 p-0">
@@ -332,47 +305,21 @@ const MyInvestments = () => {
                           Shared profile linked
                         </span>
                       ) : null}
-                      {investment.managedProperty ? (
-                        <span className="rounded-full border border-verdigris-200 bg-verdigris-50 px-3 py-1 text-xs font-semibold text-verdigris-700">
-                          In management
-                        </span>
-                      ) : canStartManagement(investment) ? (
-                        <span className="rounded-full border border-sand-200 bg-sand-50 px-3 py-1 text-xs font-semibold text-sand-700">
-                          Ready for management
-                        </span>
-                      ) : (
-                        <span className="rounded-full border border-ink-200 bg-white px-3 py-1 text-xs font-semibold text-ink-600">
-                          Project setup
-                        </span>
-                      )}
+                      <span className="rounded-full border border-ink-200 bg-white px-3 py-1 text-xs font-semibold text-ink-600">
+                        Property workspace first
+                      </span>
                     </div>
 
                     <div className="flex flex-wrap gap-3">
-                      <Link to={`/project-management/${investment._id}`} className="primary-action">
-                        Open project workspace
-                        <ArrowRightIcon className="ml-2 h-5 w-5" />
-                      </Link>
                       {propertyWorkspacePath ? (
-                        <Link to={propertyWorkspacePath} className="ghost-action">
+                        <Link to={propertyWorkspacePath} className="primary-action">
                           Open property workspace
+                          <ArrowRightIcon className="ml-2 h-5 w-5" />
                         </Link>
-                      ) : null}
-                      {managedPropertyId ? (
-                        <button
-                          type="button"
-                          onClick={() => navigate(`/management/${managedPropertyId}`)}
-                          className="ghost-action"
-                        >
-                          Open management view
-                        </button>
                       ) : (
-                        <button
-                          type="button"
-                          onClick={() => navigate(`/project-management/${investment._id}/edit`)}
-                          className="ghost-action"
-                        >
-                          Edit project assumptions
-                        </button>
+                        <span className="rounded-full border border-ink-200 bg-white px-3 py-2 text-xs font-semibold text-ink-500">
+                          Shared property link missing
+                        </span>
                       )}
                     </div>
                   </div>
@@ -385,9 +332,9 @@ const MyInvestments = () => {
         <EmptyState
           icon="🏡"
           title="No project workspaces yet"
-          message="Create a property and place it into project management when you are ready to start budgeting, vendor selection, and execution."
-          buttonText="Create project property"
-          onButtonClick={() => navigate("/properties/new?workspace=acquisitions")}
+          message="Create a property and keep working from the shared property workspace as it moves forward."
+          buttonText="Create property"
+          onButtonClick={() => navigate("/properties/new")}
         />
       )}
     </div>

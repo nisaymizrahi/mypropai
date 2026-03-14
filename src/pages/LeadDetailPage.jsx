@@ -22,14 +22,20 @@ import {
   getBidsForLead,
   getBillingAccess,
   getLeadDetails,
+  getPropertyReports,
   previewLeadProperty,
-  promoteLeadToProject,
+  saveCompsReport,
   syncBillingCheckoutSession,
   updateLead,
 } from "../utils/api";
 import { searchAddressSuggestions } from "../utils/locationSearch";
+import {
+  buildAnalysisFromSavedReport,
+  buildSavedReportFromLegacySnapshot,
+} from "../utils/compsReport";
 import BidsTab from "../components/BidsTab";
 import CompsReportWorkspace from "../components/CompsReportWorkspace";
+import SavedCompsReportsTab from "../components/SavedCompsReportsTab";
 import TasksPanel from "../components/TasksPanel";
 
 const occupancyOptions = ["Unknown", "Vacant", "Owner Occupied", "Tenant Occupied"];
@@ -575,6 +581,37 @@ const LoadingSpinner = () => (
   </div>
 );
 
+const buildLeadCompsAnalysisSnapshotFromReport = (report) => {
+  if (!report?.generatedAt) return null;
+
+  return {
+    generatedAt: report.generatedAt,
+    filters: report.filters || null,
+    valuationContext: report.valuationContext || null,
+    estimatedValue: report.estimatedValue ?? null,
+    estimatedValueLow: report.estimatedValueLow ?? null,
+    estimatedValueHigh: report.estimatedValueHigh ?? null,
+    averageSoldPrice: report.averageSoldPrice ?? null,
+    medianSoldPrice: report.medianSoldPrice ?? null,
+    lowSoldPrice: report.lowSoldPrice ?? null,
+    highSoldPrice: report.highSoldPrice ?? null,
+    averagePricePerSqft: report.averagePricePerSqft ?? null,
+    medianPricePerSqft: report.medianPricePerSqft ?? null,
+    lowPricePerSqft: report.lowPricePerSqft ?? null,
+    highPricePerSqft: report.highPricePerSqft ?? null,
+    averageDaysOnMarket: report.averageDaysOnMarket ?? null,
+    medianDaysOnMarket: report.medianDaysOnMarket ?? null,
+    lowDaysOnMarket: report.lowDaysOnMarket ?? null,
+    highDaysOnMarket: report.highDaysOnMarket ?? null,
+    saleCompCount: report.saleCompCount ?? null,
+    askingPriceDelta: report.askingPriceDelta ?? null,
+    recommendedOfferLow: report.recommendedOfferLow ?? null,
+    recommendedOfferHigh: report.recommendedOfferHigh ?? null,
+    report: report.report || null,
+    recentComps: Array.isArray(report.recentComps) ? report.recentComps : [],
+  };
+};
+
 const SummaryStat = ({ label, value, hint }) => (
   <div className="metric-tile p-4">
     <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-ink-400">{label}</p>
@@ -727,12 +764,14 @@ const LeadDetailPage = () => {
   const [analysis, setAnalysis] = useState(null);
   const [compsNotice, setCompsNotice] = useState("");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [savedReports, setSavedReports] = useState([]);
+  const [savedReportsLoading, setSavedReportsLoading] = useState(true);
+  const [isSavingReport, setIsSavingReport] = useState(false);
   const [detailForm, setDetailForm] = useState(() => buildDetailsForm());
   const [isSavingDetails, setIsSavingDetails] = useState(false);
   const [suggestions, setSuggestions] = useState([]);
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
   const [isSavingQuickStatus, setIsSavingQuickStatus] = useState(false);
-  const [isPromotingProject, setIsPromotingProject] = useState(false);
   const [filters, setFilters] = useState(() => buildCompsFilters());
 
   const [renovationForm, setRenovationForm] = useState(() => buildRenovationForm());
@@ -754,42 +793,47 @@ const LeadDetailPage = () => {
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
-      const [leadData, bidsData] = await Promise.all([getLeadDetails(id), getBidsForLead(id)]);
+      setSavedReportsLoading(true);
+      const [leadData, bidsData, savedReportsData] = await Promise.all([
+        getLeadDetails(id),
+        getBidsForLead(id),
+        getPropertyReports({
+          kind: "comps",
+          contextType: "lead",
+          leadId: id,
+        }).catch((savedReportsError) => {
+          console.error("Failed to load saved lead reports", savedReportsError);
+          return [];
+        }),
+      ]);
       setLead(leadData);
       setBids(bidsData);
 
-      if (leadData.compsAnalysis?.generatedAt) {
-        setAnalysis({
-          subject: leadData,
-          summary: {
-            saleCompCount: leadData.compsAnalysis.saleCompCount,
-            estimatedValue: leadData.compsAnalysis.estimatedValue,
-            estimatedValueLow: leadData.compsAnalysis.estimatedValueLow,
-            estimatedValueHigh: leadData.compsAnalysis.estimatedValueHigh,
-            averageSoldPrice: leadData.compsAnalysis.averageSoldPrice,
-            medianSoldPrice: leadData.compsAnalysis.medianSoldPrice,
-            averagePricePerSqft: leadData.compsAnalysis.averagePricePerSqft,
-            medianPricePerSqft: leadData.compsAnalysis.medianPricePerSqft,
-            askingPrice: leadData.sellerAskingPrice,
-            askingPriceDelta: leadData.compsAnalysis.askingPriceDelta,
-            recommendedOfferLow: leadData.compsAnalysis.recommendedOfferLow,
-            recommendedOfferHigh: leadData.compsAnalysis.recommendedOfferHigh,
-          },
-          comps: leadData.compsAnalysis.recentComps || [],
-          ai: leadData.compsAnalysis.report || null,
-          filters: leadData.compsAnalysis.filters || buildCompsFilters(leadData),
-          generatedAt: leadData.compsAnalysis.generatedAt,
-        });
-        setCompsNotice("");
-      } else {
-        setAnalysis(null);
-        setCompsNotice("");
-      }
+      const legacySavedReport = buildSavedReportFromLegacySnapshot(
+        leadData,
+        leadData.compsAnalysis,
+        `legacy-${leadData._id || id}`
+      );
+      const nextSavedReports =
+        savedReportsData.length > 0
+          ? savedReportsData
+          : legacySavedReport
+            ? [legacySavedReport]
+            : [];
+
+      setSavedReports(nextSavedReports);
+      setAnalysis(
+        nextSavedReports[0]
+          ? buildAnalysisFromSavedReport(nextSavedReports[0], leadData)
+          : null
+      );
+      setCompsNotice("");
 
       setFilters(buildCompsFilters(leadData, leadData.compsAnalysis?.filters || {}));
     } catch (err) {
       setError(err.message || "Failed to load lead data.");
     } finally {
+      setSavedReportsLoading(false);
       setLoading(false);
     }
   }, [id]);
@@ -1142,6 +1186,46 @@ const LeadDetailPage = () => {
     }
   };
 
+  const handleSaveReport = async ({ subject, filters: reportFilters, valuationContext, selectedComps }) => {
+    setIsSavingReport(true);
+    setError("");
+
+    try {
+      const savedReport = await saveCompsReport({
+        contextType: "lead",
+        leadId: id,
+        subject,
+        filters: reportFilters,
+        valuationContext,
+        selectedComps,
+      });
+
+      setSavedReports((previous) => [
+        savedReport,
+        ...previous.filter(
+          (report) =>
+            report._id !== savedReport._id && !String(report._id || "").startsWith("legacy-")
+        ),
+      ]);
+      setAnalysis(buildAnalysisFromSavedReport(savedReport, subject));
+      setLead((previous) =>
+        previous
+          ? {
+              ...previous,
+              compsAnalysis: buildLeadCompsAnalysisSnapshotFromReport(savedReport),
+            }
+          : previous
+      );
+      setActiveTab("saved-reports");
+      toast.success("Comps report saved.");
+    } catch (err) {
+      setError(err.message || "Failed to save comps report.");
+      toast.error(err.message || "Failed to save comps report.");
+    } finally {
+      setIsSavingReport(false);
+    }
+  };
+
   const handleStartSubscription = async () => {
     setIsStartingSubscription(true);
     try {
@@ -1276,27 +1360,13 @@ const LeadDetailPage = () => {
     (item) => item.budget !== "" && item.budget !== null && item.budget !== undefined
   ).length;
   const renovationItemsCount = renovationForm.items.length;
-  const projectManagementId =
-    typeof lead.projectManagement === "object"
-      ? lead.projectManagement?._id
-      : lead.projectManagement;
-
-  const handleOpenOrCreateProject = async () => {
-    if (projectManagementId) {
-      navigate(`/project-management/${projectManagementId}`);
+  const handleOpenPropertyWorkspace = () => {
+    if (!propertyWorkspaceId) {
+      toast.error("This lead is not linked to a property workspace yet.");
       return;
     }
 
-    setIsPromotingProject(true);
-    try {
-      const project = await promoteLeadToProject(id);
-      toast.success("Project management workspace created.");
-      navigate(`/project-management/${project._id}`);
-    } catch (promoteError) {
-      toast.error(promoteError.message || "Failed to create project management workspace.");
-    } finally {
-      setIsPromotingProject(false);
-    }
+    navigate(`/properties/${encodeURIComponent(propertyWorkspaceId)}`);
   };
 
   return (
@@ -1305,18 +1375,13 @@ const LeadDetailPage = () => {
         <Link to="/leads" className="ghost-action">
           Back to leads
         </Link>
-        {liveLead.status === "Closed - Won" ? (
+        {propertyWorkspaceId ? (
           <button
             type="button"
-            onClick={handleOpenOrCreateProject}
-            disabled={isPromotingProject}
-            className="primary-action disabled:cursor-not-allowed disabled:opacity-70"
+            onClick={handleOpenPropertyWorkspace}
+            className="primary-action"
           >
-            {projectManagementId
-              ? "Open Project Management"
-              : isPromotingProject
-                ? "Creating Project Management..."
-                : "Create Project Management"}
+            Open Property Workspace
           </button>
         ) : null}
       </div>
@@ -1428,6 +1493,12 @@ const LeadDetailPage = () => {
           icon={SparklesIcon}
           label="AI Comps Analysis"
           onClick={() => setActiveTab("comps")}
+        />
+        <TabButton
+          active={activeTab === "saved-reports"}
+          icon={PencilSquareIcon}
+          label="Saved Reports"
+          onClick={() => setActiveTab("saved-reports")}
         />
         <TabButton
           active={activeTab === "renovation"}
@@ -1875,6 +1946,9 @@ const LeadDetailPage = () => {
           isStartingSubscription={isStartingSubscription}
           onBuyReport={handleBuyReport}
           isStartingCheckout={isStartingCheckout}
+          onSaveReport={handleSaveReport}
+          isSavingReport={isSavingReport}
+          saveButtonLabel="Save Lead Report"
           showOneTimeCheckout
           compsNotice={compsNotice}
           renderSubjectPanel={() => (
@@ -1925,6 +1999,17 @@ const LeadDetailPage = () => {
               </div>
             </div>
           )}
+        />
+      )}
+
+      {activeTab === "saved-reports" && (
+        <SavedCompsReportsTab
+          reports={savedReports}
+          isLoading={savedReportsLoading}
+          title="Lead comps reports"
+          description="Every saved comps snapshot for this opportunity lives here so you can compare different comp sets over time."
+          emptyTitle="No lead comps reports saved yet"
+          emptyMessage="Run the AI comps analysis, choose the comps you want to keep, and save the report to build the lead's comps history."
         />
       )}
 
