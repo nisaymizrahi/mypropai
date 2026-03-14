@@ -1202,9 +1202,6 @@ const LeadDetailPage = () => {
 
   const propertyWorkspaceId =
     typeof lead.property === "object" ? lead.property?._id : lead.property;
-  const propertyWorkspacePath = propertyWorkspaceId
-    ? `/properties/${encodeURIComponent(propertyWorkspaceId)}`
-    : "";
   const liveLead = buildLiveLead(lead, detailForm);
   const askVsEstimateLabel = !analysis?.summary?.askingPriceDelta
     ? "No ask vs estimate comparison yet"
@@ -1236,11 +1233,6 @@ const LeadDetailPage = () => {
         <Link to="/leads" className="ghost-action">
           Back to leads
         </Link>
-        {propertyWorkspacePath ? (
-          <Link to={propertyWorkspacePath} className="secondary-action">
-            Open property record
-          </Link>
-        ) : null}
       </div>
 
       <section className="surface-panel px-5 py-4 sm:px-6">
