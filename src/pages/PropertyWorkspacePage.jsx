@@ -1,19 +1,39 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
+  CheckCircleIcon,
   ClipboardDocumentListIcon,
   HomeModernIcon,
+  PencilSquareIcon,
+  SparklesIcon,
   UsersIcon,
+  WrenchScrewdriverIcon,
 } from "@heroicons/react/24/outline";
 import toast from "react-hot-toast";
 
 import {
+  analyzeLeadComps,
   createPropertyWorkspace,
+  createSubscriptionCheckout,
+  getBidsForLead,
+  getBillingAccess,
+  getLeadDetails,
+  getPropertyReports,
   getPropertyWorkspace,
   previewLeadProperty,
+  saveCompsReport,
   updatePropertyWorkspace,
 } from "../utils/api";
+import {
+  buildAnalysisFromSavedReport,
+  buildCompsFilters,
+  buildSavedReportFromLegacySnapshot,
+} from "../utils/compsReport";
 import { getLocationProviderName, searchAddressSuggestions } from "../utils/locationSearch";
+import BidsTab from "../components/BidsTab";
+import CompsReportWorkspace from "../components/CompsReportWorkspace";
+import LeadRenovationTab, { buildRenovationForm } from "../components/LeadRenovationTab";
+import SavedCompsReportsTab from "../components/SavedCompsReportsTab";
 import TasksPanel from "../components/TasksPanel";
 
 const propertyTypeOptions = [
@@ -155,10 +175,45 @@ const TabButton = ({ active, icon: Icon, label, onClick }) => (
   </button>
 );
 
+const isSavedReportsBackendUnavailable = (error) =>
+  String(error?.message || "").includes("Saved reports are not available on the server yet");
+
+const buildLeadCompsAnalysisSnapshotFromReport = (report) => {
+  if (!report?.generatedAt) return null;
+
+  return {
+    generatedAt: report.generatedAt,
+    filters: report.filters || null,
+    valuationContext: report.valuationContext || null,
+    estimatedValue: report.estimatedValue ?? null,
+    estimatedValueLow: report.estimatedValueLow ?? null,
+    estimatedValueHigh: report.estimatedValueHigh ?? null,
+    averageSoldPrice: report.averageSoldPrice ?? null,
+    medianSoldPrice: report.medianSoldPrice ?? null,
+    lowSoldPrice: report.lowSoldPrice ?? null,
+    highSoldPrice: report.highSoldPrice ?? null,
+    averagePricePerSqft: report.averagePricePerSqft ?? null,
+    medianPricePerSqft: report.medianPricePerSqft ?? null,
+    lowPricePerSqft: report.lowPricePerSqft ?? null,
+    highPricePerSqft: report.highPricePerSqft ?? null,
+    averageDaysOnMarket: report.averageDaysOnMarket ?? null,
+    medianDaysOnMarket: report.medianDaysOnMarket ?? null,
+    lowDaysOnMarket: report.lowDaysOnMarket ?? null,
+    highDaysOnMarket: report.highDaysOnMarket ?? null,
+    saleCompCount: report.saleCompCount ?? null,
+    askingPriceDelta: report.askingPriceDelta ?? null,
+    recommendedOfferLow: report.recommendedOfferLow ?? null,
+    recommendedOfferHigh: report.recommendedOfferHigh ?? null,
+    report: report.report || null,
+    recentComps: Array.isArray(report.recentComps) ? report.recentComps : [],
+  };
+};
+
 const PropertyWorkspacePage = () => {
   const { propertyKey } = useParams();
   const navigate = useNavigate();
   const selectedSuggestionRef = useRef("");
+  const suppressSuggestionsRef = useRef(false);
 
   const [property, setProperty] = useState(null);
   const [formData, setFormData] = useState(buildFormState(null));
@@ -170,6 +225,23 @@ const PropertyWorkspacePage = () => {
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
   const [isAddingLeadWorkspace, setIsAddingLeadWorkspace] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
+  const [leadWorkspace, setLeadWorkspace] = useState(null);
+  const [leadWorkspaceLoading, setLeadWorkspaceLoading] = useState(false);
+  const [leadWorkspaceError, setLeadWorkspaceError] = useState("");
+  const [analysis, setAnalysis] = useState(null);
+  const [filters, setFilters] = useState(() => buildCompsFilters());
+  const [compsNotice, setCompsNotice] = useState("");
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [savedReports, setSavedReports] = useState([]);
+  const [savedReportsLoading, setSavedReportsLoading] = useState(false);
+  const [isSavingReport, setIsSavingReport] = useState(false);
+  const [bids, setBids] = useState([]);
+  const [billingAccess, setBillingAccess] = useState(null);
+  const [isBillingAccessLoading, setIsBillingAccessLoading] = useState(false);
+  const [isStartingSubscription, setIsStartingSubscription] = useState(false);
+
+  const pipelineLeadId = property?.workspaces?.pipeline?.id || "";
+  const pipelineLeadPath = property?.workspaces?.pipeline?.path || "";
 
   const syncPropertyState = useCallback(
     (nextProperty) => {
@@ -219,6 +291,111 @@ const PropertyWorkspacePage = () => {
     };
   }, [propertyKey, syncPropertyState]);
 
+  const loadLeadBillingAccess = useCallback(async () => {
+    if (!pipelineLeadId) {
+      setBillingAccess(null);
+      return;
+    }
+
+    try {
+      setIsBillingAccessLoading(true);
+      const access = await getBillingAccess("comps_report", pipelineLeadId);
+      setBillingAccess(access);
+    } catch (billingError) {
+      setBillingAccess(null);
+    } finally {
+      setIsBillingAccessLoading(false);
+    }
+  }, [pipelineLeadId]);
+
+  const loadLeadWorkspace = useCallback(async () => {
+    if (!pipelineLeadId) {
+      setLeadWorkspace(null);
+      setLeadWorkspaceError("");
+      setAnalysis(null);
+      setFilters(buildCompsFilters());
+      setCompsNotice("");
+      setSavedReports([]);
+      setSavedReportsLoading(false);
+      setBids([]);
+      setBillingAccess(null);
+      setIsBillingAccessLoading(false);
+      return;
+    }
+
+    try {
+      setLeadWorkspaceLoading(true);
+      setSavedReportsLoading(true);
+      setIsBillingAccessLoading(true);
+      setLeadWorkspaceError("");
+
+      const [leadData, bidsData, savedReportsData, access] = await Promise.all([
+        getLeadDetails(pipelineLeadId),
+        getBidsForLead(pipelineLeadId).catch((bidsError) => {
+          console.error("Failed to load property workspace bids", bidsError);
+          return [];
+        }),
+        getPropertyReports({
+          kind: "comps",
+          contextType: "lead",
+          leadId: pipelineLeadId,
+        }).catch((savedReportsError) => {
+          if (!isSavedReportsBackendUnavailable(savedReportsError)) {
+            console.error("Failed to load property workspace reports", savedReportsError);
+          }
+          return [];
+        }),
+        getBillingAccess("comps_report", pipelineLeadId).catch(() => null),
+      ]);
+
+      setLeadWorkspace(leadData);
+      setBids(bidsData);
+      setBillingAccess(access);
+
+      const legacySavedReport = buildSavedReportFromLegacySnapshot(
+        leadData,
+        leadData.compsAnalysis,
+        `legacy-${leadData._id || pipelineLeadId}`
+      );
+
+      const nextSavedReports =
+        savedReportsData.length > 0
+          ? savedReportsData
+          : legacySavedReport
+            ? [legacySavedReport]
+            : [];
+
+      setSavedReports(nextSavedReports);
+      setAnalysis(
+        nextSavedReports[0]
+          ? buildAnalysisFromSavedReport(nextSavedReports[0], leadData)
+          : null
+      );
+      setFilters(
+        buildCompsFilters(
+          leadData,
+          nextSavedReports[0]?.filters || leadData.compsAnalysis?.filters || {}
+        )
+      );
+      setCompsNotice("");
+    } catch (leadError) {
+      setLeadWorkspace(null);
+      setAnalysis(null);
+      setSavedReports([]);
+      setBids([]);
+      setBillingAccess(null);
+      setLeadWorkspaceError(leadError.message || "Failed to load the linked lead workspace.");
+    } finally {
+      setLeadWorkspaceLoading(false);
+      setSavedReportsLoading(false);
+      setIsBillingAccessLoading(false);
+    }
+  }, [pipelineLeadId]);
+
+  useEffect(() => {
+    loadLeadWorkspace();
+  }, [loadLeadWorkspace]);
+
   useEffect(() => {
     const query = composeAddress({
       addressLine1: formData.addressLine1,
@@ -226,7 +403,7 @@ const PropertyWorkspacePage = () => {
       state: formData.state,
       zipCode: formData.zipCode,
     }).trim();
-    if (query.length < 4 || query === selectedSuggestionRef.current) {
+    if (suppressSuggestionsRef.current || query.length < 4 || query === selectedSuggestionRef.current) {
       setSuggestions([]);
       return undefined;
     }
@@ -288,10 +465,30 @@ const PropertyWorkspacePage = () => {
     };
   }, [property]);
 
+  const renovationItems = useMemo(
+    () => buildRenovationForm(leadWorkspace || {}).items,
+    [leadWorkspace]
+  );
+
+  const leadPricingSummary = useMemo(() => {
+    if (!leadWorkspace) {
+      return {
+        askingPrice: null,
+        targetOffer: null,
+      };
+    }
+
+    return {
+      askingPrice: leadWorkspace.sellerAskingPrice ?? null,
+      targetOffer: leadWorkspace.targetOffer ?? null,
+    };
+  }, [leadWorkspace]);
+
   const handleChange = (event) => {
     const { name, value } = event.target;
 
     if (["addressLine1", "city", "state", "zipCode"].includes(name)) {
+      suppressSuggestionsRef.current = false;
       selectedSuggestionRef.current = "";
       setPreviewMetadata(null);
     }
@@ -333,10 +530,16 @@ const PropertyWorkspacePage = () => {
         listingStatus: previewSource.listingStatus || undefined,
       });
 
-      setFormData((current) => ({
-        ...current,
-        ...mapPreviewToForm(preview),
-      }));
+      const mappedPreview = mapPreviewToForm(preview);
+      suppressSuggestionsRef.current = true;
+      setFormData((current) => {
+        const next = {
+          ...current,
+          ...mappedPreview,
+        };
+        selectedSuggestionRef.current = composeAddress(next) || address;
+        return next;
+      });
       setPreviewMetadata(preview.metadata || null);
       setSuggestions([]);
     } catch (previewError) {
@@ -348,6 +551,7 @@ const PropertyWorkspacePage = () => {
 
   const handleSelectSuggestion = async (suggestion) => {
     const parsedAddress = parseAddressLabel(suggestion.place_name);
+    suppressSuggestionsRef.current = true;
     selectedSuggestionRef.current = composeAddress(parsedAddress) || suggestion.place_name;
     setSuggestions([]);
     setFormData((current) => ({
@@ -410,6 +614,153 @@ const PropertyWorkspacePage = () => {
     }
   };
 
+  const handleLeadFilterChange = (event) => {
+    const { name, value } = event.target;
+    setFilters((previous) => ({ ...previous, [name]: value }));
+  };
+
+  const handleRunLeadAnalysis = async () => {
+    if (!pipelineLeadId) {
+      toast.error("Add this property to leads first.");
+      return;
+    }
+
+    setIsAnalyzing(true);
+    setLeadWorkspaceError("");
+    setCompsNotice("");
+
+    try {
+      const result = await analyzeLeadComps(pipelineLeadId, filters);
+      if (result?.noResults) {
+        setAnalysis(null);
+        setCompsNotice(
+          result.msg ||
+            "No comparable properties matched the selected filters. Try widening the radius or relaxing the size filters."
+        );
+        setLeadWorkspace((previous) =>
+          previous
+            ? {
+                ...previous,
+                ...(result.subject || {}),
+              }
+            : previous
+        );
+        toast(result.msg || "No comparable properties matched the selected filters.");
+        return;
+      }
+
+      setAnalysis(result);
+      setCompsNotice("");
+      setLeadWorkspace((previous) =>
+        previous
+          ? {
+              ...previous,
+              ...(result.subject || {}),
+            }
+          : previous
+      );
+      await loadLeadBillingAccess();
+    } catch (analysisError) {
+      setLeadWorkspaceError(analysisError.message || "Analysis failed.");
+      toast.error(analysisError.message || "Analysis failed.");
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
+  const handleSaveLeadReport = async ({
+    subject,
+    filters: reportFilters,
+    valuationContext,
+    selectedComps,
+  }) => {
+    if (!pipelineLeadId) {
+      toast.error("Add this property to leads first.");
+      return;
+    }
+
+    setIsSavingReport(true);
+    setLeadWorkspaceError("");
+
+    try {
+      const savedReport = await saveCompsReport({
+        contextType: "lead",
+        leadId: pipelineLeadId,
+        subject,
+        filters: reportFilters,
+        valuationContext,
+        selectedComps,
+      });
+
+      setSavedReports((previous) => [
+        savedReport,
+        ...previous.filter(
+          (report) =>
+            report._id !== savedReport._id && !String(report._id || "").startsWith("legacy-")
+        ),
+      ]);
+      setAnalysis(buildAnalysisFromSavedReport(savedReport, subject));
+      setLeadWorkspace((previous) =>
+        previous
+          ? {
+              ...previous,
+              compsAnalysis: buildLeadCompsAnalysisSnapshotFromReport(savedReport),
+            }
+          : previous
+      );
+      setActiveTab("saved-reports");
+      toast.success("Comps report saved.");
+    } catch (saveError) {
+      setLeadWorkspaceError(saveError.message || "Failed to save comps report.");
+      toast.error(saveError.message || "Failed to save comps report.");
+    } finally {
+      setIsSavingReport(false);
+    }
+  };
+
+  const handleStartSubscription = async () => {
+    setIsStartingSubscription(true);
+    try {
+      const { url } = await createSubscriptionCheckout("pro");
+      window.location.href = url;
+    } catch (subscriptionError) {
+      setLeadWorkspaceError(subscriptionError.message || "Could not start the Pro checkout.");
+      setIsStartingSubscription(false);
+    }
+  };
+
+  const handleLeadUpdated = useCallback((updatedLead) => {
+    if (!updatedLead) {
+      return;
+    }
+
+    setLeadWorkspace(updatedLead);
+    setAnalysis((previous) =>
+      previous
+        ? {
+            ...previous,
+            subject: {
+              ...previous.subject,
+              ...updatedLead,
+            },
+          }
+        : previous
+    );
+  }, []);
+
+  const handleBidsUpdated = useCallback(async () => {
+    if (!pipelineLeadId) {
+      return;
+    }
+
+    try {
+      const nextBids = await getBidsForLead(pipelineLeadId);
+      setBids(nextBids);
+    } catch (bidsError) {
+      toast.error(bidsError.message || "Failed to refresh bids.");
+    }
+  }, [pipelineLeadId]);
+
   if (loading) {
     return (
       <div className="section-card px-6 py-10 text-center text-ink-500">
@@ -433,6 +784,68 @@ const PropertyWorkspacePage = () => {
       </div>
     );
   }
+
+  const renderLeadWorkspaceRequiredState = ({
+    eyebrow = "Linked lead workspace",
+    title = "Add this property to leads first",
+    description = "This section uses the lead workspace for saved reports, AI analysis, renovation planning, and bid management.",
+  } = {}) => (
+    <section className="section-card p-6 sm:p-7">
+      <span className="eyebrow">{eyebrow}</span>
+      <h3 className="mt-4 text-3xl font-semibold text-ink-900">{title}</h3>
+      <p className="mt-3 max-w-2xl text-sm leading-6 text-ink-500">{description}</p>
+      <div className="mt-6 flex flex-wrap gap-3">
+        <button
+          type="button"
+          onClick={handleCreateLeadWorkspace}
+          disabled={isAddingLeadWorkspace}
+          className="primary-action disabled:cursor-not-allowed disabled:opacity-70"
+        >
+          {isAddingLeadWorkspace ? "Adding..." : "Add to leads"}
+        </button>
+      </div>
+    </section>
+  );
+
+  const renderLeadWorkspaceLoadingState = (label = "Loading linked lead workspace...") => (
+    <div className="section-card px-6 py-10 text-center text-ink-500">{label}</div>
+  );
+
+  const renderLeadWorkspaceErrorState = () => (
+    <section className="section-card p-6 sm:p-7">
+      <span className="eyebrow">Linked lead workspace</span>
+      <h3 className="mt-4 text-3xl font-semibold text-ink-900">We could not load the lead data</h3>
+      <p className="mt-3 max-w-2xl text-sm leading-6 text-ink-500">
+        {leadWorkspaceError || "The linked lead workspace could not be loaded right now."}
+      </p>
+      <div className="mt-6 flex flex-wrap gap-3">
+        <button type="button" onClick={loadLeadWorkspace} className="primary-action">
+          Try again
+        </button>
+        {pipelineLeadPath ? (
+          <Link to={pipelineLeadPath} className="secondary-action">
+            Open lead
+          </Link>
+        ) : null}
+      </div>
+    </section>
+  );
+
+  const renderLeadTabContent = (renderContent, loadingLabel) => {
+    if (!pipelineLeadId) {
+      return renderLeadWorkspaceRequiredState();
+    }
+
+    if (leadWorkspaceLoading && !leadWorkspace) {
+      return renderLeadWorkspaceLoadingState(loadingLabel);
+    }
+
+    if (!leadWorkspace) {
+      return renderLeadWorkspaceErrorState();
+    }
+
+    return renderContent();
+  };
 
   return (
     <div className="space-y-4">
@@ -516,12 +929,42 @@ const PropertyWorkspacePage = () => {
           onClick={() => setActiveTab("overview")}
         />
         <TabButton
-          active={activeTab === "tasks"}
+          active={activeTab === "comps"}
+          icon={SparklesIcon}
+          label="AI Comps Analysis"
+          onClick={() => setActiveTab("comps")}
+        />
+        <TabButton
+          active={activeTab === "saved-reports"}
+          icon={PencilSquareIcon}
+          label="Saved AI Reports"
+          onClick={() => setActiveTab("saved-reports")}
+        />
+        <TabButton
+          active={activeTab === "renovation"}
+          icon={WrenchScrewdriverIcon}
+          label="Renovation Plan"
+          onClick={() => setActiveTab("renovation")}
+        />
+        <TabButton
+          active={activeTab === "bids"}
           icon={ClipboardDocumentListIcon}
+          label="Bid Management"
+          onClick={() => setActiveTab("bids")}
+        />
+        <TabButton
+          active={activeTab === "tasks"}
+          icon={CheckCircleIcon}
           label="Tasks"
           onClick={() => setActiveTab("tasks")}
         />
       </div>
+
+      {leadWorkspaceError && activeTab !== "overview" ? (
+        <div className="rounded-[16px] border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
+          {leadWorkspaceError}
+        </div>
+      ) : null}
 
       {activeTab === "overview" ? (
         <section className="grid gap-4 xl:grid-cols-[minmax(0,1.16fr)_minmax(320px,0.84fr)]">
@@ -818,6 +1261,113 @@ const PropertyWorkspacePage = () => {
           </div>
         </div>
       </section>
+      ) : activeTab === "comps" ? (
+        renderLeadTabContent(
+          () => (
+            <CompsReportWorkspace
+              subject={leadWorkspace}
+              analysis={analysis}
+              filters={filters}
+              onFilterChange={handleLeadFilterChange}
+              isAnalyzing={isAnalyzing}
+              onRunAnalysis={handleRunLeadAnalysis}
+              billingAccess={billingAccess}
+              isBillingAccessLoading={isBillingAccessLoading}
+              onStartSubscription={handleStartSubscription}
+              isStartingSubscription={isStartingSubscription}
+              onSaveReport={handleSaveLeadReport}
+              isSavingReport={isSavingReport}
+              saveButtonLabel="Save Property Report"
+              showOneTimeCheckout={false}
+              compsNotice={compsNotice}
+              renderSubjectPanel={() => (
+                <div className="section-card p-6">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <h3 className="text-xl font-semibold text-ink-900">Lead-linked deal snapshot</h3>
+                      <p className="mt-1 text-sm text-ink-500">
+                        This pulls from the connected lead so the property workspace stays aligned with
+                        saved comps reports and deal assumptions.
+                      </p>
+                    </div>
+                    {pipelineLeadPath ? (
+                      <Link to={pipelineLeadPath} className="ghost-action">
+                        Open lead
+                      </Link>
+                    ) : null}
+                  </div>
+
+                  <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                    <div className="rounded-[18px] bg-sand-50 px-4 py-3">
+                      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-400">
+                        Property
+                      </p>
+                      <p className="mt-2 text-sm font-semibold text-ink-900">
+                        {[
+                          leadWorkspace.propertyType,
+                          leadWorkspace.squareFootage
+                            ? `${Number(leadWorkspace.squareFootage).toLocaleString()} sqft`
+                            : null,
+                        ]
+                          .filter(Boolean)
+                          .join(" • ") || "No property facts saved yet"}
+                      </p>
+                    </div>
+                    <div className="rounded-[18px] bg-sand-50 px-4 py-3">
+                      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-400">
+                        Pricing
+                      </p>
+                      <p className="mt-2 text-sm font-semibold text-ink-900">
+                        Ask {formatCurrency(leadPricingSummary.askingPrice)}
+                      </p>
+                      <p className="mt-1 text-xs text-ink-500">
+                        Target {formatCurrency(leadPricingSummary.targetOffer)}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            />
+          ),
+          "Loading AI comps analysis..."
+        )
+      ) : activeTab === "saved-reports" ? (
+        renderLeadTabContent(
+          () => (
+            <SavedCompsReportsTab
+              reports={savedReports}
+              isLoading={savedReportsLoading}
+              title="Saved property AI reports"
+              description="Every saved comps snapshot for this property's linked lead lives here so you can compare different comp sets over time."
+              emptyTitle="No property AI reports saved yet"
+              emptyMessage="Run the AI comps analysis, choose the comps you want to keep, and save the report to build the property's comps history."
+            />
+          ),
+          "Loading saved AI reports..."
+        )
+      ) : activeTab === "renovation" ? (
+        renderLeadTabContent(
+          () => (
+            <LeadRenovationTab
+              lead={leadWorkspace}
+              leadId={pipelineLeadId}
+              onLeadUpdated={handleLeadUpdated}
+            />
+          ),
+          "Loading renovation plan..."
+        )
+      ) : activeTab === "bids" ? (
+        renderLeadTabContent(
+          () => (
+            <BidsTab
+              leadId={pipelineLeadId}
+              bids={bids}
+              renovationItems={renovationItems}
+              onUpdate={handleBidsUpdated}
+            />
+          ),
+          "Loading bid management..."
+        )
       ) : (
         <TasksPanel
           eyebrow="Property tasks"
