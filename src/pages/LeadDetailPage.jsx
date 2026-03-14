@@ -3,6 +3,7 @@ import toast from "react-hot-toast";
 import { Link, useLocation, useParams } from "react-router-dom";
 import {
   ArrowPathIcon,
+  CheckCircleIcon,
   ClipboardDocumentListIcon,
   HomeModernIcon,
   PencilSquareIcon,
@@ -27,6 +28,7 @@ import {
 } from "../utils/api";
 import { searchAddressSuggestions } from "../utils/locationSearch";
 import BidsTab from "../components/BidsTab";
+import TasksPanel from "../components/TasksPanel";
 
 const occupancyOptions = ["Unknown", "Vacant", "Owner Occupied", "Tenant Occupied"];
 const leadStatusOptions = [
@@ -1143,6 +1145,7 @@ const LeadDetailPage = () => {
         renovationPlan: buildRenovationPayload(renovationForm),
       });
       setLead(updatedLead);
+      setRenovationForm(buildRenovationForm(updatedLead));
       setLastRenovationSavedAt(new Date().toISOString());
       toast.success("Renovation plan saved. It will stay here when you reopen the lead.");
     } catch (err) {
@@ -1293,6 +1296,12 @@ const LeadDetailPage = () => {
           icon={ClipboardDocumentListIcon}
           label="Bid Management"
           onClick={() => setActiveTab("bids")}
+        />
+        <TabButton
+          active={activeTab === "tasks"}
+          icon={CheckCircleIcon}
+          label="Tasks"
+          onClick={() => setActiveTab("tasks")}
         />
       </div>
 
@@ -2273,8 +2282,30 @@ const LeadDetailPage = () => {
         <BidsTab
           leadId={id}
           bids={bids}
-          renovationItems={lead.renovationPlan?.items || []}
+          renovationItems={renovationForm.items}
           onUpdate={fetchData}
+        />
+      )}
+
+      {activeTab === "tasks" && (
+        <TasksPanel
+          eyebrow="Lead tasks"
+          title="Lead follow-up and execution tasks"
+          description="Create lead-specific work here, or tie the task to this property so it also appears in the property record and the main task center."
+          query={{
+            sourceType: "lead",
+            sourceId: id,
+            propertyKey: propertyWorkspaceId || undefined,
+            match: propertyWorkspaceId ? "any" : undefined,
+          }}
+          defaults={{
+            sourceType: "lead",
+            sourceId: id,
+            sourceLabel: liveLead.address || "Lead",
+            propertyKey: propertyWorkspaceId || "",
+          }}
+          emptyTitle="No lead tasks yet"
+          emptyDescription="Add the first follow-up, diligence item, or contractor action for this lead."
         />
       )}
     </div>
