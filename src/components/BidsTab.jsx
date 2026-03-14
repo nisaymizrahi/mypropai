@@ -51,7 +51,38 @@ const normalizeBids = (items) => {
   return items.filter((item) => item && typeof item === "object" && !Array.isArray(item));
 };
 
-const BidsTab = ({ leadId, bids = [], renovationItems = [], onUpdate }) => {
+class BidsTabErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error) {
+    console.error("Bid management render error:", error);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="section-card px-5 py-10 text-center">
+          <h3 className="text-xl font-semibold text-ink-900">Bid management needs a refresh</h3>
+          <p className="mt-2 text-sm leading-6 text-ink-500">
+            Something in the existing quote data could not be rendered. Refresh the page and try
+            again. If it still happens, this lead likely has an older bid record we need to clean up.
+          </p>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
+const BidsTabContent = ({ leadId, bids = [], renovationItems = [], onUpdate }) => {
   const fileInputRef = useRef(null);
 
   const [fileToUpload, setFileToUpload] = useState(null);
@@ -562,5 +593,11 @@ const BidsTab = ({ leadId, bids = [], renovationItems = [], onUpdate }) => {
     </>
   );
 };
+
+const BidsTab = (props) => (
+  <BidsTabErrorBoundary>
+    <BidsTabContent {...props} />
+  </BidsTabErrorBoundary>
+);
 
 export default BidsTab;
