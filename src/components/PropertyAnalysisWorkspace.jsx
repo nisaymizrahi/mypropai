@@ -23,6 +23,47 @@ const SectionCard = ({ title, subtitle, children, action }) => (
   </div>
 );
 
+const formatStructuredValue = (value) => {
+  if (value === null || value === undefined || value === "") return "—";
+  if (React.isValidElement(value)) return value;
+
+  if (Array.isArray(value)) {
+    const rendered = value
+      .map((entry) => formatStructuredValue(entry))
+      .filter((entry) => typeof entry === "string" && entry !== "—");
+    return rendered.length ? rendered.join(", ") : "—";
+  }
+
+  if (typeof value === "object") {
+    const formattedAddress =
+      value.formattedAddress ||
+      [
+        value.addressLine1,
+        value.addressLine2,
+        value.city,
+        value.state,
+        value.zipCode,
+      ]
+        .filter(Boolean)
+        .join(", ");
+
+    if (formattedAddress) return formattedAddress;
+
+    const rendered = Object.entries(value)
+      .map(([key, entryValue]) => {
+        const nestedValue = formatStructuredValue(entryValue);
+        if (typeof nestedValue !== "string" || nestedValue === "—") return null;
+        return `${key}: ${nestedValue}`;
+      })
+      .filter(Boolean)
+      .join(", ");
+
+    return rendered || "—";
+  }
+
+  return String(value);
+};
+
 const FieldGrid = ({ items }) => (
   <dl className="grid gap-4 sm:grid-cols-2">
     {items.map((item) => (
@@ -30,7 +71,9 @@ const FieldGrid = ({ items }) => (
         <dt className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-400">
           {item.label}
         </dt>
-        <dd className="mt-2 text-sm font-semibold text-ink-900">{item.value}</dd>
+        <dd className="mt-2 text-sm font-semibold text-ink-900">
+          {formatStructuredValue(item.value)}
+        </dd>
       </div>
     ))}
   </dl>
