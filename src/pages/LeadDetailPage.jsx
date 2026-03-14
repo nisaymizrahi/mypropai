@@ -1060,7 +1060,7 @@ const LeadDetailPage = () => {
 
   const handleSelectSuggestion = async (suggestion) => {
     const parsedAddress = parseAddressLabel(suggestion.place_name);
-    selectedSuggestionRef.current = suggestion.place_name;
+    selectedSuggestionRef.current = composeAddress(parsedAddress) || suggestion.place_name;
     setSuggestions([]);
     setDetailForm((previous) => ({
       ...previous,
