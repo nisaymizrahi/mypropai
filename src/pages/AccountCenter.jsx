@@ -1,12 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import {
-  ArrowTopRightOnSquareIcon,
-  BanknotesIcon,
   BoltIcon,
-  CheckBadgeIcon,
   CreditCardIcon,
-  ShieldCheckIcon,
   UserCircleIcon,
 } from "@heroicons/react/24/outline";
 import toast from "react-hot-toast";
@@ -15,24 +11,11 @@ import { useAuth } from "../context/AuthContext";
 import {
   changePassword,
   createBillingPortalSession,
-  createStripeConnectAccount,
   createSubscriptionCheckout,
   getBillingOverview,
   syncBillingCheckoutSession,
   updateUserProfile,
 } from "../utils/api";
-import {
-  FONT_SIZE_OPTIONS,
-  getFontSizeOption,
-  loadFontSizePreference,
-  persistFontSizePreference,
-} from "../utils/fontPreferences";
-import {
-  DENSITY_OPTIONS,
-  getDensityOption,
-  loadDensityPreference,
-  persistDensityPreference,
-} from "../utils/densityPreferences";
 import {
   getSidebarOption,
   loadSidebarPreference,
@@ -40,24 +23,6 @@ import {
   SIDEBAR_OPTIONS,
   SIDEBAR_PREFERENCE_EVENT,
 } from "../utils/sidebarPreferences";
-
-const formatCurrency = (amountCents = 0, currency = "usd") =>
-  new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: currency.toUpperCase(),
-    maximumFractionDigits: 0,
-  }).format((amountCents || 0) / 100);
-
-const formatFeeInput = (amountCents = 5000) => ((amountCents || 0) / 100).toFixed(2);
-
-const parseFeeInputToCents = (value) => {
-  if (value === "" || value === null || value === undefined) {
-    return 0;
-  }
-
-  const normalized = Number(value);
-  return Number.isFinite(normalized) && normalized >= 0 ? Math.round(normalized * 100) : null;
-};
 
 const LoadingSpinner = () => (
   <div className="surface-panel flex items-center justify-center px-6 py-20">
@@ -144,24 +109,16 @@ const AccountCenter = () => {
 
   const [profileData, setProfileData] = useState({ name: "", email: "" });
   const [isProfileSaving, setIsProfileSaving] = useState(false);
-  const [applicationSettings, setApplicationSettings] = useState({
-    applicationFee: formatFeeInput(),
-  });
-  const [isApplicationSettingsSaving, setIsApplicationSettingsSaving] = useState(false);
-
   const [passwordData, setPasswordData] = useState({
     currentPassword: "",
     newPassword: "",
   });
   const [isPasswordSaving, setIsPasswordSaving] = useState(false);
 
-  const [isConnecting, setIsConnecting] = useState(false);
   const [billingOverview, setBillingOverview] = useState(null);
   const [isBillingLoading, setIsBillingLoading] = useState(true);
   const [isStartingSubscription, setIsStartingSubscription] = useState(false);
   const [isOpeningPortal, setIsOpeningPortal] = useState(false);
-  const [fontSizePreference, setFontSizePreference] = useState(() => loadFontSizePreference());
-  const [densityPreference, setDensityPreference] = useState(() => loadDensityPreference());
   const [sidebarPreference, setSidebarPreference] = useState(() => loadSidebarPreference());
 
   const loadBillingOverview = useCallback(async () => {
@@ -179,9 +136,6 @@ const AccountCenter = () => {
   useEffect(() => {
     if (user) {
       setProfileData({ name: user.name || "", email: user.email || "" });
-      setApplicationSettings({
-        applicationFee: formatFeeInput(user.applicationFeeCents),
-      });
     }
   }, [user]);
 
@@ -247,13 +201,6 @@ const AccountCenter = () => {
     }));
   };
 
-  const handleApplicationSettingsChange = (event) => {
-    setApplicationSettings((current) => ({
-      ...current,
-      [event.target.name]: event.target.value,
-    }));
-  };
-
   const handleProfileSubmit = async (event) => {
     event.preventDefault();
     setIsProfileSaving(true);
@@ -282,38 +229,6 @@ const AccountCenter = () => {
     }
   };
 
-  const handleApplicationSettingsSubmit = async (event) => {
-    event.preventDefault();
-
-    const applicationFeeCents = parseFeeInputToCents(applicationSettings.applicationFee);
-    if (applicationFeeCents === null || applicationFeeCents > 100000) {
-      toast.error("Application fee must be between $0 and $1,000.");
-      return;
-    }
-
-    setIsApplicationSettingsSaving(true);
-    try {
-      await updateUserProfile({ applicationFeeCents });
-      await refreshUser();
-      toast.success("Application settings updated.");
-    } catch (error) {
-      toast.error(error.message || "Failed to update application settings.");
-    } finally {
-      setIsApplicationSettingsSaving(false);
-    }
-  };
-
-  const handleStripeConnect = async () => {
-    setIsConnecting(true);
-    try {
-      const { url } = await createStripeConnectAccount();
-      window.location.href = url;
-    } catch (error) {
-      toast.error(error.message || "Could not connect to Stripe. Please try again.");
-      setIsConnecting(false);
-    }
-  };
-
   const handleStartSubscription = async () => {
     setIsStartingSubscription(true);
     try {
@@ -336,18 +251,6 @@ const AccountCenter = () => {
     }
   };
 
-  const handleFontSizeChange = (value) => {
-    const appliedOption = persistFontSizePreference(value);
-    setFontSizePreference(appliedOption.value);
-    toast.success(`${appliedOption.label} font size applied.`);
-  };
-
-  const handleDensityChange = (value) => {
-    const appliedOption = persistDensityPreference(value);
-    setDensityPreference(appliedOption.value);
-    toast.success(`${appliedOption.label} density applied.`);
-  };
-
   const handleSidebarChange = (value) => {
     const appliedOption = persistSidebarPreference(value);
     setSidebarPreference(appliedOption.value);
@@ -359,13 +262,8 @@ const AccountCenter = () => {
   }
 
   const currentPlan = billingOverview?.plan;
-  const catalog = billingOverview?.catalog;
   const usage = billingOverview?.usage?.compsReport;
-  const purchases = billingOverview?.purchases || [];
   const planFeatures = currentPlan?.features || [];
-  const oneTimeProducts = catalog?.oneTimeProducts || [];
-  const activeFontSizeOption = getFontSizeOption(fontSizePreference);
-  const activeDensityOption = getDensityOption(densityPreference);
   const activeSidebarOption = getSidebarOption(sidebarPreference);
 
   return (
@@ -375,12 +273,10 @@ const AccountCenter = () => {
         <div className="relative grid gap-8 lg:grid-cols-[minmax(0,1.05fr)_minmax(320px,0.95fr)]">
           <div>
             <span className="eyebrow">Account and billing</span>
-            <h2 className="page-hero-title">
-              Manage your workspace profile, subscription, and payout setup.
-            </h2>
+            <h2 className="page-hero-title">Manage your workspace profile and subscription.</h2>
             <p className="page-hero-copy">
-              Keep your operator identity current, review billing posture, and make sure
-              application fees and future rent flows land in the right payout account.
+              Keep your operator identity current, review your plan, and manage the subscription
+              attached to this workspace.
             </p>
 
             <div className="mt-8 flex flex-wrap gap-3">
@@ -403,19 +299,6 @@ const AccountCenter = () => {
                   {isStartingSubscription ? "Redirecting..." : "Upgrade to Pro"}
                 </button>
               )}
-
-              <button
-                type="button"
-                onClick={handleStripeConnect}
-                disabled={isConnecting || user?.stripeOnboardingComplete}
-                className="secondary-action disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {user?.stripeOnboardingComplete
-                  ? "Stripe connected"
-                  : isConnecting
-                    ? "Connecting..."
-                    : "Connect Stripe"}
-              </button>
             </div>
           </div>
 
@@ -460,18 +343,14 @@ const AccountCenter = () => {
 
               <div
                 className={`rounded-[18px] px-4 py-4 ${
-                  user?.stripeOnboardingComplete
-                    ? "bg-verdigris-50 text-verdigris-800"
-                    : "bg-clay-50 text-clay-800"
+                  currentPlan?.isActive ? "bg-verdigris-50 text-verdigris-800" : "bg-sand-50 text-sand-800"
                 }`}
               >
                 <p className="text-xs font-semibold uppercase tracking-[0.16em]">
-                  Stripe payouts
+                  Plan status
                 </p>
                 <p className="mt-1 text-sm font-semibold">
-                  {user?.stripeOnboardingComplete
-                    ? "Connected and ready to receive funds"
-                    : "Not connected yet"}
+                  {currentPlan?.isActive ? currentPlan.status || "Active" : "No active paid plan"}
                 </p>
               </div>
             </div>
@@ -479,7 +358,7 @@ const AccountCenter = () => {
         </div>
       </section>
 
-      <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+      <section className="grid gap-5 md:grid-cols-2">
         <MetricCard
           label="Plan"
           value={currentPlan?.name || "Starter"}
@@ -501,27 +380,6 @@ const AccountCenter = () => {
           }
           icon={BoltIcon}
           accent="verdigris"
-        />
-        <MetricCard
-          label="Purchases"
-          value={purchases.length}
-          detail="Tracked billing records and one-time service purchases to date."
-          icon={BanknotesIcon}
-          accent="sand"
-        />
-        <MetricCard
-          label="Payouts"
-          value={user?.stripeOnboardingComplete ? "Ready" : "Pending"}
-          detail="Whether Stripe payouts are set up for application fees and income collection."
-          icon={CheckBadgeIcon}
-          accent={user?.stripeOnboardingComplete ? "verdigris" : "clay"}
-        />
-        <MetricCard
-          label="App Fee"
-          value={formatCurrency(user?.applicationFeeCents || 0)}
-          detail="The amount applicants currently pay before the manager can run screening."
-          icon={BanknotesIcon}
-          accent="sand"
         />
       </section>
 
@@ -647,7 +505,7 @@ const AccountCenter = () => {
                     )}
                   </div>
 
-                  {planFeatures.length > 0 ? (
+                    {planFeatures.length > 0 ? (
                     <div className="mt-5 grid gap-3 md:grid-cols-2">
                       {planFeatures.map((feature) => (
                         <div
@@ -660,215 +518,19 @@ const AccountCenter = () => {
                     </div>
                   ) : null}
                 </div>
-
-                <div>
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-                    <div>
-                      <h4 className="text-lg font-semibold text-ink-900">One-time services</h4>
-                      <p className="mt-1 text-sm text-ink-500">
-                        Purchase these from the related lead or application when needed.
-                      </p>
-                    </div>
-                    <Link
-                      to="/leads"
-                      className="inline-flex items-center text-sm font-semibold text-verdigris-700 hover:text-verdigris-800"
-                    >
-                      Open leads
-                      <ArrowTopRightOnSquareIcon className="ml-1.5 h-4 w-4" />
-                    </Link>
-                  </div>
-
-                  <div className="mt-4 grid gap-4 md:grid-cols-2">
-                    {oneTimeProducts.length > 0 ? (
-                      oneTimeProducts.map((product) => (
-                        <div
-                          key={product.key}
-                          className="rounded-[22px] border border-ink-100 bg-white p-5"
-                        >
-                          <div className="flex items-start justify-between gap-4">
-                            <div>
-                              <h5 className="text-base font-semibold text-ink-900">
-                                {product.name}
-                              </h5>
-                              <p className="mt-2 text-sm leading-6 text-ink-500">
-                                {product.description}
-                              </p>
-                            </div>
-                            <span className="text-lg font-semibold text-ink-900">
-                              {formatCurrency(product.priceCents, product.currency)}
-                            </span>
-                          </div>
-                          {product.monthlyIncludedQuantity ? (
-                            <p className="mt-4 text-xs leading-5 text-ink-400">
-                              Pro includes {product.monthlyIncludedQuantity} free reports each month. After that, the standard price is{" "}
-                              {formatCurrency(product.basePriceCents, product.currency)}.
-                            </p>
-                          ) : product.subscriberPriceCents ? (
-                            <p className="mt-4 text-xs leading-5 text-ink-400">
-                              Standard price{" "}
-                              {formatCurrency(product.basePriceCents, product.currency)}. Pro users
-                              pay {formatCurrency(product.subscriberPriceCents, product.currency)}.
-                            </p>
-                          ) : null}
-                        </div>
-                      ))
-                    ) : (
-                      <div className="rounded-[22px] border border-dashed border-ink-200 bg-sand-50 px-5 py-10 text-center text-ink-500 md:col-span-2">
-                        No one-time products are currently configured.
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div>
-                  <h4 className="text-lg font-semibold text-ink-900">Recent purchases</h4>
-                  {purchases.length > 0 ? (
-                    <div className="mt-4 space-y-3">
-                      {purchases.map((purchase) => (
-                        <div
-                          key={purchase.id}
-                          className="flex flex-wrap items-center justify-between gap-3 rounded-[20px] border border-ink-100 bg-white px-4 py-4"
-                        >
-                          <div>
-                            <p className="font-semibold capitalize text-ink-900">
-                              {purchase.kind.replace("_", " ")}
-                            </p>
-                            <p className="mt-1 text-sm text-ink-500">
-                              {purchase.purchasedAt
-                                ? new Date(purchase.purchasedAt).toLocaleDateString()
-                                : "Pending payment"}
-                            </p>
-                          </div>
-                          <div className="text-right">
-                            <p className="font-semibold text-ink-900">
-                              {formatCurrency(purchase.amountCents, purchase.currency)}
-                            </p>
-                            <p className="text-sm capitalize text-ink-400">{purchase.status}</p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="mt-4 rounded-[22px] border border-dashed border-ink-200 bg-sand-50 px-5 py-10 text-center text-ink-500">
-                      No billing activity yet.
-                    </div>
-                  )}
-                </div>
               </div>
             )}
-          </div>
-
-          <div className="section-card p-6 sm:p-7">
-            <span className="eyebrow">Applications</span>
-            <h3 className="mt-4 text-2xl font-semibold text-ink-900">Application settings</h3>
-            <p className="mt-2 text-sm leading-6 text-ink-500">
-              Set the application fee applicants pay before the screening step becomes available to
-              your team.
-            </p>
-
-            <form onSubmit={handleApplicationSettingsSubmit} className="mt-6 space-y-5">
-              <div>
-                <label htmlFor="applicationFee" className="auth-label">
-                  Application fee (USD)
-                </label>
-                <input
-                  id="applicationFee"
-                  name="applicationFee"
-                  type="number"
-                  min="0"
-                  max="1000"
-                  step="0.01"
-                  value={applicationSettings.applicationFee}
-                  onChange={handleApplicationSettingsChange}
-                  className="auth-input"
-                  placeholder="50.00"
-                />
-              </div>
-
-              <div className="rounded-[20px] border border-ink-100 bg-sand-50 px-4 py-4 text-sm leading-6 text-ink-600">
-                Applicants currently see and pay {formatCurrency(user?.applicationFeeCents || 0)}.
-                Once payment is confirmed, the manager can trigger tenant screening from the
-                application detail page.
-              </div>
-
-              <div className="flex justify-end">
-                <button
-                  type="submit"
-                  disabled={isApplicationSettingsSaving}
-                  className="primary-action disabled:cursor-not-allowed disabled:opacity-70"
-                >
-                  {isApplicationSettingsSaving ? "Saving..." : "Save application settings"}
-                </button>
-              </div>
-            </form>
           </div>
         </div>
 
         <div className="space-y-6">
           <div className="section-card p-6 sm:p-7">
-            <span className="eyebrow">Display</span>
+            <span className="eyebrow">Workspace</span>
             <p className="mt-4 text-sm leading-6 text-ink-500">
-              Tune readability and spacing without leaving the app. These preferences are saved in
-              this browser for the current user.
+              Choose how the desktop navigation opens by default in this browser.
             </p>
 
-            <div className="mt-6 space-y-6">
-              <div>
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-                  <div>
-                    <h3 className="text-2xl font-semibold text-ink-900">Font size</h3>
-                    <p className="mt-2 text-sm leading-6 text-ink-500">
-                      Choose the text scale that feels best on this device.
-                    </p>
-                  </div>
-                  <div className="rounded-full bg-sand-100 px-4 py-2 text-sm font-semibold text-ink-600">
-                    {activeFontSizeOption.label}
-                  </div>
-                </div>
-
-                <div className="mt-4 grid gap-3">
-                  {FONT_SIZE_OPTIONS.map((option) => (
-                    <PreferenceOptionCard
-                      key={option.value}
-                      active={fontSizePreference === option.value}
-                      label={option.label}
-                      description={option.description}
-                      previewStyle={{ fontSize: option.previewSize, lineHeight: 1.45 }}
-                      onClick={() => handleFontSizeChange(option.value)}
-                    />
-                  ))}
-                </div>
-              </div>
-
-              <div className="border-t border-ink-100 pt-6">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-                  <div>
-                    <h3 className="text-2xl font-semibold text-ink-900">Density</h3>
-                    <p className="mt-2 text-sm leading-6 text-ink-500">
-                      Adjust spacing on cards, controls, and panels across the workspace.
-                    </p>
-                  </div>
-                  <div className="rounded-full bg-sand-100 px-4 py-2 text-sm font-semibold text-ink-600">
-                    {activeDensityOption.label}
-                  </div>
-                </div>
-
-                <div className="mt-4 grid gap-3">
-                  {DENSITY_OPTIONS.map((option) => (
-                    <PreferenceOptionCard
-                      key={option.value}
-                      active={densityPreference === option.value}
-                      label={option.label}
-                      description={option.description}
-                      previewText="Panels, buttons, and forms follow this spacing mode."
-                      previewStyle={{ lineHeight: 1.45 }}
-                      onClick={() => handleDensityChange(option.value)}
-                    />
-                  ))}
-                </div>
-              </div>
-
-              <div className="border-t border-ink-100 pt-6">
+            <div className="mt-6">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                   <div>
                     <h3 className="text-2xl font-semibold text-ink-900">Sidebar</h3>
@@ -894,47 +556,7 @@ const AccountCenter = () => {
                     />
                   ))}
                 </div>
-              </div>
             </div>
-          </div>
-
-          <div className="section-card p-6 sm:p-7">
-            <span className="eyebrow">Payout setup</span>
-            <h3 className="mt-4 text-2xl font-semibold text-ink-900">Payments and Stripe</h3>
-
-            {user?.stripeOnboardingComplete ? (
-              <div className="mt-6 rounded-[22px] border border-verdigris-200 bg-verdigris-50 p-5 text-verdigris-900">
-                <div className="flex items-start gap-3">
-                  <ShieldCheckIcon className="mt-0.5 h-6 w-6 flex-shrink-0" />
-                  <div>
-                    <p className="font-semibold">Stripe payout account connected</p>
-                    <p className="mt-2 text-sm leading-6 text-verdigris-800">
-                      You are ready to accept application fees and rental income into your own bank account.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="mt-6 rounded-[22px] border border-clay-200 bg-clay-50 p-5 text-clay-900">
-                <div className="flex items-start gap-3">
-                  <BanknotesIcon className="mt-0.5 h-6 w-6 flex-shrink-0" />
-                  <div>
-                    <p className="font-semibold">Stripe still needs to be connected</p>
-                    <p className="mt-2 text-sm leading-6 text-clay-800">
-                      Connect your payout account to securely accept application fees and rental income.
-                    </p>
-                    <button
-                      type="button"
-                      onClick={handleStripeConnect}
-                      disabled={isConnecting}
-                      className="primary-action mt-4 disabled:cursor-not-allowed disabled:opacity-70"
-                    >
-                      {isConnecting ? "Connecting..." : "Connect with Stripe"}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
 
           <div className="section-card p-6 sm:p-7">
@@ -995,7 +617,7 @@ const AccountCenter = () => {
               <div>
                 <h3 className="text-lg font-semibold text-ink-900">Account posture</h3>
                 <p className="mt-2 text-sm leading-6 text-ink-500">
-                  Use this page as the operating layer for profile changes, billing checks, and payout readiness before you start collecting fees at scale.
+                  Use this page for profile changes, billing checks, and security updates.
                 </p>
               </div>
             </div>
