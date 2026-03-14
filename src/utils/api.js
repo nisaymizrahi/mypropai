@@ -439,7 +439,15 @@ export const deleteExpense = async (id) => {
 
 export const getVendors = async () => {
   const res = await fetch(`${API_BASE_URL}/vendors`, { headers: getAuthHeaders() });
-  if (!res.ok) throw new Error("Failed to fetch vendors");
+  if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to fetch vendors"));
+  return res.json();
+};
+
+export const getVendor = async (id) => {
+  const res = await fetch(`${API_BASE_URL}/vendors/${id}`, {
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to fetch vendor"));
   return res.json();
 };
 
@@ -469,6 +477,25 @@ export const deleteVendor = async (id) => {
     headers: getAuthHeaders(),
   });
   if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to delete vendor"));
+  return res.json();
+};
+
+export const uploadVendorDocument = async (vendorId, formData) => {
+  const res = await fetch(`${API_BASE_URL}/vendors/${vendorId}/documents`, {
+    method: "POST",
+    headers: getAuthHeaders(true),
+    body: formData,
+  });
+  if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to upload vendor document"));
+  return res.json();
+};
+
+export const deleteVendorDocument = async (vendorId, documentId) => {
+  const res = await fetch(`${API_BASE_URL}/vendors/${vendorId}/documents/${documentId}`, {
+    method: "DELETE",
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to delete vendor document"));
   return res.json();
 };
 

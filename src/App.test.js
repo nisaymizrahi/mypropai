@@ -73,6 +73,7 @@ jest.mock("./pages/SignupPage", () => () => <div>Signup screen</div>);
 jest.mock("./pages/LeadsPage", () => () => <div>Leads screen</div>);
 jest.mock("./pages/LeadDetailPage", () => () => <div>Lead detail screen</div>);
 jest.mock("./pages/TasksPage", () => () => <div>Tasks screen</div>);
+jest.mock("./pages/VendorsPage", () => () => <div>Vendors screen</div>);
 jest.mock("./pages/CreatePropertyPage", () => () => <div>Create property screen</div>);
 jest.mock("./pages/PropertyWorkspacePage", () => () => <div>Property workspace screen</div>);
 jest.mock("./pages/AccountCenter", () => () => <div>Account center screen</div>);
@@ -114,6 +115,13 @@ describe("App routes", () => {
 
     expect(screen.getByTestId("dashboard-layout")).toBeInTheDocument();
     expect(screen.getByText("Tasks screen")).toBeInTheDocument();
+  });
+
+  test("renders the vendors workspace inside the dashboard layout", () => {
+    renderAtPath("/vendors");
+
+    expect(screen.getByTestId("dashboard-layout")).toBeInTheDocument();
+    expect(screen.getByText("Vendors screen")).toBeInTheDocument();
   });
 
   test("renders the add property route inside the dashboard layout", () => {

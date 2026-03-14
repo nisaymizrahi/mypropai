@@ -10,6 +10,7 @@ import {
   PlusCircleIcon,
   ShieldCheckIcon,
   UsersIcon,
+  WrenchScrewdriverIcon,
   XMarkIcon,
 } from "@heroicons/react/24/outline";
 
@@ -28,6 +29,7 @@ const visibleNavSections = [
     links: [
       { to: "/leads", label: "Potential Properties", icon: UsersIcon },
       { to: "/tasks", label: "Tasks", icon: ClipboardDocumentListIcon },
+      { to: "/vendors", label: "Vendors", icon: WrenchScrewdriverIcon },
       { to: "/properties/new", label: "Add Property", icon: PlusCircleIcon },
       { to: "/account", label: "Account", icon: Cog6ToothIcon },
     ],
@@ -96,6 +98,14 @@ const resolvePageMeta = (pathname, user) => {
       kicker: "Workspace",
       title: "Tasks",
       subtitle: "Track work across leads, property records, and general operations from one view.",
+    };
+  }
+
+  if (pathname === "/vendors") {
+    return {
+      kicker: "Workspace",
+      title: "Vendors",
+      subtitle: "Organize trades, documents, and assignment readiness from one vendor directory.",
     };
   }
 
