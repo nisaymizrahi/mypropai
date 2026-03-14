@@ -84,6 +84,7 @@ const mapPreviewToForm = (preview = {}) => ({
   squareFootage: preview.squareFootage ?? "",
   lotSize: preview.lotSize ?? "",
   yearBuilt: preview.yearBuilt ?? "",
+  unitCount: preview.unitCount ?? "",
   listingStatus: preview.listingStatus || "",
   sellerAskingPrice: preview.sellerAskingPrice ?? "",
   latitude: preview.latitude ?? "",
@@ -290,8 +291,8 @@ const CreatePropertyPage = () => {
       }
 
       if (result.investmentId) {
-        toast.success("Property created and sent to investments.");
-        navigate(`/investments/${result.investmentId}`);
+        toast.success("Property created and sent to project management.");
+        navigate(`/project-management/${result.investmentId}`);
         return;
       }
 

@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
-import { Link, useLocation, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowPathIcon,
   CheckCircleIcon,
@@ -23,6 +23,7 @@ import {
   getBillingAccess,
   getLeadDetails,
   previewLeadProperty,
+  promoteLeadToProject,
   syncBillingCheckoutSession,
   updateLead,
 } from "../utils/api";
@@ -48,6 +49,19 @@ const propertyTypeOptions = [
   { value: "mixed-use", label: "Mixed Use" },
   { value: "commercial", label: "Commercial" },
   { value: "land", label: "Land" },
+  { value: "other", label: "Other" },
+];
+const compsPropertyTypeOptions = [
+  { value: "", label: "Any property type" },
+  { value: "single-family", label: "Single Family" },
+  { value: "condo", label: "Condo" },
+  { value: "townhouse", label: "Townhouse" },
+  { value: "multi-family-any", label: "Multi-Family (Any)" },
+  { value: "multi-family-2-4", label: "Multi-Family (2-4 units)" },
+  { value: "multi-family-5-plus", label: "Multi-Family (5+ units)" },
+  { value: "mixed-use", label: "Mixed Use" },
+  { value: "commercial", label: "Commercial" },
+  { value: "land", label: "Vacant Land" },
   { value: "other", label: "Other" },
 ];
 const renovationLevelOptions = [
@@ -244,6 +258,11 @@ const toOptionalNumber = (value) => {
   return Number.isFinite(parsed) ? parsed : undefined;
 };
 
+const toInputValue = (value) => {
+  if (value === "" || value === null || value === undefined) return "";
+  return String(value);
+};
+
 const toNullableNumber = (value) => {
   if (value === "" || value === null || value === undefined) return null;
   const parsed = Number(value);
@@ -405,6 +424,32 @@ const normalizePropertyType = (value) => {
   return "other";
 };
 
+const deriveCompsPropertyTypeFilter = (propertyType, unitCount) => {
+  const normalizedType = normalizePropertyType(propertyType);
+  const normalizedUnitCount = toNullableNumber(unitCount);
+
+  if (!normalizedType) return "";
+  if (normalizedType === "other") return "";
+  if (normalizedType !== "multi-family") return normalizedType;
+  if (normalizedUnitCount !== null && normalizedUnitCount >= 5) return "multi-family-5-plus";
+  if (normalizedUnitCount !== null && normalizedUnitCount >= 2) return "multi-family-2-4";
+  return "multi-family-any";
+};
+
+const buildCompsFilters = (lead = {}, savedFilters = {}) => ({
+  radius: toInputValue(savedFilters.radius ?? 1),
+  saleDateMonths: toInputValue(savedFilters.saleDateMonths ?? 6),
+  maxComps: toInputValue(savedFilters.maxComps ?? 8),
+  propertyType:
+    savedFilters.propertyType !== undefined
+      ? String(savedFilters.propertyType || "")
+      : deriveCompsPropertyTypeFilter(lead.propertyType, lead.unitCount),
+  minSquareFootage: toInputValue(savedFilters.minSquareFootage),
+  maxSquareFootage: toInputValue(savedFilters.maxSquareFootage),
+  minLotSize: toInputValue(savedFilters.minLotSize),
+  maxLotSize: toInputValue(savedFilters.maxLotSize),
+});
+
 const buildDetailsForm = (lead = {}) => {
   const parsedAddress = parseAddressLabel(lead.address || "");
   return {
@@ -498,6 +543,7 @@ const buildPreviewToDetailsForm = (preview = {}) => ({
   squareFootage: preview.squareFootage ?? "",
   lotSize: preview.lotSize ?? "",
   yearBuilt: preview.yearBuilt ?? "",
+  unitCount: preview.unitCount ?? "",
   listingStatus: preview.listingStatus || "",
   sellerAskingPrice: preview.sellerAskingPrice ?? "",
   daysOnMarket: preview.daysOnMarket ?? "",
@@ -681,6 +727,7 @@ const RenovationItemModal = ({
 
 const LeadDetailPage = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
   const location = useLocation();
   const { refreshUser } = useAuth();
   const selectedSuggestionRef = useRef("");
@@ -696,11 +743,8 @@ const LeadDetailPage = () => {
   const [suggestions, setSuggestions] = useState([]);
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
   const [isSavingQuickStatus, setIsSavingQuickStatus] = useState(false);
-  const [filters, setFilters] = useState({
-    radius: "1",
-    saleDateMonths: "6",
-    maxComps: "8",
-  });
+  const [isPromotingProject, setIsPromotingProject] = useState(false);
+  const [filters, setFilters] = useState(() => buildCompsFilters());
 
   const [renovationForm, setRenovationForm] = useState(() => buildRenovationForm());
   const [isSavingRenovation, setIsSavingRenovation] = useState(false);
@@ -744,11 +788,14 @@ const LeadDetailPage = () => {
           },
           comps: leadData.compsAnalysis.recentComps || [],
           ai: leadData.compsAnalysis.report || null,
+          filters: leadData.compsAnalysis.filters || buildCompsFilters(leadData),
           generatedAt: leadData.compsAnalysis.generatedAt,
         });
       } else {
         setAnalysis(null);
       }
+
+      setFilters(buildCompsFilters(leadData, leadData.compsAnalysis?.filters || {}));
     } catch (err) {
       setError(err.message || "Failed to load lead data.");
     } finally {
@@ -1082,6 +1129,7 @@ const LeadDetailPage = () => {
       await loadBillingAccess();
     } catch (err) {
       setError(err.message || "Analysis failed.");
+      toast.error(err.message || "Analysis failed.");
     } finally {
       setIsAnalyzing(false);
     }
@@ -1226,6 +1274,28 @@ const LeadDetailPage = () => {
     (item) => item.budget !== "" && item.budget !== null && item.budget !== undefined
   ).length;
   const renovationItemsCount = renovationForm.items.length;
+  const projectManagementId =
+    typeof lead.projectManagement === "object"
+      ? lead.projectManagement?._id
+      : lead.projectManagement;
+
+  const handleOpenOrCreateProject = async () => {
+    if (projectManagementId) {
+      navigate(`/project-management/${projectManagementId}`);
+      return;
+    }
+
+    setIsPromotingProject(true);
+    try {
+      const project = await promoteLeadToProject(id);
+      toast.success("Project management workspace created.");
+      navigate(`/project-management/${project._id}`);
+    } catch (promoteError) {
+      toast.error(promoteError.message || "Failed to create project management workspace.");
+    } finally {
+      setIsPromotingProject(false);
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -1233,6 +1303,20 @@ const LeadDetailPage = () => {
         <Link to="/leads" className="ghost-action">
           Back to leads
         </Link>
+        {liveLead.status === "Closed - Won" ? (
+          <button
+            type="button"
+            onClick={handleOpenOrCreateProject}
+            disabled={isPromotingProject}
+            className="primary-action disabled:cursor-not-allowed disabled:opacity-70"
+          >
+            {projectManagementId
+              ? "Open Project Management"
+              : isPromotingProject
+                ? "Creating Project Management..."
+                : "Create Project Management"}
+          </button>
+        ) : null}
       </div>
 
       <section className="surface-panel px-5 py-4 sm:px-6">
@@ -1865,6 +1949,80 @@ const LeadDetailPage = () => {
                   />
                 </FormField>
 
+                <FormField
+                  label="Property type"
+                  hint="Keep the report focused on the same asset class."
+                >
+                  <select
+                    name="propertyType"
+                    value={filters.propertyType}
+                    onChange={handleFilterChange}
+                    className="auth-input"
+                  >
+                    {compsPropertyTypeOptions.map((option) => (
+                      <option key={option.value || "any"} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </FormField>
+
+                <FormField
+                  label="Building size range (sqft)"
+                  hint="Filter comparable properties by improvement area."
+                >
+                  <div className="grid grid-cols-2 gap-3">
+                    <input
+                      type="number"
+                      min="0"
+                      step="1"
+                      name="minSquareFootage"
+                      value={filters.minSquareFootage}
+                      onChange={handleFilterChange}
+                      className="auth-input"
+                      placeholder="Min"
+                    />
+                    <input
+                      type="number"
+                      min="0"
+                      step="1"
+                      name="maxSquareFootage"
+                      value={filters.maxSquareFootage}
+                      onChange={handleFilterChange}
+                      className="auth-input"
+                      placeholder="Max"
+                    />
+                  </div>
+                </FormField>
+
+                <FormField
+                  label="Lot size range"
+                  hint="Use the same unit your property facts are stored in."
+                >
+                  <div className="grid grid-cols-2 gap-3">
+                    <input
+                      type="number"
+                      min="0"
+                      step="1"
+                      name="minLotSize"
+                      value={filters.minLotSize}
+                      onChange={handleFilterChange}
+                      className="auth-input"
+                      placeholder="Min"
+                    />
+                    <input
+                      type="number"
+                      min="0"
+                      step="1"
+                      name="maxLotSize"
+                      value={filters.maxLotSize}
+                      onChange={handleFilterChange}
+                      className="auth-input"
+                      placeholder="Max"
+                    />
+                  </div>
+                </FormField>
+
                 <FormField label="Max comps in report">
                   <input
                     type="number"
@@ -2060,7 +2218,7 @@ const LeadDetailPage = () => {
                           <th className="p-3 font-semibold">Address</th>
                           <th className="p-3 font-semibold">Comp Price</th>
                           <th className="p-3 font-semibold">$ / Sqft</th>
-                          <th className="p-3 font-semibold">Sqft</th>
+                          <th className="p-3 font-semibold">Sqft / Lot</th>
                           <th className="p-3 font-semibold">Beds/Baths</th>
                           <th className="p-3 font-semibold">Distance</th>
                           <th className="p-3 font-semibold">Comp Date</th>
@@ -2069,17 +2227,35 @@ const LeadDetailPage = () => {
                       <tbody className="divide-y divide-ink-100">
                         {analysis.comps.map((comp) => (
                           <tr key={`${comp.address}-${comp.saleDate}`}>
-                            <td className="p-3 font-medium text-ink-900">{comp.address}</td>
+                            <td className="p-3 font-medium text-ink-900">
+                              <div>
+                                <p>{comp.address}</p>
+                                <p className="mt-1 text-xs font-normal text-ink-500">
+                                  {[comp.propertyType, comp.unitCount ? `${comp.unitCount} units` : null]
+                                    .filter(Boolean)
+                                    .join(" • ") || "Comparable property"}
+                                </p>
+                              </div>
+                            </td>
                             <td className="p-3 text-ink-700">{formatCurrency(comp.salePrice)}</td>
                             <td className="p-3 text-ink-700">
                               {comp.pricePerSqft ? `$${Math.round(comp.pricePerSqft)}` : "—"}
                             </td>
-                            <td className="p-3 text-ink-700">{comp.squareFootage || "—"}</td>
+                            <td className="p-3 text-ink-700">
+                              <div>
+                                <p>{comp.squareFootage || "—"}</p>
+                                <p className="mt-1 text-xs text-ink-500">
+                                  Lot {comp.lotSize ? Number(comp.lotSize).toLocaleString() : "—"}
+                                </p>
+                              </div>
+                            </td>
                             <td className="p-3 text-ink-700">
                               {[comp.bedrooms ?? "—", comp.bathrooms ?? "—"].join(" / ")}
                             </td>
                             <td className="p-3 text-ink-700">
-                              {comp.distance ? `${comp.distance.toFixed(2)} mi` : "—"}
+                              {comp.distance !== null && comp.distance !== undefined
+                                ? `${comp.distance.toFixed(2)} mi`
+                                : "—"}
                             </td>
                             <td className="p-3 text-ink-700">{formatDate(comp.saleDate)}</td>
                           </tr>
