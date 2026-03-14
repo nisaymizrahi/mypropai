@@ -695,6 +695,7 @@ const LeadDetailPage = () => {
   const [isSavingDetails, setIsSavingDetails] = useState(false);
   const [suggestions, setSuggestions] = useState([]);
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
+  const [isSavingQuickStatus, setIsSavingQuickStatus] = useState(false);
   const [filters, setFilters] = useState({
     radius: "1",
     saleDateMonths: "6",
@@ -844,6 +845,46 @@ const LeadDetailPage = () => {
   const handleFilterChange = (event) => {
     const { name, value } = event.target;
     setFilters((previous) => ({ ...previous, [name]: value }));
+  };
+
+  const handleQuickStatusChange = async (event) => {
+    const nextStatus = event.target.value;
+    const previousStatus = detailForm.status || lead.status || "Potential";
+
+    if (nextStatus === previousStatus) {
+      return;
+    }
+
+    setDetailForm((previous) => ({
+      ...previous,
+      status: nextStatus,
+    }));
+    setIsSavingQuickStatus(true);
+
+    try {
+      const updatedLead = await updateLead(id, { status: nextStatus });
+      setLead(updatedLead);
+      setAnalysis((previous) =>
+        previous
+          ? {
+              ...previous,
+              subject: {
+                ...previous.subject,
+                ...updatedLead,
+              },
+            }
+          : previous
+      );
+      toast.success(`Lead moved to ${nextStatus}.`);
+    } catch (error) {
+      setDetailForm((previous) => ({
+        ...previous,
+        status: previousStatus,
+      }));
+      toast.error(error.message || "Failed to update pipeline stage.");
+    } finally {
+      setIsSavingQuickStatus(false);
+    }
   };
 
   const handleDetailChange = (event) => {
@@ -1233,17 +1274,42 @@ const LeadDetailPage = () => {
             </div>
 
             <div className="rounded-[20px] border border-ink-100 bg-white/85 px-4 py-3 sm:min-w-[220px]">
-              <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-ink-400">
-                Next action
-              </p>
-              <p className="mt-2 text-sm font-medium text-ink-900">
-                {liveLead.nextAction || "No next action yet"}
-              </p>
-              <p className="mt-1 text-xs text-ink-500">
-                {liveLead.followUpDate
-                  ? `Follow up ${formatDate(liveLead.followUpDate)}`
-                  : "No follow-up date scheduled"}
-              </p>
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-ink-400">
+                    Next action
+                  </p>
+                  <p className="mt-2 text-sm font-medium text-ink-900">
+                    {liveLead.nextAction || "No next action yet"}
+                  </p>
+                  <p className="mt-1 text-xs text-ink-500">
+                    {liveLead.followUpDate
+                      ? `Follow up ${formatDate(liveLead.followUpDate)}`
+                      : "No follow-up date scheduled"}
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-4 border-t border-ink-100 pt-4">
+                <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-ink-400">
+                  Move pipeline stage
+                </p>
+                <select
+                  value={detailForm.status || "Potential"}
+                  onChange={handleQuickStatusChange}
+                  disabled={isSavingQuickStatus}
+                  className="auth-input mt-2 text-sm"
+                >
+                  {leadStatusOptions.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-2 text-xs text-ink-500">
+                  {isSavingQuickStatus ? "Saving stage..." : "This saves immediately."}
+                </p>
+              </div>
             </div>
           </div>
 

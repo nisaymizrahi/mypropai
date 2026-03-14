@@ -89,14 +89,19 @@ const StatCard = ({ title, value }) => (
   </div>
 );
 
-const LeadCard = ({ lead, onClick, dragHandleProps, innerRef, draggableProps }) => (
-  <button
-    type="button"
-    ref={innerRef}
-    {...draggableProps}
+const LeadCard = ({ lead, onClick, dragHandleProps }) => (
+  <div
     {...dragHandleProps}
-    className="w-full cursor-pointer rounded-[16px] border border-ink-100 bg-white p-4 text-left transition hover:border-ink-200"
+    role="button"
+    tabIndex={0}
+    className="w-full cursor-grab rounded-[16px] border border-ink-100 bg-white p-4 text-left transition hover:border-ink-200 active:cursor-grabbing"
     onClick={onClick}
+    onKeyDown={(event) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        onClick();
+      }
+    }}
   >
     <div className="flex items-start justify-between gap-3">
       <p className="text-sm font-semibold text-ink-900">{lead.address}</p>
@@ -125,7 +130,7 @@ const LeadCard = ({ lead, onClick, dragHandleProps, innerRef, draggableProps }) 
         {lead.sellerAskingPrice ? formatCurrency(lead.sellerAskingPrice) : 'Ask TBD'}
       </span>
     </div>
-  </button>
+  </div>
 );
 
 const LeadsPage = () => {
@@ -135,7 +140,8 @@ const LeadsPage = () => {
   const [loading, setLoading] = useState(true);
   const [searchValue, setSearchValue] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [viewMode, setViewMode] = useState('list');
+  const [viewMode, setViewMode] = useState('board');
+  const [isUpdatingLeadId, setIsUpdatingLeadId] = useState('');
 
   const openUnifiedLeadCreator = () => {
     navigate('/properties/new');
@@ -159,9 +165,86 @@ const LeadsPage = () => {
     fetchData();
   }, [fetchData]);
 
+  const moveLeadInColumns = useCallback((currentColumns, leadId, nextStatus) => {
+    const normalizedStatus = columnOrder.includes(nextStatus) ? nextStatus : 'Potential';
+    const nextColumns = columnOrder.reduce((accumulator, columnId) => {
+      accumulator[columnId] = {
+        ...currentColumns[columnId],
+        leads: [...(currentColumns[columnId]?.leads || [])],
+      };
+      return accumulator;
+    }, {});
+
+    let movedLead = null;
+
+    columnOrder.forEach((columnId) => {
+      nextColumns[columnId].leads = nextColumns[columnId].leads.filter((lead) => {
+        if (lead._id === leadId) {
+          movedLead = lead;
+          return false;
+        }
+        return true;
+      });
+    });
+
+    if (!movedLead) {
+      return currentColumns;
+    }
+
+    nextColumns[normalizedStatus].leads.unshift({ ...movedLead, status: normalizedStatus });
+    return nextColumns;
+  }, []);
+
+  const refreshSummary = useCallback(async () => {
+    try {
+      const summaryData = await getLeadSummary();
+      setSummary(summaryData);
+    } catch (error) {
+      console.error('Failed to refresh lead summary', error);
+    }
+  }, []);
+
+  const allLeads = useMemo(
+    () => columnOrder.flatMap((columnId) => columns[columnId]?.leads || []),
+    [columns]
+  );
+
+  const handleLeadStatusChange = useCallback(
+    async (leadId, nextStatus) => {
+      const previousColumns = columns;
+      const currentLead = allLeads.find((lead) => lead._id === leadId);
+
+      if (!currentLead || currentLead.status === nextStatus) {
+        return;
+      }
+
+      setColumns((current) => moveLeadInColumns(current, leadId, nextStatus));
+      setIsUpdatingLeadId(leadId);
+
+      try {
+        await updateLead(leadId, { status: nextStatus });
+        await refreshSummary();
+        toast.success(`Lead moved to ${nextStatus}.`);
+      } catch (error) {
+        console.error('Failed to update lead status', error);
+        setColumns(previousColumns);
+        toast.error('Failed to update lead status.');
+      } finally {
+        setIsUpdatingLeadId('');
+      }
+    },
+    [allLeads, columns, moveLeadInColumns, refreshSummary]
+  );
+
   const handleOnDragEnd = async (result) => {
     const { source, destination, draggableId } = result;
     if (!destination) return;
+    if (
+      source.droppableId === destination.droppableId &&
+      source.index === destination.index
+    ) {
+      return;
+    }
 
     const sourceColumn = columns[source.droppableId];
     const destColumn = columns[destination.droppableId];
@@ -182,20 +265,20 @@ const LeadsPage = () => {
     setColumns(nextColumns);
 
     try {
-      await updateLead(draggableId, { status: destination.droppableId });
-      const summaryData = await getLeadSummary();
-      setSummary(summaryData);
+      if (source.droppableId !== destination.droppableId) {
+        setIsUpdatingLeadId(draggableId);
+        await updateLead(draggableId, { status: destination.droppableId });
+        toast.success(`Lead moved to ${destination.droppableId}.`);
+      }
+      await refreshSummary();
     } catch (error) {
       console.error('Failed to update lead status', error);
       toast.error('Failed to update lead status.');
       fetchData();
+    } finally {
+      setIsUpdatingLeadId('');
     }
   };
-
-  const allLeads = useMemo(
-    () => columnOrder.flatMap((columnId) => columns[columnId]?.leads || []),
-    [columns]
-  );
 
   const visibleLeads = useMemo(() => {
     const normalizedQuery = searchValue.trim().toLowerCase();
@@ -253,11 +336,25 @@ const LeadsPage = () => {
         label: 'Status',
         sortValue: (lead) => lead.status || '',
         render: (lead) => (
-          <span
-            className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${statusStyles[lead.status] || 'bg-sand-100 text-ink-700'}`}
-          >
-            {lead.status || 'Potential'}
-          </span>
+          <div className="flex items-center justify-between gap-3">
+            <span
+              className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${statusStyles[lead.status] || 'bg-sand-100 text-ink-700'}`}
+            >
+              {lead.status || 'Potential'}
+            </span>
+            <select
+              value={lead.status || 'Potential'}
+              onChange={(event) => handleLeadStatusChange(lead._id, event.target.value)}
+              disabled={isUpdatingLeadId === lead._id}
+              className="rounded-full border border-ink-100 bg-white px-3 py-1.5 text-xs font-semibold text-ink-700 outline-none transition focus:border-ink-300"
+            >
+              {columnOrder.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
+          </div>
         ),
       },
       {
@@ -318,7 +415,7 @@ const LeadsPage = () => {
         ),
       },
     ],
-    [navigate]
+    [handleLeadStatusChange, isUpdatingLeadId, navigate]
   );
 
   if (loading) {
@@ -339,7 +436,7 @@ const LeadsPage = () => {
               Keep potential properties organized with less noise.
             </h2>
             <p className="mt-4 max-w-2xl text-sm leading-7 text-ink-500 sm:text-base">
-              Review opportunities, track where each one stands, and add new properties without a bulky workflow getting in the way.
+              Review opportunities, drag them through the pipeline, or change stages directly from the lead without a bulky workflow getting in the way.
             </p>
 
             <div className="mt-6 flex flex-wrap gap-3">
@@ -352,7 +449,7 @@ const LeadsPage = () => {
                 onClick={() => setViewMode((current) => (current === 'list' ? 'board' : 'list'))}
                 className="secondary-action"
               >
-                {viewMode === 'list' ? 'Open board view' : 'Open list view'}
+                {viewMode === 'list' ? 'Open drag board' : 'Open list view'}
               </button>
             </div>
           </div>
@@ -398,7 +495,7 @@ const LeadsPage = () => {
         <div>
           <h3 className="font-display text-[2rem] leading-none text-ink-900">Potential properties</h3>
           <p className="mt-2 text-sm leading-6 text-ink-500">
-            Use list view when you need to scan and sort, or board view when you want to move opportunities through the pipeline.
+            Board view is best for dragging deals between stages. List view also lets you change the stage directly from the status column.
           </p>
         </div>
 
@@ -511,13 +608,37 @@ const LeadsPage = () => {
                             {column.leads.map((lead, index) => (
                               <Draggable key={lead._id} draggableId={lead._id} index={index}>
                                 {(dragProvided) => (
-                                  <LeadCard
-                                    lead={lead}
-                                    innerRef={dragProvided.innerRef}
-                                    draggableProps={dragProvided.draggableProps}
-                                    dragHandleProps={dragProvided.dragHandleProps}
-                                    onClick={() => navigate(`/leads/${lead._id}`)}
-                                  />
+                                  <div
+                                    ref={dragProvided.innerRef}
+                                    {...dragProvided.draggableProps}
+                                    className="space-y-2"
+                                  >
+                                    <LeadCard
+                                      lead={lead}
+                                      dragHandleProps={dragProvided.dragHandleProps}
+                                      onClick={() => navigate(`/leads/${lead._id}`)}
+                                    />
+                                    <div className="rounded-[14px] border border-ink-100 bg-white px-3 py-3">
+                                      <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-ink-400">
+                                        Move stage
+                                      </p>
+                                      <div className="mt-2 flex items-center gap-2">
+                                        <select
+                                          value={lead.status || 'Potential'}
+                                          onClick={(event) => event.stopPropagation()}
+                                          onChange={(event) => handleLeadStatusChange(lead._id, event.target.value)}
+                                          disabled={isUpdatingLeadId === lead._id}
+                                          className="auth-input py-2 text-sm"
+                                        >
+                                          {columnOrder.map((option) => (
+                                            <option key={option} value={option}>
+                                              {option}
+                                            </option>
+                                          ))}
+                                        </select>
+                                      </div>
+                                    </div>
+                                  </div>
                                 )}
                               </Draggable>
                             ))}
