@@ -191,7 +191,7 @@ const BidsTabContent = ({ leadId, bids = [], renovationItems = [], onUpdate }) =
       const budget = normalizeAmount(item.budget);
       const bestQuote = matchedQuotes[0] || null;
       const variance =
-        budget !== null && bestQuote?.amount !== null ? bestQuote.amount - budget : null;
+        budget !== null && bestQuote && bestQuote.amount !== null ? bestQuote.amount - budget : null;
 
       return {
         ...item,

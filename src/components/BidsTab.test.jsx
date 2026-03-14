@@ -66,4 +66,27 @@ describe("BidsTab", () => {
     expect(screen.getByText("Untitled item")).toBeInTheDocument();
     expect(screen.queryByText("Bid management needs a refresh")).not.toBeInTheDocument();
   });
+
+  it("renders renovation items without crashing when no quotes are matched yet", () => {
+    render(
+      <BidsTab
+        leadId="lead-1"
+        bids={[]}
+        renovationItems={[
+          {
+            itemId: "kitchen",
+            name: "Kitchen",
+            category: "kitchen",
+            budget: 10000,
+            status: "planning",
+            scopeDescription: "New cabinets and counters.",
+          },
+        ]}
+      />
+    );
+
+    expect(screen.getByText("Kitchen")).toBeInTheDocument();
+    expect(screen.getByText("No contractor quote is matched to this item yet.")).toBeInTheDocument();
+    expect(screen.queryByText("Bid management needs a refresh")).not.toBeInTheDocument();
+  });
 });
