@@ -1147,30 +1147,39 @@ export const getPlatformManagerUsers = async (query = "") => {
   return res.json();
 };
 
-export const startPlatformManagerImpersonation = async (userId) => {
+export const startPlatformManagerImpersonation = async (userId, reason = "") => {
   const res = await fetch(`${API_BASE_URL}/platform-manager/users/${userId}/impersonate`, {
     method: "POST",
     headers: getAuthHeaders(),
+    body: JSON.stringify({ reason }),
   });
   if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to start impersonation"));
   return res.json();
 };
 
-export const setPlatformManagerSubscriptionOverride = async (userId, overridePlan) => {
+export const setPlatformManagerSubscriptionOverride = async (userId, payload) => {
+  const body =
+    typeof payload === "string"
+      ? { overridePlan: payload }
+      : {
+          overridePlan: payload?.overridePlan,
+          expiresAt: payload?.expiresAt || null,
+          reason: payload?.reason || "",
+        };
   const res = await fetch(`${API_BASE_URL}/platform-manager/users/${userId}/subscription-override`, {
     method: "PATCH",
     headers: getAuthHeaders(),
-    body: JSON.stringify({ overridePlan }),
+    body: JSON.stringify(body),
   });
   if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to update user access"));
   return res.json();
 };
 
-export const setPlatformManagerAccountStatus = async (userId, status) => {
+export const setPlatformManagerAccountStatus = async (userId, status, reason = "") => {
   const res = await fetch(`${API_BASE_URL}/platform-manager/users/${userId}/account-status`, {
     method: "PATCH",
     headers: getAuthHeaders(),
-    body: JSON.stringify({ status }),
+    body: JSON.stringify({ status, reason }),
   });
   if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to update account status"));
   return res.json();
@@ -1183,6 +1192,67 @@ export const deletePlatformManagerUser = async (userId) => {
   });
   if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to delete user"));
   return res.json();
+};
+
+export const getPlatformManagerUserDetail = async (userId) => {
+  const res = await fetch(`${API_BASE_URL}/platform-manager/users/${userId}`, {
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to load user detail"));
+  return res.json();
+};
+
+export const revokePlatformManagerUserSessions = async (userId, reason = "") => {
+  const res = await fetch(`${API_BASE_URL}/platform-manager/users/${userId}/revoke-sessions`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ reason }),
+  });
+  if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to revoke sessions"));
+  return res.json();
+};
+
+export const syncPlatformManagerUserBilling = async (userId, reason = "") => {
+  const res = await fetch(`${API_BASE_URL}/platform-manager/users/${userId}/sync-billing`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ reason }),
+  });
+  if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to sync billing"));
+  return res.json();
+};
+
+export const addPlatformManagerSupportNote = async (userId, body) => {
+  const res = await fetch(`${API_BASE_URL}/platform-manager/users/${userId}/support-notes`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ body }),
+  });
+  if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to save support note"));
+  return res.json();
+};
+
+export const deletePlatformManagerSupportNote = async (noteId) => {
+  const res = await fetch(`${API_BASE_URL}/platform-manager/support-notes/${noteId}`, {
+    method: "DELETE",
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to delete support note"));
+  return res.json();
+};
+
+export const exportPlatformManagerUsers = async (query = "") => {
+  const params = new URLSearchParams();
+  if (query.trim()) {
+    params.set("q", query.trim());
+  }
+
+  const suffix = params.toString() ? `?${params.toString()}` : "";
+  const res = await fetch(`${API_BASE_URL}/platform-manager/users/export${suffix}`, {
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to export users"));
+  return res.blob();
 };
 
 /**
