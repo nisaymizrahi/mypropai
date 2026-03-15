@@ -35,8 +35,8 @@ const UserInfoBanner = () => {
   const displayName = user.name || "Fliprop User";
   const secondaryText = user.email || "Property operations";
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
     navigate("/login");
   };
 

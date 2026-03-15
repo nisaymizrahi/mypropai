@@ -16,8 +16,8 @@ function PlatformShell({ children }) {
     day: "numeric",
   }).format(new Date());
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
     navigate("/login", { replace: true });
   };
 

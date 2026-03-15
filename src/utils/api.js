@@ -814,15 +814,13 @@ export const getCurrentUser = async () => {
 };
 
 export const logoutUser = async () => {
-  try {
-    await fetch(`${API_BASE_URL}/auth/logout`, {
-      method: "POST",
-      headers: getAuthHeaders(),
-    });
-  } catch (error) {
-    console.error("Logout API call failed, proceeding with client-side logout.", error);
-  } finally {
-    localStorage.removeItem("token");
+  const res = await fetch(`${API_BASE_URL}/auth/logout`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+  });
+
+  if (!res.ok && res.status !== 401 && res.status !== 403) {
+    throw new Error(await getErrorMessage(res, "Failed to log out"));
   }
 };
 
