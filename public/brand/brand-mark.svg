@@ -1,0 +1,23 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="fliprop-mark-gradient" x1="214" y1="808" x2="774" y2="132" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#191C63"/>
+      <stop offset="0.58" stop-color="#2380A6"/>
+      <stop offset="1" stop-color="#38DAD3"/>
+    </linearGradient>
+  </defs>
+  <path
+    d="M260 694V316C260 217.693 339.693 138 438 138H716"
+    stroke="url(#fliprop-mark-gradient)"
+    stroke-width="132"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <path
+    d="M260 776V504C260 405.693 339.693 326 438 326H598"
+    stroke="url(#fliprop-mark-gradient)"
+    stroke-width="132"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+</svg>

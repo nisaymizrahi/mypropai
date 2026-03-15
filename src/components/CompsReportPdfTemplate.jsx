@@ -1,7 +1,7 @@
 import React, { useMemo } from "react";
 import { formatCurrency, formatDate } from "../utils/compsReport";
 
-const logo = `${process.env.PUBLIC_URL}/brand-icon.png`;
+const logo = `${process.env.PUBLIC_URL}/brand/brand-mark.svg`;
 
 const formatNumber = (value, suffix = "") => {
   if (value === null || value === undefined || value === "") return "—";

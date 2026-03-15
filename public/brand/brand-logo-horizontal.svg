@@ -1,0 +1,34 @@
+<svg width="1600" height="420" viewBox="0 0 1600 420" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="fliprop-horizontal-gradient" x1="52" y1="328" x2="302" y2="34" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#191C63"/>
+      <stop offset="0.58" stop-color="#2380A6"/>
+      <stop offset="1" stop-color="#38DAD3"/>
+    </linearGradient>
+  </defs>
+  <path
+    d="M98 290V130C98 88.0264 132.026 54 174 54H286"
+    stroke="url(#fliprop-horizontal-gradient)"
+    stroke-width="56"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <path
+    d="M98 324V210C98 168.026 132.026 134 174 134H256"
+    stroke="url(#fliprop-horizontal-gradient)"
+    stroke-width="56"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <text
+    x="374"
+    y="230"
+    fill="#191C22"
+    font-family="Manrope, Avenir Next, Arial, sans-serif"
+    font-size="166"
+    font-weight="800"
+    letter-spacing="-0.06em"
+  >
+    Fliprop
+  </text>
+</svg>
