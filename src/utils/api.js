@@ -844,6 +844,33 @@ export const changePassword = async (passwordData) => {
   return res.json();
 };
 
+export const requestPasswordReset = async (email) => {
+  const res = await fetch(`${API_BASE_URL}/auth/forgot-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email }),
+  });
+  if (!res.ok) throw new Error((await res.json()).message || "Failed to request password reset");
+  return res.json();
+};
+
+export const validatePasswordResetToken = async (token) => {
+  const params = new URLSearchParams({ token });
+  const res = await fetch(`${API_BASE_URL}/auth/reset-password/validate?${params.toString()}`);
+  if (!res.ok) throw new Error((await res.json()).message || "Invalid or expired reset link");
+  return res.json();
+};
+
+export const resetPasswordWithToken = async ({ token, newPassword }) => {
+  const res = await fetch(`${API_BASE_URL}/auth/reset-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token, newPassword }),
+  });
+  if (!res.ok) throw new Error((await res.json()).message || "Failed to reset password");
+  return res.json();
+};
+
 /**
  * ==========================
  *   STRIPE
@@ -1219,6 +1246,26 @@ export const syncPlatformManagerUserBilling = async (userId, reason = "") => {
     body: JSON.stringify({ reason }),
   });
   if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to sync billing"));
+  return res.json();
+};
+
+export const sendPlatformManagerPasswordReset = async (userId, reason = "") => {
+  const res = await fetch(`${API_BASE_URL}/platform-manager/users/${userId}/send-password-reset`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ reason }),
+  });
+  if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to create password reset"));
+  return res.json();
+};
+
+export const updatePlatformManagerUserEmail = async (userId, { email, reason = "" }) => {
+  const res = await fetch(`${API_BASE_URL}/platform-manager/users/${userId}/email`, {
+    method: "PATCH",
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ email, reason }),
+  });
+  if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to update email"));
   return res.json();
 };
 

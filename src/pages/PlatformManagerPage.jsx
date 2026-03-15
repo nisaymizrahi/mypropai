@@ -27,10 +27,12 @@ import {
   getPlatformManagerUserDetail,
   getPlatformManagerUsers,
   revokePlatformManagerUserSessions,
+  sendPlatformManagerPasswordReset,
   setPlatformManagerAccountStatus,
   setPlatformManagerSubscriptionOverride,
   startPlatformManagerImpersonation,
   syncPlatformManagerUserBilling,
+  updatePlatformManagerUserEmail,
 } from "../utils/api";
 
 const FILTERS = [
@@ -38,9 +40,12 @@ const FILTERS = [
   { value: "pro", label: "Pro" },
   { value: "free", label: "Free" },
   { value: "override", label: "Overrides" },
+  { value: "override_pro", label: "Override Pro" },
+  { value: "override_free", label: "Override Free" },
   { value: "suspended", label: "Suspended" },
   { value: "billing_issue", label: "Billing issues" },
   { value: "paying", label: "Paying" },
+  { value: "high_usage", label: "High usage" },
   { value: "recent", label: "Recent signups" },
   { value: "inactive", label: "Inactive 30d" },
 ];
@@ -165,9 +170,12 @@ const matchesFilter = (listedUser, filter) => {
   if (filter === "pro") return listedUser.subscription.plan === "pro";
   if (filter === "free") return listedUser.subscription.plan === "free";
   if (filter === "override") return listedUser.subscription.override !== "none";
+  if (filter === "override_pro") return listedUser.subscription.override === "pro";
+  if (filter === "override_free") return listedUser.subscription.override === "free";
   if (filter === "suspended") return listedUser.accountStatus === "suspended";
   if (filter === "billing_issue") return listedUser.hasBillingIssue;
   if (filter === "paying") return listedUser.subscription.source === "stripe";
+  if (filter === "high_usage") return listedUser.isHighUsage;
   if (filter === "recent") return listedUser.isRecentSignup;
   if (filter === "inactive") return !listedUser.isRecentlyActive;
   return true;
@@ -236,6 +244,10 @@ const PlatformManagerPage = () => {
     expiresAt: "",
     reason: "",
   });
+  const [emailForm, setEmailForm] = useState({
+    email: "",
+    reason: "",
+  });
 
   const loadUsers = useCallback(async (activeQuery = "") => {
     try {
@@ -267,6 +279,10 @@ const PlatformManagerPage = () => {
         overridePlan: data.user?.subscription?.override || "none",
         expiresAt: toDateInputValue(data.user?.subscription?.overrideExpiresAt),
         reason: data.user?.subscription?.overrideReason || "",
+      });
+      setEmailForm({
+        email: data.user?.email || "",
+        reason: "",
       });
     } catch (loadError) {
       setDetail(null);
@@ -435,6 +451,50 @@ const PlatformManagerPage = () => {
       "Support note saved."
     );
     setNoteDraft("");
+  };
+
+  const handlePasswordReset = async () => {
+    if (!selectedUser?.id) {
+      return;
+    }
+
+    const reason = window.prompt(`Why are you sending a password reset to ${selectedUser.email}?`);
+    if (!reason || reason.trim().length < 3) {
+      return;
+    }
+
+    try {
+      setDetailBusyKey("password-reset");
+      const data = await sendPlatformManagerPasswordReset(selectedUser.id, reason.trim());
+      await loadUsers(query);
+      await refreshSelectedUser();
+      toast.success(data.message || "Password reset prepared.");
+
+      if (!data.deliveredByEmail && data.resetUrl) {
+        window.prompt("Copy this password reset link for the user:", data.resetUrl);
+      }
+    } catch (actionError) {
+      toast.error(actionError.message || "Failed to create password reset.");
+    } finally {
+      setDetailBusyKey("");
+    }
+  };
+
+  const handleEmailSubmit = async (event) => {
+    event.preventDefault();
+    if (!selectedUser?.id) {
+      return;
+    }
+
+    await runDetailAction(
+      "save-email",
+      () =>
+        updatePlatformManagerUserEmail(selectedUser.id, {
+          email: emailForm.email,
+          reason: emailForm.reason,
+        }),
+      "User email updated."
+    );
   };
 
   const selectedUser = detail?.user || filteredUsers.find((entry) => entry.id === selectedUserId) || null;
@@ -675,11 +735,9 @@ const PlatformManagerPage = () => {
                         </div>
                         <div className="rounded-[18px] bg-verdigris-50 px-4 py-3">
                           <p className="text-xs font-semibold uppercase tracking-[0.15em] text-ink-400">
-                            Sessions
+                            Monthly usage
                           </p>
-                          <p className="mt-2 text-2xl font-semibold text-ink-900">
-                            {listedUser.activeSessionCount}
-                          </p>
+                          <p className="mt-2 text-2xl font-semibold text-ink-900">{listedUser.monthlyUsageCount}</p>
                         </div>
                       </div>
 
@@ -900,6 +958,35 @@ const PlatformManagerPage = () => {
                   <div className="grid gap-3 sm:grid-cols-2">
                     <button
                       type="button"
+                      onClick={handlePasswordReset}
+                      disabled={detailBusyKey !== ""}
+                      className="secondary-action justify-center"
+                    >
+                      <ShieldCheckIcon className="mr-2 h-5 w-5" />
+                      Send password reset
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        runDetailAction(
+                          "clear-override",
+                          () =>
+                            setPlatformManagerSubscriptionOverride(selectedUser.id, {
+                              overridePlan: "none",
+                            }),
+                          "Billing override cleared."
+                        )
+                      }
+                      disabled={selectedUser.subscription.override === "none" || detailBusyKey !== ""}
+                      className="secondary-action justify-center"
+                    >
+                      <ArrowPathIcon className="mr-2 h-5 w-5" />
+                      Clear override
+                    </button>
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <button
+                      type="button"
                       onClick={() =>
                         runDetailAction(
                           "toggle-status",
@@ -947,6 +1034,54 @@ const PlatformManagerPage = () => {
                     </button>
                   </div>
                 </div>
+
+                <DetailBlock
+                  title="Identity support"
+                  subtitle="Update the account email or issue a password reset for support handoff."
+                >
+                  <form className="space-y-4" onSubmit={handleEmailSubmit}>
+                    <label className="block">
+                      <span className="text-xs font-semibold uppercase tracking-[0.14em] text-ink-400">
+                        Account email
+                      </span>
+                      <input
+                        type="email"
+                        value={emailForm.email}
+                        onChange={(event) =>
+                          setEmailForm((previous) => ({
+                            ...previous,
+                            email: event.target.value,
+                          }))
+                        }
+                        className="auth-input mt-2"
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="text-xs font-semibold uppercase tracking-[0.14em] text-ink-400">
+                        Reason
+                      </span>
+                      <textarea
+                        value={emailForm.reason}
+                        onChange={(event) =>
+                          setEmailForm((previous) => ({
+                            ...previous,
+                            reason: event.target.value,
+                          }))
+                        }
+                        rows={3}
+                        placeholder="Why are you changing the email?"
+                        className="auth-input mt-2 min-h-[96px]"
+                      />
+                    </label>
+                    <button
+                      type="submit"
+                      disabled={detailBusyKey !== ""}
+                      className="secondary-action w-full justify-center"
+                    >
+                      {detailBusyKey === "save-email" ? "Saving..." : "Update email"}
+                    </button>
+                  </form>
+                </DetailBlock>
 
                 <DetailBlock
                   title="Temporary access"
@@ -1047,6 +1182,20 @@ const PlatformManagerPage = () => {
                         {formatDateTime(detail?.billing?.subscriptionLastSyncedAt, "Never")}
                       </span>
                     </div>
+                    <div className="flex items-center justify-between rounded-[18px] bg-white px-4 py-3 ring-1 ring-ink-100">
+                      <span className="text-sm font-medium text-ink-600">Cancel at period end</span>
+                      <span className="text-sm font-semibold text-ink-900">
+                        {detail?.billing?.cancelAtPeriodEnd ? "Yes" : "No"}
+                      </span>
+                    </div>
+                    {detail?.billing?.cancelAt ? (
+                      <div className="flex items-center justify-between rounded-[18px] bg-white px-4 py-3 ring-1 ring-ink-100">
+                        <span className="text-sm font-medium text-ink-600">Cancel date</span>
+                        <span className="text-sm font-semibold text-ink-900">
+                          {formatDateTime(detail?.billing?.cancelAt)}
+                        </span>
+                      </div>
+                    ) : null}
                     <div className="rounded-[18px] bg-clay-50 px-4 py-3">
                       <p className="text-xs font-semibold uppercase tracking-[0.14em] text-ink-400">
                         Stripe references
@@ -1057,6 +1206,69 @@ const PlatformManagerPage = () => {
                       <p className="mt-1 text-sm text-ink-700">
                         Subscription: {detail?.billing?.stripeSubscriptionId || "None"}
                       </p>
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <a
+                        href={detail?.billing?.customerDashboardUrl || "#"}
+                        target="_blank"
+                        rel="noreferrer"
+                        className={`secondary-action justify-center ${
+                          detail?.billing?.customerDashboardUrl ? "" : "pointer-events-none opacity-50"
+                        }`}
+                      >
+                        Open customer in Stripe
+                      </a>
+                      <a
+                        href={detail?.billing?.subscriptionDashboardUrl || "#"}
+                        target="_blank"
+                        rel="noreferrer"
+                        className={`secondary-action justify-center ${
+                          detail?.billing?.subscriptionDashboardUrl ? "" : "pointer-events-none opacity-50"
+                        }`}
+                      >
+                        Open subscription in Stripe
+                      </a>
+                    </div>
+                    <div className="space-y-3">
+                      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-ink-400">
+                        Recent invoices
+                      </p>
+                      {detail?.billing?.invoices?.length ? (
+                        detail.billing.invoices.map((invoice) => (
+                          <div
+                            key={invoice.id}
+                            className="rounded-[18px] border border-ink-100 bg-white px-4 py-4"
+                          >
+                            <div className="flex items-start justify-between gap-4">
+                              <div>
+                                <p className="text-sm font-semibold text-ink-900">
+                                  {invoice.number || invoice.id}
+                                </p>
+                                <p className="mt-1 text-sm text-ink-500">
+                                  {formatDateTime(invoice.createdAt, "Unknown")} / {invoice.status || "unknown"}
+                                </p>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-sm font-semibold text-ink-900">
+                                  ${(Number(invoice.amountDue || 0) / 100).toFixed(2)}
+                                </p>
+                                {invoice.hostedInvoiceUrl ? (
+                                  <a
+                                    href={invoice.hostedInvoiceUrl}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="mt-2 inline-block text-xs font-semibold uppercase tracking-[0.14em] text-verdigris-700"
+                                  >
+                                    Open invoice
+                                  </a>
+                                ) : null}
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-sm text-ink-500">No invoices found for this customer.</p>
+                      )}
                     </div>
                   </div>
                 </DetailBlock>
@@ -1092,11 +1304,9 @@ const PlatformManagerPage = () => {
                     </div>
                     <div className="rounded-[18px] bg-verdigris-50 px-4 py-3">
                       <p className="text-xs font-semibold uppercase tracking-[0.15em] text-ink-400">
-                        Active sessions
+                        Monthly usage
                       </p>
-                      <p className="mt-2 text-2xl font-semibold text-ink-900">
-                        {selectedUser.activeSessionCount}
-                      </p>
+                      <p className="mt-2 text-2xl font-semibold text-ink-900">{selectedUser.monthlyUsageCount}</p>
                     </div>
                   </div>
                 </DetailBlock>

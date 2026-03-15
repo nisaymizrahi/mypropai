@@ -7,6 +7,7 @@ import PlatformManagerRoute from "./components/PlatformManagerRoute";
 import ProtectedRoute from "./components/ProtectedRoute";
 import LoginPage from "./pages/LoginPage";
 import LoginContinuePage from "./pages/LoginContinuePage";
+import ResetPasswordPage from "./pages/ResetPasswordPage";
 import SignupPage from "./pages/SignupPage";
 import Homepage from "./pages/Homepage";
 import CompsReportPage from "./pages/CompsReportPage";
@@ -15,6 +16,7 @@ import LeadDetailPage from "./pages/LeadDetailPage";
 import CreatePropertyPage from "./pages/CreatePropertyPage";
 import PropertiesPage from "./pages/PropertiesPage";
 import PropertyWorkspacePage from "./pages/PropertyWorkspacePage";
+import MasterCalendarPage from "./pages/MasterCalendarPage";
 import TasksPage from "./pages/TasksPage";
 import VendorsPage from "./pages/VendorsPage";
 import AccountCenter from "./pages/AccountCenter";
@@ -22,6 +24,7 @@ import PlatformManagerPage from "./pages/PlatformManagerPage";
 
 import { AuthProvider } from "./context/AuthContext";
 import { getInvestment } from "./utils/api";
+import { buildPropertyWorkspacePath } from "./utils/propertyWorkspaceNavigation";
 
 const parkedPublicPaths = [
   "/invite/:token",
@@ -79,7 +82,7 @@ const LegacyProjectWorkspaceRedirect = () => {
         if (isMounted) {
           setTarget(
             propertyWorkspaceId
-              ? `/properties/${encodeURIComponent(propertyWorkspaceId)}`
+              ? buildPropertyWorkspacePath(propertyWorkspaceId)
               : "/leads"
           );
         }
@@ -127,6 +130,7 @@ function App() {
           <Route path="/" element={<Homepage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/login-continue" element={<LoginContinuePage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/signup" element={<SignupPage />} />
           {parkedPublicPaths.map((path) => (
             <Route key={path} path={path} element={<Navigate to="/" replace />} />
@@ -184,6 +188,15 @@ function App() {
             element={
               <ProtectedLayoutRoute>
                 <TasksPage />
+              </ProtectedLayoutRoute>
+            }
+          />
+
+          <Route
+            path="/master-calendar"
+            element={
+              <ProtectedLayoutRoute>
+                <MasterCalendarPage />
               </ProtectedLayoutRoute>
             }
           />
@@ -265,6 +278,15 @@ function App() {
 
           <Route
             path="/properties/:propertyKey"
+            element={
+              <ProtectedLayoutRoute>
+                <PropertyWorkspacePage />
+              </ProtectedLayoutRoute>
+            }
+          />
+
+          <Route
+            path="/properties/:propertyKey/:category/:section"
             element={
               <ProtectedLayoutRoute>
                 <PropertyWorkspacePage />
