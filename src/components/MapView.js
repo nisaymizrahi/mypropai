@@ -70,6 +70,12 @@ const MapView = ({ latitude, longitude, markers = [], zoom = 14 }) => {
           center: [longitude, latitude],
           zoom,
         });
+        mapRef.current.once("load", () => {
+          mapRef.current?.resize?.();
+        });
+        window.requestAnimationFrame(() => {
+          mapRef.current?.resize?.();
+        });
         providerRef.current = "mapbox";
       }
 

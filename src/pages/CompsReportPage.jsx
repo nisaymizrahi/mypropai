@@ -61,6 +61,7 @@ const hasCoordinateValue = (value) =>
 const CompsReportPage = () => {
   const selectedSuggestionRef = useRef("");
   const suppressSuggestionsRef = useRef(false);
+  const mapLookupAttemptedRef = useRef("");
   const [activeTab, setActiveTab] = useState("comps");
   const [detailForm, setDetailForm] = useState(() => buildCompsReportForm());
   const [suggestions, setSuggestions] = useState([]);
@@ -72,6 +73,7 @@ const CompsReportPage = () => {
   const [filters, setFilters] = useState(() => buildCompsFilters());
   const [compsNotice, setCompsNotice] = useState("");
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
+  const [isMapLookupLoading, setIsMapLookupLoading] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isAnalyzingFullReport, setIsAnalyzingFullReport] = useState(false);
   const [billingAccess, setBillingAccess] = useState(null);
@@ -157,6 +159,69 @@ const CompsReportPage = () => {
   useEffect(() => {
     loadSavedReports();
   }, [loadSavedReports]);
+
+  useEffect(() => {
+    const lookupAddress = subject.address?.trim();
+
+    if (!lookupAddress || hasMapCoordinates || isPreviewLoading) {
+      if (hasMapCoordinates) {
+        mapLookupAttemptedRef.current = lookupAddress || "";
+      }
+      setIsMapLookupLoading(false);
+      return undefined;
+    }
+
+    if (mapLookupAttemptedRef.current === lookupAddress) {
+      return undefined;
+    }
+
+    mapLookupAttemptedRef.current = lookupAddress;
+    let cancelled = false;
+
+    const resolveCoordinates = async () => {
+      setIsMapLookupLoading(true);
+
+      try {
+        const geocodeResult = await geocodeAddress(lookupAddress);
+        const [geocodedLongitude, geocodedLatitude] = geocodeResult?.features?.[0]?.center || [];
+
+        if (!hasCoordinateValue(geocodedLatitude) || !hasCoordinateValue(geocodedLongitude)) {
+          return;
+        }
+
+        if (cancelled) {
+          return;
+        }
+
+        setDetailForm((previous) => {
+          const previousAddress = composeAddress(previous).trim();
+          if (previousAddress && previousAddress !== lookupAddress) {
+            return previous;
+          }
+
+          return {
+            ...previous,
+            latitude: geocodedLatitude,
+            longitude: geocodedLongitude,
+          };
+        });
+      } catch (error) {
+        if (!cancelled) {
+          console.error("Failed to geocode comps report address for initial map render", error);
+        }
+      } finally {
+        if (!cancelled) {
+          setIsMapLookupLoading(false);
+        }
+      }
+    };
+
+    resolveCoordinates();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [hasMapCoordinates, isPreviewLoading, subject.address]);
 
   useEffect(() => {
     const query = composeAddress({
@@ -662,7 +727,9 @@ const CompsReportPage = () => {
           <div className="rounded-[18px] bg-sand-50 px-4 py-3 text-sm text-ink-600">
             <p className="font-semibold text-ink-900">{subject.address || "No address selected yet"}</p>
             <p className="mt-1">
-              {hasMapCoordinates
+              {isMapLookupLoading
+                ? "Finding map coordinates for the selected property..."
+                : hasMapCoordinates
                 ? "Map centered on the selected property."
                 : "Run auto-fill facts to fetch coordinates for the selected address."}
             </p>
