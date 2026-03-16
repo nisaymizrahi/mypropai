@@ -3,8 +3,6 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   BanknotesIcon,
   CalendarDaysIcon,
-  ChevronDownIcon,
-  ClipboardDocumentListIcon,
   Cog6ToothIcon,
   DocumentTextIcon,
   HomeModernIcon,
@@ -34,7 +32,8 @@ import {
 import { getLocationProviderName, searchAddressSuggestions } from "../utils/locationSearch";
 import {
   buildPropertyWorkspacePath,
-  PROPERTY_WORKSPACE_NAVIGATION,
+  getPropertyWorkspaceRailGroup,
+  getPropertyWorkspaceRailGroups,
   resolvePropertyWorkspaceRoute,
 } from "../utils/propertyWorkspaceNavigation";
 import BidsTab from "../components/BidsTab";
@@ -154,13 +153,20 @@ const buildFormState = (property) => ({
   sellerAskingPrice: property?.sharedProfile.sellerAskingPrice ?? "",
 });
 
-const workspaceCategoryIcons = {
-  property: HomeModernIcon,
-  finance: BanknotesIcon,
-  costs: ClipboardDocumentListIcon,
+const workspaceRailGroupIcons = {
+  overview: HomeModernIcon,
+  money: BanknotesIcon,
+  execution: CalendarDaysIcon,
   documents: DocumentTextIcon,
-  operations: CalendarDaysIcon,
   settings: Cog6ToothIcon,
+};
+
+const workspaceRailGroupTones = {
+  overview: "bg-verdigris-50 text-verdigris-700",
+  money: "bg-sky-50 text-sky-700",
+  execution: "bg-amber-50 text-amber-700",
+  documents: "bg-sand-50 text-sand-700",
+  settings: "bg-ink-100 text-ink-700",
 };
 
 const leadWorkspaceContentKeys = new Set([
@@ -361,23 +367,137 @@ const placeholderSectionCopy = {
   },
 };
 
-const WorkspaceSelectField = ({ label, value, options, onChange }) => (
-  <label className="space-y-2">
-    <span className="text-[11px] font-medium uppercase tracking-[0.16em] text-ink-400">
-      {label}
-    </span>
-    <div className="relative">
-      <select value={value} onChange={onChange} className="auth-input appearance-none pr-11">
-        {options.map((option) => (
-          <option key={option.id} value={option.id}>
-            {option.label}
-          </option>
+const getWorkspaceSectionSupportLabel = (
+  section,
+  { pipelineLeadId, propertyWorkspaceActive }
+) => {
+  if (!leadWorkspaceContentKeys.has(section?.contentKey)) {
+    return "";
+  }
+
+  if (!pipelineLeadId) {
+    return "Lead required";
+  }
+
+  if (!propertyWorkspaceActive && section?.contentKey !== "settings") {
+    return "Activate workspace";
+  }
+
+  return "";
+};
+
+const WorkspaceSectionLink = ({
+  section,
+  isActive,
+  showCategoryBadge,
+  onSelect,
+  pipelineLeadId,
+  propertyWorkspaceActive,
+}) => {
+  const supportLabel = getWorkspaceSectionSupportLabel(section, {
+    pipelineLeadId,
+    propertyWorkspaceActive,
+  });
+
+  return (
+    <button
+      type="button"
+      onClick={() => onSelect(section)}
+      className={`w-full rounded-[16px] border px-3 py-3 text-left transition ${
+        isActive
+          ? "border-ink-900 bg-ink-900 text-white shadow-[0_16px_30px_rgba(26,35,48,0.12)]"
+          : "border-transparent bg-white/85 text-ink-700 hover:border-ink-100 hover:bg-white"
+      }`}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-sm font-semibold">{section.label}</span>
+            {showCategoryBadge ? (
+              <span
+                className={`rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] ${
+                  isActive ? "bg-white/15 text-white/80" : "bg-ink-100 text-ink-500"
+                }`}
+              >
+                {section.categoryLabel}
+              </span>
+            ) : null}
+          </div>
+          {isActive ? (
+            <p className="mt-2 text-xs leading-5 text-white/72">{section.description}</p>
+          ) : null}
+        </div>
+        {supportLabel ? (
+          <span
+            className={`rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] ${
+              isActive ? "bg-white/15 text-white/80" : "bg-clay-50 text-clay-700"
+            }`}
+          >
+            {supportLabel}
+          </span>
+        ) : null}
+      </div>
+    </button>
+  );
+};
+
+const WorkspaceRailGroup = ({
+  group,
+  activeCategoryId,
+  activeSectionId,
+  onSelectGroup,
+  onSelectSection,
+  pipelineLeadId,
+  propertyWorkspaceActive,
+}) => {
+  const Icon = workspaceRailGroupIcons[group.id] || HomeModernIcon;
+  const toneClasses = workspaceRailGroupTones[group.id] || "bg-ink-100 text-ink-700";
+  const isActiveGroup = group.categories.includes(activeCategoryId);
+  const showCategoryBadge = group.categories.length > 1;
+
+  return (
+    <div
+      className={`rounded-[24px] border px-4 py-4 transition ${
+        isActiveGroup ? "border-ink-900 bg-white shadow-[0_20px_40px_rgba(26,35,48,0.08)]" : "border-ink-100 bg-ink-50/45"
+      }`}
+    >
+      <button
+        type="button"
+        onClick={() => onSelectGroup(group)}
+        className="flex w-full items-start gap-3 text-left"
+      >
+        <div
+          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-[16px] ${toneClasses}`}
+        >
+          <Icon className="h-5 w-5" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-sm font-semibold text-ink-900">{group.label}</p>
+            <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-500 ring-1 ring-ink-100">
+              {group.sections.length}
+            </span>
+          </div>
+          <p className="mt-1 text-xs leading-5 text-ink-500">{group.description}</p>
+        </div>
+      </button>
+
+      <div className="mt-4 space-y-2">
+        {group.sections.map((section) => (
+          <WorkspaceSectionLink
+            key={`${section.categoryId}-${section.id}`}
+            section={section}
+            isActive={section.categoryId === activeCategoryId && section.id === activeSectionId}
+            showCategoryBadge={showCategoryBadge}
+            onSelect={onSelectSection}
+            pipelineLeadId={pipelineLeadId}
+            propertyWorkspaceActive={propertyWorkspaceActive}
+          />
         ))}
-      </select>
-      <ChevronDownIcon className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-400" />
+      </div>
     </div>
-  </label>
-);
+  );
+};
 
 const isSavedReportsBackendUnavailable = (error) =>
   String(error?.message || "").includes("Saved reports are not available on the server yet");
@@ -450,8 +570,14 @@ const PropertyWorkspacePage = () => {
   const activeCategory = activeWorkspaceRoute.category;
   const activeSection = activeWorkspaceRoute.section;
   const activeContentKey = activeSection?.contentKey || "details";
-  const sectionOptions = activeCategory?.sections || [];
-  const ActiveCategoryIcon = workspaceCategoryIcons[activeCategory?.id] || HomeModernIcon;
+  const railGroups = useMemo(() => getPropertyWorkspaceRailGroups(), []);
+  const activeRailGroup = useMemo(
+    () => getPropertyWorkspaceRailGroup(activeCategory?.id),
+    [activeCategory?.id]
+  );
+  const activeRailSections = activeRailGroup?.sections || [];
+  const ActiveRailGroupIcon =
+    workspaceRailGroupIcons[activeRailGroup?.id] || HomeModernIcon;
   const isLeadWorkspaceSection = leadWorkspaceContentKeys.has(activeContentKey);
 
   const pipelineLeadId = property?.workspaces?.pipeline?.id || "";
@@ -1022,22 +1148,35 @@ const PropertyWorkspacePage = () => {
     }
   };
 
-  const handleCategoryChange = (event) => {
-    const nextCategory =
-      PROPERTY_WORKSPACE_NAVIGATION.find((category) => category.id === event.target.value) ||
-      PROPERTY_WORKSPACE_NAVIGATION[0];
-    const nextSection = nextCategory?.sections?.[0];
+  const navigateToWorkspaceSection = useCallback(
+    (categoryId, sectionId) => {
+      navigate(buildPropertyWorkspacePath(propertyKey, categoryId, sectionId));
+    },
+    [navigate, propertyKey]
+  );
 
-    if (!nextCategory || !nextSection) {
-      return;
-    }
+  const handleRailGroupSelect = useCallback(
+    (group) => {
+      const nextSection = group?.sections?.[0];
+      if (!nextSection) {
+        return;
+      }
 
-    navigate(buildPropertyWorkspacePath(propertyKey, nextCategory.id, nextSection.id));
-  };
+      navigateToWorkspaceSection(nextSection.categoryId, nextSection.id);
+    },
+    [navigateToWorkspaceSection]
+  );
 
-  const handleSectionChange = (event) => {
-    navigate(buildPropertyWorkspacePath(propertyKey, activeCategory.id, event.target.value));
-  };
+  const handleRailSectionSelect = useCallback(
+    (section) => {
+      if (!section) {
+        return;
+      }
+
+      navigateToWorkspaceSection(section.categoryId, section.id);
+    },
+    [navigateToWorkspaceSection]
+  );
 
   if (loading) {
     return (
@@ -1189,6 +1328,30 @@ const PropertyWorkspacePage = () => {
     );
   };
 
+  const activeSectionSupportLabel = getWorkspaceSectionSupportLabel(activeSection, {
+    pipelineLeadId,
+    propertyWorkspaceActive,
+  });
+  const navigationInsightCards = [
+    {
+      label: "Current area",
+      value: activeCategory.label,
+      description: `Grouped under ${activeRailGroup.label} in the new workspace map.`,
+    },
+    {
+      label: "Sections here",
+      value: String(activeRailSections.length),
+      description: "All visible in the rail so you can jump without opening dropdowns.",
+    },
+    {
+      label: "Access",
+      value: activeSectionSupportLabel || "Ready",
+      description: activeSectionSupportLabel
+        ? "This section still follows the linked-lead and workspace enrollment rules."
+        : "This section is available directly from the property workspace.",
+    },
+  ];
+
   return (
     <div className="space-y-4">
       <section className="surface-panel px-6 py-6 sm:px-7">
@@ -1261,103 +1424,174 @@ const PropertyWorkspacePage = () => {
         </div>
       </section>
 
-      <section className="surface-panel px-6 py-6 sm:px-7">
-        <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(360px,0.95fr)] xl:items-end">
-          <div>
-            <span className="eyebrow">Phase 1 workspace shell</span>
-            <div className="mt-4 flex items-start gap-4">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[18px] bg-ink-100 text-ink-700">
-                <ActiveCategoryIcon className="h-6 w-6" />
+      <section className="surface-panel px-5 py-5 xl:hidden">
+        <span className="eyebrow">Workspace map</span>
+        <p className="mt-4 text-sm leading-6 text-ink-500">
+          Jump across the property from a visible section list instead of switching dropdowns.
+        </p>
+
+        <div className="mt-5 flex gap-2 overflow-x-auto pb-2">
+          {railGroups.map((group) => {
+            const isActive = group.id === activeRailGroup.id;
+
+            return (
+              <button
+                key={group.id}
+                type="button"
+                onClick={() => handleRailGroupSelect(group)}
+                className={`shrink-0 rounded-full px-4 py-2 text-sm font-semibold transition ${
+                  isActive
+                    ? "bg-ink-900 text-white"
+                    : "bg-white text-ink-600 ring-1 ring-ink-100 hover:bg-ink-50"
+                }`}
+              >
+                {group.label}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="mt-4 flex gap-2 overflow-x-auto pb-2">
+          {activeRailSections.map((section) => (
+            <button
+              key={`${section.categoryId}-${section.id}`}
+              type="button"
+              onClick={() => handleRailSectionSelect(section)}
+              className={`shrink-0 rounded-full px-4 py-2 text-sm font-semibold transition ${
+                section.categoryId === activeCategory.id && section.id === activeSection.id
+                  ? "bg-verdigris-600 text-white"
+                  : "bg-sand-50 text-ink-700 hover:bg-sand-100"
+              }`}
+            >
+              {section.label}
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <div className="xl:grid xl:grid-cols-[320px_minmax(0,1fr)] xl:gap-4">
+        <aside className="hidden xl:block">
+          <div className="surface-panel sticky top-24 max-h-[calc(100vh-7rem)] overflow-y-auto px-4 py-4">
+            <span className="eyebrow">Workspace map</span>
+            <h3 className="mt-4 text-xl font-semibold text-ink-900">Navigate every property section</h3>
+            <p className="mt-3 text-sm leading-6 text-ink-500">
+              Everything stays one click away from here, even when you move between money,
+              execution, and documents.
+            </p>
+
+            <div className="mt-6 space-y-4">
+              {railGroups.map((group) => (
+                <WorkspaceRailGroup
+                  key={group.id}
+                  group={group}
+                  activeCategoryId={activeCategory.id}
+                  activeSectionId={activeSection.id}
+                  onSelectGroup={handleRailGroupSelect}
+                  onSelectSection={handleRailSectionSelect}
+                  pipelineLeadId={pipelineLeadId}
+                  propertyWorkspaceActive={propertyWorkspaceActive}
+                />
+              ))}
+            </div>
+
+            <div className="mt-6 space-y-3 border-t border-ink-100 pt-5">
+              <Link to="/properties" className="secondary-action w-full justify-center">
+                Back to Property Workspace
+              </Link>
+              {property.workspaces.pipeline ? (
+                <Link to={property.workspaces.pipeline.path} className="secondary-action w-full justify-center">
+                  Open lead
+                </Link>
+              ) : null}
+            </div>
+          </div>
+        </aside>
+
+        <div className="space-y-4">
+          <section className="surface-panel px-6 py-6 sm:px-7">
+            <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+              <div className="flex items-start gap-4">
+                <div
+                  className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-[18px] ${
+                    workspaceRailGroupTones[activeRailGroup.id] || "bg-ink-100 text-ink-700"
+                  }`}
+                >
+                  <ActiveRailGroupIcon className="h-6 w-6" />
+                </div>
+                <div>
+                  <span className="eyebrow">Property workspace</span>
+                  <h3 className="mt-3 text-2xl font-semibold text-ink-900">
+                    {activeRailGroup.label} · {activeSection.label}
+                  </h3>
+                  <p className="mt-2 max-w-3xl text-sm leading-6 text-ink-500">
+                    {activeSection.description}
+                  </p>
+                  {activeRailGroup.categories.length > 1 ? (
+                    <p className="mt-3 text-xs font-semibold uppercase tracking-[0.16em] text-ink-400">
+                      Currently inside the {activeCategory.label} section of {activeRailGroup.label}
+                    </p>
+                  ) : null}
+                </div>
               </div>
-              <div>
-                <h3 className="text-2xl font-semibold text-ink-900">
-                  {activeCategory.label} · {activeSection.label}
-                </h3>
-                <p className="mt-2 max-w-3xl text-sm leading-6 text-ink-500">
-                  {activeSection.description}
+
+              <div className="rounded-[20px] bg-white px-4 py-4 ring-1 ring-ink-100 lg:max-w-[290px]">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-400">
+                  Current section access
+                </p>
+                <p className="mt-2 text-sm font-semibold text-ink-900">
+                  {activeSectionSupportLabel || "Ready from this workspace"}
+                </p>
+                <p className="mt-2 text-sm leading-6 text-ink-500">
+                  {activeSectionSupportLabel
+                    ? "This section still respects the linked-lead and workspace enrollment rules."
+                    : "This section is directly available from the property workspace shell."}
                 </p>
               </div>
             </div>
 
-            <div className="mt-5 flex flex-wrap gap-2">
-              {sectionOptions.map((section) => (
-                <span
-                  key={section.id}
-                  className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                    section.id === activeSection.id
-                      ? "bg-ink-900 text-white"
-                      : "bg-white text-ink-600 ring-1 ring-ink-100"
-                  }`}
-                >
-                  {section.label}
-                </span>
+            <div className="mt-6 flex flex-wrap gap-2">
+              {activeRailSections.map((section) => {
+                const isActive =
+                  section.categoryId === activeCategory.id && section.id === activeSection.id;
+
+                return (
+                  <button
+                    key={`${section.categoryId}-${section.id}`}
+                    type="button"
+                    onClick={() => handleRailSectionSelect(section)}
+                    className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
+                      isActive
+                        ? "bg-ink-900 text-white"
+                        : "bg-white text-ink-600 ring-1 ring-ink-100 hover:bg-ink-50"
+                    }`}
+                  >
+                    {section.label}
+                    {activeRailGroup.categories.length > 1 ? ` · ${section.categoryLabel}` : ""}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="mt-6 grid gap-3 md:grid-cols-3">
+              {navigationInsightCards.map((card) => (
+                <div key={card.label} className="rounded-[18px] bg-white px-4 py-4 ring-1 ring-ink-100">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-400">
+                    {card.label}
+                  </p>
+                  <p className="mt-2 text-sm font-semibold text-ink-900">{card.value}</p>
+                  <p className="mt-2 text-sm leading-6 text-ink-500">{card.description}</p>
+                </div>
               ))}
             </div>
-          </div>
+          </section>
 
-          <div className="grid gap-4 md:grid-cols-2">
-            <WorkspaceSelectField
-              label="Category"
-              value={activeCategory.id}
-              options={PROPERTY_WORKSPACE_NAVIGATION}
-              onChange={handleCategoryChange}
-            />
-            <WorkspaceSelectField
-              label="Section"
-              value={activeSection.id}
-              options={sectionOptions}
-              onChange={handleSectionChange}
-            />
-          </div>
-        </div>
-
-        <div className="mt-6 grid gap-3 md:grid-cols-3">
-          <div className="rounded-[18px] bg-white px-4 py-4 ring-1 ring-ink-100">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-400">
-              Lead link
-            </p>
-            <p className="mt-2 text-sm font-semibold text-ink-900">
-              {pipelineLeadId ? "Connected" : "Not connected"}
-            </p>
-            <p className="mt-2 text-sm leading-6 text-ink-500">
-              {pipelineLeadId
-                ? "Lead-driven comps, reports, scope, and bid workflows can stay attached here."
-                : "This property is missing a linked lead, so lead-powered sections stay locked."}
-            </p>
-          </div>
-          <div className="rounded-[18px] bg-white px-4 py-4 ring-1 ring-ink-100">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-400">
-              Workspace status
-            </p>
-            <p className="mt-2 text-sm font-semibold text-ink-900">
-              {propertyWorkspaceActive ? "Active in Property Workspace" : "Not active yet"}
-            </p>
-            <p className="mt-2 text-sm leading-6 text-ink-500">
-              Lead-only sections still respect the property workspace enrollment setting.
-            </p>
-          </div>
-          <div className="rounded-[18px] bg-white px-4 py-4 ring-1 ring-ink-100">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-400">
-              Saved market history
-            </p>
-            <p className="mt-2 text-sm font-semibold text-ink-900">
-              {savedReports.length} saved report{savedReports.length === 1 ? "" : "s"}
-            </p>
-            <p className="mt-2 text-sm leading-6 text-ink-500">
-              This property now has room for finance, costs, documents, and operations without
-              crowding the old tab strip.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {isLeadWorkspaceSection && leadWorkspace && leadWorkspaceError ? (
+          {isLeadWorkspaceSection && leadWorkspace && leadWorkspaceError ? (
         <div className="rounded-[16px] border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
           {leadWorkspaceError}
         </div>
-      ) : null}
+          ) : null}
 
-      {activeContentKey === "details" ? (
+          {activeContentKey === "details" ? (
         <section className="grid gap-4 xl:grid-cols-[minmax(0,1.16fr)_minmax(320px,0.84fr)]">
         <form onSubmit={handleSave} className="section-card p-6 sm:p-7">
           <span className="eyebrow">Shared profile</span>
@@ -1636,7 +1870,7 @@ const PropertyWorkspacePage = () => {
           </div>
         </div>
       </section>
-      ) : activeContentKey === "acquisition-summary" ||
+          ) : activeContentKey === "acquisition-summary" ||
         activeContentKey === "original-assumptions" ? (
         <PropertySummaryPanel
           property={property}
@@ -1646,7 +1880,7 @@ const PropertyWorkspacePage = () => {
           savedReports={savedReports}
           pipelineLeadPath={pipelineLeadPath}
         />
-      ) : activeContentKey === "comps" ? (
+          ) : activeContentKey === "comps" ? (
         renderLeadSectionContent(
           () => (
             <CompsReportWorkspace
@@ -1716,7 +1950,7 @@ const PropertyWorkspacePage = () => {
           ),
           "Loading AI comps analysis..."
         )
-      ) : activeContentKey === "saved-reports" ? (
+          ) : activeContentKey === "saved-reports" ? (
         renderLeadSectionContent(
           () => (
             <SavedCompsReportsTab
@@ -1730,7 +1964,7 @@ const PropertyWorkspacePage = () => {
           ),
           "Loading saved reports..."
         )
-      ) : activeContentKey === "renovation" ? (
+          ) : activeContentKey === "renovation" ? (
         renderLeadSectionContent(
           () => (
             <LeadRenovationTab
@@ -1741,7 +1975,7 @@ const PropertyWorkspacePage = () => {
           ),
           "Loading renovation plan..."
         )
-      ) : activeContentKey === "bids" ? (
+          ) : activeContentKey === "bids" ? (
         renderLeadSectionContent(
           () => (
             <BidsTab
@@ -1753,7 +1987,7 @@ const PropertyWorkspacePage = () => {
           ),
           "Loading bid management..."
         )
-      ) : activeContentKey === "settings" ? (
+          ) : activeContentKey === "settings" ? (
         renderLeadSectionContent(
           () => (
             <section className="section-card p-6 sm:p-7">
@@ -1814,34 +2048,34 @@ const PropertyWorkspacePage = () => {
           ),
           "Loading workspace settings..."
         )
-      ) : activeContentKey.startsWith("finance-") ? (
+          ) : activeContentKey.startsWith("finance-") ? (
         <PropertyFinancePanel
           property={property}
           propertyKey={propertyKey}
           activeContentKey={activeContentKey}
           onPropertyUpdated={syncPropertyState}
         />
-      ) : activeContentKey.startsWith("costs-") ? (
+          ) : activeContentKey.startsWith("costs-") ? (
         <PropertyCostsPanel
           property={property}
           propertyKey={propertyKey}
           activeContentKey={activeContentKey}
           onPropertyUpdated={syncPropertyState}
         />
-      ) : activeContentKey === "documents-overview" ? (
+          ) : activeContentKey === "documents-overview" ? (
         <PropertyDocumentsPanel
           property={property}
           propertyKey={propertyKey}
           onPropertyUpdated={syncPropertyState}
         />
-      ) : activeContentKey.startsWith("operations-") ? (
+          ) : activeContentKey.startsWith("operations-") ? (
         <PropertyOperationsPanel
           property={property}
           propertyKey={propertyKey}
           activeContentKey={activeContentKey}
           onPropertyUpdated={syncPropertyState}
         />
-      ) : activeContentKey === "tasks" ? (
+          ) : activeContentKey === "tasks" ? (
         <TasksPanel
           eyebrow="Property tasks"
           title="Tasks for this property"
@@ -1858,9 +2092,11 @@ const PropertyWorkspacePage = () => {
           emptyTitle="No property tasks yet"
           emptyDescription="Add the first task for this property and it will also show up in the main task center."
         />
-      ) : (
+          ) : (
         renderPlaceholderSection(activeContentKey)
-      )}
+          )}
+        </div>
+      </div>
     </div>
   );
 };

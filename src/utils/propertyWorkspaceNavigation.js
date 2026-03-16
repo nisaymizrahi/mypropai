@@ -184,6 +184,39 @@ export const PROPERTY_WORKSPACE_NAVIGATION = [
   },
 ];
 
+export const PROPERTY_WORKSPACE_RAIL_GROUPS = [
+  {
+    id: "overview",
+    label: "Overview",
+    description: "Close story, assumptions, comps, and scope in one place.",
+    categories: ["property"],
+  },
+  {
+    id: "money",
+    label: "Money",
+    description: "Capital, budget, expenses, draws, payments, and reports.",
+    categories: ["finance", "costs"],
+  },
+  {
+    id: "execution",
+    label: "Execution",
+    description: "Tasks, schedule, timeline, vendors, and day-to-day progress.",
+    categories: ["operations"],
+  },
+  {
+    id: "documents",
+    label: "Documents",
+    description: "Closing, lender, receipt, invoice, contract, and report files.",
+    categories: ["documents"],
+  },
+  {
+    id: "settings",
+    label: "Settings",
+    description: "Workspace enrollment and property-level controls.",
+    categories: ["settings"],
+  },
+];
+
 export const getPropertyWorkspaceCategory = (categoryId) =>
   PROPERTY_WORKSPACE_NAVIGATION.find((category) => category.id === categoryId) ||
   PROPERTY_WORKSPACE_NAVIGATION.find(
@@ -200,6 +233,27 @@ export const getPropertyWorkspaceSection = (categoryId, sectionId) => {
     null
   );
 };
+
+export const getPropertyWorkspaceRailGroups = () =>
+  PROPERTY_WORKSPACE_RAIL_GROUPS.map((group) => ({
+    ...group,
+    sections: group.categories.flatMap((categoryId) => {
+      const category = getPropertyWorkspaceCategory(categoryId);
+      if (!category) {
+        return [];
+      }
+
+      return category.sections.map((section) => ({
+        ...section,
+        categoryId: category.id,
+        categoryLabel: category.label,
+      }));
+    }),
+  }));
+
+export const getPropertyWorkspaceRailGroup = (categoryId) =>
+  getPropertyWorkspaceRailGroups().find((group) => group.categories.includes(categoryId)) ||
+  getPropertyWorkspaceRailGroups()[0];
 
 export const buildPropertyWorkspacePath = (
   propertyKey,
