@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowRightIcon } from "@heroicons/react/24/outline";
 
 import BrandLogo from "../components/BrandLogo";
+import PublicLegalLinks from "../components/PublicLegalLinks";
 import { resetPasswordWithToken, validatePasswordResetToken } from "../utils/api";
 
 const ResetPasswordPage = () => {
@@ -98,6 +99,11 @@ const ResetPasswordPage = () => {
             {status === "invalid" ? (
               <div className="section-card mt-6 p-4 text-sm leading-6 text-clay-700">
                 {error || "This reset link is invalid or expired."}
+                <div className="mt-3">
+                  <Link to="/forgot-password" className="font-semibold text-ink-900 underline underline-offset-4">
+                    Request a new reset link
+                  </Link>
+                </div>
               </div>
             ) : null}
 
@@ -149,6 +155,8 @@ const ResetPasswordPage = () => {
                 </button>
               </form>
             ) : null}
+
+            <PublicLegalLinks className="mt-6 justify-center" />
           </section>
         </main>
       </div>

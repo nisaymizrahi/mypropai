@@ -22,7 +22,7 @@ const statusPoints = [
 
 const LoginContinuePage = () => {
   const navigate = useNavigate();
-  const { login, authenticated, loading } = useAuth();
+  const { authenticated, loading, login, user } = useAuth();
 
   useEffect(() => {
     const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
@@ -38,12 +38,14 @@ const LoginContinuePage = () => {
   useEffect(() => {
     if (!loading) {
       if (authenticated) {
-        navigate("/leads", { replace: true });
+        navigate(user?.profileCompletionRequired ? "/complete-profile" : "/leads", {
+          replace: true,
+        });
       } else {
         navigate("/login", { replace: true });
       }
     }
-  }, [authenticated, loading, navigate]);
+  }, [authenticated, loading, navigate, user]);
 
   return (
     <div className="public-shell min-h-screen text-ink-900">

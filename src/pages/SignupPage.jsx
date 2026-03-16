@@ -4,6 +4,7 @@ import { ArrowRightIcon } from "@heroicons/react/24/outline";
 
 import { API_BASE_URL } from "../config";
 import BrandLogo from "../components/BrandLogo";
+import PublicLegalLinks from "../components/PublicLegalLinks";
 import { useAuth } from "../context/AuthContext";
 import { signupUser } from "../utils/api";
 
@@ -23,26 +24,43 @@ const workspaceUseCases = [
 ];
 
 const onboardingPromises = [
-  "A smaller, simpler visual system from the first screen.",
-  "A flatter interface with less blur, weight, and extra decoration.",
-  "Direct access through Google or email once the account is created.",
+  "Required fields stay tight: first name, last name, email, and password.",
+  "Company and phone remain optional so the form stays lighter.",
+  "Google signup can continue first, then collect any missing profile details.",
 ];
+
+const initialFormState = {
+  firstName: "",
+  lastName: "",
+  email: "",
+  password: "",
+  companyName: "",
+  phoneNumber: "",
+  termsAccepted: false,
+  marketingConsent: false,
+};
 
 const SignupPage = () => {
   const navigate = useNavigate();
-  const { login, authenticated } = useAuth();
-  const [formData, setFormData] = useState({ name: "", email: "", password: "" });
+  const { authenticated, login, user } = useAuth();
+  const [formData, setFormData] = useState(initialFormState);
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (authenticated) {
-      navigate("/leads", { replace: true });
+      navigate(user?.profileCompletionRequired ? "/complete-profile" : "/leads", {
+        replace: true,
+      });
     }
-  }, [authenticated, navigate]);
+  }, [authenticated, navigate, user]);
 
   const handleChange = (event) => {
-    setFormData((previous) => ({ ...previous, [event.target.name]: event.target.value }));
+    const { checked, name, type, value } = event.target;
+    setFormData((previous) => ({
+      ...previous,
+      [name]: type === "checkbox" ? checked : value,
+    }));
   };
 
   const handleGoogleSignup = () => {
@@ -53,8 +71,18 @@ const SignupPage = () => {
     event.preventDefault();
     setError("");
 
-    if (!formData.name || !formData.email || !formData.password) {
-      setError("All fields are required.");
+    if (
+      !formData.firstName.trim() ||
+      !formData.lastName.trim() ||
+      !formData.email.trim() ||
+      !formData.password
+    ) {
+      setError("First name, last name, email, and password are required.");
+      return;
+    }
+
+    if (!formData.termsAccepted) {
+      setError("You must accept the Terms of Use and Privacy Policy to continue.");
       return;
     }
 
@@ -71,7 +99,7 @@ const SignupPage = () => {
 
   return (
     <div className="public-shell min-h-screen text-ink-900">
-      <div className="mx-auto flex min-h-screen max-w-[1240px] flex-col px-4 py-4 sm:px-6 lg:px-8">
+      <div className="mx-auto flex min-h-screen max-w-[1280px] flex-col px-4 py-4 sm:px-6 lg:px-8">
         <header className="surface-panel flex items-center justify-between gap-4 px-5 py-4">
           <Link to="/" className="flex items-center gap-3">
             <BrandLogo caption="Workspace onboarding" />
@@ -83,7 +111,7 @@ const SignupPage = () => {
         </header>
 
         <main className="flex flex-1 items-center py-10 lg:py-12">
-          <div className="grid w-full gap-6 lg:grid-cols-[minmax(0,1fr)_420px] lg:gap-8">
+          <div className="grid w-full gap-6 lg:grid-cols-[minmax(0,1fr)_480px] lg:gap-8">
             <section className="flex flex-col justify-center reveal-up">
               <span className="eyebrow">New workspace account</span>
               <h1 className="mt-5 max-w-3xl font-display text-[2.9rem] leading-[0.96] text-balance text-ink-900 sm:text-[3.6rem]">
@@ -125,7 +153,8 @@ const SignupPage = () => {
                 Create your account
               </h2>
               <p className="mt-3 text-sm leading-6 text-ink-500">
-                Start with email or continue with Google and step into the simplified shell.
+                Start with email or continue with Google. If Google doesn&apos;t include everything,
+                we&apos;ll ask for the missing profile details right after sign-in.
               </p>
 
               <button onClick={handleGoogleSignup} type="button" className="secondary-action mt-5 w-full">
@@ -141,21 +170,40 @@ const SignupPage = () => {
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-4">
-                <div>
-                  <label htmlFor="name" className="auth-label">
-                    Full name
-                  </label>
-                  <input
-                    id="name"
-                    name="name"
-                    type="text"
-                    value={formData.name}
-                    onChange={handleChange}
-                    className="auth-input"
-                    placeholder="Your full name"
-                    autoComplete="name"
-                    required
-                  />
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <label htmlFor="firstName" className="auth-label">
+                      First name
+                    </label>
+                    <input
+                      id="firstName"
+                      name="firstName"
+                      type="text"
+                      value={formData.firstName}
+                      onChange={handleChange}
+                      className="auth-input"
+                      placeholder="Nisa"
+                      autoComplete="given-name"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="lastName" className="auth-label">
+                      Last name
+                    </label>
+                    <input
+                      id="lastName"
+                      name="lastName"
+                      type="text"
+                      value={formData.lastName}
+                      onChange={handleChange}
+                      className="auth-input"
+                      placeholder="Mizrahi"
+                      autoComplete="family-name"
+                      required
+                    />
+                  </div>
                 </div>
 
                 <div>
@@ -192,15 +240,81 @@ const SignupPage = () => {
                   />
                 </div>
 
-                {error && (
-                  <div className="section-card p-4 text-sm text-red-700">
-                    {error}
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <label htmlFor="companyName" className="auth-label">
+                      Company name
+                    </label>
+                    <input
+                      id="companyName"
+                      name="companyName"
+                      type="text"
+                      value={formData.companyName}
+                      onChange={handleChange}
+                      className="auth-input"
+                      placeholder="Optional"
+                      autoComplete="organization"
+                    />
                   </div>
-                )}
+
+                  <div>
+                    <label htmlFor="phoneNumber" className="auth-label">
+                      Phone number
+                    </label>
+                    <input
+                      id="phoneNumber"
+                      name="phoneNumber"
+                      type="tel"
+                      value={formData.phoneNumber}
+                      onChange={handleChange}
+                      className="auth-input"
+                      placeholder="Optional"
+                      autoComplete="tel"
+                    />
+                  </div>
+                </div>
+
+                <label className="flex items-start gap-3 rounded-[20px] bg-sand-50 px-4 py-4 text-sm leading-6 text-ink-600">
+                  <input
+                    type="checkbox"
+                    name="termsAccepted"
+                    checked={formData.termsAccepted}
+                    onChange={handleChange}
+                    className="mt-1 h-4 w-4 rounded border-ink-300 text-ink-900 focus:ring-ink-900"
+                    required
+                  />
+                  <span>
+                    I agree to the{" "}
+                    <Link to="/terms" className="font-semibold text-ink-900 underline underline-offset-4">
+                      Terms of Use
+                    </Link>{" "}
+                    and{" "}
+                    <Link to="/privacy" className="font-semibold text-ink-900 underline underline-offset-4">
+                      Privacy Policy
+                    </Link>
+                    .
+                  </span>
+                </label>
+
+                <label className="flex items-start gap-3 rounded-[20px] bg-white px-4 py-4 text-sm leading-6 text-ink-600 ring-1 ring-ink-100">
+                  <input
+                    type="checkbox"
+                    name="marketingConsent"
+                    checked={formData.marketingConsent}
+                    onChange={handleChange}
+                    className="mt-1 h-4 w-4 rounded border-ink-300 text-ink-900 focus:ring-ink-900"
+                  />
+                  <span>
+                    I agree that Fliprop may send me marketing emails and, if I provide a phone
+                    number, marketing calls or text messages. Consent is optional and I can opt out later.
+                  </span>
+                </label>
+
+                {error ? <div className="section-card p-4 text-sm text-red-700">{error}</div> : null}
 
                 <button type="submit" disabled={isSubmitting} className="primary-action w-full">
                   {isSubmitting ? "Creating account..." : "Create account"}
-                  {!isSubmitting && <ArrowRightIcon className="ml-2 h-4 w-4" />}
+                  {!isSubmitting ? <ArrowRightIcon className="ml-2 h-4 w-4" /> : null}
                 </button>
               </form>
 
@@ -212,6 +326,8 @@ const SignupPage = () => {
                   Homepage
                 </Link>
               </div>
+
+              <PublicLegalLinks />
             </section>
           </div>
         </main>

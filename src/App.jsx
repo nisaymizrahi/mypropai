@@ -15,6 +15,9 @@ const DashboardLayout = lazy(() => import("./components/DashboardLayout"));
 const Homepage = lazy(() => import("./pages/Homepage"));
 const LoginPage = lazy(() => import("./pages/LoginPage"));
 const LoginContinuePage = lazy(() => import("./pages/LoginContinuePage"));
+const CompleteProfilePage = lazy(() => import("./pages/CompleteProfilePage"));
+const ForgotPasswordPage = lazy(() => import("./pages/ForgotPasswordPage"));
+const LegalDocumentPage = lazy(() => import("./pages/LegalDocumentPage"));
 const ResetPasswordPage = lazy(() => import("./pages/ResetPasswordPage"));
 const SignupPage = lazy(() => import("./pages/SignupPage"));
 const CompsReportPage = lazy(() => import("./pages/CompsReportPage"));
@@ -181,6 +184,14 @@ function App() {
               }
             />
             <Route
+              path="/forgot-password"
+              element={
+                <PublicRoute>
+                  <ForgotPasswordPage />
+                </PublicRoute>
+              }
+            />
+            <Route
               path="/signup"
               element={
                 <PublicRoute>
@@ -188,9 +199,36 @@ function App() {
                 </PublicRoute>
               }
             />
+            <Route
+              path="/terms"
+              element={
+                <PublicRoute>
+                  <LegalDocumentPage documentKey="terms" />
+                </PublicRoute>
+              }
+            />
+            <Route
+              path="/privacy"
+              element={
+                <PublicRoute>
+                  <LegalDocumentPage documentKey="privacy" />
+                </PublicRoute>
+              }
+            />
             {parkedPublicPaths.map((path) => (
               <Route key={path} path={path} element={<Navigate to="/" replace />} />
             ))}
+
+            <Route
+              path="/complete-profile"
+              element={
+                <ProtectedRoute>
+                  <Suspense fallback={<RouteLoadingShell message="Opening your profile setup..." />}>
+                    <CompleteProfilePage />
+                  </Suspense>
+                </ProtectedRoute>
+              }
+            />
 
             <Route path="/dashboard" element={<LeadsRedirectRoute />} />
 

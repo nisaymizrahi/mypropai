@@ -1,5 +1,5 @@
 import React from "react";
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 import BrandLogo from "./BrandLogo";
 import { useAuth } from "../context/AuthContext";
 
@@ -17,7 +17,8 @@ const LoadingSpinner = () => (
 );
 
 const ProtectedRoute = ({ children }) => {
-  const { authenticated, loading } = useAuth();
+  const location = useLocation();
+  const { authenticated, loading, user } = useAuth();
 
   if (loading) {
     return <LoadingSpinner />;
@@ -25,6 +26,10 @@ const ProtectedRoute = ({ children }) => {
 
   if (!authenticated) {
     return <Navigate to="/login" replace />;
+  }
+
+  if (user?.profileCompletionRequired && location.pathname !== "/complete-profile") {
+    return <Navigate to="/complete-profile" replace />;
   }
 
   return children;

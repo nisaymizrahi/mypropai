@@ -45,6 +45,10 @@ const FILTERS = [
   { value: "suspended", label: "Suspended" },
   { value: "billing_issue", label: "Billing issues" },
   { value: "paying", label: "Paying" },
+  { value: "google", label: "Google" },
+  { value: "marketing_opt_in", label: "Marketing opt-in" },
+  { value: "marketing_opt_out", label: "No marketing opt-in" },
+  { value: "profile_incomplete", label: "Profile incomplete" },
   { value: "high_usage", label: "High usage" },
   { value: "recent", label: "Recent signups" },
   { value: "inactive", label: "Inactive 30d" },
@@ -86,6 +90,11 @@ const summaryCards = (stats) => [
     label: "Billing issues",
     value: stats.billingIssueUsers,
     detail: "Users whose Stripe-backed status needs attention.",
+  },
+  {
+    label: "Marketing opt-ins",
+    value: stats.marketingOptInUsers,
+    detail: "Accounts currently open to promotional email, calls, or texts.",
   },
 ];
 
@@ -155,6 +164,16 @@ const describeSubscription = (subscription) => {
   return "Access follows the normal billing state for this account.";
 };
 
+const describeAuthAccess = (authProviders) => authProviders?.label || "Password";
+
+const describeConsentState = (isAllowed, when) => {
+  if (!isAllowed) {
+    return "No";
+  }
+
+  return when ? `Yes, ${formatDate(when)}` : "Yes";
+};
+
 const downloadBlob = (blob, filename) => {
   const url = window.URL.createObjectURL(blob);
   const link = document.createElement("a");
@@ -175,6 +194,10 @@ const matchesFilter = (listedUser, filter) => {
   if (filter === "suspended") return listedUser.accountStatus === "suspended";
   if (filter === "billing_issue") return listedUser.hasBillingIssue;
   if (filter === "paying") return listedUser.subscription.source === "stripe";
+  if (filter === "google") return Boolean(listedUser.authProviders?.google);
+  if (filter === "marketing_opt_in") return Boolean(listedUser.consent?.marketingOptIn);
+  if (filter === "marketing_opt_out") return !listedUser.consent?.marketingOptIn;
+  if (filter === "profile_incomplete") return Boolean(listedUser.profileCompletionRequired);
   if (filter === "high_usage") return listedUser.isHighUsage;
   if (filter === "recent") return listedUser.isRecentSignup;
   if (filter === "inactive") return !listedUser.isRecentlyActive;
@@ -228,6 +251,8 @@ const PlatformManagerPage = () => {
     freeUsers: 0,
     overriddenUsers: 0,
     billingIssueUsers: 0,
+    marketingOptInUsers: 0,
+    profileCompletionUsers: 0,
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -570,7 +595,7 @@ const PlatformManagerPage = () => {
         </div>
       </section>
 
-      <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+      <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-5">
         {summaryCards(stats).map((card) => (
           <SummaryCard key={card.label} {...card} />
         ))}
@@ -583,8 +608,8 @@ const PlatformManagerPage = () => {
               <span className="eyebrow">User roster</span>
               <h3 className="mt-4 text-2xl font-semibold text-ink-900">Workspace accounts</h3>
               <p className="mt-2 text-sm leading-6 text-ink-500">
-                Search by name or email, then open the detail panel to manage billing, sessions,
-                notes, and support actions.
+                Search by name, email, company, or phone, then open the detail panel to manage
+                billing, consent, sessions, notes, and support actions.
               </p>
             </div>
 
@@ -595,7 +620,7 @@ const PlatformManagerPage = () => {
                   type="search"
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
-                  placeholder="Search by name or email"
+                  placeholder="Search by name, email, company, or phone"
                   className="auth-input pl-11"
                 />
               </label>
@@ -677,8 +702,17 @@ const PlatformManagerPage = () => {
                                   Billing issue
                                 </span>
                               ) : null}
+                              {listedUser.profileCompletionRequired ? (
+                                <span className="rounded-full bg-sand-100 px-3 py-1 text-xs font-semibold text-ink-700">
+                                  Profile incomplete
+                                </span>
+                              ) : null}
                             </div>
                             <p className="mt-1 text-sm text-ink-500">{listedUser.email}</p>
+                            <div className="mt-2 flex flex-wrap gap-3 text-sm text-ink-500">
+                              <span>{listedUser.companyName || "No company"}</span>
+                              <span>{listedUser.phoneNumber || "No phone"}</span>
+                            </div>
                             <p className="mt-2 text-xs font-medium uppercase tracking-[0.16em] text-ink-400">
                               Joined {formatDate(listedUser.createdAt)}
                             </p>
@@ -703,6 +737,14 @@ const PlatformManagerPage = () => {
                           {listedUser.subscription.override !== "none" ? (
                             <span className="rounded-full bg-sand-100 px-3 py-1 text-xs font-semibold text-ink-700">
                               Override: {listedUser.subscription.override}
+                            </span>
+                          ) : null}
+                          <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-ink-700 ring-1 ring-ink-100">
+                            {describeAuthAccess(listedUser.authProviders)}
+                          </span>
+                          {listedUser.consent?.marketingOptIn ? (
+                            <span className="rounded-full bg-verdigris-50 px-3 py-1 text-xs font-semibold text-verdigris-700">
+                              Marketing ok
                             </span>
                           ) : null}
                         </div>
@@ -904,6 +946,19 @@ const PlatformManagerPage = () => {
                             Billing issue
                           </span>
                         ) : null}
+                        <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-ink-700 ring-1 ring-ink-100">
+                          {describeAuthAccess(selectedUser.authProviders)}
+                        </span>
+                        {selectedUser.consent?.marketingOptIn ? (
+                          <span className="rounded-full bg-verdigris-50 px-3 py-1 text-xs font-semibold text-verdigris-700">
+                            Marketing opt-in
+                          </span>
+                        ) : null}
+                        {selectedUser.profileCompletionRequired ? (
+                          <span className="rounded-full bg-sand-100 px-3 py-1 text-xs font-semibold text-ink-700">
+                            Profile incomplete
+                          </span>
+                        ) : null}
                       </div>
                     </div>
                   </div>
@@ -1034,6 +1089,56 @@ const PlatformManagerPage = () => {
                     </button>
                   </div>
                 </div>
+
+                <DetailBlock
+                  title="Profile and consent"
+                  subtitle="Signup details, login method, and communication permissions recorded for this account."
+                >
+                  <div className="grid gap-3">
+                    <div className="flex items-center justify-between rounded-[18px] bg-white px-4 py-3 ring-1 ring-ink-100">
+                      <span className="text-sm font-medium text-ink-600">First / last name</span>
+                      <span className="text-sm font-semibold text-ink-900">
+                        {selectedUser.firstName || "Not set"} {selectedUser.lastName || ""}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between rounded-[18px] bg-white px-4 py-3 ring-1 ring-ink-100">
+                      <span className="text-sm font-medium text-ink-600">Company</span>
+                      <span className="text-sm font-semibold text-ink-900">
+                        {selectedUser.companyName || "Not provided"}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between rounded-[18px] bg-white px-4 py-3 ring-1 ring-ink-100">
+                      <span className="text-sm font-medium text-ink-600">Phone</span>
+                      <span className="text-sm font-semibold text-ink-900">
+                        {selectedUser.phoneNumber || "Not provided"}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between rounded-[18px] bg-sand-50 px-4 py-3">
+                      <span className="text-sm font-medium text-ink-600">Sign-in access</span>
+                      <span className="text-sm font-semibold text-ink-900">
+                        {describeAuthAccess(selectedUser.authProviders)}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between rounded-[18px] bg-white px-4 py-3 ring-1 ring-ink-100">
+                      <span className="text-sm font-medium text-ink-600">Terms accepted</span>
+                      <span className="text-sm font-semibold text-ink-900">
+                        {describeConsentState(
+                          selectedUser.consent?.termsAccepted,
+                          selectedUser.consent?.termsAcceptedAt
+                        )}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between rounded-[18px] bg-white px-4 py-3 ring-1 ring-ink-100">
+                      <span className="text-sm font-medium text-ink-600">Marketing outreach</span>
+                      <span className="text-sm font-semibold text-ink-900">
+                        {describeConsentState(
+                          selectedUser.consent?.marketingOptIn,
+                          selectedUser.consent?.marketingConsentAcceptedAt
+                        )}
+                      </span>
+                    </div>
+                  </div>
+                </DetailBlock>
 
                 <DetailBlock
                   title="Identity support"

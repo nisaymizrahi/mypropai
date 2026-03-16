@@ -4,6 +4,7 @@ import { ArrowRightIcon } from "@heroicons/react/24/outline";
 
 import { API_BASE_URL } from "../config";
 import BrandLogo from "../components/BrandLogo";
+import PublicLegalLinks from "../components/PublicLegalLinks";
 import { useAuth } from "../context/AuthContext";
 import { loginUser } from "../utils/api";
 
@@ -23,20 +24,21 @@ const workspaceNotes = [
 ];
 
 const accessPrinciples = [
-  "Smaller typography and flatter panels keep the page easier to scan.",
   "Google and email sign in stay visible without competing blocks around them.",
-  "The overall palette remains warm, but the interface now feels quieter.",
+  "Password recovery is one click away if you need to reset access.",
+  "Legal links stay close to the form so consent language is easy to revisit.",
 ];
 
 const oauthMessages = {
   nouser: "We could not complete Google sign in for that account. Try email login or another Google account.",
   token: "Google sign in started, but the session could not be completed. Please try again.",
+  suspended: "That account is suspended right now. Contact support if you need help.",
 };
 
 const LoginPage = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { login, authenticated, loading } = useAuth();
+  const { authenticated, loading, login, user } = useAuth();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -45,9 +47,9 @@ const LoginPage = () => {
 
   useEffect(() => {
     if (!loading && authenticated) {
-      navigate("/leads", { replace: true });
+      navigate(user?.profileCompletionRequired ? "/complete-profile" : "/leads", { replace: true });
     }
-  }, [authenticated, loading, navigate]);
+  }, [authenticated, loading, navigate, user]);
 
   const handleGoogleLogin = () => {
     window.location.href = `${API_BASE_URL}/auth/google`;
@@ -99,8 +101,7 @@ const LoginPage = () => {
                 Sign in to the lighter version of the Fliprop workspace.
               </h1>
               <p className="mt-5 max-w-2xl text-sm leading-7 text-ink-600 sm:text-base">
-                Use this access if you manage acquisitions, operations, reporting, or portfolio
-                decisions.
+                Use this access if you manage acquisitions, operations, reporting, or portfolio decisions.
               </p>
 
               <div className="surface-panel mt-7 p-5">
@@ -137,11 +138,11 @@ const LoginPage = () => {
                 Continue with Google or use your workspace email and password.
               </p>
 
-              {oauthMessage && (
+              {oauthMessage ? (
                 <div className="section-card mt-5 p-4 text-sm leading-6 text-clay-700">
                   {oauthMessage}
                 </div>
-              )}
+              ) : null}
 
               <button onClick={handleGoogleLogin} type="button" className="secondary-action mt-5 w-full">
                 Continue with Google
@@ -173,9 +174,14 @@ const LoginPage = () => {
                 </div>
 
                 <div>
-                  <label htmlFor="password" className="auth-label">
-                    Password
-                  </label>
+                  <div className="flex items-center justify-between gap-3">
+                    <label htmlFor="password" className="auth-label">
+                      Password
+                    </label>
+                    <Link to="/forgot-password" className="text-sm font-semibold text-ink-600 hover:text-ink-900">
+                      Forgot password?
+                    </Link>
+                  </div>
                   <input
                     id="password"
                     type="password"
@@ -188,15 +194,11 @@ const LoginPage = () => {
                   />
                 </div>
 
-                {error && (
-                  <div className="section-card p-4 text-sm text-red-700">
-                    {error}
-                  </div>
-                )}
+                {error ? <div className="section-card p-4 text-sm text-red-700">{error}</div> : null}
 
                 <button type="submit" disabled={isSubmitting} className="primary-action w-full">
                   {isSubmitting ? "Signing in..." : "Sign in"}
-                  {!isSubmitting && <ArrowRightIcon className="ml-2 h-4 w-4" />}
+                  {!isSubmitting ? <ArrowRightIcon className="ml-2 h-4 w-4" /> : null}
                 </button>
               </form>
 
@@ -208,6 +210,8 @@ const LoginPage = () => {
                   Homepage
                 </Link>
               </div>
+
+              <PublicLegalLinks />
             </section>
           </div>
         </main>

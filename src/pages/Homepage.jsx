@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { ArrowRightIcon } from "@heroicons/react/24/outline";
 
 import BrandLogo from "../components/BrandLogo";
+import PublicLegalLinks from "../components/PublicLegalLinks";
 
 const focusPoints = [
   "Cleaner hierarchy",
@@ -69,6 +70,7 @@ const Homepage = () => {
               The public entry now stays centered on one path: create an operator account or sign in
               to the workspace. Tenant login is no longer promoted on the main homepage.
             </p>
+            <PublicLegalLinks className="mt-4" />
           </div>
         </section>
       </div>

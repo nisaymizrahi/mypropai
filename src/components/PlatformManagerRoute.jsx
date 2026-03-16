@@ -1,5 +1,5 @@
 import React from "react";
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 
 import { useAuth } from "../context/AuthContext";
 
@@ -10,6 +10,7 @@ const LoadingSpinner = () => (
 );
 
 const PlatformManagerRoute = ({ children }) => {
+  const location = useLocation();
   const { authenticated, loading, user } = useAuth();
 
   if (loading) {
@@ -18,6 +19,10 @@ const PlatformManagerRoute = ({ children }) => {
 
   if (!authenticated) {
     return <Navigate to="/login" replace />;
+  }
+
+  if (user?.profileCompletionRequired && location.pathname !== "/complete-profile") {
+    return <Navigate to="/complete-profile" replace />;
   }
 
   if (!user?.isPlatformManager) {

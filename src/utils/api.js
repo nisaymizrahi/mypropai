@@ -797,11 +797,29 @@ export const loginUser = async (email, password) => {
   return res.json();
 };
 
-export const signupUser = async ({ name, email, password }) => {
+export const signupUser = async ({
+  firstName,
+  lastName,
+  email,
+  password,
+  companyName,
+  phoneNumber,
+  marketingConsent,
+  termsAccepted,
+}) => {
   const res = await fetch(`${API_BASE_URL}/auth/signup`, {
     method: "POST",
     headers: getAuthHeaders(),
-    body: JSON.stringify({ name, email, password }),
+    body: JSON.stringify({
+      firstName,
+      lastName,
+      email,
+      password,
+      companyName,
+      phoneNumber,
+      marketingConsent,
+      termsAccepted,
+    }),
   });
   if (!res.ok) throw new Error((await res.json()).message || "Failed to sign up");
   return res.json();
@@ -831,6 +849,16 @@ export const updateUserProfile = async (profileData) => {
     body: JSON.stringify(profileData),
   });
   if (!res.ok) throw new Error((await res.json()).message || "Failed to update profile");
+  return res.json();
+};
+
+export const completeUserProfile = async (profileData) => {
+  const res = await fetch(`${API_BASE_URL}/auth/complete-profile`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(profileData),
+  });
+  if (!res.ok) throw new Error((await res.json()).message || "Failed to complete profile");
   return res.json();
 };
 

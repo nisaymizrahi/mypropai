@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { useLocation } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import {
   BoltIcon,
   CreditCardIcon,
@@ -107,7 +107,14 @@ const AccountCenter = () => {
   const location = useLocation();
   const syncedSessionRef = useRef(null);
 
-  const [profileData, setProfileData] = useState({ name: "", email: "" });
+  const [profileData, setProfileData] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    companyName: "",
+    phoneNumber: "",
+    marketingConsent: false,
+  });
   const [isProfileSaving, setIsProfileSaving] = useState(false);
   const [passwordData, setPasswordData] = useState({
     currentPassword: "",
@@ -135,7 +142,14 @@ const AccountCenter = () => {
 
   useEffect(() => {
     if (user) {
-      setProfileData({ name: user.name || "", email: user.email || "" });
+      setProfileData({
+        firstName: user.firstName || "",
+        lastName: user.lastName || "",
+        email: user.email || "",
+        companyName: user.companyName || "",
+        phoneNumber: user.phoneNumber || "",
+        marketingConsent: Boolean(user.consent?.marketingOptIn),
+      });
     }
   }, [user]);
 
@@ -188,9 +202,10 @@ const AccountCenter = () => {
   }, []);
 
   const handleProfileChange = (event) => {
+    const { checked, name, type, value } = event.target;
     setProfileData((current) => ({
       ...current,
-      [event.target.name]: event.target.value,
+      [name]: type === "checkbox" ? checked : value,
     }));
   };
 
@@ -395,17 +410,31 @@ const AccountCenter = () => {
             <form onSubmit={handleProfileSubmit} className="mt-6 space-y-5">
               <div className="grid gap-5 md:grid-cols-2">
                 <div>
-                  <label htmlFor="name" className="auth-label">
-                    Full name
+                  <label htmlFor="firstName" className="auth-label">
+                    First name
                   </label>
                   <input
-                    id="name"
-                    name="name"
+                    id="firstName"
+                    name="firstName"
                     type="text"
-                    value={profileData.name}
+                    value={profileData.firstName}
                     onChange={handleProfileChange}
                     className="auth-input"
-                    placeholder="Your full name"
+                    placeholder="First name"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="lastName" className="auth-label">
+                    Last name
+                  </label>
+                  <input
+                    id="lastName"
+                    name="lastName"
+                    type="text"
+                    value={profileData.lastName}
+                    onChange={handleProfileChange}
+                    className="auth-input"
+                    placeholder="Last name"
                   />
                 </div>
                 <div>
@@ -422,6 +451,70 @@ const AccountCenter = () => {
                     placeholder="you@company.com"
                   />
                 </div>
+                <div>
+                  <label htmlFor="companyName" className="auth-label">
+                    Company name
+                  </label>
+                  <input
+                    id="companyName"
+                    name="companyName"
+                    type="text"
+                    value={profileData.companyName}
+                    onChange={handleProfileChange}
+                    className="auth-input"
+                    placeholder="Optional"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="phoneNumber" className="auth-label">
+                    Phone number
+                  </label>
+                  <input
+                    id="phoneNumber"
+                    name="phoneNumber"
+                    type="tel"
+                    value={profileData.phoneNumber}
+                    onChange={handleProfileChange}
+                    className="auth-input"
+                    placeholder="Optional"
+                  />
+                </div>
+              </div>
+
+              <label className="flex items-start gap-3 rounded-[20px] bg-sand-50 px-4 py-4 text-sm leading-6 text-ink-600">
+                <input
+                  type="checkbox"
+                  name="marketingConsent"
+                  checked={profileData.marketingConsent}
+                  onChange={handleProfileChange}
+                  className="mt-1 h-4 w-4 rounded border-ink-300 text-ink-900 focus:ring-ink-900"
+                />
+                <span>
+                  Allow Fliprop to send marketing emails and, if a phone number is on file,
+                  marketing calls or text messages. You can opt out later.
+                </span>
+              </label>
+
+              <div className="rounded-[20px] border border-ink-100 bg-white px-4 py-4 text-sm leading-6 text-ink-600">
+                <p>
+                  Terms accepted:{" "}
+                  <span className="font-semibold text-ink-900">
+                    {user?.consent?.termsAcceptedAt
+                      ? new Date(user.consent.termsAcceptedAt).toLocaleDateString()
+                      : "Not recorded"}
+                  </span>
+                </p>
+                <p className="mt-2">
+                  Review the{" "}
+                  <Link to="/terms" className="font-semibold text-ink-900 underline underline-offset-4">
+                    Terms of Use
+                  </Link>{" "}
+                  and{" "}
+                  <Link to="/privacy" className="font-semibold text-ink-900 underline underline-offset-4">
+                    Privacy Policy
+                  </Link>
+                  .
+                </p>
               </div>
 
               <div className="flex justify-end">
