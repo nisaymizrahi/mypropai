@@ -1,16 +1,19 @@
 export const LEGAL_LAST_UPDATED = "March 16, 2026";
+export const LEGAL_BUSINESS_NAME = "S&N Property Managment LLC";
+export const LEGAL_CONTACT_EMAIL = "nisay@snmanager.com";
+export const LEGAL_GOVERNING_STATE = "Pennsylvania";
 
 export const LEGAL_DOCUMENTS = {
   terms: {
     title: "Terms of Use",
     eyebrow: "Fliprop legal",
     intro:
-      "These Terms of Use govern your access to the Fliprop website, application, and related services used to analyze deals, manage properties, coordinate operations, and communicate with your team.",
+      `These Terms of Use govern your access to the Fliprop website, application, and related services used to analyze deals, manage properties, coordinate operations, and communicate with your team. Fliprop is operated by ${LEGAL_BUSINESS_NAME}.`,
     sections: [
       {
         heading: "Who these terms apply to",
         paragraphs: [
-          "By creating an account, accessing the platform, or using Fliprop, you agree to these Terms of Use. If you use Fliprop for a company, fund, or other organization, you confirm that you have authority to accept these terms for that organization.",
+          `By creating an account, accessing the platform, or using Fliprop, you agree to these Terms of Use with ${LEGAL_BUSINESS_NAME}. If you use Fliprop for a company, fund, or other organization, you confirm that you have authority to accept these terms for that organization.`,
         ],
       },
       {
@@ -76,6 +79,18 @@ export const LEGAL_DOCUMENTS = {
         ],
       },
       {
+        heading: "Governing law",
+        paragraphs: [
+          `These Terms of Use and any dispute arising out of or relating to Fliprop will be governed by the laws of ${LEGAL_GOVERNING_STATE}, without regard to conflict-of-law principles, except to the extent applicable law requires otherwise.`,
+        ],
+      },
+      {
+        heading: "Contact information",
+        paragraphs: [
+          `Questions about these Terms of Use may be sent to ${LEGAL_BUSINESS_NAME} at ${LEGAL_CONTACT_EMAIL}.`,
+        ],
+      },
+      {
         heading: "Changes to these terms",
         paragraphs: [
           "Fliprop may update these Terms of Use from time to time. When we make material changes, we may update the date shown here and provide notice through the platform or by email when appropriate. Continued use of the platform after an update means the updated terms apply.",
@@ -87,7 +102,7 @@ export const LEGAL_DOCUMENTS = {
     title: "Privacy Policy",
     eyebrow: "Fliprop privacy",
     intro:
-      "This Privacy Policy describes how Fliprop collects, uses, stores, and shares personal information when you visit our website, create an account, use the platform, contact support, or interact with our communications.",
+      `This Privacy Policy describes how Fliprop collects, uses, stores, and shares personal information when you visit our website, create an account, use the platform, contact support, or interact with our communications. Fliprop is operated by ${LEGAL_BUSINESS_NAME}.`,
     sections: [
       {
         heading: "Information we collect",
@@ -107,7 +122,7 @@ export const LEGAL_DOCUMENTS = {
         heading: "Marketing communications",
         paragraphs: [
           "If you opt in, Fliprop may send you marketing emails about product updates, offers, events, and related services. If you provide a phone number and opt in, we may also contact you with marketing calls or text messages where permitted by law.",
-          "Marketing consent is optional, is not a condition of purchase, and may be withdrawn at any time using the unsubscribe link in emails, by following opt-out instructions in a text message, or by contacting us through the platform. Message and data rates may apply for text messages.",
+          `Marketing consent is optional, is not a condition of purchase, and may be withdrawn at any time using the unsubscribe link in emails, by following opt-out instructions in a text message, or by contacting us at ${LEGAL_CONTACT_EMAIL}. Message and data rates may apply for text messages.`,
         ],
       },
       {
@@ -140,6 +155,12 @@ export const LEGAL_DOCUMENTS = {
         heading: "Your choices",
         paragraphs: [
           "You can review and update certain account details inside the platform. You can also opt out of marketing communications as described above. Depending on your location, you may have additional privacy rights under applicable law.",
+        ],
+      },
+      {
+        heading: "Contact us",
+        paragraphs: [
+          `If you have questions about this Privacy Policy or want to contact us about your information, you can reach ${LEGAL_BUSINESS_NAME} at ${LEGAL_CONTACT_EMAIL}.`,
         ],
       },
       {
