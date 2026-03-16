@@ -15,7 +15,7 @@ import {
   previewLeadProperty,
   saveCompsReport,
 } from "../utils/api";
-import { searchAddressSuggestions } from "../utils/locationSearch";
+import { geocodeAddress, searchAddressSuggestions } from "../utils/locationSearch";
 import {
   buildAnalysisFromSavedReport,
   buildCompsFilters,
@@ -54,6 +54,9 @@ const tabOptions = [
 
 const isSavedReportsBackendUnavailable = (error) =>
   String(error?.message || "").includes("Saved reports are not available on the server yet");
+
+const hasCoordinateValue = (value) =>
+  value !== null && value !== undefined && value !== "";
 
 const CompsReportPage = () => {
   const selectedSuggestionRef = useRef("");
@@ -222,8 +225,12 @@ const CompsReportPage = () => {
     setCompsNotice("");
   };
 
-  const handlePreviewLookup = async (suggestedAddress = "") => {
-    const lookupAddress = suggestedAddress || composeAddress(detailForm).trim();
+  const handlePreviewLookup = async (suggestedAddress = "", fieldOverrides = {}) => {
+    const previewSource = {
+      ...detailForm,
+      ...fieldOverrides,
+    };
+    const lookupAddress = suggestedAddress || composeAddress(previewSource).trim();
     if (!lookupAddress) {
       toast.error("Enter an address first.");
       return;
@@ -232,16 +239,37 @@ const CompsReportPage = () => {
     setIsPreviewLoading(true);
     try {
       const preview = await previewLeadProperty({
-        ...subject,
+        ...buildStandaloneCompsSubject(previewSource),
         address: lookupAddress,
       });
 
       const mappedPreview = buildPreviewToCompsReportForm(preview);
+      let fallbackLatitude =
+        hasCoordinateValue(mappedPreview.latitude) ? mappedPreview.latitude : previewSource.latitude;
+      let fallbackLongitude =
+        hasCoordinateValue(mappedPreview.longitude) ? mappedPreview.longitude : previewSource.longitude;
+
+      if (!hasCoordinateValue(fallbackLatitude) || !hasCoordinateValue(fallbackLongitude)) {
+        try {
+          const geocodeResult = await geocodeAddress(lookupAddress);
+          const [geocodedLongitude, geocodedLatitude] = geocodeResult?.features?.[0]?.center || [];
+
+          if (hasCoordinateValue(geocodedLatitude) && hasCoordinateValue(geocodedLongitude)) {
+            fallbackLatitude = geocodedLatitude;
+            fallbackLongitude = geocodedLongitude;
+          }
+        } catch (geocodeError) {
+          console.error("Failed to geocode comps report address for map fallback", geocodeError);
+        }
+      }
+
       suppressSuggestionsRef.current = true;
       setDetailForm((previous) => {
         const next = {
           ...previous,
           ...mappedPreview,
+          latitude: hasCoordinateValue(fallbackLatitude) ? fallbackLatitude : previous.latitude,
+          longitude: hasCoordinateValue(fallbackLongitude) ? fallbackLongitude : previous.longitude,
         };
         selectedSuggestionRef.current = composeAddress(next) || lookupAddress;
         return next;
@@ -258,14 +286,23 @@ const CompsReportPage = () => {
 
   const handleSelectSuggestion = async (suggestion) => {
     const parsedAddress = parseAddressLabel(suggestion.place_name);
+    const latitude = suggestion.center?.[1] ?? "";
+    const longitude = suggestion.center?.[0] ?? "";
+
     suppressSuggestionsRef.current = true;
     selectedSuggestionRef.current = composeAddress(parsedAddress) || suggestion.place_name;
     setSuggestions([]);
     setDetailForm((previous) => ({
       ...previous,
       ...parsedAddress,
+      latitude,
+      longitude,
     }));
-    await handlePreviewLookup(suggestion.place_name);
+    await handlePreviewLookup(suggestion.place_name, {
+      ...parsedAddress,
+      latitude,
+      longitude,
+    });
   };
 
   const handleRunAnalysis = async () => {
