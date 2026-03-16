@@ -144,7 +144,7 @@ const LeadsPage = () => {
   const [isUpdatingLeadId, setIsUpdatingLeadId] = useState('');
 
   const openUnifiedLeadCreator = () => {
-    navigate('/properties/new');
+    navigate('/properties/new?workspace=pipeline');
   };
 
   const fetchData = useCallback(async () => {

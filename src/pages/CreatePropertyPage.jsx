@@ -18,7 +18,7 @@ const propertyTypeOptions = [
 ];
 
 const normalizeWorkspaceKey = (value) => {
-  if (["property_only", "pipeline"].includes(value)) {
+  if (["property_only", "pipeline", "acquisitions", "management"].includes(value)) {
     return value;
   }
 
@@ -106,6 +106,7 @@ const CreatePropertyPage = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const selectedSuggestionRef = useRef("");
+  const suppressSuggestionsRef = useRef(false);
   const initialWorkspace = normalizeWorkspaceKey(searchParams.get("workspace"));
 
   const [formData, setFormData] = useState({
@@ -144,13 +145,14 @@ const CreatePropertyPage = () => {
   );
 
   const showsUnitCount = formData.propertyType === "multi-family";
+  const isPipelineCreation = formData.workspaceKey === "pipeline";
   const isForSale = Boolean(
     previewMetadata?.activeListingFound || formData.listingStatus || formData.sellerAskingPrice
   );
 
   useEffect(() => {
     const query = addressQuery.trim();
-    if (query.length < 4 || query === selectedSuggestionRef.current) {
+    if (suppressSuggestionsRef.current || query.length < 4 || query === selectedSuggestionRef.current) {
       setSuggestions([]);
       return undefined;
     }
@@ -190,10 +192,9 @@ const CreatePropertyPage = () => {
     });
 
     if (["addressLine1", "city", "state", "zipCode"].includes(name)) {
+      suppressSuggestionsRef.current = false;
+      selectedSuggestionRef.current = "";
       setPreviewMetadata(null);
-      if (name === "addressLine1") {
-        selectedSuggestionRef.current = "";
-      }
     }
   };
 
@@ -226,10 +227,16 @@ const CreatePropertyPage = () => {
         listingStatus: previewSource.listingStatus || undefined,
       });
 
-      setFormData((current) => ({
-        ...current,
-        ...mapPreviewToForm(preview),
-      }));
+      const mappedPreview = mapPreviewToForm(preview);
+      suppressSuggestionsRef.current = true;
+      setFormData((current) => {
+        const next = {
+          ...current,
+          ...mappedPreview,
+        };
+        selectedSuggestionRef.current = composeAddress(next) || address;
+        return next;
+      });
       setPreviewMetadata(preview.metadata || null);
       setSuggestions([]);
     } catch (previewError) {
@@ -241,6 +248,7 @@ const CreatePropertyPage = () => {
 
   const handleSelectSuggestion = async (suggestion) => {
     const parsedAddress = parseAddressLabel(suggestion.place_name);
+    suppressSuggestionsRef.current = true;
     selectedSuggestionRef.current = composeAddress(parsedAddress) || suggestion.place_name;
     setSuggestions([]);
     setFormData((current) => ({
@@ -277,6 +285,12 @@ const CreatePropertyPage = () => {
       };
 
       const result = await createProperty(payload);
+
+      if (result.leadId && isPipelineCreation) {
+        toast.success("Property created and added to Potential leads.");
+        navigate("/leads");
+        return;
+      }
 
       if (result.property?.propertyKey) {
         toast.success(
