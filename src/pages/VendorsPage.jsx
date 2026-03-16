@@ -4,8 +4,8 @@ import toast from "react-hot-toast";
 import { deleteVendor, getVendors } from "../utils/api";
 import VendorDocumentsPanel from "../components/VendorDocumentsPanel";
 import VendorFormModal from "../components/VendorFormModal";
+import VendorProcurementPanel from "../components/VendorProcurementPanel";
 import {
-  formatVendorDate,
   getVendorComplianceClasses,
   getVendorComplianceLabel,
   getVendorComplianceState,
@@ -14,17 +14,23 @@ import {
   getVendorStatusLabel,
   vendorMatchesSearch,
 } from "../utils/vendors";
+import {
+  getVendorProcurementStateClasses,
+  getVendorProcurementSummary,
+} from "../utils/vendorProcurement";
 
 const filterTabs = [
   { id: "all", label: "All" },
   { id: "active", label: "Active" },
+  { id: "ready_to_assign", label: "Ready to assign" },
   { id: "preferred", label: "Preferred" },
-  { id: "needs_compliance", label: "Needs compliance" },
+  { id: "needs_packet", label: "Needs packet" },
   { id: "inactive", label: "Inactive" },
 ];
 
 const detailTabs = [
   { id: "overview", label: "Overview" },
+  { id: "procurement", label: "Procurement" },
   { id: "documents", label: "Documents" },
 ];
 
@@ -41,15 +47,20 @@ const matchesFilter = (vendor, filterId) => {
     return false;
   }
 
-  const complianceState = getVendorComplianceState(vendor);
+  const procurement = getVendorProcurementSummary(vendor);
 
   switch (filterId) {
     case "active":
       return vendor.status !== "inactive";
+    case "ready_to_assign":
+      return vendor.status !== "inactive" && procurement.assignmentReady;
     case "preferred":
       return vendor.status === "preferred";
-    case "needs_compliance":
-      return complianceState === "missing" || complianceState === "expired" || complianceState === "expiring";
+    case "needs_packet":
+      return (
+        vendor.status !== "inactive" &&
+        (!procurement.assignmentReady || procurement.blockingIssuesCount > 0)
+      );
     case "inactive":
       return vendor.status === "inactive";
     case "all":
@@ -114,6 +125,10 @@ const VendorsPage = () => {
     vendors.find((vendor) => vendor._id === selectedVendorId) ||
     filteredVendors[0] ||
     null;
+  const selectedVendorProcurement = useMemo(
+    () => getVendorProcurementSummary(selectedVendor || {}),
+    [selectedVendor]
+  );
 
   const specialtyCoverage = useMemo(
     () => new Set(vendors.flatMap((vendor) => getVendorSpecialties(vendor))).size,
@@ -125,6 +140,24 @@ const VendorsPage = () => {
       vendors.filter((vendor) => {
         const state = getVendorComplianceState(vendor);
         return state === "missing" || state === "expired" || state === "expiring";
+      }).length,
+    [vendors]
+  );
+  const readyToAssignCount = useMemo(
+    () =>
+      vendors.filter(
+        (vendor) => vendor.status !== "inactive" && getVendorProcurementSummary(vendor).assignmentReady
+      ).length,
+    [vendors]
+  );
+  const needsPacketCount = useMemo(
+    () =>
+      vendors.filter((vendor) => {
+        const summary = getVendorProcurementSummary(vendor);
+        return (
+          vendor.status !== "inactive" &&
+          (!summary.assignmentReady || summary.blockingIssuesCount > 0)
+        );
       }).length,
     [vendors]
   );
@@ -194,10 +227,10 @@ const VendorsPage = () => {
             <div>
               <span className="eyebrow">Vendor directory</span>
               <h1 className="mt-4 text-[2.5rem] font-medium tracking-tight text-ink-900">
-                Keep vendors ready to assign
+                Run vendors like a real procurement hub
               </h1>
               <p className="mt-3 max-w-3xl text-sm leading-6 text-ink-500">
-                Track specialties, contacts, service coverage, compliance documents, and assignment
+                Track specialties, contacts, procurement packets, compliance documents, and payment
                 readiness from one vendor hub.
               </p>
             </div>
@@ -216,11 +249,12 @@ const VendorsPage = () => {
 
           <div className="mt-7 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <MetricTile label="Total vendors" value={vendors.length} />
+            <MetricTile label="Ready to assign" value={readyToAssignCount} />
             <MetricTile
-              label="Preferred"
-              value={vendors.filter((vendor) => vendor.status === "preferred").length}
+              label="Needs packet"
+              value={needsPacketCount}
+              hint={`${complianceCount} with compliance gaps`}
             />
-            <MetricTile label="Needs compliance" value={complianceCount} />
             <MetricTile label="Specialties covered" value={specialtyCoverage} />
           </div>
         </section>
@@ -285,6 +319,7 @@ const VendorsPage = () => {
                   {filteredVendors.map((vendor) => {
                     const specialties = getVendorSpecialties(vendor);
                     const selected = vendor._id === selectedVendor?._id;
+                    const procurement = getVendorProcurementSummary(vendor);
 
                     return (
                       <button
@@ -319,6 +354,11 @@ const VendorsPage = () => {
                             className={`rounded-full px-3 py-1 text-[11px] font-semibold ${getVendorComplianceClasses(vendor)}`}
                           >
                             {getVendorComplianceLabel(vendor)}
+                          </span>
+                          <span
+                            className={`rounded-full px-3 py-1 text-[11px] font-semibold ${getVendorProcurementStateClasses(procurement.overallState)}`}
+                          >
+                            {procurement.overallLabel}
                           </span>
                           {vendor.afterHoursAvailable ? (
                             <span className="rounded-full border border-ink-100 bg-white px-3 py-1 text-[11px] font-semibold text-ink-600">
@@ -360,6 +400,13 @@ const VendorsPage = () => {
                             className={`rounded-full px-3 py-1 text-[11px] font-semibold ${getVendorComplianceClasses(selectedVendor)}`}
                           >
                             {getVendorComplianceLabel(selectedVendor)}
+                          </span>
+                          <span
+                            className={`rounded-full px-3 py-1 text-[11px] font-semibold ${getVendorProcurementStateClasses(
+                              selectedVendorProcurement.overallState
+                            )}`}
+                          >
+                            {selectedVendorProcurement.overallLabel}
                           </span>
                         </div>
                         <h2 className="mt-4 text-[2rem] font-medium tracking-tight text-ink-900">
@@ -420,7 +467,7 @@ const VendorsPage = () => {
                       <MetricTile
                         label="Documents"
                         value={(selectedVendor.documents || []).length}
-                        hint={`Updated ${formatVendorDate(selectedVendor.updatedAt, "recently")}`}
+                        hint={`${selectedVendorProcurement.completedRequiredCount}/${selectedVendorProcurement.requiredCount} required packet items covered`}
                       />
                     </div>
                   </div>
@@ -478,30 +525,36 @@ const VendorsPage = () => {
                         <span className="eyebrow">Assignment readiness</span>
                         <div className="mt-5 space-y-4 text-sm">
                           <div>
+                            <p className="font-semibold text-ink-900">Procurement status</p>
+                            <p className="mt-1 text-ink-500">
+                              {selectedVendorProcurement.overallLabel}
+                            </p>
+                          </div>
+                          <div>
                             <p className="font-semibold text-ink-900">Compliance status</p>
-                            <p className="mt-1 text-ink-500">{getVendorComplianceLabel(selectedVendor)}</p>
-                          </div>
-                          <div>
-                            <p className="font-semibold text-ink-900">After-hours availability</p>
                             <p className="mt-1 text-ink-500">
-                              {selectedVendor.afterHoursAvailable ? "Available" : "Not marked for after-hours work"}
+                              {getVendorComplianceLabel(selectedVendor)}
                             </p>
                           </div>
                           <div>
-                            <p className="font-semibold text-ink-900">Service area</p>
+                            <p className="font-semibold text-ink-900">Packet coverage</p>
                             <p className="mt-1 text-ink-500">
-                              {selectedVendor.serviceArea || "Not set"}
+                              {selectedVendorProcurement.completedRequiredCount}/
+                              {selectedVendorProcurement.requiredCount} required items on file
                             </p>
                           </div>
                           <div>
-                            <p className="font-semibold text-ink-900">Internal notes</p>
+                            <p className="font-semibold text-ink-900">Next action</p>
                             <p className="mt-1 text-ink-500">
-                              {selectedVendor.notes || "No internal notes saved yet."}
+                              {selectedVendorProcurement.nextActions[0] ||
+                                "Packet is in good shape right now."}
                             </p>
                           </div>
                         </div>
                       </div>
                     </div>
+                  ) : detailTab === "procurement" ? (
+                    <VendorProcurementPanel vendor={selectedVendor} />
                   ) : (
                     <VendorDocumentsPanel vendor={selectedVendor} onUpdated={handleVendorUpdated} />
                   )}

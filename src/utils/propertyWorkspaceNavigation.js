@@ -73,6 +73,18 @@ export const PROPERTY_WORKSPACE_NAVIGATION = [
         contentKey: "finance-capital-stack",
       },
       {
+        id: "draw-operations",
+        label: "Draw Operations",
+        description: "Lender draw workflow, packet readiness, linked support docs, and funding progress.",
+        contentKey: "finance-draw-operations",
+      },
+      {
+        id: "payment-schedule",
+        label: "Payment Schedule",
+        description: "Upcoming debt payments, balloon timing, and event-based obligations across all sources.",
+        contentKey: "finance-payment-schedule",
+      },
+      {
         id: "reports",
         label: "Reports",
         description: "Printable finance reporting and lender or investor-ready exports.",
@@ -147,7 +159,7 @@ export const PROPERTY_WORKSPACE_NAVIGATION = [
       {
         id: "vendors",
         label: "Vendors",
-        description: "A future property-level vendor view connected to bids, compliance, and payments.",
+        description: "A property-level procurement board connected to bids, compliance, contracts, and payments.",
         contentKey: "operations-vendors",
       },
       {

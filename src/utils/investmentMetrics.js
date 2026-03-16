@@ -1,3 +1,10 @@
+import {
+  getFundingSources,
+  getPrimaryFundingSource,
+  getTotalFundingAmount,
+  getTotalFundingPointsCost,
+} from "./capitalStack";
+
 const hasValue = (value) => value !== undefined && value !== null && value !== "";
 
 export const toNumber = (value, fallback = 0) => {
@@ -46,6 +53,8 @@ export const getInvestmentAnalysisMetrics = (investment = {}, options = {}) => {
   const legacyFinancing = investment?.financingDetails?.purchaseLoan || {};
   const legacyHolding = legacyDeal?.holdingCosts || {};
   const legacySelling = legacyDeal?.sellingCosts || {};
+  const fundingSources = getFundingSources(investment);
+  const primaryFundingSource = getPrimaryFundingSource(fundingSources);
 
   const purchasePrice = toNumber(investment?.purchasePrice, 0);
   const arv = toNumber(investment?.arv, 0);
@@ -58,14 +67,29 @@ export const getInvestmentAnalysisMetrics = (investment = {}, options = {}) => {
     ? Boolean(investment?.buyClosingIsPercent)
     : false;
 
-  const loanAmount = hasValue(investment?.loanAmount)
-    ? toNumber(investment.loanAmount, 0)
-    : toNumber(legacyFinancing?.loanAmount, 0);
-  const interestRate = hasValue(investment?.interestRate)
-    ? toNumber(investment.interestRate, 0)
+  const aggregatedFundingAmount = getTotalFundingAmount(fundingSources);
+  const aggregatedPointsCost = getTotalFundingPointsCost(fundingSources);
+  const loanAmount =
+    aggregatedFundingAmount > 0
+      ? aggregatedFundingAmount
+      : hasValue(investment?.loanAmount)
+        ? toNumber(investment.loanAmount, 0)
+        : toNumber(legacyFinancing?.loanAmount, 0);
+  const interestRate = hasValue(primaryFundingSource?.interestRate)
+    ? toNumber(primaryFundingSource.interestRate, 0)
+    : hasValue(investment?.interestRate)
+      ? toNumber(investment.interestRate, 0)
     : toNumber(legacyFinancing?.interestRate, 0);
-  const loanTerm = hasValue(investment?.loanTerm) ? toNumber(investment.loanTerm, 12) : 12;
-  const loanPoints = hasValue(investment?.loanPoints) ? toNumber(investment.loanPoints, 0) : 0;
+  const loanTerm = hasValue(primaryFundingSource?.termMonths)
+    ? toNumber(primaryFundingSource.termMonths, 12)
+    : hasValue(investment?.loanTerm)
+      ? toNumber(investment.loanTerm, 12)
+      : 12;
+  const loanPoints = hasValue(primaryFundingSource?.points)
+    ? toNumber(primaryFundingSource.points, 0)
+    : hasValue(investment?.loanPoints)
+      ? toNumber(investment.loanPoints, 0)
+      : 0;
 
   const holdingMonths = hasValue(investment?.holdingMonths)
     ? toNumber(investment.holdingMonths, 0)
@@ -104,17 +128,46 @@ export const getInvestmentAnalysisMetrics = (investment = {}, options = {}) => {
   const calcBuyingCost = buyClosingIsPercent
     ? (purchasePrice * buyClosingInput) / 100
     : buyClosingInput;
-  const usesFinanceFormula = loanAmount > 0 && (interestRate > 0 || loanPoints > 0);
-  const calcFinanceCost = usesFinanceFormula
-    ? ((loanAmount * (interestRate / 100)) / 12) * loanTerm + (loanPoints / 100) * loanAmount
-    : toNumber(legacyDeal?.financingCosts, 0);
+  const fundingFormulaCost = fundingSources.reduce((sum, source) => {
+    const sourceAmount = toNumber(source?.amount, 0);
+    const sourceRate = toNumber(source?.interestRate, 0);
+    const sourceTerm = toNumber(source?.termMonths, 0);
+    const sourcePoints = toNumber(source?.points, 0);
+
+    if (sourceAmount <= 0) {
+      return sum;
+    }
+
+    return (
+      sum +
+      ((sourceAmount * (sourceRate / 100)) / 12) * sourceTerm +
+      (sourcePoints / 100) * sourceAmount
+    );
+  }, 0);
+  const usesFinanceFormula =
+    fundingSources.length > 0
+      ? fundingFormulaCost > 0 || aggregatedPointsCost > 0
+      : loanAmount > 0 && (interestRate > 0 || loanPoints > 0);
+  const calcFinanceCost =
+    fundingSources.length > 0
+      ? fundingFormulaCost
+      : usesFinanceFormula
+        ? ((loanAmount * (interestRate / 100)) / 12) * loanTerm + (loanPoints / 100) * loanAmount
+        : toNumber(legacyDeal?.financingCosts, 0);
   const calcHoldingCost = monthlyHoldingCost * holdingMonths;
   const calcSellCost = sellClosingIsPercent ? (arv * sellClosingInput) / 100 : sellClosingInput;
   const totalCost = purchasePrice + calcBuyingCost + totalBudget + calcFinanceCost + calcHoldingCost;
   const allInCost = totalCost + calcSellCost;
   const profit = arv - allInCost;
-  const downPayment = Math.max(purchasePrice - loanAmount, 0);
-  const cashInvested = downPayment + calcBuyingCost + totalBudget + calcHoldingCost + calcFinanceCost;
+  const acquisitionDebtAmount =
+    fundingSources.length > 0
+      ? toNumber(primaryFundingSource?.amount, 0)
+      : loanAmount;
+  const downPayment = Math.max(purchasePrice - acquisitionDebtAmount, 0);
+  const cashInvested =
+    fundingSources.length > 0
+      ? Math.max(totalCost - loanAmount, 0)
+      : downPayment + calcBuyingCost + totalBudget + calcHoldingCost + calcFinanceCost;
   const roiOnCash = cashInvested > 0 ? (profit / cashInvested) * 100 : 0;
   const roiOnTotalCost = totalCost > 0 ? (profit / totalCost) * 100 : 0;
   const annualizedROI = roiOnCash / ((holdingMonths || 1) / 12);

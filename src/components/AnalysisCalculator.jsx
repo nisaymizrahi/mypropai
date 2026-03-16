@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import html2pdf from "html2pdf.js";
 import {
   ArcElement,
   BarController,
@@ -11,6 +10,7 @@ import {
 } from "chart.js";
 
 import { generateAIReport } from "../utils/api";
+import { exportElementToPdf } from "../utils/pdfExport";
 import {
   formatCurrency,
   getInvestmentAnalysisMetrics,
@@ -25,7 +25,7 @@ const SummaryPair = ({ label, value, tone = "text-ink-900" }) => (
   </div>
 );
 
-const AnalysisCalculator = ({ investment }) => {
+const AnalysisCalculator = ({ investment, budgetItems = [], expenses = [] }) => {
   const [aiSummary, setAISummary] = useState(null);
   const [loadingAI, setLoadingAI] = useState(false);
   const exportRef = useRef(null);
@@ -34,7 +34,10 @@ const AnalysisCalculator = ({ investment }) => {
   const costChartRef = useRef(null);
   const returnChartRef = useRef(null);
 
-  const metrics = useMemo(() => getInvestmentAnalysisMetrics(investment), [investment]);
+  const metrics = useMemo(
+    () => getInvestmentAnalysisMetrics(investment, { budgetItems, expenses }),
+    [budgetItems, expenses, investment]
+  );
 
   useEffect(() => {
     if (!costCanvasRef.current || !returnCanvasRef.current) {
@@ -105,10 +108,15 @@ const AnalysisCalculator = ({ investment }) => {
     metrics.annualizedROI,
   ]);
 
-  const handleExportPDF = () => {
-    if (exportRef.current) {
-      html2pdf().from(exportRef.current).save("Deal-Analysis-Report.pdf");
+  const handleExportPDF = async () => {
+    if (!exportRef.current) {
+      return;
     }
+
+    await exportElementToPdf({
+      element: exportRef.current,
+      filename: "deal-analysis-report.pdf",
+    });
   };
 
   const handleGenerateAI = async () => {

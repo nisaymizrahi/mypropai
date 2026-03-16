@@ -12,7 +12,7 @@ const getInitials = (name = "") => {
 };
 
 const UserInfoBanner = () => {
-  const { user, logout } = useAuth();
+  const { user, logout, stopImpersonation, isImpersonating } = useAuth();
   const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef(null);
@@ -40,6 +40,12 @@ const UserInfoBanner = () => {
     navigate("/login");
   };
 
+  const handleStopImpersonation = async () => {
+    stopImpersonation();
+    setIsMenuOpen(false);
+    navigate("/platform-manager");
+  };
+
   return (
     <div className="relative" ref={menuRef}>
       <button
@@ -52,7 +58,9 @@ const UserInfoBanner = () => {
         </div>
         <div className="hidden text-left md:block">
           <p className="text-sm font-semibold text-ink-900">{displayName}</p>
-          <p className="text-xs text-ink-400">{secondaryText}</p>
+          <p className="text-xs text-ink-400">
+            {isImpersonating ? "Support session active" : secondaryText}
+          </p>
         </div>
         <ChevronDownIcon
           className={`hidden h-4 w-4 text-ink-400 transition md:block ${
@@ -64,14 +72,40 @@ const UserInfoBanner = () => {
       {isMenuOpen && (
         <div className="absolute right-0 top-14 z-50 w-64 overflow-hidden rounded-[24px] border border-white/80 bg-white/96 shadow-luxe backdrop-blur-xl">
           <div className="border-b border-ink-100 px-5 py-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-400">
-              Account
-            </p>
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-400">
+                {isImpersonating ? "Support session" : "Account"}
+              </p>
+              {isImpersonating ? (
+                <span className="rounded-full bg-clay-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-clay-700">
+                  Impersonating
+                </span>
+              ) : null}
+            </div>
             <h3 className="mt-1 text-base font-semibold text-ink-900">{displayName}</h3>
-            <p className="mt-1 text-sm text-ink-500">{secondaryText}</p>
+            <p className="mt-1 text-sm text-ink-500">
+              {isImpersonating
+                ? `Working as ${secondaryText}`
+                : secondaryText}
+            </p>
+            {isImpersonating ? (
+              <p className="mt-2 text-xs leading-5 text-ink-400">
+                Changes made here affect the user&apos;s live workspace until you exit the support
+                session.
+              </p>
+            ) : null}
           </div>
 
           <div className="px-3 py-3">
+            {isImpersonating ? (
+              <button
+                type="button"
+                onClick={handleStopImpersonation}
+                className="mb-1 flex w-full items-center rounded-2xl px-4 py-3 text-sm font-medium text-clay-700 transition hover:bg-clay-50"
+              >
+                Return to platform manager
+              </button>
+            ) : null}
             {user.isPlatformManager ? (
               <Link
                 to="/platform-manager"

@@ -74,6 +74,7 @@ jest.mock("./pages/CompsReportPage", () => () => <div>Comps report screen</div>)
 jest.mock("./pages/LeadsPage", () => () => <div>Leads screen</div>);
 jest.mock("./pages/LeadDetailPage", () => () => <div>Lead detail screen</div>);
 jest.mock("./pages/TasksPage", () => () => <div>Tasks screen</div>);
+jest.mock("./pages/MasterCalendarPage", () => () => <div>Master calendar screen</div>);
 jest.mock("./pages/VendorsPage", () => () => <div>Vendors screen</div>);
 jest.mock("./pages/CreatePropertyPage", () => () => <div>Create property screen</div>);
 jest.mock("./pages/PropertyWorkspacePage", () => () => <div>Property workspace screen</div>);
@@ -86,16 +87,16 @@ describe("App routes", () => {
     return render(<App />);
   };
 
-  test("renders the homepage at the root route", () => {
+  test("renders the homepage at the root route", async () => {
     renderAtPath("/");
 
-    expect(screen.getByText("Homepage screen")).toBeInTheDocument();
+    expect(await screen.findByText("Homepage screen")).toBeInTheDocument();
   });
 
-  test("renders the workspace login route", () => {
+  test("renders the workspace login route", async () => {
     renderAtPath("/login");
 
-    expect(screen.getByText("Workspace login screen")).toBeInTheDocument();
+    expect(await screen.findByText("Workspace login screen")).toBeInTheDocument();
   });
 
   test("redirects dashboard traffic into leads", () => {
@@ -104,39 +105,46 @@ describe("App routes", () => {
     expect(screen.getByText("Navigate:/leads")).toBeInTheDocument();
   });
 
-  test("renders the leads workspace inside the dashboard layout", () => {
+  test("renders the leads workspace inside the dashboard layout", async () => {
     renderAtPath("/leads");
 
-    expect(screen.getByTestId("dashboard-layout")).toBeInTheDocument();
-    expect(screen.getByText("Leads screen")).toBeInTheDocument();
+    expect(await screen.findByTestId("dashboard-layout")).toBeInTheDocument();
+    expect(await screen.findByText("Leads screen")).toBeInTheDocument();
   });
 
-  test("renders the tasks workspace inside the dashboard layout", () => {
+  test("renders the tasks workspace inside the dashboard layout", async () => {
     renderAtPath("/tasks");
 
-    expect(screen.getByTestId("dashboard-layout")).toBeInTheDocument();
-    expect(screen.getByText("Tasks screen")).toBeInTheDocument();
+    expect(await screen.findByTestId("dashboard-layout")).toBeInTheDocument();
+    expect(await screen.findByText("Tasks screen")).toBeInTheDocument();
   });
 
-  test("renders the comps report workspace inside the dashboard layout", () => {
+  test("renders the master calendar inside the dashboard layout", async () => {
+    renderAtPath("/master-calendar");
+
+    expect(await screen.findByTestId("dashboard-layout")).toBeInTheDocument();
+    expect(await screen.findByText("Master calendar screen")).toBeInTheDocument();
+  });
+
+  test("renders the comps report workspace inside the dashboard layout", async () => {
     renderAtPath("/comps-report");
 
-    expect(screen.getByTestId("dashboard-layout")).toBeInTheDocument();
-    expect(screen.getByText("Comps report screen")).toBeInTheDocument();
+    expect(await screen.findByTestId("dashboard-layout")).toBeInTheDocument();
+    expect(await screen.findByText("Comps report screen")).toBeInTheDocument();
   });
 
-  test("renders the vendors workspace inside the dashboard layout", () => {
+  test("renders the vendors workspace inside the dashboard layout", async () => {
     renderAtPath("/vendors");
 
-    expect(screen.getByTestId("dashboard-layout")).toBeInTheDocument();
-    expect(screen.getByText("Vendors screen")).toBeInTheDocument();
+    expect(await screen.findByTestId("dashboard-layout")).toBeInTheDocument();
+    expect(await screen.findByText("Vendors screen")).toBeInTheDocument();
   });
 
-  test("renders the add property route inside the dashboard layout", () => {
+  test("renders the add property route inside the dashboard layout", async () => {
     renderAtPath("/properties/new");
 
-    expect(screen.getByTestId("dashboard-layout")).toBeInTheDocument();
-    expect(screen.getByText("Create property screen")).toBeInTheDocument();
+    expect(await screen.findByTestId("dashboard-layout")).toBeInTheDocument();
+    expect(await screen.findByText("Create property screen")).toBeInTheDocument();
   });
 
   test("redirects retired project workspace routes away from the old hub", () => {
@@ -157,10 +165,10 @@ describe("App routes", () => {
     expect(screen.getByText("Navigate:/leads")).toBeInTheDocument();
   });
 
-  test("renders property workspace routes when opened directly", () => {
+  test("renders property workspace routes when opened directly", async () => {
     renderAtPath("/properties/property-123");
 
-    expect(screen.getByText("Property workspace screen")).toBeInTheDocument();
+    expect(await screen.findByText("Property workspace screen")).toBeInTheDocument();
   });
 
   test("redirects unknown routes back to the homepage", () => {

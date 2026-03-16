@@ -37,7 +37,8 @@ export const exportElementToPdf = async ({ element, filename, options = {} }) =>
     throw new Error("Nothing is ready to export yet.");
   }
 
-  const module = await import("html2pdf.js");
+  // Use the bundled browser build so CRA does not follow the package's broken source-map path.
+  const module = await import("html2pdf.js/dist/html2pdf.bundle.min.js");
   const html2pdf = module.default || module;
 
   const mergedOptions = {

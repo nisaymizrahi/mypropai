@@ -8,6 +8,7 @@ import {
   getVendorDocumentState,
   getVendorDocumentStateLabel,
 } from "../utils/vendors";
+import { getVendorProcurementSummary } from "../utils/vendorProcurement";
 
 const DocumentMetric = ({ label, value }) => (
   <div className="rounded-[18px] border border-ink-100 bg-white/85 p-4">
@@ -42,6 +43,7 @@ const VendorDocumentsPanel = ({ vendor, onUpdated }) => {
       ),
     [documents]
   );
+  const procurement = useMemo(() => getVendorProcurementSummary(vendor || {}), [vendor]);
   const expiredCount = useMemo(
     () => documents.filter((document) => getVendorDocumentState(document) === "expired").length,
     [documents]
@@ -127,8 +129,12 @@ const VendorDocumentsPanel = ({ vendor, onUpdated }) => {
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <DocumentMetric label="Total files" value={documents.length} />
+        <DocumentMetric
+          label="Packet coverage"
+          value={`${procurement.completedRequiredCount}/${procurement.requiredCount}`}
+        />
         <DocumentMetric label="Expiring soon" value={expiringCount} />
         <DocumentMetric label="Expired" value={expiredCount} />
       </div>
@@ -137,9 +143,12 @@ const VendorDocumentsPanel = ({ vendor, onUpdated }) => {
         <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_360px]">
           <div>
             <span className="eyebrow">Vendor documents</span>
-            <h3 className="mt-4 text-3xl font-semibold text-ink-900">Quotes, insurance, and compliance</h3>
+            <h3 className="mt-4 text-3xl font-semibold text-ink-900">
+              Quotes, contracts, insurance, and payment backup
+            </h3>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-ink-500">
-              Store vendor files with document types and expiration dates so assignment decisions stay clear.
+              Store vendor files with document types and expiration dates so assignment and payment
+              decisions stay clear.
             </p>
 
             {error ? (
@@ -147,6 +156,17 @@ const VendorDocumentsPanel = ({ vendor, onUpdated }) => {
                 {error}
               </div>
             ) : null}
+
+            <div className="mt-6 rounded-[22px] border border-sand-100 bg-sand-50/60 p-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sand-700">
+                Packet guidance
+              </p>
+              <p className="mt-2 text-sm leading-6 text-sand-900">
+                {procurement.nextActions[0]
+                  ? procurement.nextActions.join(" • ")
+                  : "This vendor packet is in a good place. Upload project-specific change orders or invoices as work moves forward."}
+              </p>
+            </div>
           </div>
 
           <form onSubmit={handleUpload} className="rounded-[24px] border border-ink-100 bg-white/90 p-5">

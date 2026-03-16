@@ -15,6 +15,14 @@ import {
   getInvestment,
   uploadProjectDocument,
 } from "../utils/api";
+import {
+  getDrawRequestById,
+  getDrawRequestLabel,
+  getDrawRequests,
+  getFundingSourceById,
+  getFundingSourceLabel,
+  getFundingSources,
+} from "../utils/capitalStack";
 
 const documentCategories = [
   "Closing",
@@ -77,6 +85,8 @@ const PropertyDocumentsPanel = ({
   const [documents, setDocuments] = useState([]);
   const [displayName, setDisplayName] = useState("");
   const [category, setCategory] = useState("General");
+  const [fundingSourceId, setFundingSourceId] = useState("");
+  const [drawRequestId, setDrawRequestId] = useState("");
   const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -133,11 +143,33 @@ const PropertyDocumentsPanel = ({
     return groups;
   }, [documents]);
 
+  const fundingSources = useMemo(() => getFundingSources(investment || {}), [investment]);
+  const drawRequests = useMemo(() => getDrawRequests(investment || {}), [investment]);
+  const filteredDrawRequests = useMemo(() => {
+    if (!fundingSourceId) {
+      return drawRequests;
+    }
+
+    return drawRequests.filter(
+      (request) => !request.sourceId || request.sourceId === fundingSourceId
+    );
+  }, [drawRequests, fundingSourceId]);
+
   const recentDocuments = useMemo(
     () =>
       [...documents]
         .sort((left, right) => new Date(right.updatedAt || right.createdAt || 0) - new Date(left.updatedAt || left.createdAt || 0))
         .slice(0, 4),
+    [documents]
+  );
+
+  const linkedFundingDocuments = useMemo(
+    () => documents.filter((document) => document.fundingSourceId),
+    [documents]
+  );
+
+  const linkedDrawDocuments = useMemo(
+    () => documents.filter((document) => document.drawRequestId),
     [documents]
   );
 
@@ -169,6 +201,31 @@ const PropertyDocumentsPanel = ({
     setDocuments(Array.isArray(nextDocuments) ? nextDocuments : []);
   };
 
+  const handleFundingSourceChange = (event) => {
+    const nextFundingSourceId = event.target.value;
+    setFundingSourceId(nextFundingSourceId);
+
+    if (!drawRequestId) {
+      return;
+    }
+
+    const activeDrawRequest = drawRequests.find((request) => request.drawId === drawRequestId) || null;
+    if (activeDrawRequest?.sourceId && activeDrawRequest.sourceId !== nextFundingSourceId) {
+      setDrawRequestId("");
+    }
+  };
+
+  const handleDrawRequestChange = (event) => {
+    const nextDrawRequestId = event.target.value;
+    setDrawRequestId(nextDrawRequestId);
+
+    const selectedDrawRequest =
+      drawRequests.find((request) => request.drawId === nextDrawRequestId) || null;
+    if (selectedDrawRequest?.sourceId) {
+      setFundingSourceId(selectedDrawRequest.sourceId);
+    }
+  };
+
   const handleUpload = async (event) => {
     event.preventDefault();
 
@@ -185,12 +242,16 @@ const PropertyDocumentsPanel = ({
       formData.append("investmentId", investmentId);
       formData.append("displayName", displayName.trim());
       formData.append("category", category);
+      if (fundingSourceId) formData.append("fundingSourceId", fundingSourceId);
+      if (drawRequestId) formData.append("drawRequestId", drawRequestId);
       formData.append("document", file);
 
       await uploadProjectDocument(formData);
       await refreshDocuments();
       setDisplayName("");
       setCategory("General");
+      setFundingSourceId("");
+      setDrawRequestId("");
       setFile(null);
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
@@ -280,9 +341,15 @@ const PropertyDocumentsPanel = ({
         />
         <MetricTile
           icon={LinkIcon}
-          label="Project linked"
-          value={investment?.address ? "Yes" : "No"}
-          hint={investment?.address || "Linked acquisitions project"}
+          label="Funding linked"
+          value={linkedFundingDocuments.length}
+          hint="Files attached directly to a funding source."
+        />
+        <MetricTile
+          icon={LinkIcon}
+          label="Draw linked"
+          value={linkedDrawDocuments.length}
+          hint="Files already tied to a draw request."
         />
       </div>
 
@@ -354,6 +421,42 @@ const PropertyDocumentsPanel = ({
               </div>
 
               <div>
+                <label className="mb-2 block text-sm font-medium text-ink-700">Funding source</label>
+                <select
+                  value={fundingSourceId}
+                  onChange={handleFundingSourceChange}
+                  className="auth-input"
+                >
+                  <option value="">No funding source selected</option>
+                  {fundingSources.map((source, index) => (
+                    <option key={source.sourceId || `source-${index}`} value={source.sourceId || ""}>
+                      {getFundingSourceLabel(source, index)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-medium text-ink-700">Draw request</label>
+                <select
+                  value={drawRequestId}
+                  onChange={handleDrawRequestChange}
+                  className="auth-input"
+                  disabled={!filteredDrawRequests.length}
+                >
+                  <option value="">No specific draw</option>
+                  {filteredDrawRequests.map((drawRequest, index) => (
+                    <option
+                      key={drawRequest.drawId || `draw-${index}`}
+                      value={drawRequest.drawId || ""}
+                    >
+                      {getDrawRequestLabel(drawRequest, index)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
                 <label className="mb-2 block text-sm font-medium text-ink-700">File</label>
                 <input
                   ref={fileInputRef}
@@ -363,6 +466,16 @@ const PropertyDocumentsPanel = ({
                 />
               </div>
             </div>
+
+            {drawRequestId ? (
+              <div className="mt-5 rounded-[18px] border border-sky-200 bg-sky-50 px-4 py-4 text-sm text-sky-800">
+                <p className="font-semibold">This file will be draw-ready</p>
+                <p className="mt-2">
+                  The uploaded document will stay attached to the selected draw request and funding
+                  source for lender packets and reporting.
+                </p>
+              </div>
+            ) : null}
 
             <button
               type="submit"
@@ -381,32 +494,72 @@ const PropertyDocumentsPanel = ({
           <h4 className="mt-4 text-2xl font-semibold text-ink-900">Latest uploads</h4>
 
           <div className="mt-8 grid gap-4 xl:grid-cols-2">
-            {recentDocuments.map((document) => (
-              <div key={document._id} className="rounded-[22px] border border-ink-100 bg-white/85 p-5">
-                <p className="text-base font-semibold text-ink-900">{document.displayName}</p>
-                <p className="mt-2 text-sm text-ink-500">{document.category || "General"}</p>
-                <p className="mt-3 text-xs font-semibold uppercase tracking-[0.16em] text-ink-400">
-                  Uploaded {formatDate(document.updatedAt || document.createdAt)}
-                </p>
-                <div className="mt-5 flex flex-wrap gap-3">
-                  <a
-                    href={document.fileUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="secondary-action"
-                  >
-                    Open file
-                  </a>
-                  <button
-                    type="button"
-                    onClick={() => handleDelete(document._id)}
-                    className="ghost-action text-clay-700 hover:bg-clay-50 hover:text-clay-800"
-                  >
-                    Delete
-                  </button>
+            {recentDocuments.map((document) => {
+              const linkedFundingSource = getFundingSourceById(
+                fundingSources,
+                document.fundingSourceId
+              );
+              const linkedDrawRequest = getDrawRequestById(drawRequests, document.drawRequestId);
+
+              return (
+                <div key={document._id} className="rounded-[22px] border border-ink-100 bg-white/85 p-5">
+                  <p className="text-base font-semibold text-ink-900">{document.displayName}</p>
+                  <p className="mt-2 text-sm text-ink-500">{document.category || "General"}</p>
+
+                  {linkedFundingSource || linkedDrawRequest ? (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {linkedFundingSource ? (
+                        <span className="rounded-full bg-sky-50 px-3 py-1 text-[11px] font-semibold text-sky-700">
+                          {getFundingSourceLabel(
+                            linkedFundingSource,
+                            Math.max(
+                              fundingSources.findIndex(
+                                (source) => source.sourceId === linkedFundingSource.sourceId
+                              ),
+                              0
+                            )
+                          )}
+                        </span>
+                      ) : null}
+                      {linkedDrawRequest ? (
+                        <span className="rounded-full bg-indigo-50 px-3 py-1 text-[11px] font-semibold text-indigo-700">
+                          {getDrawRequestLabel(
+                            linkedDrawRequest,
+                            Math.max(
+                              drawRequests.findIndex(
+                                (request) => request.drawId === linkedDrawRequest.drawId
+                              ),
+                              0
+                            )
+                          )}
+                        </span>
+                      ) : null}
+                    </div>
+                  ) : null}
+
+                  <p className="mt-3 text-xs font-semibold uppercase tracking-[0.16em] text-ink-400">
+                    Uploaded {formatDate(document.updatedAt || document.createdAt)}
+                  </p>
+                  <div className="mt-5 flex flex-wrap gap-3">
+                    <a
+                      href={document.fileUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="secondary-action"
+                    >
+                      Open file
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(document._id)}
+                      className="ghost-action text-clay-700 hover:bg-clay-50 hover:text-clay-800"
+                    >
+                      Delete
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </section>
       ) : null}
@@ -436,39 +589,85 @@ const PropertyDocumentsPanel = ({
                   </div>
 
                   <div className="mt-5 space-y-3">
-                    {groupedDocuments[bucket].map((document) => (
-                      <div
-                        key={document._id}
-                        className="rounded-[20px] border border-ink-100 bg-ink-50/40 p-4"
-                      >
-                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                          <div>
-                            <p className="text-sm font-semibold text-ink-900">{document.displayName}</p>
-                            <p className="mt-2 text-sm text-ink-500">
-                              Uploaded {formatDate(document.updatedAt || document.createdAt)}
-                            </p>
-                          </div>
+                    {groupedDocuments[bucket].map((document) => {
+                      const linkedFundingSource = getFundingSourceById(
+                        fundingSources,
+                        document.fundingSourceId
+                      );
+                      const linkedDrawRequest = getDrawRequestById(
+                        drawRequests,
+                        document.drawRequestId
+                      );
 
-                          <div className="flex flex-wrap gap-3">
-                            <a
-                              href={document.fileUrl}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="secondary-action"
-                            >
-                              Open file
-                            </a>
-                            <button
-                              type="button"
-                              onClick={() => handleDelete(document._id)}
-                              className="ghost-action text-clay-700 hover:bg-clay-50 hover:text-clay-800"
-                            >
-                              Delete
-                            </button>
+                      return (
+                        <div
+                          key={document._id}
+                          className="rounded-[20px] border border-ink-100 bg-ink-50/40 p-4"
+                        >
+                          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                            <div>
+                              <p className="text-sm font-semibold text-ink-900">
+                                {document.displayName}
+                              </p>
+                              <p className="mt-2 text-sm text-ink-500">
+                                Uploaded {formatDate(document.updatedAt || document.createdAt)}
+                              </p>
+
+                              {linkedFundingSource || linkedDrawRequest ? (
+                                <div className="mt-3 flex flex-wrap gap-2">
+                                  {linkedFundingSource ? (
+                                    <span className="rounded-full bg-sky-50 px-3 py-1 text-[11px] font-semibold text-sky-700">
+                                      {getFundingSourceLabel(
+                                        linkedFundingSource,
+                                        Math.max(
+                                          fundingSources.findIndex(
+                                            (source) =>
+                                              source.sourceId === linkedFundingSource.sourceId
+                                          ),
+                                          0
+                                        )
+                                      )}
+                                    </span>
+                                  ) : null}
+                                  {linkedDrawRequest ? (
+                                    <span className="rounded-full bg-indigo-50 px-3 py-1 text-[11px] font-semibold text-indigo-700">
+                                      {getDrawRequestLabel(
+                                        linkedDrawRequest,
+                                        Math.max(
+                                          drawRequests.findIndex(
+                                            (request) =>
+                                              request.drawId === linkedDrawRequest.drawId
+                                          ),
+                                          0
+                                        )
+                                      )}
+                                    </span>
+                                  ) : null}
+                                </div>
+                              ) : null}
+                            </div>
+
+                            <div className="flex flex-wrap gap-3">
+                              <a
+                                href={document.fileUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="secondary-action"
+                              >
+                                Open file
+                              </a>
+                              <button
+                                type="button"
+                                onClick={() => handleDelete(document._id)}
+                                className="ghost-action text-clay-700 hover:bg-clay-50 hover:text-clay-800"
+                              >
+                                Delete
+                              </button>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               ))

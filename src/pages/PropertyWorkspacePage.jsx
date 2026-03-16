@@ -1,14 +1,14 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
-  CheckCircleIcon,
+  BanknotesIcon,
+  CalendarDaysIcon,
+  ChevronDownIcon,
   ClipboardDocumentListIcon,
   Cog6ToothIcon,
+  DocumentTextIcon,
   HomeModernIcon,
-  PencilSquareIcon,
-  SparklesIcon,
   UsersIcon,
-  WrenchScrewdriverIcon,
 } from "@heroicons/react/24/outline";
 import toast from "react-hot-toast";
 
@@ -32,9 +32,19 @@ import {
   countSavableComparables,
 } from "../utils/compsReport";
 import { getLocationProviderName, searchAddressSuggestions } from "../utils/locationSearch";
+import {
+  buildPropertyWorkspacePath,
+  PROPERTY_WORKSPACE_NAVIGATION,
+  resolvePropertyWorkspaceRoute,
+} from "../utils/propertyWorkspaceNavigation";
 import BidsTab from "../components/BidsTab";
 import CompsReportWorkspace from "../components/CompsReportWorkspace";
 import LeadRenovationTab, { buildRenovationForm } from "../components/LeadRenovationTab";
+import PropertyCostsPanel from "../components/PropertyCostsPanel";
+import PropertyDocumentsPanel from "../components/PropertyDocumentsPanel";
+import PropertyFinancePanel from "../components/PropertyFinancePanel";
+import PropertyOperationsPanel from "../components/PropertyOperationsPanel";
+import PropertySummaryPanel from "../components/PropertySummaryPanel";
 import SavedCompsReportsTab from "../components/SavedCompsReportsTab";
 import TasksPanel from "../components/TasksPanel";
 
@@ -144,19 +154,229 @@ const buildFormState = (property) => ({
   sellerAskingPrice: property?.sharedProfile.sellerAskingPrice ?? "",
 });
 
-const TabButton = ({ active, icon: Icon, label, onClick }) => (
-  <button
-    type="button"
-    onClick={onClick}
-    className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition ${
-      active
-        ? "bg-ink-900 text-white"
-        : "border border-ink-100 bg-white text-ink-600 hover:bg-ink-50"
-    }`}
-  >
-    <Icon className="h-4 w-4" />
-    {label}
-  </button>
+const workspaceCategoryIcons = {
+  property: HomeModernIcon,
+  finance: BanknotesIcon,
+  costs: ClipboardDocumentListIcon,
+  documents: DocumentTextIcon,
+  operations: CalendarDaysIcon,
+  settings: Cog6ToothIcon,
+};
+
+const leadWorkspaceContentKeys = new Set([
+  "comps",
+  "saved-reports",
+  "renovation",
+  "bids",
+  "settings",
+]);
+
+const placeholderSectionCopy = {
+  "acquisition-summary": {
+    eyebrow: "Property > Acquisition Summary",
+    title: "Close summary will live here",
+    description:
+      "This section will turn the lead-to-close story into one clear property summary: original target, actual purchase, closing costs, and the deal context that came into the workspace.",
+    highlights: [
+      "Target offer versus actual close price",
+      "Closing and acquisition cost rollup",
+      "Source lead and saved comps context",
+    ],
+  },
+  "original-assumptions": {
+    eyebrow: "Property > Original Assumptions",
+    title: "Original underwriting snapshot is next",
+    description:
+      "This page will preserve the original assumptions behind the property so the team can compare today’s reality against the plan that got the deal approved.",
+    highlights: [
+      "Original budget and timeline assumptions",
+      "Original ARV or rent assumptions",
+      "Original financing and hold assumptions",
+    ],
+  },
+  "finance-health": {
+    eyebrow: "Finance",
+    title: "Financial health is being shaped into the main control tower",
+    description:
+      "Phase 2 will pull the existing project financial tooling into this property shell so purchase price, expected costs, actual spend, carry, and return metrics live together.",
+    highlights: [
+      "All-in basis and projected profit",
+      "Budget health and burn tracking",
+      "Variance from original underwriting",
+    ],
+  },
+  "finance-sources-uses": {
+    eyebrow: "Finance",
+    title: "Sources and uses will connect the whole capital picture",
+    description:
+      "This section will show where funds came from and exactly how they were deployed across purchase, closing, rehab, carry, and fees.",
+    highlights: [
+      "Owner cash and outside capital sources",
+      "Purchase, close, rehab, and carry uses",
+      "Capital flow tied back to the property record",
+    ],
+  },
+  "finance-budget-vs-actual": {
+    eyebrow: "Finance",
+    title: "Budget versus actual is queued for the next financial pass",
+    description:
+      "The budget will become the expected-cost plan, then update continuously with committed and actual amounts as the project evolves.",
+    highlights: [
+      "Original budget versus approved changes",
+      "Committed versus actual versus forecast",
+      "Editable expected cost plan",
+    ],
+  },
+  "finance-capital-stack": {
+    eyebrow: "Finance",
+    title: "Capital stack and multi-loan tracking is planned here",
+    description:
+      "This is where business loans, personal loans, cards, hard money, and construction debt will be tracked together instead of relying on one simple loan field.",
+    highlights: [
+      "Multiple funding sources per property",
+      "Interest, points, maturity, and payment draft",
+      "Hard money and draw-aware structure",
+    ],
+  },
+  "finance-draw-operations": {
+    eyebrow: "Finance",
+    title: "Draw operations will coordinate lenders and packets here",
+    description:
+      "This section will operationalize the draw tracker so request status, support files, linked expenses, and packet readiness can be managed from one lender-facing workspace.",
+    highlights: [
+      "Draw packet readiness and support coverage",
+      "Linked expenses and lender support files",
+      "Status flow from planned through funded",
+    ],
+  },
+  "finance-payment-schedule": {
+    eyebrow: "Finance",
+    title: "Payment scheduling will turn debt into a real calendar here",
+    description:
+      "This section will translate the modeled capital stack into upcoming payment dates, balloon timing, and event-based obligations across all funding sources.",
+    highlights: [
+      "Upcoming debt payment calendar",
+      "Balloon and event-based obligation tracking",
+      "Source-by-source timing and monthly draft visibility",
+    ],
+  },
+  "finance-reports": {
+    eyebrow: "Finance",
+    title: "Printable reports will be generated here",
+    description:
+      "This section is reserved for polished PDF exports like project financial reports, lender packages, and investor updates.",
+    highlights: [
+      "Project financial report PDFs",
+      "Lender draw and capital summary packages",
+      "Investor-ready reporting exports",
+    ],
+  },
+  "costs-budget": {
+    eyebrow: "Costs",
+    title: "Budget control will move into the property shell next",
+    description:
+      "The existing scope budget system will be mounted here so budget lines, expected cost, and variance all live under Property Workspace.",
+    highlights: [
+      "Line-item cost planning",
+      "Expected versus actual cost tracking",
+      "Cost phases and scope visibility",
+    ],
+  },
+  "costs-expenses": {
+    eyebrow: "Costs",
+    title: "Expense capture will become a dedicated property section",
+    description:
+      "Manual expenses and AI receipt capture already exist in the project system. Phase 2 will bring them here and connect them directly to property-level cost controls.",
+    highlights: [
+      "Manual and AI receipt-driven entry",
+      "Category matching and budget matching",
+      "Property-wide expense ledger",
+    ],
+  },
+  "costs-commitments": {
+    eyebrow: "Costs",
+    title: "Commitments and vendor obligations are queued here",
+    description:
+      "This section will show awarded amounts, unpaid approved costs, and vendor obligations before they become actual spend.",
+    highlights: [
+      "Awarded vendor amounts",
+      "Committed but unpaid cost",
+      "Links from awards to actual payments",
+    ],
+  },
+  "documents-overview": {
+    eyebrow: "Documents",
+    title: "Property documents are being reorganized into one structure",
+    description:
+      "This area will separate closing files, lender files, receipts, invoices, contracts, permits, and reports instead of relying on a single generic documents view.",
+    highlights: [
+      "Closing and lender document buckets",
+      "Receipts and invoice storage",
+      "Report and contract organization",
+    ],
+  },
+  "operations-schedule": {
+    eyebrow: "Operations",
+    title: "A richer visual schedule is planned for this section",
+    description:
+      "This page is reserved for a colorful vendor-aware execution schedule with phases, milestones, and a stronger sense of project momentum.",
+    highlights: [
+      "Vendor swimlanes and milestone grouping",
+      "Upcoming work by phase",
+      "Visual schedule controls instead of plain lists",
+    ],
+  },
+  "operations-timeline": {
+    eyebrow: "Operations",
+    title: "The property timeline will live here",
+    description:
+      "This section is reserved for a colorful timeline of milestones, vendor activity, lender events, payments, and key property changes.",
+    highlights: [
+      "Vendor and lender event lanes",
+      "Milestones and key date history",
+      "Print-friendly timeline exports",
+    ],
+  },
+  "operations-vendors": {
+    eyebrow: "Operations",
+    title: "Property-level vendor coordination is planned here",
+    description:
+      "This future section will gather the vendors touching this property and connect their bids, compliance files, and work status.",
+    highlights: [
+      "Property vendor roster",
+      "Bid and compliance rollup",
+      "Work status across active vendors",
+    ],
+  },
+  "operations-activity": {
+    eyebrow: "Operations",
+    title: "A shared activity feed is planned for this workspace",
+    description:
+      "This will become the running event log for changes, uploads, costs, milestones, and approvals tied to the property.",
+    highlights: [
+      "Recent property events",
+      "Financial and document activity",
+      "Milestone and decision log",
+    ],
+  },
+};
+
+const WorkspaceSelectField = ({ label, value, options, onChange }) => (
+  <label className="space-y-2">
+    <span className="text-[11px] font-medium uppercase tracking-[0.16em] text-ink-400">
+      {label}
+    </span>
+    <div className="relative">
+      <select value={value} onChange={onChange} className="auth-input appearance-none pr-11">
+        {options.map((option) => (
+          <option key={option.id} value={option.id}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+      <ChevronDownIcon className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-400" />
+    </div>
+  </label>
 );
 
 const isSavedReportsBackendUnavailable = (error) =>
@@ -194,7 +414,7 @@ const buildLeadCompsAnalysisSnapshotFromReport = (report) => {
 };
 
 const PropertyWorkspacePage = () => {
-  const { propertyKey } = useParams();
+  const { propertyKey, category: categoryParam, section: sectionParam } = useParams();
   const navigate = useNavigate();
   const selectedSuggestionRef = useRef("");
   const suppressSuggestionsRef = useRef(false);
@@ -207,7 +427,6 @@ const PropertyWorkspacePage = () => {
   const [error, setError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState("details");
   const [leadWorkspace, setLeadWorkspace] = useState(null);
   const [leadWorkspaceLoading, setLeadWorkspaceLoading] = useState(false);
   const [leadWorkspaceError, setLeadWorkspaceError] = useState("");
@@ -224,9 +443,36 @@ const PropertyWorkspacePage = () => {
   const [isStartingSubscription, setIsStartingSubscription] = useState(false);
   const [isUpdatingWorkspaceStatus, setIsUpdatingWorkspaceStatus] = useState(false);
 
+  const activeWorkspaceRoute = useMemo(
+    () => resolvePropertyWorkspaceRoute(categoryParam, sectionParam),
+    [categoryParam, sectionParam]
+  );
+  const activeCategory = activeWorkspaceRoute.category;
+  const activeSection = activeWorkspaceRoute.section;
+  const activeContentKey = activeSection?.contentKey || "details";
+  const sectionOptions = activeCategory?.sections || [];
+  const ActiveCategoryIcon = workspaceCategoryIcons[activeCategory?.id] || HomeModernIcon;
+  const isLeadWorkspaceSection = leadWorkspaceContentKeys.has(activeContentKey);
+
   const pipelineLeadId = property?.workspaces?.pipeline?.id || "";
   const pipelineLeadPath = property?.workspaces?.pipeline?.path || "";
   const propertyWorkspaceActive = Boolean(property?.workspaces?.pipeline?.inPropertyWorkspace);
+
+  useEffect(() => {
+    if (!propertyKey || activeWorkspaceRoute.isCanonical) {
+      return;
+    }
+
+    navigate(buildPropertyWorkspacePath(propertyKey, activeCategory.id, activeSection.id), {
+      replace: true,
+    });
+  }, [
+    activeCategory,
+    activeSection,
+    activeWorkspaceRoute.isCanonical,
+    navigate,
+    propertyKey,
+  ]);
 
   const syncPropertyState = useCallback(
     (nextProperty) => {
@@ -240,10 +486,17 @@ const PropertyWorkspacePage = () => {
       selectedSuggestionRef.current = "";
 
       if (nextProperty.propertyKey !== propertyKey) {
-        navigate(`/properties/${encodeURIComponent(nextProperty.propertyKey)}`, { replace: true });
+        navigate(
+          buildPropertyWorkspacePath(
+            nextProperty.propertyKey,
+            activeCategory.id,
+            activeSection.id
+          ),
+          { replace: true }
+        );
       }
     },
-    [navigate, propertyKey]
+    [activeCategory, activeSection, navigate, propertyKey]
   );
 
   useEffect(() => {
@@ -687,7 +940,7 @@ const PropertyWorkspacePage = () => {
             }
           : previous
       );
-      setActiveTab("saved-reports");
+      navigate(buildPropertyWorkspacePath(propertyKey, "property", "saved-reports"));
       toast.success("Comps report saved.");
     } catch (saveError) {
       setLeadWorkspaceError(saveError.message || "Failed to save comps report.");
@@ -769,6 +1022,23 @@ const PropertyWorkspacePage = () => {
     }
   };
 
+  const handleCategoryChange = (event) => {
+    const nextCategory =
+      PROPERTY_WORKSPACE_NAVIGATION.find((category) => category.id === event.target.value) ||
+      PROPERTY_WORKSPACE_NAVIGATION[0];
+    const nextSection = nextCategory?.sections?.[0];
+
+    if (!nextCategory || !nextSection) {
+      return;
+    }
+
+    navigate(buildPropertyWorkspacePath(propertyKey, nextCategory.id, nextSection.id));
+  };
+
+  const handleSectionChange = (event) => {
+    navigate(buildPropertyWorkspacePath(propertyKey, activeCategory.id, event.target.value));
+  };
+
   if (loading) {
     return (
       <div className="section-card px-6 py-10 text-center text-ink-500">
@@ -836,16 +1106,16 @@ const PropertyWorkspacePage = () => {
     </section>
   );
 
-  const renderLeadTabContent = (renderContent, loadingLabel) => {
+  const renderLeadSectionContent = (renderContent, loadingLabel) => {
     if (!pipelineLeadId) {
       return renderLeadWorkspaceRequiredState();
     }
 
-    if (!propertyWorkspaceActive && activeTab !== "settings") {
+    if (!propertyWorkspaceActive && activeContentKey !== "settings") {
       return renderLeadWorkspaceRequiredState({
         title: "Move this deal into Property Workspace first",
         description:
-          "The lead stays in Closed - Won, but it has to be explicitly moved into Property Workspace before these tabs are active.",
+          "The lead stays in Closed - Won, but it has to be explicitly moved into Property Workspace before these sections are active.",
       });
     }
 
@@ -858,6 +1128,65 @@ const PropertyWorkspacePage = () => {
     }
 
     return renderContent();
+  };
+
+  const renderPlaceholderSection = (contentKey) => {
+    const copy = placeholderSectionCopy[contentKey] || {
+      eyebrow: activeCategory.label,
+      title: `${activeSection.label} is scaffolded and ready for phase 2`,
+      description:
+        "This section now has its place in the new property workspace shell so we can build it properly without overloading the old tab layout.",
+      highlights: [
+        "Navigation structure is live",
+        "Existing property tools remain intact",
+        "This section is ready for implementation",
+      ],
+    };
+
+    return (
+      <section className="surface-panel px-6 py-7 sm:px-7">
+        <span className="eyebrow">{copy.eyebrow}</span>
+        <div className="mt-4 grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
+          <div>
+            <h3 className="font-display text-[2.15rem] leading-[0.96] text-ink-900">
+              {copy.title}
+            </h3>
+            <p className="mt-4 max-w-3xl text-sm leading-7 text-ink-500 sm:text-base">
+              {copy.description}
+            </p>
+
+            <div className="mt-6 grid gap-3 md:grid-cols-3">
+              {copy.highlights.map((item) => (
+                <div
+                  key={item}
+                  className="rounded-[18px] border border-ink-100 bg-white/90 px-4 py-4"
+                >
+                  <p className="text-sm font-medium leading-6 text-ink-700">{item}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="section-card p-5">
+            <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-ink-400">
+              Phase 1 status
+            </p>
+            <h4 className="mt-4 text-xl font-semibold text-ink-900">Shell is now in place</h4>
+            <p className="mt-3 text-sm leading-6 text-ink-500">
+              We can build this section next without disturbing the live property details, comps,
+              bids, tasks, and settings areas that already work today.
+            </p>
+            <div className="mt-5 rounded-[18px] bg-sand-50 px-4 py-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-400">
+                Current section
+              </p>
+              <p className="mt-2 text-sm font-semibold text-ink-900">{activeSection.label}</p>
+              <p className="mt-2 text-sm leading-6 text-ink-500">{activeSection.description}</p>
+            </div>
+          </div>
+        </div>
+      </section>
+    );
   };
 
   return (
@@ -932,58 +1261,103 @@ const PropertyWorkspacePage = () => {
         </div>
       </section>
 
-      <div className="section-card flex flex-wrap items-center gap-2 p-1.5">
-        <TabButton
-          active={activeTab === "details"}
-          icon={HomeModernIcon}
-          label="Details"
-          onClick={() => setActiveTab("details")}
-        />
-        <TabButton
-          active={activeTab === "comps"}
-          icon={SparklesIcon}
-          label="AI Comps Analysis"
-          onClick={() => setActiveTab("comps")}
-        />
-        <TabButton
-          active={activeTab === "saved-reports"}
-          icon={PencilSquareIcon}
-          label="Saved Reports"
-          onClick={() => setActiveTab("saved-reports")}
-        />
-        <TabButton
-          active={activeTab === "renovation"}
-          icon={WrenchScrewdriverIcon}
-          label="Renovation Plan"
-          onClick={() => setActiveTab("renovation")}
-        />
-        <TabButton
-          active={activeTab === "bids"}
-          icon={ClipboardDocumentListIcon}
-          label="Bid Management"
-          onClick={() => setActiveTab("bids")}
-        />
-        <TabButton
-          active={activeTab === "tasks"}
-          icon={CheckCircleIcon}
-          label="Tasks"
-          onClick={() => setActiveTab("tasks")}
-        />
-        <TabButton
-          active={activeTab === "settings"}
-          icon={Cog6ToothIcon}
-          label="Settings"
-          onClick={() => setActiveTab("settings")}
-        />
-      </div>
+      <section className="surface-panel px-6 py-6 sm:px-7">
+        <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(360px,0.95fr)] xl:items-end">
+          <div>
+            <span className="eyebrow">Phase 1 workspace shell</span>
+            <div className="mt-4 flex items-start gap-4">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[18px] bg-ink-100 text-ink-700">
+                <ActiveCategoryIcon className="h-6 w-6" />
+              </div>
+              <div>
+                <h3 className="text-2xl font-semibold text-ink-900">
+                  {activeCategory.label} · {activeSection.label}
+                </h3>
+                <p className="mt-2 max-w-3xl text-sm leading-6 text-ink-500">
+                  {activeSection.description}
+                </p>
+              </div>
+            </div>
 
-      {leadWorkspaceError && activeTab !== "details" ? (
+            <div className="mt-5 flex flex-wrap gap-2">
+              {sectionOptions.map((section) => (
+                <span
+                  key={section.id}
+                  className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                    section.id === activeSection.id
+                      ? "bg-ink-900 text-white"
+                      : "bg-white text-ink-600 ring-1 ring-ink-100"
+                  }`}
+                >
+                  {section.label}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <WorkspaceSelectField
+              label="Category"
+              value={activeCategory.id}
+              options={PROPERTY_WORKSPACE_NAVIGATION}
+              onChange={handleCategoryChange}
+            />
+            <WorkspaceSelectField
+              label="Section"
+              value={activeSection.id}
+              options={sectionOptions}
+              onChange={handleSectionChange}
+            />
+          </div>
+        </div>
+
+        <div className="mt-6 grid gap-3 md:grid-cols-3">
+          <div className="rounded-[18px] bg-white px-4 py-4 ring-1 ring-ink-100">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-400">
+              Lead link
+            </p>
+            <p className="mt-2 text-sm font-semibold text-ink-900">
+              {pipelineLeadId ? "Connected" : "Not connected"}
+            </p>
+            <p className="mt-2 text-sm leading-6 text-ink-500">
+              {pipelineLeadId
+                ? "Lead-driven comps, reports, scope, and bid workflows can stay attached here."
+                : "This property is missing a linked lead, so lead-powered sections stay locked."}
+            </p>
+          </div>
+          <div className="rounded-[18px] bg-white px-4 py-4 ring-1 ring-ink-100">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-400">
+              Workspace status
+            </p>
+            <p className="mt-2 text-sm font-semibold text-ink-900">
+              {propertyWorkspaceActive ? "Active in Property Workspace" : "Not active yet"}
+            </p>
+            <p className="mt-2 text-sm leading-6 text-ink-500">
+              Lead-only sections still respect the property workspace enrollment setting.
+            </p>
+          </div>
+          <div className="rounded-[18px] bg-white px-4 py-4 ring-1 ring-ink-100">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-400">
+              Saved market history
+            </p>
+            <p className="mt-2 text-sm font-semibold text-ink-900">
+              {savedReports.length} saved report{savedReports.length === 1 ? "" : "s"}
+            </p>
+            <p className="mt-2 text-sm leading-6 text-ink-500">
+              This property now has room for finance, costs, documents, and operations without
+              crowding the old tab strip.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {isLeadWorkspaceSection && leadWorkspace && leadWorkspaceError ? (
         <div className="rounded-[16px] border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
           {leadWorkspaceError}
         </div>
       ) : null}
 
-      {activeTab === "details" ? (
+      {activeContentKey === "details" ? (
         <section className="grid gap-4 xl:grid-cols-[minmax(0,1.16fr)_minmax(320px,0.84fr)]">
         <form onSubmit={handleSave} className="section-card p-6 sm:p-7">
           <span className="eyebrow">Shared profile</span>
@@ -1262,8 +1636,18 @@ const PropertyWorkspacePage = () => {
           </div>
         </div>
       </section>
-      ) : activeTab === "comps" ? (
-        renderLeadTabContent(
+      ) : activeContentKey === "acquisition-summary" ||
+        activeContentKey === "original-assumptions" ? (
+        <PropertySummaryPanel
+          property={property}
+          propertyKey={propertyKey}
+          activeContentKey={activeContentKey}
+          leadWorkspace={leadWorkspace}
+          savedReports={savedReports}
+          pipelineLeadPath={pipelineLeadPath}
+        />
+      ) : activeContentKey === "comps" ? (
+        renderLeadSectionContent(
           () => (
             <CompsReportWorkspace
               subject={leadWorkspace}
@@ -1332,8 +1716,8 @@ const PropertyWorkspacePage = () => {
           ),
           "Loading AI comps analysis..."
         )
-      ) : activeTab === "saved-reports" ? (
-        renderLeadTabContent(
+      ) : activeContentKey === "saved-reports" ? (
+        renderLeadSectionContent(
           () => (
             <SavedCompsReportsTab
               reports={savedReports}
@@ -1346,8 +1730,8 @@ const PropertyWorkspacePage = () => {
           ),
           "Loading saved reports..."
         )
-      ) : activeTab === "renovation" ? (
-        renderLeadTabContent(
+      ) : activeContentKey === "renovation" ? (
+        renderLeadSectionContent(
           () => (
             <LeadRenovationTab
               lead={leadWorkspace}
@@ -1357,8 +1741,8 @@ const PropertyWorkspacePage = () => {
           ),
           "Loading renovation plan..."
         )
-      ) : activeTab === "bids" ? (
-        renderLeadTabContent(
+      ) : activeContentKey === "bids" ? (
+        renderLeadSectionContent(
           () => (
             <BidsTab
               leadId={pipelineLeadId}
@@ -1369,8 +1753,8 @@ const PropertyWorkspacePage = () => {
           ),
           "Loading bid management..."
         )
-      ) : activeTab === "settings" ? (
-        renderLeadTabContent(
+      ) : activeContentKey === "settings" ? (
+        renderLeadSectionContent(
           () => (
             <section className="section-card p-6 sm:p-7">
               <span className="eyebrow">Workspace settings</span>
@@ -1430,7 +1814,34 @@ const PropertyWorkspacePage = () => {
           ),
           "Loading workspace settings..."
         )
-      ) : (
+      ) : activeContentKey.startsWith("finance-") ? (
+        <PropertyFinancePanel
+          property={property}
+          propertyKey={propertyKey}
+          activeContentKey={activeContentKey}
+          onPropertyUpdated={syncPropertyState}
+        />
+      ) : activeContentKey.startsWith("costs-") ? (
+        <PropertyCostsPanel
+          property={property}
+          propertyKey={propertyKey}
+          activeContentKey={activeContentKey}
+          onPropertyUpdated={syncPropertyState}
+        />
+      ) : activeContentKey === "documents-overview" ? (
+        <PropertyDocumentsPanel
+          property={property}
+          propertyKey={propertyKey}
+          onPropertyUpdated={syncPropertyState}
+        />
+      ) : activeContentKey.startsWith("operations-") ? (
+        <PropertyOperationsPanel
+          property={property}
+          propertyKey={propertyKey}
+          activeContentKey={activeContentKey}
+          onPropertyUpdated={syncPropertyState}
+        />
+      ) : activeContentKey === "tasks" ? (
         <TasksPanel
           eyebrow="Property tasks"
           title="Tasks for this property"
@@ -1447,6 +1858,8 @@ const PropertyWorkspacePage = () => {
           emptyTitle="No property tasks yet"
           emptyDescription="Add the first task for this property and it will also show up in the main task center."
         />
+      ) : (
+        renderPlaceholderSection(activeContentKey)
       )}
     </div>
   );

@@ -3,6 +3,7 @@ import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
   ArrowPathIcon,
   Bars3Icon,
+  CalendarDaysIcon,
   ChartBarIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
@@ -33,6 +34,7 @@ const visibleNavSections = [
       { to: "/leads", label: "Potential Properties", icon: UsersIcon },
       { to: "/properties", label: "Property Workspace", icon: BuildingOffice2Icon },
       { to: "/comps-report", label: "Comps Report", icon: ChartBarIcon },
+      { to: "/master-calendar", label: "Master Calendar", icon: CalendarDaysIcon },
       { to: "/tasks", label: "Tasks", icon: ClipboardDocumentListIcon },
       { to: "/vendors", label: "Vendors", icon: WrenchScrewdriverIcon },
       { to: "/properties/new", label: "Add Property", icon: PlusCircleIcon },
@@ -119,6 +121,14 @@ const resolvePageMeta = (pathname, user) => {
       kicker: "Workspace",
       title: "Tasks",
       subtitle: "Track work across leads, property records, and general operations from one view.",
+    };
+  }
+
+  if (pathname === "/master-calendar") {
+    return {
+      kicker: "Workspace",
+      title: "Master Calendar",
+      subtitle: "See upcoming property work in one shared timeline across the workspace.",
     };
   }
 

@@ -1,31 +1,57 @@
 import React, { useEffect, useMemo, useState } from "react";
 
 import { analyzeExpenseReceipt, createExpense } from "../utils/api";
+import { getDrawRequestLabel, getFundingSourceLabel } from "../utils/capitalStack";
+import {
+  EXPENSE_PAYMENT_METHOD_OPTIONS,
+  EXPENSE_RECURRING_CATEGORY_OPTIONS,
+  EXPENSE_STATUS_OPTIONS,
+} from "../utils/expenseOperations";
 
 const buildInitialForm = ({
   budgetItems = [],
   defaultBudgetItemId = "",
   defaultAwardId = "",
+  fundingSources = [],
+  drawRequests = [],
+  defaultFundingSourceId = "",
+  defaultDrawRequestId = "",
+  initialValues = {},
 }) => {
   const fallbackBudgetItem =
     budgetItems.find((item) => item._id === defaultBudgetItemId) || budgetItems[0] || null;
   const nextBudgetItemId = defaultBudgetItemId || "";
   const matchingAward = fallbackBudgetItem?.awards?.find((award) => award.awardId === defaultAwardId);
+  const matchingDrawRequest =
+    drawRequests.find((request) => request.drawId === defaultDrawRequestId) || null;
+  const nextFundingSourceId =
+    defaultFundingSourceId ||
+    matchingDrawRequest?.sourceId ||
+    (fundingSources.length === 1 ? fundingSources[0].sourceId || "" : "");
 
   return {
-    budgetItemId: nextBudgetItemId,
-    awardId: matchingAward?.awardId || "",
+    budgetItemId: initialValues.budgetItemId || nextBudgetItemId,
+    awardId: initialValues.awardId || matchingAward?.awardId || "",
+    fundingSourceId: initialValues.fundingSourceId || nextFundingSourceId,
+    drawRequestId: initialValues.drawRequestId || defaultDrawRequestId || "",
     vendorId:
-      typeof matchingAward?.vendor === "object"
+      initialValues.vendorId ||
+      (typeof matchingAward?.vendor === "object"
         ? matchingAward?.vendor?._id || ""
-        : matchingAward?.vendor || "",
-    payeeName: matchingAward?.vendorName || "",
-    title: "",
-    description: "",
-    amount: "",
-    date: new Date().toISOString().split("T")[0],
-    notes: "",
-    entryMethod: "manual",
+        : matchingAward?.vendor || ""),
+    payeeName: initialValues.payeeName || matchingAward?.vendorName || "",
+    title: initialValues.title || "",
+    description: initialValues.description || "",
+    amount:
+      initialValues.amount !== undefined && initialValues.amount !== null
+        ? String(initialValues.amount)
+        : "",
+    date: initialValues.date || new Date().toISOString().split("T")[0],
+    notes: initialValues.notes || "",
+    entryMethod: initialValues.entryMethod || "manual",
+    status: initialValues.status || "paid",
+    paymentMethod: initialValues.paymentMethod || "other",
+    recurringCategory: initialValues.recurringCategory || "",
   };
 };
 
@@ -39,10 +65,24 @@ const AddExpenseModal = ({
   onSuccess,
   budgetItems = [],
   vendors = [],
+  fundingSources = [],
+  drawRequests = [],
+  defaultFundingSourceId = "",
+  defaultDrawRequestId = "",
+  initialValues = {},
 }) => {
   const [mode, setMode] = useState(initialMode === "receipt" ? "receipt" : "manual");
   const [formData, setFormData] = useState(() =>
-    buildInitialForm({ budgetItems, defaultBudgetItemId, defaultAwardId })
+    buildInitialForm({
+      budgetItems,
+      defaultBudgetItemId,
+      defaultAwardId,
+      fundingSources,
+      drawRequests,
+      defaultFundingSourceId,
+      defaultDrawRequestId,
+      initialValues,
+    })
   );
   const [receipt, setReceipt] = useState(null);
   const [receiptAnalysis, setReceiptAnalysis] = useState(null);
@@ -56,13 +96,35 @@ const AddExpenseModal = ({
     }
 
     setMode(initialMode === "receipt" ? "receipt" : "manual");
-    setFormData(buildInitialForm({ budgetItems, defaultBudgetItemId, defaultAwardId }));
+    setFormData(
+      buildInitialForm({
+        budgetItems,
+        defaultBudgetItemId,
+        defaultAwardId,
+        fundingSources,
+        drawRequests,
+        defaultFundingSourceId,
+        defaultDrawRequestId,
+        initialValues,
+      })
+    );
     setReceipt(null);
     setReceiptAnalysis(null);
     setError("");
     setIsSaving(false);
     setIsAnalyzing(false);
-  }, [budgetItems, defaultAwardId, defaultBudgetItemId, initialMode, isOpen]);
+  }, [
+    budgetItems,
+    defaultAwardId,
+    defaultBudgetItemId,
+    defaultDrawRequestId,
+    defaultFundingSourceId,
+    drawRequests,
+    fundingSources,
+    initialValues,
+    initialMode,
+    isOpen,
+  ]);
 
   const selectedBudgetItem = useMemo(
     () => budgetItems.find((item) => item._id === formData.budgetItemId) || null,
@@ -74,6 +136,21 @@ const AddExpenseModal = ({
       selectedBudgetItem?.awards?.find((award) => award.awardId === formData.awardId) || null,
     [selectedBudgetItem, formData.awardId]
   );
+
+  const selectedDrawRequest = useMemo(
+    () => drawRequests.find((request) => request.drawId === formData.drawRequestId) || null,
+    [drawRequests, formData.drawRequestId]
+  );
+
+  const filteredDrawRequests = useMemo(() => {
+    if (!formData.fundingSourceId) {
+      return drawRequests;
+    }
+
+    return drawRequests.filter(
+      (request) => !request.sourceId || request.sourceId === formData.fundingSourceId
+    );
+  }, [drawRequests, formData.fundingSourceId]);
 
   if (!isOpen) return null;
 
@@ -102,6 +179,22 @@ const AddExpenseModal = ({
               ? nextAward.vendor?._id || ""
               : nextAward.vendor || "";
           next.payeeName = nextAward.vendorName || "";
+        }
+      }
+
+      if (name === "fundingSourceId") {
+        const existingDrawRequest =
+          drawRequests.find((request) => request.drawId === current.drawRequestId) || null;
+
+        if (existingDrawRequest?.sourceId && existingDrawRequest.sourceId !== value) {
+          next.drawRequestId = "";
+        }
+      }
+
+      if (name === "drawRequestId") {
+        const nextDrawRequest = drawRequests.find((request) => request.drawId === value) || null;
+        if (nextDrawRequest?.sourceId) {
+          next.fundingSourceId = nextDrawRequest.sourceId;
         }
       }
 
@@ -184,6 +277,8 @@ const AddExpenseModal = ({
       payload.append("investmentId", investmentId);
       if (formData.budgetItemId) payload.append("budgetItemId", formData.budgetItemId);
       if (formData.awardId) payload.append("awardId", formData.awardId);
+      if (formData.fundingSourceId) payload.append("fundingSourceId", formData.fundingSourceId);
+      if (formData.drawRequestId) payload.append("drawRequestId", formData.drawRequestId);
       if (formData.vendorId) payload.append("vendor", formData.vendorId);
       if (formData.payeeName.trim()) payload.append("payeeName", formData.payeeName.trim());
       payload.append("title", formData.title.trim());
@@ -192,6 +287,9 @@ const AddExpenseModal = ({
       payload.append("date", formData.date);
       payload.append("notes", formData.notes.trim());
       payload.append("entryMethod", formData.entryMethod);
+      payload.append("status", formData.status);
+      payload.append("paymentMethod", formData.paymentMethod);
+      payload.append("recurringCategory", formData.recurringCategory);
       if (receiptAnalysis) {
         payload.append(
           "receiptExtraction",
@@ -298,6 +396,75 @@ const AddExpenseModal = ({
               ) : null}
             </section>
           ) : null}
+
+          <section className="rounded-[24px] border border-ink-100 bg-white/90 p-5">
+            <div>
+              <p className="text-sm font-semibold text-ink-900">Capital stack links</p>
+              <p className="mt-1 text-sm leading-6 text-ink-500">
+                Optionally tie this payment to a funding source or specific draw request so your
+                costs, lender reporting, and finance dashboard stay connected.
+              </p>
+            </div>
+
+            <div className="mt-5 grid gap-5 md:grid-cols-2">
+              <label className="block space-y-2">
+                <span className="text-sm font-medium text-ink-700">Funding source</span>
+                <select
+                  name="fundingSourceId"
+                  value={formData.fundingSourceId}
+                  onChange={handleChange}
+                  className="auth-input appearance-none"
+                >
+                  <option value="">No funding source selected</option>
+                  {fundingSources.map((source, index) => (
+                    <option key={source.sourceId || `source-${index}`} value={source.sourceId || ""}>
+                      {getFundingSourceLabel(source, index)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="block space-y-2">
+                <span className="text-sm font-medium text-ink-700">Draw request</span>
+                <select
+                  name="drawRequestId"
+                  value={formData.drawRequestId}
+                  onChange={handleChange}
+                  className="auth-input appearance-none"
+                  disabled={!filteredDrawRequests.length}
+                >
+                  <option value="">No specific draw</option>
+                  {filteredDrawRequests.map((drawRequest, index) => (
+                    <option
+                      key={drawRequest.drawId || `draw-${index}`}
+                      value={drawRequest.drawId || ""}
+                    >
+                      {getDrawRequestLabel(drawRequest, index)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+
+            {selectedDrawRequest ? (
+              <div className="mt-5 rounded-[18px] border border-sky-200 bg-sky-50 px-4 py-4 text-sm text-sky-800">
+                <p className="font-semibold">Draw-linked expense</p>
+                <p className="mt-2">
+                  This expense will roll into{" "}
+                  {getDrawRequestLabel(
+                    selectedDrawRequest,
+                    Math.max(
+                      drawRequests.findIndex(
+                        (request) => request.drawId === selectedDrawRequest.drawId
+                      ),
+                      0
+                    )
+                  )}
+                  {selectedDrawRequest.sourceId ? " under the connected funding source." : "."}
+                </p>
+              </div>
+            ) : null}
+          </section>
 
           <div className="grid gap-5 md:grid-cols-2">
             <label className="block space-y-2">
@@ -422,6 +589,66 @@ const AddExpenseModal = ({
               />
             </label>
           </div>
+
+          <section className="rounded-[24px] border border-ink-100 bg-white/90 p-5">
+            <div>
+              <p className="text-sm font-semibold text-ink-900">AP workflow</p>
+              <p className="mt-1 text-sm leading-6 text-ink-500">
+                Track approval state, how the payment was made, and whether this belongs to a
+                recurring carry category.
+              </p>
+            </div>
+
+            <div className="mt-5 grid gap-5 md:grid-cols-3">
+              <label className="block space-y-2">
+                <span className="text-sm font-medium text-ink-700">Status</span>
+                <select
+                  name="status"
+                  value={formData.status}
+                  onChange={handleChange}
+                  className="auth-input appearance-none"
+                >
+                  {EXPENSE_STATUS_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="block space-y-2">
+                <span className="text-sm font-medium text-ink-700">Payment method</span>
+                <select
+                  name="paymentMethod"
+                  value={formData.paymentMethod}
+                  onChange={handleChange}
+                  className="auth-input appearance-none"
+                >
+                  {EXPENSE_PAYMENT_METHOD_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="block space-y-2">
+                <span className="text-sm font-medium text-ink-700">Recurring carry tag</span>
+                <select
+                  name="recurringCategory"
+                  value={formData.recurringCategory}
+                  onChange={handleChange}
+                  className="auth-input appearance-none"
+                >
+                  {EXPENSE_RECURRING_CATEGORY_OPTIONS.map((option) => (
+                    <option key={option.value || "none"} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+          </section>
 
           <label className="block space-y-2">
             <span className="text-sm font-medium text-ink-700">Notes</span>

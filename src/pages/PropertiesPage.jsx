@@ -4,6 +4,7 @@ import { HomeModernIcon } from "@heroicons/react/24/outline";
 
 import WorkspaceDataTable from "../components/WorkspaceDataTable";
 import { getProperties } from "../utils/api";
+import { buildPropertyWorkspacePath } from "../utils/propertyWorkspaceNavigation";
 
 const SummaryCard = ({ label, value, detail }) => (
   <div className="metric-tile p-5">
@@ -145,7 +146,7 @@ const PropertiesPage = () => {
         render: (property) => (
           <div>
             <Link
-              to={`/properties/${encodeURIComponent(property.propertyKey)}`}
+              to={buildPropertyWorkspacePath(property.propertyKey)}
               className="font-semibold text-ink-900 transition hover:text-verdigris-700"
             >
               {property.title}
@@ -195,7 +196,7 @@ const PropertiesPage = () => {
         render: (property) => (
           <div className="flex justify-end">
             <Link
-              to={`/properties/${encodeURIComponent(property.propertyKey)}`}
+              to={buildPropertyWorkspacePath(property.propertyKey)}
               className="inline-flex items-center rounded-full bg-ink-900 px-3.5 py-2 text-xs font-semibold text-white transition hover:bg-ink-800"
             >
               Open property

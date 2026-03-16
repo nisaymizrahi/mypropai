@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import html2pdf from "html2pdf.js";
 import {
   ArrowDownTrayIcon,
   BuildingOffice2Icon,
@@ -30,6 +29,15 @@ import {
   timelineLaneConfig,
   toTimelineTime,
 } from "../utils/propertyTimeline";
+import {
+  getVendorComplianceClasses,
+  getVendorComplianceLabel,
+} from "../utils/vendors";
+import {
+  getVendorProcurementStateClasses,
+  getVendorProcurementSummary,
+} from "../utils/vendorProcurement";
+import { exportElementToPdf } from "../utils/pdfExport";
 
 const MetricTile = ({ icon: Icon, label, value, hint, tone = "text-ink-900" }) => (
   <div className="metric-tile p-5">
@@ -172,8 +180,20 @@ const PropertyOperationsPanel = ({
 
   const vendorDirectory = useMemo(() => {
     const vendorMap = new Map();
+    const vendorRecordsById = new Map(
+      vendors
+        .filter((vendor) => vendor && typeof vendor === "object" && !Array.isArray(vendor))
+        .map((vendor) => [vendor._id, vendor])
+    );
 
-    const ensureVendor = ({ key, name, trade = "", email = "", phone = "" }) => {
+    const ensureVendor = ({
+      key,
+      name,
+      trade = "",
+      email = "",
+      phone = "",
+      vendorRecord = null,
+    }) => {
       if (!vendorMap.has(key)) {
         vendorMap.set(key, {
           key,
@@ -181,6 +201,8 @@ const PropertyOperationsPanel = ({
           trade,
           email,
           phone,
+          vendorRecord: vendorRecord || null,
+          linkedVendor: Boolean(vendorRecord),
           commitments: 0,
           commitmentAmount: 0,
           paidToDate: 0,
@@ -190,7 +212,34 @@ const PropertyOperationsPanel = ({
         });
       }
 
-      return vendorMap.get(key);
+      const entry = vendorMap.get(key);
+
+      if (name && (!entry.name || entry.name === "Vendor")) {
+        entry.name = name;
+      }
+
+      if (trade && !entry.trade) {
+        entry.trade = trade;
+      }
+
+      if (email && !entry.email) {
+        entry.email = email;
+      }
+
+      if (phone && !entry.phone) {
+        entry.phone = phone;
+      }
+
+      if (vendorRecord) {
+        entry.vendorRecord = vendorRecord;
+        entry.linkedVendor = true;
+        entry.name = vendorRecord.name || entry.name;
+        entry.trade = vendorRecord.trade || entry.trade;
+        entry.email = vendorRecord.contactInfo?.email || entry.email;
+        entry.phone = vendorRecord.contactInfo?.phone || entry.phone;
+      }
+
+      return entry;
     };
 
     vendors.forEach((vendor) => {
@@ -200,6 +249,7 @@ const PropertyOperationsPanel = ({
         trade: vendor.trade || "",
         email: vendor.contactInfo?.email || "",
         phone: vendor.contactInfo?.phone || "",
+        vendorRecord: vendor,
       });
     });
 
@@ -214,6 +264,7 @@ const PropertyOperationsPanel = ({
             (typeof award.vendor === "object" ? award.vendor?.name : "") ||
             award.vendorName ||
             "Selected vendor",
+          vendorRecord: vendorRecordsById.get(vendorId) || null,
         });
         entry.commitments += 1;
         entry.commitmentAmount += toNumber(award.amount, 0);
@@ -233,6 +284,7 @@ const PropertyOperationsPanel = ({
         key: vendorId || `name:${vendorName}`,
         name: vendorName,
         trade: task.assignee?.trade || "",
+        vendorRecord: vendorRecordsById.get(vendorId) || null,
       });
 
       if (task.status === "Complete") {
@@ -259,6 +311,7 @@ const PropertyOperationsPanel = ({
       const entry = ensureVendor({
         key: vendorId || `name:${vendorName}`,
         name: vendorName,
+        vendorRecord: vendorRecordsById.get(vendorId) || null,
       });
 
       entry.paidToDate += toNumber(expense.amount, 0);
@@ -266,11 +319,36 @@ const PropertyOperationsPanel = ({
 
     return [...vendorMap.values()]
       .filter((vendor) => vendor.commitments || vendor.paidToDate || vendor.openTasks || vendor.completedTasks)
+      .map((vendor) => {
+        const procurement = getVendorProcurementSummary(vendor.vendorRecord || {});
+        return {
+          ...vendor,
+          procurement: {
+            ...procurement,
+            overallLabel: vendor.linkedVendor ? procurement.overallLabel : "Unlinked payee",
+            nextActions: vendor.linkedVendor
+              ? procurement.nextActions
+              : ["Create a vendor record", ...procurement.nextActions].slice(0, 4),
+          },
+        };
+      })
       .sort(
         (left, right) =>
           right.commitmentAmount + right.paidToDate - (left.commitmentAmount + left.paidToDate)
       );
   }, [budgetItems, expenses, tasks, vendors]);
+
+  const readyToAssignCount = useMemo(
+    () => vendorDirectory.filter((vendor) => vendor.linkedVendor && vendor.procurement.assignmentReady).length,
+    [vendorDirectory]
+  );
+  const vendorPacketGapCount = useMemo(
+    () =>
+      vendorDirectory.filter(
+        (vendor) => !vendor.linkedVendor || vendor.procurement.blockingIssuesCount > 0
+      ).length,
+    [vendorDirectory]
+  );
 
   const recentActivity = useMemo(
     () =>
@@ -299,12 +377,15 @@ const PropertyOperationsPanel = ({
     }
   };
 
-  const handleExportTimeline = () => {
+  const handleExportTimeline = async () => {
     if (!timelineExportRef.current) {
       return;
     }
 
-    html2pdf().from(timelineExportRef.current).save("property-operations-timeline.pdf");
+    await exportElementToPdf({
+      element: timelineExportRef.current,
+      filename: "property-operations-timeline.pdf",
+    });
   };
 
   if (!investmentId) {
@@ -501,11 +582,11 @@ const PropertyOperationsPanel = ({
             <div>
               <span className="eyebrow">Operations > Vendors</span>
               <h3 className="mt-4 font-display text-[2.15rem] leading-[0.96] text-ink-900">
-                See who is involved, what they are committed to, and what has already been paid
+                See who is involved, what they are committed to, and whether their packet is ready
               </h3>
               <p className="mt-4 max-w-3xl text-sm leading-7 text-ink-500 sm:text-base">
-                This roster turns vendors from a static list into a property-specific view of
-                commitments, spend, and assigned work.
+                This roster turns vendors from a static list into a property-specific procurement
+                board with commitments, spend, packet gaps, and assignment readiness.
               </p>
             </div>
 
@@ -524,15 +605,15 @@ const PropertyOperationsPanel = ({
           />
           <MetricTile
             icon={BuildingOffice2Icon}
-            label="Vendor commitments"
-            value={vendorDirectory.reduce((sum, vendor) => sum + vendor.commitments, 0)}
-            hint="Awarded commitments across the property."
+            label="Ready to assign"
+            value={readyToAssignCount}
+            hint="Linked vendors with usable procurement packets."
           />
           <MetricTile
             icon={CalendarDaysIcon}
-            label="Open assigned tasks"
-            value={vendorDirectory.reduce((sum, vendor) => sum + vendor.openTasks, 0)}
-            hint="Vendor-facing work still open."
+            label="Packet gaps"
+            value={vendorPacketGapCount}
+            hint="Vendors missing onboarding, contract, or payment backup."
           />
           <MetricTile
             icon={ClockIcon}
@@ -558,6 +639,27 @@ const PropertyOperationsPanel = ({
                       <p className="mt-1 text-sm font-medium text-ink-500">
                         {vendor.trade || "Trade not specified"}
                       </p>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <span
+                          className={`rounded-full px-3 py-1 text-xs font-semibold ${getVendorProcurementStateClasses(
+                            vendor.procurement.overallState
+                          )}`}
+                        >
+                          {vendor.procurement.overallLabel}
+                        </span>
+                        {vendor.linkedVendor ? (
+                          <span
+                            className={`rounded-full px-3 py-1 text-xs font-semibold ${getVendorComplianceClasses(
+                              vendor.vendorRecord
+                            )}`}
+                          >
+                            {getVendorComplianceLabel(vendor.vendorRecord)}
+                          </span>
+                        ) : null}
+                        <span className="rounded-full border border-ink-100 bg-white px-3 py-1 text-xs font-semibold text-ink-600">
+                          {vendor.procurement.paymentReady ? "Payment backup ready" : "Payment backup needed"}
+                        </span>
+                      </div>
                     </div>
                     <span className="rounded-full border border-verdigris-200 bg-verdigris-50 px-3 py-1 text-xs font-semibold text-verdigris-700">
                       {vendor.commitments} commitment{vendor.commitments === 1 ? "" : "s"}
@@ -603,6 +705,17 @@ const PropertyOperationsPanel = ({
                       {vendor.phone ? <p>{vendor.phone}</p> : null}
                     </div>
                   ) : null}
+
+                  <div className="mt-4 rounded-[18px] border border-sand-100 bg-sand-50/60 p-4">
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sand-700">
+                      Packet gaps
+                    </p>
+                    <p className="mt-2 text-sm leading-6 text-sand-900">
+                      {vendor.procurement.nextActions[0]
+                        ? vendor.procurement.nextActions.join(" • ")
+                        : "Vendor packet looks healthy for this stage of the job."}
+                    </p>
+                  </div>
                 </div>
               ))
             ) : (

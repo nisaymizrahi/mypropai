@@ -1,5 +1,11 @@
 import React, { useMemo } from "react";
 
+import {
+  getDrawRequestById,
+  getDrawRequestLabel,
+  getFundingSourceById,
+  getFundingSourceLabel,
+} from "../utils/capitalStack";
 import { formatCurrency } from "../utils/investmentMetrics";
 
 const formatDate = (value) => {
@@ -19,6 +25,8 @@ const BudgetMetric = ({ label, value, tone = "text-ink-900" }) => (
 const BudgetLineItem = ({
   item,
   expenses = [],
+  fundingSources = [],
+  drawRequests = [],
   onAddExpense,
   onAddAward,
   onEditAward,
@@ -169,31 +177,72 @@ const BudgetLineItem = ({
 
           <div className="mt-4 space-y-3">
             {expenses.length > 0 ? (
-              expenses.map((expense) => (
-                <div
-                  key={expense._id}
-                  className="rounded-[18px] border border-ink-100 bg-ink-50/60 p-4"
-                >
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                    <div>
-                      <p className="text-sm font-semibold text-ink-900">{expense.title}</p>
-                      <p className="mt-1 text-sm text-ink-500">
-                        {(expense.vendor?.name || expense.payeeName || "Custom expense") +
-                          (expense.description ? ` • ${expense.description}` : "")}
+              expenses.map((expense) => {
+                const linkedFundingSource = getFundingSourceById(
+                  fundingSources,
+                  expense.fundingSourceId
+                );
+                const linkedDrawRequest = getDrawRequestById(drawRequests, expense.drawRequestId);
+
+                return (
+                  <div
+                    key={expense._id}
+                    className="rounded-[18px] border border-ink-100 bg-ink-50/60 p-4"
+                  >
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div>
+                        <p className="text-sm font-semibold text-ink-900">{expense.title}</p>
+                        <p className="mt-1 text-sm text-ink-500">
+                          {(expense.vendor?.name || expense.payeeName || "Custom expense") +
+                            (expense.description ? ` • ${expense.description}` : "")}
+                        </p>
+                        <p className="mt-2 text-xs font-semibold uppercase tracking-[0.16em] text-ink-400">
+                          {formatDate(expense.date)}
+                        </p>
+
+                        {linkedFundingSource || linkedDrawRequest ? (
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            {linkedFundingSource ? (
+                              <span className="rounded-full bg-sky-50 px-3 py-1 text-[11px] font-semibold text-sky-700">
+                                {getFundingSourceLabel(
+                                  linkedFundingSource,
+                                  Math.max(
+                                    fundingSources.findIndex(
+                                      (source) =>
+                                        source.sourceId === linkedFundingSource.sourceId
+                                    ),
+                                    0
+                                  )
+                                )}
+                              </span>
+                            ) : null}
+                            {linkedDrawRequest ? (
+                              <span className="rounded-full bg-indigo-50 px-3 py-1 text-[11px] font-semibold text-indigo-700">
+                                {getDrawRequestLabel(
+                                  linkedDrawRequest,
+                                  Math.max(
+                                    drawRequests.findIndex(
+                                      (request) => request.drawId === linkedDrawRequest.drawId
+                                    ),
+                                    0
+                                  )
+                                )}
+                              </span>
+                            ) : null}
+                          </div>
+                        ) : null}
+
+                        {expense.notes ? (
+                          <p className="mt-3 text-sm leading-6 text-ink-500">{expense.notes}</p>
+                        ) : null}
+                      </div>
+                      <p className="text-lg font-semibold text-ink-900">
+                        {formatCurrency(expense.amount)}
                       </p>
-                      <p className="mt-2 text-xs font-semibold uppercase tracking-[0.16em] text-ink-400">
-                        {formatDate(expense.date)}
-                      </p>
-                      {expense.notes ? (
-                        <p className="mt-3 text-sm leading-6 text-ink-500">{expense.notes}</p>
-                      ) : null}
                     </div>
-                    <p className="text-lg font-semibold text-ink-900">
-                      {formatCurrency(expense.amount)}
-                    </p>
                   </div>
-                </div>
-              ))
+                );
+              })
             ) : (
               <div className="rounded-[18px] border border-dashed border-ink-200 bg-ink-50/40 p-4 text-sm leading-6 text-ink-500">
                 No expenses logged yet for this item.

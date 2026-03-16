@@ -37,7 +37,14 @@ const formatDate = (value) => {
   return parsed.toLocaleDateString();
 };
 
-const FinancialsTab = ({ investment, budgetItems, expenses, vendors = [], onUpdate }) => {
+const FinancialsTab = ({
+  investment,
+  budgetItems,
+  expenses,
+  vendors = [],
+  onUpdate,
+  showAnalysis = true,
+}) => {
   const [expenseModalState, setExpenseModalState] = useState({
     isOpen: false,
     budgetItemId: "",
@@ -297,19 +304,25 @@ const FinancialsTab = ({ investment, budgetItems, expenses, vendors = [], onUpda
           </div>
         </section>
 
-        <section className="section-card p-6 sm:p-7">
-          <div className="flex flex-col gap-3">
-            <span className="eyebrow">Deal analysis</span>
-            <h3 className="text-3xl font-semibold text-ink-900">Underwriting summary</h3>
-            <p className="max-w-2xl text-sm leading-6 text-ink-500">
-              Validate costs, returns, and analysis using the latest project inputs.
-            </p>
-          </div>
+        {showAnalysis ? (
+          <section className="section-card p-6 sm:p-7">
+            <div className="flex flex-col gap-3">
+              <span className="eyebrow">Deal analysis</span>
+              <h3 className="text-3xl font-semibold text-ink-900">Underwriting summary</h3>
+              <p className="max-w-2xl text-sm leading-6 text-ink-500">
+                Validate costs, returns, and analysis using the latest project inputs.
+              </p>
+            </div>
 
-          <div className="mt-8">
-            <AnalysisCalculator investment={{ ...investment, totalBudget: metrics.totalBudget }} />
-          </div>
-        </section>
+            <div className="mt-8">
+              <AnalysisCalculator
+                investment={investment}
+                budgetItems={budgetItems}
+                expenses={expenses}
+              />
+            </div>
+          </section>
+        ) : null}
       </div>
     </>
   );

@@ -22,6 +22,7 @@ import {
   getExpenses,
   getInvestment,
   getVendors,
+  updateExpense,
   updateBudgetAward,
 } from "../utils/api";
 import {
@@ -29,6 +30,22 @@ import {
   getInvestmentAnalysisMetrics,
   toNumber,
 } from "../utils/investmentMetrics";
+import {
+  getDrawRequestById,
+  getDrawRequestLabel,
+  getDrawRequests,
+  getFundingSourceById,
+  getFundingSourceLabel,
+  getFundingSources,
+} from "../utils/capitalStack";
+import {
+  buildExpenseDuplicateGroups,
+  buildRecurringCarryTemplates,
+  getExpensePaymentMethodLabel,
+  getExpenseRecurringCategoryLabel,
+  getExpenseStatusClasses,
+  getExpenseStatusLabel,
+} from "../utils/expenseOperations";
 
 const formatDate = (value) => {
   if (!value) return "Recently";
@@ -134,6 +151,7 @@ const PropertyCostsPanel = ({
     budgetItemId: "",
     awardId: "",
     mode: "manual",
+    initialValues: {},
   });
   const [showAddBudgetModal, setShowAddBudgetModal] = useState(false);
   const [showAIBuilderModal, setShowAIBuilderModal] = useState(false);
@@ -193,6 +211,9 @@ const PropertyCostsPanel = ({
     [budgetItems, expenses, investment]
   );
 
+  const fundingSources = useMemo(() => getFundingSources(investment || {}), [investment]);
+  const drawRequests = useMemo(() => getDrawRequests(investment || {}), [investment]);
+
   const expensesByBudgetItemId = useMemo(() => {
     const groups = new Map();
 
@@ -213,21 +234,6 @@ const PropertyCostsPanel = ({
 
     return groups;
   }, [expenses]);
-
-  const projectLevelExpenses = useMemo(
-    () =>
-      expenses
-        .filter((expense) => {
-          const budgetItemId =
-            typeof expense.budgetItem === "object"
-              ? expense.budgetItem?._id || ""
-              : expense.budgetItem || "";
-
-          return !budgetItemId;
-        })
-        .sort((left, right) => new Date(right.date || 0) - new Date(left.date || 0)),
-    [expenses]
-  );
 
   const categorySpendSummary = useMemo(() => {
     const groups = new Map();
@@ -274,6 +280,115 @@ const PropertyCostsPanel = ({
       .sort((left, right) => Math.max(right.expected, right.actual) - Math.max(left.expected, left.actual))
       .slice(0, 8);
   }, [budgetItems, expenses]);
+
+  const fundingSpendSummary = useMemo(() => {
+    const groups = new Map();
+
+    expenses.forEach((expense) => {
+      if (!expense.fundingSourceId) {
+        return;
+      }
+
+      const linkedSource = getFundingSourceById(fundingSources, expense.fundingSourceId);
+      const index = Math.max(
+        fundingSources.findIndex((source) => source.sourceId === expense.fundingSourceId),
+        0
+      );
+      const label = linkedSource
+        ? getFundingSourceLabel(linkedSource, index)
+        : "Archived funding source";
+      const current = groups.get(expense.fundingSourceId) || {
+        key: expense.fundingSourceId,
+        label,
+        amount: 0,
+        count: 0,
+      };
+
+      current.amount += toNumber(expense.amount, 0);
+      current.count += 1;
+      groups.set(expense.fundingSourceId, current);
+    });
+
+    return [...groups.values()].sort((left, right) => right.amount - left.amount);
+  }, [expenses, fundingSources]);
+
+  const drawSpendSummary = useMemo(() => {
+    const groups = new Map();
+
+    expenses.forEach((expense) => {
+      if (!expense.drawRequestId) {
+        return;
+      }
+
+      const linkedDrawRequest = getDrawRequestById(drawRequests, expense.drawRequestId);
+      const index = Math.max(
+        drawRequests.findIndex((request) => request.drawId === expense.drawRequestId),
+        0
+      );
+      const label = linkedDrawRequest
+        ? getDrawRequestLabel(linkedDrawRequest, index)
+        : "Archived draw request";
+      const current = groups.get(expense.drawRequestId) || {
+        key: expense.drawRequestId,
+        label,
+        amount: 0,
+        count: 0,
+      };
+
+      current.amount += toNumber(expense.amount, 0);
+      current.count += 1;
+      groups.set(expense.drawRequestId, current);
+    });
+
+    return [...groups.values()].sort((left, right) => right.amount - left.amount);
+  }, [drawRequests, expenses]);
+
+  const approvalQueue = useMemo(
+    () =>
+      expenses
+        .filter((expense) => ["draft", "approved"].includes(expense.status || "paid"))
+        .sort((left, right) => new Date(left.date || 0) - new Date(right.date || 0)),
+    [expenses]
+  );
+
+  const duplicateGroups = useMemo(() => buildExpenseDuplicateGroups(expenses), [expenses]);
+  const duplicateExpenseIds = useMemo(
+    () =>
+      new Set(
+        duplicateGroups.flatMap((group) => group.expenses.map((expense) => String(expense._id)))
+      ),
+    [duplicateGroups]
+  );
+
+  const recurringCarryTemplates = useMemo(
+    () => buildRecurringCarryTemplates(investment || {}),
+    [investment]
+  );
+
+  const recurringCarryActuals = useMemo(() => {
+    const groups = new Map();
+
+    expenses.forEach((expense) => {
+      if (!expense.recurringCategory) {
+        return;
+      }
+
+      const current = groups.get(expense.recurringCategory) || {
+        amount: 0,
+        count: 0,
+        lastDate: null,
+      };
+
+      current.amount += toNumber(expense.amount, 0);
+      current.count += 1;
+      if (!current.lastDate || new Date(expense.date || 0) > new Date(current.lastDate || 0)) {
+        current.lastDate = expense.date;
+      }
+      groups.set(expense.recurringCategory, current);
+    });
+
+    return groups;
+  }, [expenses]);
 
   const commitments = useMemo(
     () =>
@@ -342,13 +457,29 @@ const PropertyCostsPanel = ({
     }
   };
 
-  const handleOpenExpenseModal = ({ budgetItemId = "", awardId = "", mode = "manual" } = {}) => {
+  const handleOpenExpenseModal = ({
+    budgetItemId = "",
+    awardId = "",
+    mode = "manual",
+    initialValues = {},
+  } = {}) => {
     setExpenseModalState({
       isOpen: true,
       budgetItemId,
       awardId,
       mode,
+      initialValues,
     });
+  };
+
+  const handleExpenseStatusChange = async (expenseId, status) => {
+    try {
+      await updateExpense(expenseId, { status });
+      await loadCostsWorkspace();
+      toast.success(`Expense moved to ${getExpenseStatusLabel(status).toLowerCase()}.`);
+    } catch (updateError) {
+      toast.error(updateError.message || "Failed to update expense status.");
+    }
   };
 
   const handleSaveAward = async (payload) => {
@@ -411,7 +542,13 @@ const PropertyCostsPanel = ({
       <AddExpenseModal
         isOpen={expenseModalState.isOpen}
         onClose={() =>
-          setExpenseModalState({ isOpen: false, budgetItemId: "", awardId: "", mode: "manual" })
+          setExpenseModalState({
+            isOpen: false,
+            budgetItemId: "",
+            awardId: "",
+            mode: "manual",
+            initialValues: {},
+          })
         }
         investmentId={investment._id}
         defaultBudgetItemId={expenseModalState.budgetItemId}
@@ -420,6 +557,9 @@ const PropertyCostsPanel = ({
         onSuccess={loadCostsWorkspace}
         budgetItems={budgetItems}
         vendors={vendors}
+        fundingSources={fundingSources}
+        drawRequests={drawRequests}
+        initialValues={expenseModalState.initialValues}
       />
       <AddBudgetItemModal
         isOpen={showAddBudgetModal}
@@ -522,6 +662,8 @@ const PropertyCostsPanel = ({
                     key={item._id}
                     item={item}
                     expenses={expensesByBudgetItemId.get(item._id) || []}
+                    fundingSources={fundingSources}
+                    drawRequests={drawRequests}
                     onAddExpense={() => handleOpenExpenseModal({ budgetItemId: item._id })}
                     onAddAward={() =>
                       setAwardModalState({ isOpen: true, budgetItem: item, award: null })
@@ -585,26 +727,382 @@ const PropertyCostsPanel = ({
               hint={`${expenses.length} payment record${expenses.length === 1 ? "" : "s"} logged.`}
             />
             <MetricTile
+              icon={ClipboardDocumentListIcon}
+              label="Approval queue"
+              value={approvalQueue.length}
+              hint="Draft and approved expenses still waiting to clear the workflow."
+            />
+            <MetricTile
               icon={ReceiptPercentIcon}
               label="AI receipt entries"
               value={expenses.filter((expense) => expense.entryMethod === "receipt_ai").length}
               hint="Entries created with receipt OCR assistance."
             />
             <MetricTile
+              icon={ArrowTrendingUpIcon}
+              label="Duplicate watch"
+              value={duplicateGroups.length}
+              hint="Potential duplicate groups found from amount, payee, and close dates."
+            />
+            <MetricTile
               icon={CreditCardIcon}
-              label="Project-level spend"
+              label="Recurring carry logged"
               value={formatCurrency(
-                projectLevelExpenses.reduce((sum, expense) => sum + toNumber(expense.amount, 0), 0)
+                [...recurringCarryActuals.values()].reduce(
+                  (sum, item) => sum + toNumber(item.amount, 0),
+                  0
+                )
               )}
-              hint="Expenses not tied to a single scope item."
+              hint="Expenses tagged to taxes, insurance, utilities, or other monthly carry."
+            />
+            <MetricTile
+              icon={ArrowTrendingUpIcon}
+              label="Funding-linked spend"
+              value={formatCurrency(
+                expenses.reduce(
+                  (sum, expense) =>
+                    sum + (expense.fundingSourceId ? toNumber(expense.amount, 0) : 0),
+                  0
+                )
+              )}
+              hint="Payments mapped directly to a funding source."
             />
             <MetricTile
               icon={ClipboardDocumentListIcon}
-              label="Unassigned spend"
-              value={formatCurrency(metrics.unassignedSpent)}
-              hint="Useful for cleanup and reclassification."
+              label="Draw-linked spend"
+              value={formatCurrency(
+                expenses.reduce(
+                  (sum, expense) =>
+                    sum + (expense.drawRequestId ? toNumber(expense.amount, 0) : 0),
+                  0
+                )
+              )}
+              hint="Payments already tied to a specific draw."
             />
           </div>
+
+          <section className="section-card p-6 sm:p-7">
+            <span className="eyebrow">AP workflow</span>
+            <h4 className="mt-4 text-2xl font-semibold text-ink-900">
+              Approvals, duplicate watch, and recurring carry
+            </h4>
+
+            <div className="mt-8 grid gap-5 xl:grid-cols-[minmax(0,1.04fr)_minmax(280px,360px)]">
+              <div className="rounded-[24px] border border-ink-100 bg-white/90 p-5">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold uppercase tracking-[0.16em] text-ink-400">
+                      Approval queue
+                    </p>
+                    <p className="mt-2 text-base font-semibold text-ink-900">
+                      Keep invoice capture moving to approved and paid
+                    </p>
+                  </div>
+                  <span className="rounded-full bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-700">
+                    {approvalQueue.length} open
+                  </span>
+                </div>
+
+                <div className="mt-5 space-y-3">
+                  {approvalQueue.length > 0 ? (
+                    approvalQueue.slice(0, 6).map((expense) => (
+                      <div
+                        key={expense._id}
+                        className="rounded-[18px] border border-ink-100 bg-ink-50/50 p-4"
+                      >
+                        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                          <div>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <p className="text-sm font-semibold text-ink-900">{expense.title}</p>
+                              <span
+                                className={`rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] ${getExpenseStatusClasses(
+                                  expense.status
+                                )}`}
+                              >
+                                {getExpenseStatusLabel(expense.status)}
+                              </span>
+                            </div>
+                            <p className="mt-2 text-sm text-ink-500">
+                              {expense.vendor?.name || expense.payeeName || "Project expense"} ·{" "}
+                              {formatDate(expense.date)}
+                            </p>
+                          </div>
+
+                          <div className="flex flex-wrap gap-2">
+                            {(expense.status || "paid") === "draft" ? (
+                              <button
+                                type="button"
+                                onClick={() => handleExpenseStatusChange(expense._id, "approved")}
+                                className="secondary-action"
+                              >
+                                Approve
+                              </button>
+                            ) : null}
+                            {(expense.status || "paid") !== "paid" &&
+                            (expense.status || "paid") !== "reimbursed" ? (
+                              <button
+                                type="button"
+                                onClick={() => handleExpenseStatusChange(expense._id, "paid")}
+                                className="primary-action"
+                              >
+                                Mark paid
+                              </button>
+                            ) : null}
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="rounded-[18px] border border-dashed border-ink-200 bg-ink-50/40 p-4 text-sm leading-6 text-ink-500">
+                      No expenses are waiting on approval right now.
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-5">
+                <div className="rounded-[24px] border border-ink-100 bg-white/90 p-5">
+                  <p className="text-sm font-semibold uppercase tracking-[0.16em] text-ink-400">
+                    Duplicate watch
+                  </p>
+                  <div className="mt-5 space-y-3">
+                    {duplicateGroups.length > 0 ? (
+                      duplicateGroups.slice(0, 4).map((group) => (
+                        <div
+                          key={group.key}
+                          className="rounded-[18px] border border-clay-200 bg-clay-50/70 p-4"
+                        >
+                          <p className="text-sm font-semibold text-ink-900">
+                            {group.expenses[0]?.vendor?.name ||
+                              group.expenses[0]?.payeeName ||
+                              group.expenses[0]?.title ||
+                              "Potential duplicate"}
+                          </p>
+                          <p className="mt-2 text-sm leading-6 text-ink-500">
+                            {group.expenses.length} similar expenses totaling{" "}
+                            {formatCurrency(group.totalAmount)} were logged within a short date
+                            window.
+                          </p>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="rounded-[18px] border border-dashed border-ink-200 bg-ink-50/40 p-4 text-sm leading-6 text-ink-500">
+                        No likely duplicates detected in the current expense ledger.
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="rounded-[24px] border border-ink-100 bg-white/90 p-5">
+                  <p className="text-sm font-semibold uppercase tracking-[0.16em] text-ink-400">
+                    Reimbursement status
+                  </p>
+                  <div className="mt-5 space-y-3">
+                    <div className="rounded-[18px] bg-ink-50/60 px-4 py-4">
+                      <p className="text-sm font-medium text-ink-600">Paid expenses</p>
+                      <p className="mt-2 text-lg font-semibold text-ink-900">
+                        {
+                          expenses.filter((expense) => (expense.status || "paid") === "paid")
+                            .length
+                        }
+                      </p>
+                    </div>
+                    <div className="rounded-[18px] bg-ink-50/60 px-4 py-4">
+                      <p className="text-sm font-medium text-ink-600">Reimbursed expenses</p>
+                      <p className="mt-2 text-lg font-semibold text-ink-900">
+                        {
+                          expenses.filter((expense) => (expense.status || "paid") === "reimbursed")
+                            .length
+                        }
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section className="section-card p-6 sm:p-7">
+            <span className="eyebrow">Recurring carry</span>
+            <h4 className="mt-4 text-2xl font-semibold text-ink-900">
+              Turn finance assumptions into quick monthly logging
+            </h4>
+
+            <div className="mt-8 grid gap-4 xl:grid-cols-2">
+              {recurringCarryTemplates.length > 0 ? (
+                recurringCarryTemplates.map((template) => {
+                  const actual = recurringCarryActuals.get(template.recurringCategory) || {
+                    amount: 0,
+                    count: 0,
+                    lastDate: null,
+                  };
+
+                  return (
+                    <div
+                      key={template.id}
+                      className="rounded-[22px] border border-ink-100 bg-white/90 p-5"
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div>
+                          <p className="text-base font-semibold text-ink-900">{template.label}</p>
+                          <p className="mt-2 text-sm leading-6 text-ink-500">
+                            Expected monthly carry from the finance model.
+                          </p>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleOpenExpenseModal({
+                              initialValues: {
+                                title: template.title,
+                                description: template.description,
+                                amount: template.amount,
+                                payeeName: template.label,
+                                recurringCategory: template.recurringCategory,
+                                paymentMethod: "ach",
+                                status: "paid",
+                              },
+                            })
+                          }
+                          className="secondary-action"
+                        >
+                          Log this month
+                        </button>
+                      </div>
+
+                      <div className="mt-5 grid gap-3 md:grid-cols-3">
+                        <div className="rounded-[18px] bg-sky-50 px-4 py-4">
+                          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-400">
+                            Expected
+                          </p>
+                          <p className="mt-2 text-sm font-semibold text-ink-900">
+                            {formatCurrency(template.amount)}
+                          </p>
+                        </div>
+                        <div className="rounded-[18px] bg-verdigris-50 px-4 py-4">
+                          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-400">
+                            Logged
+                          </p>
+                          <p className="mt-2 text-sm font-semibold text-ink-900">
+                            {formatCurrency(actual.amount)}
+                          </p>
+                        </div>
+                        <div className="rounded-[18px] bg-sand-50 px-4 py-4">
+                          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-400">
+                            Last logged
+                          </p>
+                          <p className="mt-2 text-sm font-semibold text-ink-900">
+                            {actual.lastDate ? formatDate(actual.lastDate) : "Not yet"}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="rounded-[24px] border border-dashed border-ink-200 bg-ink-50/40 p-6 text-center text-sm leading-6 text-ink-500 xl:col-span-2">
+                  Add monthly taxes, insurance, utilities, or other carry in Finance to unlock quick
+                  recurring logging here.
+                </div>
+              )}
+            </div>
+          </section>
+
+          <section className="section-card p-6 sm:p-7">
+            <span className="eyebrow">Capital allocation</span>
+            <h4 className="mt-4 text-2xl font-semibold text-ink-900">
+              See which sources and draws are funding the work
+            </h4>
+
+            <div className="mt-8 grid gap-5 xl:grid-cols-2">
+              <div className="rounded-[24px] border border-ink-100 bg-white/90 p-5">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold uppercase tracking-[0.16em] text-ink-400">
+                      Funding sources
+                    </p>
+                    <p className="mt-2 text-base font-semibold text-ink-900">
+                      Spend mapped to the capital stack
+                    </p>
+                  </div>
+                  <span className="rounded-full bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-700">
+                    {fundingSpendSummary.length} linked
+                  </span>
+                </div>
+
+                <div className="mt-5 space-y-3">
+                  {fundingSpendSummary.length > 0 ? (
+                    fundingSpendSummary.map((item) => (
+                      <div
+                        key={item.key}
+                        className="rounded-[18px] border border-ink-100 bg-ink-50/50 p-4"
+                      >
+                        <div className="flex items-center justify-between gap-4">
+                          <div>
+                            <p className="text-sm font-semibold text-ink-900">{item.label}</p>
+                            <p className="mt-1 text-sm text-ink-500">
+                              {item.count} expense{item.count === 1 ? "" : "s"} linked
+                            </p>
+                          </div>
+                          <p className="text-sm font-semibold text-ink-900">
+                            {formatCurrency(item.amount)}
+                          </p>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="rounded-[18px] border border-dashed border-ink-200 bg-ink-50/40 p-4 text-sm leading-6 text-ink-500">
+                      No expenses are linked to a funding source yet.
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="rounded-[24px] border border-ink-100 bg-white/90 p-5">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold uppercase tracking-[0.16em] text-ink-400">
+                      Draw requests
+                    </p>
+                    <p className="mt-2 text-base font-semibold text-ink-900">
+                      Spend already attached to lender draws
+                    </p>
+                  </div>
+                  <span className="rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700">
+                    {drawSpendSummary.length} linked
+                  </span>
+                </div>
+
+                <div className="mt-5 space-y-3">
+                  {drawSpendSummary.length > 0 ? (
+                    drawSpendSummary.map((item) => (
+                      <div
+                        key={item.key}
+                        className="rounded-[18px] border border-ink-100 bg-ink-50/50 p-4"
+                      >
+                        <div className="flex items-center justify-between gap-4">
+                          <div>
+                            <p className="text-sm font-semibold text-ink-900">{item.label}</p>
+                            <p className="mt-1 text-sm text-ink-500">
+                              {item.count} expense{item.count === 1 ? "" : "s"} linked
+                            </p>
+                          </div>
+                          <p className="text-sm font-semibold text-ink-900">
+                            {formatCurrency(item.amount)}
+                          </p>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="rounded-[18px] border border-dashed border-ink-200 bg-ink-50/40 p-4 text-sm leading-6 text-ink-500">
+                      No expenses are assigned to a specific draw request yet.
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </section>
 
           <section className="section-card p-6 sm:p-7">
             <span className="eyebrow">Spend by category</span>
@@ -647,6 +1145,14 @@ const PropertyCostsPanel = ({
                       typeof expense.budgetItem === "object"
                         ? expense.budgetItem
                         : budgetItems.find((item) => item._id === budgetItemId) || null;
+                    const linkedFundingSource = getFundingSourceById(
+                      fundingSources,
+                      expense.fundingSourceId
+                    );
+                    const linkedDrawRequest = getDrawRequestById(
+                      drawRequests,
+                      expense.drawRequestId
+                    );
 
                     return (
                       <div
@@ -666,6 +1172,23 @@ const PropertyCostsPanel = ({
                               >
                                 {expense.entryMethod === "receipt_ai" ? "AI receipt" : "Manual"}
                               </span>
+                              <span
+                                className={`rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] ${getExpenseStatusClasses(
+                                  expense.status
+                                )}`}
+                              >
+                                {getExpenseStatusLabel(expense.status)}
+                              </span>
+                              {expense.recurringCategory ? (
+                                <span className="rounded-full bg-amber-50 px-3 py-1 text-[11px] font-semibold text-amber-700">
+                                  {getExpenseRecurringCategoryLabel(expense.recurringCategory)}
+                                </span>
+                              ) : null}
+                              {duplicateExpenseIds.has(String(expense._id)) ? (
+                                <span className="rounded-full bg-clay-50 px-3 py-1 text-[11px] font-semibold text-clay-700">
+                                  Possible duplicate
+                                </span>
+                              ) : null}
                             </div>
 
                             <p className="mt-2 text-sm text-ink-500">
@@ -677,16 +1200,71 @@ const PropertyCostsPanel = ({
                               <span>{formatDate(expense.date)}</span>
                               <span>•</span>
                               <span>{budgetItem?.category || "Project-level"}</span>
+                              <span>•</span>
+                              <span>{getExpensePaymentMethodLabel(expense.paymentMethod)}</span>
                             </div>
+
+                            {linkedFundingSource || linkedDrawRequest ? (
+                              <div className="mt-3 flex flex-wrap gap-2">
+                                {linkedFundingSource ? (
+                                  <span className="rounded-full bg-sky-50 px-3 py-1 text-[11px] font-semibold text-sky-700">
+                                    {getFundingSourceLabel(
+                                      linkedFundingSource,
+                                      Math.max(
+                                        fundingSources.findIndex(
+                                          (source) =>
+                                            source.sourceId === linkedFundingSource.sourceId
+                                        ),
+                                        0
+                                      )
+                                    )}
+                                  </span>
+                                ) : null}
+                                {linkedDrawRequest ? (
+                                  <span className="rounded-full bg-indigo-50 px-3 py-1 text-[11px] font-semibold text-indigo-700">
+                                    {getDrawRequestLabel(
+                                      linkedDrawRequest,
+                                      Math.max(
+                                        drawRequests.findIndex(
+                                          (request) =>
+                                            request.drawId === linkedDrawRequest.drawId
+                                        ),
+                                        0
+                                      )
+                                    )}
+                                  </span>
+                                ) : null}
+                              </div>
+                            ) : null}
 
                             {expense.notes ? (
                               <p className="mt-3 text-sm leading-6 text-ink-500">{expense.notes}</p>
                             ) : null}
                           </div>
 
-                          <p className="text-lg font-semibold text-ink-900">
-                            {formatCurrency(expense.amount)}
-                          </p>
+                          <div className="text-right">
+                            <p className="text-lg font-semibold text-ink-900">
+                              {formatCurrency(expense.amount)}
+                            </p>
+                            {(expense.status || "paid") === "approved" ? (
+                              <button
+                                type="button"
+                                onClick={() => handleExpenseStatusChange(expense._id, "paid")}
+                                className="secondary-action mt-3"
+                              >
+                                Mark paid
+                              </button>
+                            ) : null}
+                            {(expense.status || "paid") === "paid" ? (
+                              <button
+                                type="button"
+                                onClick={() => handleExpenseStatusChange(expense._id, "reimbursed")}
+                                className="ghost-action mt-3"
+                              >
+                                Mark reimbursed
+                              </button>
+                            ) : null}
+                          </div>
                         </div>
                       </div>
                     );
@@ -778,7 +1356,7 @@ const PropertyCostsPanel = ({
                       </p>
                     </div>
 
-                    <div className="grid gap-3 text-sm sm:grid-cols-3 lg:min-w-[360px]">
+                    <div className="grid gap-3 text-sm sm:grid-cols-3 xl:min-w-[360px]">
                       <div>
                         <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-400">
                           Awarded

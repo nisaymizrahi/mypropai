@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import html2pdf from "html2pdf.js";
 import {
   ArrowDownTrayIcon,
   CalendarDaysIcon,
@@ -30,6 +29,7 @@ import {
   getTaskUrgencyLabel,
   isTaskOverdue,
 } from "../utils/tasks";
+import { exportElementToPdf } from "../utils/pdfExport";
 
 const MetricTile = ({ label, value, hint }) => (
   <div className="metric-tile p-5">
@@ -327,12 +327,15 @@ const MasterCalendarPage = () => {
     }));
   };
 
-  const handleExport = () => {
+  const handleExport = async () => {
     if (!exportRef.current) {
       return;
     }
 
-    html2pdf().from(exportRef.current).save("portfolio-master-calendar.pdf");
+    await exportElementToPdf({
+      element: exportRef.current,
+      filename: "portfolio-master-calendar.pdf",
+    });
   };
 
   return (
