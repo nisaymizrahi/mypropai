@@ -320,6 +320,7 @@ const LeadsPage = () => {
   );
 
   const featuredAnalysis = visibleAnalyses[0]?.analysis || portfolioSummary.featured;
+  const portfolioSize = Math.max(portfolioSummary.count || 0, 1);
 
   const visibleLeadIdSet = useMemo(
     () => new Set(visibleLeads.map((lead) => lead._id)),
@@ -376,72 +377,118 @@ const LeadsPage = () => {
             </div>
           </div>
 
-          {featuredAnalysis ? (
-            <div className="grid gap-4">
-              <DealScoreCard
-                score={featuredAnalysis.score}
-                verdict={featuredAnalysis.verdict}
-                title="Best live signal"
-                label={featuredAnalysis.address}
-                detail={`${featuredAnalysis.tone.label} with ${formatDealPercent(
-                  featuredAnalysis.roi
-                )} ROI and ${formatDealCompactCurrency(featuredAnalysis.profit)} upside.`}
-                assetPath={featuredAnalysis.assetPaths.score}
-                compact
-              />
-              <AISummaryCard
-                verdict={featuredAnalysis.verdict}
-                headline={featuredAnalysis.aiSummary.headline}
-                detail={featuredAnalysis.aiSummary.detail}
-                recommendation={featuredAnalysis.aiSummary.recommendation}
-                confidenceLabel={featuredAnalysis.aiSummary.confidenceLabel}
-                bullets={featuredAnalysis.aiSummary.bullets}
-                assetPath={featuredAnalysis.assetPaths.verdict}
-                compact
-              />
+          <div className="grid gap-4">
+            <div className="rounded-[28px] border border-ink-100 bg-[radial-gradient(circle_at_top_right,rgba(67,95,89,0.14),transparent_34%),linear-gradient(145deg,rgba(255,255,255,0.98),rgba(246,241,234,0.96))] p-5 shadow-[0_16px_38px_rgba(28,23,19,0.06)]">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-ink-400">
+                    Market search
+                  </p>
+                  <h3 className="mt-3 text-xl font-semibold tracking-tight text-ink-900">
+                    See live for-sale listings on the map
+                  </h3>
+                </div>
+                <div className="flex h-12 w-12 items-center justify-center rounded-[18px] bg-white text-ink-900 shadow-sm ring-1 ring-ink-100">
+                  <MagnifyingGlassIcon className="h-5 w-5" />
+                </div>
+              </div>
+
+              <p className="mt-4 text-sm leading-6 text-ink-600">
+                Search a city, ZIP, neighborhood, or address, browse inventory visually, and save promising properties straight into Potential Properties.
+              </p>
+
+              <div className="mt-4 flex flex-wrap gap-2">
+                <span className="rounded-full bg-white px-3 py-1.5 text-xs font-medium text-ink-600 ring-1 ring-ink-100">
+                  Map + list
+                </span>
+                <span className="rounded-full bg-white px-3 py-1.5 text-xs font-medium text-ink-600 ring-1 ring-ink-100">
+                  Filters
+                </span>
+                <span className="rounded-full bg-white px-3 py-1.5 text-xs font-medium text-ink-600 ring-1 ring-ink-100">
+                  Save to Potential Properties
+                </span>
+              </div>
+
+              <div className="mt-5">
+                <button
+                  type="button"
+                  onClick={() => navigate('/market-search')}
+                  className="primary-action"
+                >
+                  <MagnifyingGlassIcon className="mr-2 h-4 w-4" />
+                  Open Market Search
+                </button>
+              </div>
             </div>
-          ) : (
-            <div className="section-card p-5">
-              <p className="text-sm text-ink-500">Add a few deals to unlock the live AI summary view.</p>
-            </div>
-          )}
+
+            {featuredAnalysis ? (
+              <>
+                <DealScoreCard
+                  score={featuredAnalysis.score}
+                  verdict={featuredAnalysis.verdict}
+                  title="Best live signal"
+                  label={featuredAnalysis.address}
+                  detail={`${featuredAnalysis.tone.label} with ${formatDealPercent(
+                    featuredAnalysis.roi
+                  )} ROI and ${formatDealCompactCurrency(featuredAnalysis.profit)} upside.`}
+                  assetPath={featuredAnalysis.assetPaths.score}
+                  compact
+                />
+                <AISummaryCard
+                  verdict={featuredAnalysis.verdict}
+                  headline={featuredAnalysis.aiSummary.headline}
+                  detail={featuredAnalysis.aiSummary.detail}
+                  recommendation={featuredAnalysis.aiSummary.recommendation}
+                  confidenceLabel={featuredAnalysis.aiSummary.confidenceLabel}
+                  bullets={featuredAnalysis.aiSummary.bullets}
+                  assetPath={featuredAnalysis.assetPaths.verdict}
+                  compact
+                />
+              </>
+            ) : (
+              <div className="section-card p-5">
+                <p className="text-sm text-ink-500">Add a few deals to unlock the live AI summary view.</p>
+              </div>
+            )}
+          </div>
         </div>
       </section>
 
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         <DashboardStatCard
-          title="Average deal score"
-          value={`${Math.round(portfolioSummary.averageScore || 0)}/100`}
-          detail="A blended signal across spread, comp support, and underwriting risk."
-          eyebrow="Signal"
+          title="Move now"
+          value={portfolioSummary.verdictCounts.good || 0}
+          detail="Deals with the cleanest spread, strongest score, and lower modeled risk."
+          eyebrow="Good deals"
           icon={SparklesIcon}
           tone="success"
-          progress={portfolioSummary.averageScore || 0}
+          progress={(portfolioSummary.verdictCounts.good / portfolioSize) * 100}
         />
         <DashboardStatCard
-          title="Modeled ROI"
-          value={formatDealPercent(portfolioSummary.averageROI || 0)}
-          detail="Average projected return across the active lead set."
-          eyebrow="Returns"
+          title="Watch closely"
+          value={portfolioSummary.verdictCounts.medium || 0}
+          detail="Opportunities that need a tighter buy price, cleaner scope, or firmer comps."
+          eyebrow="Watch list"
           icon={ArrowTrendingUpIcon}
-          tone="neutral"
-          progress={Math.min(Math.max(portfolioSummary.averageROI || 0, 0), 100)}
+          tone="warning"
+          progress={(portfolioSummary.verdictCounts.medium / portfolioSize) * 100}
         />
         <DashboardStatCard
-          title="Profit pool"
-          value={formatDealCompactCurrency(portfolioSummary.profitPool || 0)}
-          detail="Total modeled upside across the pipeline under current assumptions."
-          eyebrow="Upside"
-          icon={BanknotesIcon}
-          tone="success"
-        />
-        <DashboardStatCard
-          title="Deals at risk"
-          value={portfolioSummary.riskCounts.high || 0}
-          detail="High-risk opportunities that need repricing, scope cuts, or a pause."
-          eyebrow="Risk"
+          title="Reprice or pass"
+          value={portfolioSummary.verdictCounts.bad || 0}
+          detail="Deals that currently miss the return threshold under today’s assumptions."
+          eyebrow="At risk"
           icon={ExclamationTriangleIcon}
-          tone={portfolioSummary.riskCounts.high ? 'danger' : 'neutral'}
+          tone={portfolioSummary.verdictCounts.bad ? 'danger' : 'neutral'}
+          progress={(portfolioSummary.verdictCounts.bad / portfolioSize) * 100}
+        />
+        <DashboardStatCard
+          title="Modeled upside"
+          value={formatDealCompactCurrency(portfolioSummary.profitPool || 0)}
+          detail="Total modeled profit across the live pipeline before deeper diligence."
+          eyebrow="Profit pool"
+          icon={BanknotesIcon}
+          tone="neutral"
         />
       </div>
 
@@ -537,10 +584,14 @@ const LeadsPage = () => {
                 ? 'Add your first property to unlock AI deal scoring, risk flags, and premium scanning cards.'
                 : 'Try a different search or stage filter to bring the right opportunities back into view.'}
             </p>
-            <div className="mt-5 flex justify-center">
+            <div className="mt-5 flex flex-wrap justify-center gap-3">
               <button type="button" onClick={openUnifiedLeadCreator} className="primary-action">
                 <PlusIcon className="h-4 w-4" />
                 Add first property
+              </button>
+              <button type="button" onClick={() => navigate('/market-search')} className="secondary-action">
+                <MagnifyingGlassIcon className="mr-2 h-4 w-4" />
+                Browse market map
               </button>
             </div>
           </div>
@@ -635,10 +686,14 @@ const LeadsPage = () => {
                   ? 'Add your first property to start tracking pricing, notes, and deal progress in one place.'
                   : 'Try a different search term or stage filter to bring deals back into the board.'}
               </p>
-              <div className="mt-5 flex justify-center">
+              <div className="mt-5 flex flex-wrap justify-center gap-3">
                 <button type="button" onClick={openUnifiedLeadCreator} className="primary-action">
                   <PlusIcon className="h-4 w-4" />
                   Add first property
+                </button>
+                <button type="button" onClick={() => navigate('/market-search')} className="secondary-action">
+                  <MagnifyingGlassIcon className="mr-2 h-4 w-4" />
+                  Browse market map
                 </button>
               </div>
             </div>
