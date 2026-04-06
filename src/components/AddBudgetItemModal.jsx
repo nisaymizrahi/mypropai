@@ -1,15 +1,16 @@
-import React, { useState } from 'react';
-import { createBudgetItem } from '../utils/api';
-import { getProjectScopeLabel, PROJECT_SCOPE_OPTIONS } from '../utils/projectScopes';
+import React, { useState } from "react";
+
+import { createBudgetItem } from "../utils/api";
+import { getProjectScopeLabel, PROJECT_SCOPE_OPTIONS } from "../utils/projectScopes";
 
 const AddBudgetItemModal = ({ isOpen, onClose, onSuccess, investmentId }) => {
   const [formData, setFormData] = useState({
-    scopeKey: 'kitchen',
-    category: '',
-    description: '',
-    budgetedAmount: '',
+    scopeKey: "kitchen",
+    category: "",
+    description: "",
+    budgetedAmount: "",
   });
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleChange = (e) => {
@@ -17,45 +18,46 @@ const AddBudgetItemModal = ({ isOpen, onClose, onSuccess, investmentId }) => {
     setFormData((prev) => ({
       ...prev,
       [name]: value,
-      ...(name === 'scopeKey' && (!prev.category || prev.category === getProjectScopeLabel(prev.scopeKey, 'Other'))
-        ? { category: getProjectScopeLabel(value, 'Other') }
+      ...(name === "scopeKey" &&
+      (!prev.category || prev.category === getProjectScopeLabel(prev.scopeKey, "Other"))
+        ? { category: getProjectScopeLabel(value, "Other") }
         : {}),
     }));
   };
 
   const handleClose = () => {
     setFormData({
-      scopeKey: 'kitchen',
-      category: getProjectScopeLabel('kitchen', 'Kitchen'),
-      description: '',
-      budgetedAmount: '',
+      scopeKey: "kitchen",
+      category: getProjectScopeLabel("kitchen", "Kitchen"),
+      description: "",
+      budgetedAmount: "",
     });
-    setError('');
+    setError("");
     onClose();
   };
 
   React.useEffect(() => {
     if (isOpen) {
       setFormData({
-        scopeKey: 'kitchen',
-        category: getProjectScopeLabel('kitchen', 'Kitchen'),
-        description: '',
-        budgetedAmount: '',
+        scopeKey: "kitchen",
+        category: getProjectScopeLabel("kitchen", "Kitchen"),
+        description: "",
+        budgetedAmount: "",
       });
-      setError('');
+      setError("");
       setIsSubmitting(false);
     }
   }, [isOpen]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
-    
+    setError("");
+
     if (!formData.category || !formData.budgetedAmount) {
-        setError('Category and Budgeted Amount are required.');
-        return;
+      setError("Category and budgeted amount are required.");
+      return;
     }
-    
+
     setIsSubmitting(true);
 
     try {
@@ -64,10 +66,10 @@ const AddBudgetItemModal = ({ isOpen, onClose, onSuccess, investmentId }) => {
         investmentId,
         budgetedAmount: Number(formData.budgetedAmount),
       });
-      onSuccess(); // Tell the parent component to refetch data
+      onSuccess();
       handleClose();
     } catch (err) {
-      setError(err.message || 'An error occurred.');
+      setError(err.message || "An error occurred.");
     } finally {
       setIsSubmitting(false);
     }
@@ -76,69 +78,84 @@ const AddBudgetItemModal = ({ isOpen, onClose, onSuccess, investmentId }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
-      <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-lg space-y-4">
-        <h2 className="text-xl font-bold text-brand-gray-800">Add Budget Category</h2>
-        <form onSubmit={handleSubmit} className="space-y-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink-950/60 p-4 backdrop-blur-sm">
+      <div className="surface-panel-strong w-full max-w-2xl rounded-[32px] p-6 sm:p-7">
+        <div>
+          <span className="eyebrow">Scope budget</span>
+          <h2 className="mt-4 text-3xl font-semibold text-ink-900">Add scope category</h2>
+          <p className="mt-3 max-w-xl text-sm leading-6 text-ink-500">
+            Start with a scope template, then set the working category name and budget so the rest
+            of the project can connect to it.
+          </p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="mt-8 space-y-5">
+          <div>
+            <label className="mb-2 block text-sm font-medium text-ink-700">Scope template</label>
+            <select
+              name="scopeKey"
+              value={formData.scopeKey}
+              onChange={handleChange}
+              className="auth-input"
+            >
+              {PROJECT_SCOPE_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
             <div>
-                <label className="block text-sm font-medium text-brand-gray-700">Scope Template</label>
-                <select
-                    name="scopeKey"
-                    value={formData.scopeKey}
-                    onChange={handleChange}
-                    className="mt-1 block w-full border border-brand-gray-300 rounded-md p-2"
-                >
-                    {PROJECT_SCOPE_OPTIONS.map((option) => (
-                        <option key={option.value} value={option.value}>
-                            {option.label}
-                        </option>
-                    ))}
-                </select>
+              <label className="mb-2 block text-sm font-medium text-ink-700">Category name</label>
+              <input
+                name="category"
+                type="text"
+                placeholder="Kitchen, electrical, permits"
+                value={formData.category}
+                onChange={handleChange}
+                className="auth-input"
+                required
+              />
             </div>
+
             <div>
-                <label className="block text-sm font-medium text-brand-gray-700">Category Name</label>
-                <input 
-                    name="category" 
-                    type="text" 
-                    placeholder="e.g., Kitchen, Plumbing, Electrical" 
-                    value={formData.category}
-                    onChange={handleChange}
-                    className="mt-1 block w-full border border-brand-gray-300 rounded-md p-2"
-                    required 
-                />
+              <label className="mb-2 block text-sm font-medium text-ink-700">Budgeted amount</label>
+              <input
+                name="budgetedAmount"
+                type="number"
+                placeholder="10000"
+                value={formData.budgetedAmount}
+                onChange={handleChange}
+                className="auth-input"
+                required
+              />
             </div>
-             <div>
-                <label className="block text-sm font-medium text-brand-gray-700">Description</label>
-                <input 
-                    name="description" 
-                    type="text" 
-                    placeholder="(Optional) e.g., Cabinets, countertops, and flooring" 
-                    value={formData.description}
-                    onChange={handleChange}
-                    className="mt-1 block w-full border border-brand-gray-300 rounded-md p-2"
-                />
-            </div>
-             <div>
-                <label className="block text-sm font-medium text-brand-gray-700">Budgeted Amount</label>
-                <input 
-                    name="budgetedAmount" 
-                    type="number" 
-                    placeholder="10000"
-                    value={formData.budgetedAmount}
-                    onChange={handleChange}
-                    className="mt-1 block w-full border border-brand-gray-300 rounded-md p-2"
-                    required
-                />
-            </div>
-            {error && <p className="text-red-500 text-sm">{error}</p>}
-            <div className="flex justify-end gap-4 pt-4">
-                <button type="button" onClick={handleClose} disabled={isSubmitting} className="bg-white hover:bg-brand-gray-100 text-brand-gray-700 font-semibold px-4 py-2 rounded-md border border-brand-gray-300 transition">
-                Cancel
-                </button>
-                <button type="submit" disabled={isSubmitting} className="bg-brand-turquoise hover:bg-brand-turquoise-600 text-white font-semibold px-4 py-2 rounded-md transition disabled:bg-brand-gray-300">
-                {isSubmitting ? 'Saving...' : 'Save Category'}
-                </button>
-            </div>
+          </div>
+
+          <div>
+            <label className="mb-2 block text-sm font-medium text-ink-700">Description</label>
+            <textarea
+              name="description"
+              rows="4"
+              placeholder="What is included in this category, what the team should know, or where the budget may move."
+              value={formData.description}
+              onChange={handleChange}
+              className="auth-input"
+            />
+          </div>
+
+          {error ? <p className="text-sm text-clay-700">{error}</p> : null}
+
+          <div className="flex flex-wrap justify-end gap-3 pt-2">
+            <button type="button" onClick={handleClose} disabled={isSubmitting} className="ghost-action">
+              Cancel
+            </button>
+            <button type="submit" disabled={isSubmitting} className="primary-action">
+              {isSubmitting ? "Saving..." : "Save category"}
+            </button>
+          </div>
         </form>
       </div>
     </div>
