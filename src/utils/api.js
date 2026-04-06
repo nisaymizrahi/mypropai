@@ -83,10 +83,12 @@ const invalidateWorkspaceReadCaches = (...extraPrefixes) => {
     "leads:",
     "property-reports:",
     "bids:lead:",
+    "bids:project:",
     "tasks:list:",
     "investments:",
     "budget-items:",
     "expenses:",
+    "project-receipts:",
     "vendors:",
     "project-tasks:",
     "documents:",
@@ -272,6 +274,36 @@ export const getLeadSummary = async () => {
   return res.json();
 };
 
+export const searchMarketSaleListings = async (data) => {
+  const res = await fetch(`${API_BASE_URL}/market-search/sale-listings/search`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(data),
+  });
+
+  if (!res.ok) {
+    throw new Error(await getErrorMessage(res, "Failed to load market listings"));
+  }
+
+  return res.json();
+};
+
+export const importMarketSaleListing = async (data) => {
+  const res = await fetch(`${API_BASE_URL}/market-search/sale-listings/import`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(data),
+  });
+
+  if (!res.ok) {
+    throw new Error(await getErrorMessage(res, "Failed to add property to Potential Properties"));
+  }
+
+  const payload = await res.json();
+  invalidateWorkspaceReadCaches();
+  return payload;
+};
+
 export const getProperties = async () => {
   return readCachedResource(
     "properties:list",
@@ -452,6 +484,20 @@ export const getBidsForLead = async (leadId) => {
   );
 };
 
+export const getBidsForProject = async (investmentId) => {
+  return readCachedResource(
+    `bids:project:${investmentId}`,
+    async () => {
+      const res = await fetch(`${API_BASE_URL}/bids/project/${investmentId}`, {
+        headers: getAuthHeaders(),
+      });
+      if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to fetch project bids"));
+      return res.json();
+    },
+    10000
+  );
+};
+
 export const importBid = async (formData) => {
   const res = await fetch(`${API_BASE_URL}/bids/import`, {
     method: "POST",
@@ -460,7 +506,7 @@ export const importBid = async (formData) => {
   });
   if (!res.ok) throw new Error((await res.json()).msg || "Failed to import bid");
   const payload = await res.json();
-  invalidateWorkspaceReadCaches("bids:lead:");
+  invalidateWorkspaceReadCaches("bids:lead:", "bids:project:");
   return payload;
 };
 
@@ -472,7 +518,7 @@ export const createBid = async (data) => {
   });
   if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to create bid"));
   const payload = await res.json();
-  invalidateWorkspaceReadCaches("bids:lead:");
+  invalidateWorkspaceReadCaches("bids:lead:", "bids:project:");
   return payload;
 };
 
@@ -484,7 +530,19 @@ export const updateBid = async (bidId, data) => {
   });
   if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to update bid"));
   const payload = await res.json();
-  invalidateWorkspaceReadCaches("bids:lead:");
+  invalidateWorkspaceReadCaches("bids:lead:", "bids:project:");
+  return payload;
+};
+
+export const awardBidToBudgetItem = async (bidId, data) => {
+  const res = await fetch(`${API_BASE_URL}/bids/${bidId}/award`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to award bid"));
+  const payload = await res.json();
+  invalidateWorkspaceReadCaches("bids:lead:", "bids:project:", "budget-items:");
   return payload;
 };
 
@@ -495,7 +553,7 @@ export const deleteBid = async (bidId) => {
   });
   if (!res.ok) throw new Error("Failed to delete bid");
   const payload = await res.json();
-  invalidateWorkspaceReadCaches("bids:lead:");
+  invalidateWorkspaceReadCaches("bids:lead:", "bids:project:");
   return payload;
 };
 
@@ -751,7 +809,7 @@ export const createExpense = async (formData) => {
   });
   if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to create expense"));
   const payload = await res.json();
-  invalidateWorkspaceReadCaches("expenses:");
+  invalidateWorkspaceReadCaches("expenses:", "project-receipts:");
   return payload;
 };
 
@@ -763,7 +821,7 @@ export const updateExpense = async (id, data) => {
   });
   if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to update expense"));
   const payload = await res.json();
-  invalidateWorkspaceReadCaches("expenses:");
+  invalidateWorkspaceReadCaches("expenses:", "project-receipts:");
   return payload;
 };
 
@@ -774,7 +832,7 @@ export const deleteExpense = async (id) => {
   });
   if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to delete expense"));
   const payload = await res.json();
-  invalidateWorkspaceReadCaches("expenses:");
+  invalidateWorkspaceReadCaches("expenses:", "project-receipts:");
   return payload;
 };
 
@@ -786,6 +844,20 @@ export const analyzeExpenseReceipt = async (formData) => {
   });
   if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to analyze receipt"));
   return res.json();
+};
+
+export const getProjectReceipts = async (investmentId) => {
+  return readCachedResource(
+    `project-receipts:investment:${investmentId}`,
+    async () => {
+      const res = await fetch(`${API_BASE_URL}/project-receipts/investment/${investmentId}`, {
+        headers: getAuthHeaders(),
+      });
+      if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to fetch project receipts"));
+      return res.json();
+    },
+    12000
+  );
 };
 
 export const getVendors = async () => {
@@ -1634,6 +1706,16 @@ export const updatePlatformManagerUserEmail = async (userId, { email, reason = "
     body: JSON.stringify({ email, reason }),
   });
   if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to update email"));
+  return res.json();
+};
+
+export const grantPlatformManagerCompsCredits = async (userId, { credits, reason = "" }) => {
+  const res = await fetch(`${API_BASE_URL}/platform-manager/users/${userId}/comps-credits`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ credits, reason }),
+  });
+  if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to grant comps credits"));
   return res.json();
 };
 

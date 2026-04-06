@@ -19,6 +19,7 @@ import {
   UserMinusIcon,
   UserPlusIcon,
   UsersIcon,
+  XMarkIcon,
 } from "@heroicons/react/24/outline";
 import toast from "react-hot-toast";
 
@@ -28,6 +29,7 @@ import {
   deletePlatformManagerSupportNote,
   deletePlatformManagerUser,
   exportPlatformManagerUsers,
+  grantPlatformManagerCompsCredits,
   getPlatformManagerSupportRequests,
   getPlatformManagerUserDetail,
   getPlatformManagerUsers,
@@ -96,6 +98,15 @@ const supportRequestStatusStyles = {
   new: "bg-clay-50 text-clay-700",
   in_progress: "bg-sand-100 text-ink-700",
   resolved: "bg-verdigris-50 text-verdigris-700",
+};
+
+const compsCreditSourceStyles = {
+  trial: "bg-sand-100 text-ink-700",
+  subscription_monthly: "bg-verdigris-50 text-verdigris-700",
+  purchase_pack: "bg-white text-ink-700 ring-1 ring-ink-100",
+  purchase_topup: "bg-white text-ink-700 ring-1 ring-ink-100",
+  migration: "bg-sand-50 text-ink-700",
+  platform_manager_grant: "bg-ink-900 text-white",
 };
 
 const summaryCards = (stats) => [
@@ -214,6 +225,8 @@ const describeConsentState = (isAllowed, when) => {
   return when ? `Yes, ${formatDate(when)}` : "Yes";
 };
 
+const formatCompsCreditCount = (value = 0) => `${Number(value || 0)} credit${Number(value || 0) === 1 ? "" : "s"}`;
+
 const downloadBlob = (blob, filename) => {
   const url = window.URL.createObjectURL(blob);
   const link = document.createElement("a");
@@ -253,12 +266,12 @@ const SummaryCard = ({ label, value, detail }) => (
 );
 
 const EmptyDetailState = () => (
-  <div className="section-card sticky top-24 p-6">
+  <div className="section-card p-6">
     <span className="eyebrow">User detail</span>
-    <h3 className="mt-4 text-2xl font-semibold text-ink-900">Choose a user to manage</h3>
+    <h3 className="mt-4 text-2xl font-semibold text-ink-900">Open a user in the manager modal</h3>
     <p className="mt-3 text-sm leading-6 text-ink-500">
-      The detail panel gives you session control, temporary access overrides, support notes,
-      usage history, billing sync, and the audit trail for that account.
+      The modal gives you access control, comps-credit grants, billing, support notes, sessions,
+      and the audit trail for that account in one focused workspace.
     </p>
   </div>
 );
@@ -325,6 +338,10 @@ const PlatformManagerPage = () => {
     email: "",
     reason: "",
   });
+  const [creditGrantForm, setCreditGrantForm] = useState({
+    credits: "10",
+    reason: "",
+  });
 
   const loadUsers = useCallback(async (activeQuery = "") => {
     try {
@@ -368,6 +385,7 @@ const PlatformManagerPage = () => {
     if (!userId) {
       setDetail(null);
       setDetailError("");
+      setNoteDraft("");
       return;
     }
 
@@ -383,6 +401,11 @@ const PlatformManagerPage = () => {
       });
       setEmailForm({
         email: data.user?.email || "",
+        reason: "",
+      });
+      setNoteDraft("");
+      setCreditGrantForm({
+        credits: "10",
         reason: "",
       });
     } catch (loadError) {
@@ -414,6 +437,27 @@ const PlatformManagerPage = () => {
       loadDetail(selectedUserId);
     }
   }, [loadDetail, selectedUserId]);
+
+  useEffect(() => {
+    if (!selectedUserId) {
+      return undefined;
+    }
+
+    const previousOverflow = document.body.style.overflow;
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") {
+        setSelectedUserId("");
+      }
+    };
+
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [selectedUserId]);
 
   const filteredUsers = useMemo(() => {
     return users.filter((listedUser) => matchesFilter(listedUser, filter));
@@ -621,6 +665,33 @@ const PlatformManagerPage = () => {
       "User email updated."
     );
   };
+
+  const handleCreditGrantSubmit = async (event) => {
+    event.preventDefault();
+    if (!selectedUser?.id) {
+      return;
+    }
+
+    const credits = Number(creditGrantForm.credits);
+    await runDetailAction(
+      "grant-credits",
+      () =>
+        grantPlatformManagerCompsCredits(selectedUser.id, {
+          credits,
+          reason: creditGrantForm.reason,
+        }),
+      `${credits} comps credit${credits === 1 ? "" : "s"} granted.`
+    );
+    setCreditGrantForm({
+      credits: "10",
+      reason: "",
+    });
+  };
+
+  const closeDetailModal = useCallback(() => {
+    setSelectedUserId("");
+    setNoteDraft("");
+  }, []);
 
   const selectedUser = detail?.user || filteredUsers.find((entry) => entry.id === selectedUserId) || null;
 
@@ -955,7 +1026,7 @@ const PlatformManagerPage = () => {
         ) : null}
       </section>
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.05fr)_420px]">
+      <div className="space-y-6">
         <section className="section-card p-6 sm:p-7">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
@@ -1156,7 +1227,7 @@ const PlatformManagerPage = () => {
                           className={isSelected ? "primary-action" : "secondary-action"}
                         >
                           <DocumentTextIcon className="mr-2 h-5 w-5" />
-                          {isSelected ? "Viewing details" : "Manage user"}
+                          {isSelected ? "Manager open" : "Manage user"}
                         </button>
 
                         <button
@@ -1256,841 +1327,1107 @@ const PlatformManagerPage = () => {
         {!selectedUserId ? <EmptyDetailState /> : null}
 
         {selectedUserId ? (
-          <aside className="section-card sticky top-24 self-start p-6">
-            {detailLoading ? (
-              <div className="flex items-center justify-center px-4 py-20">
-                <div className="h-12 w-12 animate-spin rounded-full border-4 border-verdigris-100 border-t-verdigris-500" />
-              </div>
-            ) : null}
-
-            {!detailLoading && detailError ? (
-              <div className="rounded-[20px] border border-clay-200 bg-clay-50 px-5 py-6 text-sm text-clay-700">
-                {detailError}
-              </div>
-            ) : null}
-
-            {!detailLoading && !detailError && selectedUser ? (
-              <div className="space-y-5">
-                <section>
-                  <span className="eyebrow">User detail</span>
-                  <div className="mt-4 flex items-start gap-4">
-                    <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-ink-900 via-ink-700 to-verdigris-600 text-lg font-bold text-white">
-                      {getInitials(selectedUser.name, selectedUser.email)}
-                    </div>
-                    <div>
-                      <h3 className="text-2xl font-semibold text-ink-900">{selectedUser.name}</h3>
-                      <p className="mt-1 text-sm text-ink-500">{selectedUser.email}</p>
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        <span
-                          className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                            statusStyles[selectedUser.accountStatus] || statusStyles.active
-                          }`}
-                        >
-                          {selectedUser.accountStatus}
-                        </span>
-                        <span
-                          className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                            planStyles[selectedUser.subscription.plan] || planStyles.free
-                          }`}
-                        >
-                          {selectedUser.subscription.plan === "pro" ? "Pro" : "Free"}
-                        </span>
-                        {selectedUser.hasBillingIssue ? (
-                          <span className="rounded-full bg-clay-50 px-3 py-1 text-xs font-semibold text-clay-700">
-                            Billing issue
-                          </span>
-                        ) : null}
-                        <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-ink-700 ring-1 ring-ink-100">
-                          {describeAuthAccess(selectedUser.authProviders)}
-                        </span>
-                        {selectedUser.consent?.marketingOptIn ? (
-                          <span className="rounded-full bg-verdigris-50 px-3 py-1 text-xs font-semibold text-verdigris-700">
-                            Marketing opt-in
-                          </span>
-                        ) : null}
-                        {selectedUser.profileCompletionRequired ? (
-                          <span className="rounded-full bg-sand-100 px-3 py-1 text-xs font-semibold text-ink-700">
-                            Profile incomplete
-                          </span>
-                        ) : null}
-                      </div>
-                    </div>
-                  </div>
-                </section>
-
-                <div className="grid gap-3">
-                  <button
-                    type="button"
-                    onClick={() => handleImpersonation(selectedUser)}
-                    disabled={
-                      selectedUser.isCurrentPlatformManager ||
-                      selectedUser.accountStatus === "suspended" ||
-                      detailBusyKey === `impersonate-${selectedUser.id}`
-                    }
-                    className="primary-action w-full justify-center"
+          <div
+            className="fixed inset-0 z-[80] flex items-start justify-center bg-ink-950/55 p-4 backdrop-blur-sm sm:p-6"
+            onClick={closeDetailModal}
+          >
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="platform-manager-user-modal-title"
+              onClick={(event) => event.stopPropagation()}
+              className="flex max-h-[calc(100vh-2rem)] w-full max-w-[1280px] flex-col overflow-hidden rounded-[32px] border border-white/70 bg-[#f7f1e8] shadow-[0_30px_100px_rgba(15,23,42,0.28)] sm:max-h-[calc(100vh-3rem)]"
+            >
+              <div className="flex items-start justify-between gap-4 border-b border-black/5 bg-white/80 px-5 py-4 backdrop-blur sm:px-6">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-400">
+                    User manager
+                  </p>
+                  <h3
+                    id="platform-manager-user-modal-title"
+                    className="mt-2 text-2xl font-semibold text-ink-900"
                   >
-                    <EyeIcon className="mr-2 h-5 w-5" />
-                    View as user
-                  </button>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        runDetailAction(
-                          "sync-billing",
-                          () => syncPlatformManagerUserBilling(selectedUser.id),
-                          "Billing synced."
-                        )
-                      }
-                      disabled={!detail?.billing?.canSync || detailBusyKey !== ""}
-                      className="secondary-action justify-center"
-                    >
-                      <ArrowPathIcon className="mr-2 h-5 w-5" />
-                      Sync billing
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        runDetailAction(
-                          "revoke-sessions",
-                          () => revokePlatformManagerUserSessions(selectedUser.id),
-                          "All active sessions revoked."
-                        )
-                      }
-                      disabled={selectedUser.isCurrentPlatformManager || detailBusyKey !== ""}
-                      className="secondary-action justify-center"
-                    >
-                      <ShieldExclamationIcon className="mr-2 h-5 w-5" />
-                      Revoke sessions
-                    </button>
-                  </div>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <button
-                      type="button"
-                      onClick={handlePasswordReset}
-                      disabled={detailBusyKey !== ""}
-                      className="secondary-action justify-center"
-                    >
-                      <ShieldCheckIcon className="mr-2 h-5 w-5" />
-                      Send password reset
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        runDetailAction(
-                          "clear-override",
-                          () =>
-                            setPlatformManagerSubscriptionOverride(selectedUser.id, {
-                              overridePlan: "none",
-                            }),
-                          "Billing override cleared."
-                        )
-                      }
-                      disabled={selectedUser.subscription.override === "none" || detailBusyKey !== ""}
-                      className="secondary-action justify-center"
-                    >
-                      <ArrowPathIcon className="mr-2 h-5 w-5" />
-                      Clear override
-                    </button>
-                  </div>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        runDetailAction(
-                          "toggle-status",
-                          () =>
-                            setPlatformManagerAccountStatus(
-                              selectedUser.id,
-                              selectedUser.accountStatus === "suspended" ? "active" : "suspended"
-                            ),
-                          selectedUser.accountStatus === "suspended"
-                            ? "User reactivated."
-                            : "User suspended."
-                        )
-                      }
-                      disabled={selectedUser.isCurrentPlatformManager || detailBusyKey !== ""}
-                      className="secondary-action justify-center"
-                    >
-                      {selectedUser.accountStatus === "suspended" ? (
-                        <UserPlusIcon className="mr-2 h-5 w-5" />
-                      ) : (
-                        <UserMinusIcon className="mr-2 h-5 w-5" />
-                      )}
-                      {selectedUser.accountStatus === "suspended" ? "Reactivate" : "Suspend"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (
-                          window.confirm(
-                            `Delete ${selectedUser.email}? This only works for empty accounts with no owned records.`
-                          )
-                        ) {
-                          runDetailAction(
-                            "delete-user",
-                            () => deletePlatformManagerUser(selectedUser.id),
-                            "User deleted.",
-                            { clearSelection: true }
-                          );
-                        }
-                      }}
-                      disabled={!selectedUser.canDelete || selectedUser.isCurrentPlatformManager || detailBusyKey !== ""}
-                      className="secondary-action justify-center !border-clay-200 !text-clay-700"
-                    >
-                      <TrashIcon className="mr-2 h-5 w-5" />
-                      Delete empty account
-                    </button>
-                  </div>
+                    {selectedUser ? selectedUser.name : "Loading user"}
+                  </h3>
+                  <p className="mt-1 text-sm text-ink-500">
+                    Billing, credits, support history, sessions, and access controls in one modal.
+                  </p>
                 </div>
-
-                <DetailBlock
-                  title="Profile and consent"
-                  subtitle="Signup details, login method, and communication permissions recorded for this account."
+                <button
+                  type="button"
+                  onClick={closeDetailModal}
+                  className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-ink-100 bg-white text-ink-600 transition hover:bg-sand-50"
+                  aria-label="Close user manager"
                 >
-                  <div className="grid gap-3">
-                    <div className="flex items-center justify-between rounded-[18px] bg-white px-4 py-3 ring-1 ring-ink-100">
-                      <span className="text-sm font-medium text-ink-600">First / last name</span>
-                      <span className="text-sm font-semibold text-ink-900">
-                        {selectedUser.firstName || "Not set"} {selectedUser.lastName || ""}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between rounded-[18px] bg-white px-4 py-3 ring-1 ring-ink-100">
-                      <span className="text-sm font-medium text-ink-600">Company</span>
-                      <span className="text-sm font-semibold text-ink-900">
-                        {selectedUser.companyName || "Not provided"}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between rounded-[18px] bg-white px-4 py-3 ring-1 ring-ink-100">
-                      <span className="text-sm font-medium text-ink-600">Phone</span>
-                      <span className="text-sm font-semibold text-ink-900">
-                        {selectedUser.phoneNumber || "Not provided"}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between rounded-[18px] bg-sand-50 px-4 py-3">
-                      <span className="text-sm font-medium text-ink-600">Sign-in access</span>
-                      <span className="text-sm font-semibold text-ink-900">
-                        {describeAuthAccess(selectedUser.authProviders)}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between rounded-[18px] bg-white px-4 py-3 ring-1 ring-ink-100">
-                      <span className="text-sm font-medium text-ink-600">Terms accepted</span>
-                      <span className="text-sm font-semibold text-ink-900">
-                        {describeConsentState(
-                          selectedUser.consent?.termsAccepted,
-                          selectedUser.consent?.termsAcceptedAt
-                        )}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between rounded-[18px] bg-white px-4 py-3 ring-1 ring-ink-100">
-                      <span className="text-sm font-medium text-ink-600">Marketing outreach</span>
-                      <span className="text-sm font-semibold text-ink-900">
-                        {describeConsentState(
-                          selectedUser.consent?.marketingOptIn,
-                          selectedUser.consent?.marketingConsentAcceptedAt
-                        )}
-                      </span>
-                    </div>
-                  </div>
-                </DetailBlock>
+                  <XMarkIcon className="h-5 w-5" />
+                </button>
+              </div>
 
-                <DetailBlock
-                  title="Identity support"
-                  subtitle="Update the account email or issue a password reset for support handoff."
-                >
-                  <form className="space-y-4" onSubmit={handleEmailSubmit}>
-                    <label className="block">
-                      <span className="text-xs font-semibold uppercase tracking-[0.14em] text-ink-400">
-                        Account email
-                      </span>
-                      <input
-                        type="email"
-                        value={emailForm.email}
-                        onChange={(event) =>
-                          setEmailForm((previous) => ({
-                            ...previous,
-                            email: event.target.value,
-                          }))
-                        }
-                        className="auth-input mt-2"
-                      />
-                    </label>
-                    <label className="block">
-                      <span className="text-xs font-semibold uppercase tracking-[0.14em] text-ink-400">
-                        Reason
-                      </span>
-                      <textarea
-                        value={emailForm.reason}
-                        onChange={(event) =>
-                          setEmailForm((previous) => ({
-                            ...previous,
-                            reason: event.target.value,
-                          }))
-                        }
-                        rows={3}
-                        placeholder="Why are you changing the email?"
-                        className="auth-input mt-2 min-h-[96px]"
-                      />
-                    </label>
-                    <button
-                      type="submit"
-                      disabled={detailBusyKey !== ""}
-                      className="secondary-action w-full justify-center"
-                    >
-                      {detailBusyKey === "save-email" ? "Saving..." : "Update email"}
-                    </button>
-                  </form>
-                </DetailBlock>
+              {detailLoading ? (
+                <div className="flex flex-1 items-center justify-center px-4 py-20">
+                  <div className="h-12 w-12 animate-spin rounded-full border-4 border-verdigris-100 border-t-verdigris-500" />
+                </div>
+              ) : null}
 
-                <DetailBlock
-                  title="Temporary access"
-                  subtitle="Grant or remove an override, optionally with an expiry date and support reason."
-                >
-                  <form className="space-y-4" onSubmit={handleOverrideSubmit}>
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <label className="block">
-                        <span className="text-xs font-semibold uppercase tracking-[0.14em] text-ink-400">
-                          Override
-                        </span>
-                        <select
-                          value={overrideForm.overridePlan}
-                          onChange={(event) =>
-                            setOverrideForm((previous) => ({
-                              ...previous,
-                              overridePlan: event.target.value,
-                            }))
-                          }
-                          className="auth-input mt-2"
-                        >
-                          <option value="none">No override</option>
-                          <option value="pro">Grant Pro</option>
-                          <option value="free">Force Free</option>
-                        </select>
-                      </label>
-                      <label className="block">
-                        <span className="text-xs font-semibold uppercase tracking-[0.14em] text-ink-400">
-                          Expires
-                        </span>
-                        <input
-                          type="date"
-                          value={overrideForm.expiresAt}
-                          onChange={(event) =>
-                            setOverrideForm((previous) => ({
-                              ...previous,
-                              expiresAt: event.target.value,
-                            }))
-                          }
-                          disabled={overrideForm.overridePlan === "none"}
-                          className="auth-input mt-2"
-                        />
-                      </label>
-                    </div>
-                    <label className="block">
-                      <span className="text-xs font-semibold uppercase tracking-[0.14em] text-ink-400">
-                        Reason
-                      </span>
-                      <textarea
-                        value={overrideForm.reason}
-                        onChange={(event) =>
-                          setOverrideForm((previous) => ({
-                            ...previous,
-                            reason: event.target.value,
-                          }))
-                        }
-                        rows={3}
-                        placeholder="Why are you changing access for this account?"
-                        className="auth-input mt-2 min-h-[100px]"
-                      />
-                    </label>
-                    <button
-                      type="submit"
-                      disabled={detailBusyKey !== ""}
-                      className="primary-action w-full justify-center"
-                    >
-                      {detailBusyKey === "save-override" ? "Saving..." : "Save access rule"}
-                    </button>
-                  </form>
-                </DetailBlock>
+              {!detailLoading && detailError ? (
+                <div className="m-5 rounded-[20px] border border-clay-200 bg-clay-50 px-5 py-6 text-sm text-clay-700 sm:m-6">
+                  {detailError}
+                </div>
+              ) : null}
 
-                <DetailBlock
-                  title="Billing snapshot"
-                  subtitle="Current Stripe-linked state, renewal timing, and sync health."
-                >
-                  <div className="grid gap-3">
-                    <div className="flex items-center justify-between rounded-[18px] bg-sand-50 px-4 py-3">
-                      <span className="text-sm font-medium text-ink-600">Plan / status</span>
-                      <span className="text-sm font-semibold text-ink-900">
-                        {detail?.billing?.subscriptionPlan || "free"} / {detail?.billing?.subscriptionStatus || "inactive"}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between rounded-[18px] bg-white px-4 py-3 ring-1 ring-ink-100">
-                      <span className="text-sm font-medium text-ink-600">Source</span>
-                      <span className="text-sm font-semibold text-ink-900">
-                        {detail?.billing?.subscriptionSource || "none"}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between rounded-[18px] bg-white px-4 py-3 ring-1 ring-ink-100">
-                      <span className="text-sm font-medium text-ink-600">Renews / ends</span>
-                      <span className="text-sm font-semibold text-ink-900">
-                        {formatDateTime(detail?.billing?.subscriptionCurrentPeriodEnd, "Not set")}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between rounded-[18px] bg-white px-4 py-3 ring-1 ring-ink-100">
-                      <span className="text-sm font-medium text-ink-600">Last billing sync</span>
-                      <span className="text-sm font-semibold text-ink-900">
-                        {formatDateTime(detail?.billing?.subscriptionLastSyncedAt, "Never")}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between rounded-[18px] bg-white px-4 py-3 ring-1 ring-ink-100">
-                      <span className="text-sm font-medium text-ink-600">Cancel at period end</span>
-                      <span className="text-sm font-semibold text-ink-900">
-                        {detail?.billing?.cancelAtPeriodEnd ? "Yes" : "No"}
-                      </span>
-                    </div>
-                    {detail?.billing?.cancelAt ? (
-                      <div className="flex items-center justify-between rounded-[18px] bg-white px-4 py-3 ring-1 ring-ink-100">
-                        <span className="text-sm font-medium text-ink-600">Cancel date</span>
-                        <span className="text-sm font-semibold text-ink-900">
-                          {formatDateTime(detail?.billing?.cancelAt)}
-                        </span>
-                      </div>
-                    ) : null}
-                    <div className="rounded-[18px] bg-clay-50 px-4 py-3">
-                      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-ink-400">
-                        Stripe references
-                      </p>
-                      <p className="mt-2 text-sm text-ink-700">
-                        Customer: {detail?.billing?.stripeCustomerId || "None"}
-                      </p>
-                      <p className="mt-1 text-sm text-ink-700">
-                        Subscription: {detail?.billing?.stripeSubscriptionId || "None"}
-                      </p>
-                    </div>
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <a
-                        href={detail?.billing?.customerDashboardUrl || "#"}
-                        target="_blank"
-                        rel="noreferrer"
-                        className={`secondary-action justify-center ${
-                          detail?.billing?.customerDashboardUrl ? "" : "pointer-events-none opacity-50"
-                        }`}
-                      >
-                        Open customer in Stripe
-                      </a>
-                      <a
-                        href={detail?.billing?.subscriptionDashboardUrl || "#"}
-                        target="_blank"
-                        rel="noreferrer"
-                        className={`secondary-action justify-center ${
-                          detail?.billing?.subscriptionDashboardUrl ? "" : "pointer-events-none opacity-50"
-                        }`}
-                      >
-                        Open subscription in Stripe
-                      </a>
-                    </div>
-                    <div className="space-y-3">
-                      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-ink-400">
-                        Recent invoices
-                      </p>
-                      {detail?.billing?.invoices?.length ? (
-                        detail.billing.invoices.map((invoice) => (
-                          <div
-                            key={invoice.id}
-                            className="rounded-[18px] border border-ink-100 bg-white px-4 py-4"
-                          >
-                            <div className="flex items-start justify-between gap-4">
-                              <div>
-                                <p className="text-sm font-semibold text-ink-900">
-                                  {invoice.number || invoice.id}
-                                </p>
-                                <p className="mt-1 text-sm text-ink-500">
-                                  {formatDateTime(invoice.createdAt, "Unknown")} / {invoice.status || "unknown"}
-                                </p>
-                              </div>
-                              <div className="text-right">
-                                <p className="text-sm font-semibold text-ink-900">
-                                  ${(Number(invoice.amountDue || 0) / 100).toFixed(2)}
-                                </p>
-                                {invoice.hostedInvoiceUrl ? (
-                                  <a
-                                    href={invoice.hostedInvoiceUrl}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="mt-2 inline-block text-xs font-semibold uppercase tracking-[0.14em] text-verdigris-700"
-                                  >
-                                    Open invoice
-                                  </a>
-                                ) : null}
-                              </div>
+              {!detailLoading && !detailError && selectedUser ? (
+                <div className="flex-1 overflow-y-auto px-5 py-5 sm:px-6 sm:py-6">
+                  <div className="grid gap-6 xl:grid-cols-[340px_minmax(0,1fr)]">
+                    <div className="space-y-5">
+                      <section className="rounded-[28px] border border-ink-100 bg-white px-5 py-5 shadow-soft">
+                        <span className="eyebrow">User snapshot</span>
+                        <div className="mt-4 flex items-start gap-4">
+                          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-ink-900 via-ink-700 to-verdigris-600 text-lg font-bold text-white">
+                            {getInitials(selectedUser.name, selectedUser.email)}
+                          </div>
+                          <div className="min-w-0">
+                            <h4 className="text-2xl font-semibold text-ink-900">{selectedUser.name}</h4>
+                            <p className="mt-1 break-all text-sm text-ink-500">{selectedUser.email}</p>
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              <span
+                                className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                                  statusStyles[selectedUser.accountStatus] || statusStyles.active
+                                }`}
+                              >
+                                {selectedUser.accountStatus}
+                              </span>
+                              <span
+                                className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                                  planStyles[selectedUser.subscription.plan] || planStyles.free
+                                }`}
+                              >
+                                {selectedUser.subscription.plan === "pro" ? "Pro" : "Free"}
+                              </span>
+                              {selectedUser.hasBillingIssue ? (
+                                <span className="rounded-full bg-clay-50 px-3 py-1 text-xs font-semibold text-clay-700">
+                                  Billing issue
+                                </span>
+                              ) : null}
+                              {selectedUser.subscription.override !== "none" ? (
+                                <span className="rounded-full bg-sand-100 px-3 py-1 text-xs font-semibold text-ink-700">
+                                  Override: {selectedUser.subscription.override}
+                                </span>
+                              ) : null}
+                              <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-ink-700 ring-1 ring-ink-100">
+                                {describeAuthAccess(selectedUser.authProviders)}
+                              </span>
                             </div>
                           </div>
-                        ))
-                      ) : (
-                        <p className="text-sm text-ink-500">No invoices found for this customer.</p>
-                      )}
-                    </div>
-                  </div>
-                </DetailBlock>
+                        </div>
+                        <div className="mt-5 rounded-[20px] bg-sand-50 px-4 py-4">
+                          <p className="text-sm font-semibold text-ink-900">Access state</p>
+                          <p className="mt-2 text-sm leading-6 text-ink-500">
+                            {describeSubscription(selectedUser.subscription)}
+                          </p>
+                        </div>
+                      </section>
 
-                <DetailBlock
-                  title="Activity"
-                  subtitle="Login recency, active session count, and support-side visibility."
-                >
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <div className="rounded-[18px] bg-white px-4 py-3 ring-1 ring-ink-100">
-                      <p className="text-xs font-semibold uppercase tracking-[0.15em] text-ink-400">
-                        Joined
-                      </p>
-                      <p className="mt-2 text-sm font-semibold text-ink-900">
-                        {formatDateTime(selectedUser.createdAt)}
-                      </p>
-                    </div>
-                    <div className="rounded-[18px] bg-white px-4 py-3 ring-1 ring-ink-100">
-                      <p className="text-xs font-semibold uppercase tracking-[0.15em] text-ink-400">
-                        Last login
-                      </p>
-                      <p className="mt-2 text-sm font-semibold text-ink-900">
-                        {formatDateTime(selectedUser.lastLoginAt, "Never")}
-                      </p>
-                    </div>
-                    <div className="rounded-[18px] bg-sand-50 px-4 py-3">
-                      <p className="text-xs font-semibold uppercase tracking-[0.15em] text-ink-400">
-                        Last seen
-                      </p>
-                      <p className="mt-2 text-sm font-semibold text-ink-900">
-                        {formatDateTime(selectedUser.lastSeenAt, "No session history")}
-                      </p>
-                    </div>
-                    <div className="rounded-[18px] bg-verdigris-50 px-4 py-3">
-                      <p className="text-xs font-semibold uppercase tracking-[0.15em] text-ink-400">
-                        Monthly usage
-                      </p>
-                      <p className="mt-2 text-2xl font-semibold text-ink-900">{selectedUser.monthlyUsageCount}</p>
-                    </div>
-                  </div>
-                </DetailBlock>
+                      <DetailBlock
+                        title="Quick actions"
+                        subtitle="The most common support and account actions for this user."
+                      >
+                        <div className="grid gap-3">
+                          <button
+                            type="button"
+                            onClick={() => handleImpersonation(selectedUser)}
+                            disabled={
+                              selectedUser.isCurrentPlatformManager ||
+                              selectedUser.accountStatus === "suspended" ||
+                              detailBusyKey === `impersonate-${selectedUser.id}`
+                            }
+                            className="primary-action w-full justify-center"
+                          >
+                            <EyeIcon className="mr-2 h-5 w-5" />
+                            View as user
+                          </button>
+                          <div className="grid gap-3 sm:grid-cols-2">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                runDetailAction(
+                                  "sync-billing",
+                                  () => syncPlatformManagerUserBilling(selectedUser.id),
+                                  "Billing synced."
+                                )
+                              }
+                              disabled={!detail?.billing?.canSync || detailBusyKey !== ""}
+                              className="secondary-action justify-center"
+                            >
+                              <ArrowPathIcon className="mr-2 h-5 w-5" />
+                              Sync billing
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                runDetailAction(
+                                  "revoke-sessions",
+                                  () => revokePlatformManagerUserSessions(selectedUser.id),
+                                  "All active sessions revoked."
+                                )
+                              }
+                              disabled={selectedUser.isCurrentPlatformManager || detailBusyKey !== ""}
+                              className="secondary-action justify-center"
+                            >
+                              <ShieldExclamationIcon className="mr-2 h-5 w-5" />
+                              Revoke sessions
+                            </button>
+                          </div>
+                          <div className="grid gap-3 sm:grid-cols-2">
+                            <button
+                              type="button"
+                              onClick={handlePasswordReset}
+                              disabled={detailBusyKey !== ""}
+                              className="secondary-action justify-center"
+                            >
+                              <ShieldCheckIcon className="mr-2 h-5 w-5" />
+                              Send password reset
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                runDetailAction(
+                                  "clear-override",
+                                  () =>
+                                    setPlatformManagerSubscriptionOverride(selectedUser.id, {
+                                      overridePlan: "none",
+                                    }),
+                                  "Billing override cleared."
+                                )
+                              }
+                              disabled={
+                                selectedUser.subscription.override === "none" || detailBusyKey !== ""
+                              }
+                              className="secondary-action justify-center"
+                            >
+                              <ArrowPathIcon className="mr-2 h-5 w-5" />
+                              Clear override
+                            </button>
+                          </div>
+                          <div className="grid gap-3 sm:grid-cols-2">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                runDetailAction(
+                                  "toggle-status",
+                                  () =>
+                                    setPlatformManagerAccountStatus(
+                                      selectedUser.id,
+                                      selectedUser.accountStatus === "suspended"
+                                        ? "active"
+                                        : "suspended"
+                                    ),
+                                  selectedUser.accountStatus === "suspended"
+                                    ? "User reactivated."
+                                    : "User suspended."
+                                )
+                              }
+                              disabled={selectedUser.isCurrentPlatformManager || detailBusyKey !== ""}
+                              className="secondary-action justify-center"
+                            >
+                              {selectedUser.accountStatus === "suspended" ? (
+                                <UserPlusIcon className="mr-2 h-5 w-5" />
+                              ) : (
+                                <UserMinusIcon className="mr-2 h-5 w-5" />
+                              )}
+                              {selectedUser.accountStatus === "suspended" ? "Reactivate" : "Suspend"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (
+                                  window.confirm(
+                                    `Delete ${selectedUser.email}? This only works for empty accounts with no owned records.`
+                                  )
+                                ) {
+                                  runDetailAction(
+                                    "delete-user",
+                                    () => deletePlatformManagerUser(selectedUser.id),
+                                    "User deleted.",
+                                    { clearSelection: true }
+                                  );
+                                }
+                              }}
+                              disabled={
+                                !selectedUser.canDelete ||
+                                selectedUser.isCurrentPlatformManager ||
+                                detailBusyKey !== ""
+                              }
+                              className="secondary-action justify-center !border-clay-200 !text-clay-700"
+                            >
+                              <TrashIcon className="mr-2 h-5 w-5" />
+                              Delete empty account
+                            </button>
+                          </div>
+                        </div>
+                      </DetailBlock>
 
-                <DetailBlock
-                  title="Workspace footprint"
-                  subtitle="What the user currently owns inside the product."
-                >
-                  <div className="grid grid-cols-2 gap-3">
-                    {Object.entries(selectedUser.counts || {}).map(([key, value]) => (
-                      <div key={key} className="rounded-[18px] bg-white px-4 py-3 ring-1 ring-ink-100">
-                        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-ink-400">
-                          {key.replace(/([A-Z])/g, " $1")}
-                        </p>
-                        <p className="mt-2 text-xl font-semibold text-ink-900">{value}</p>
-                      </div>
-                    ))}
-                  </div>
-                </DetailBlock>
-
-                <DetailBlock
-                  title="Feature usage"
-                  subtitle="Recent tracked product usage from billing and premium workflows."
-                >
-                  <div className="space-y-3">
-                    {detail?.usage?.lifetime?.length ? (
-                      detail.usage.lifetime.map((entry) => (
-                        <div
-                          key={entry.featureKey}
-                          className="rounded-[18px] border border-ink-100 bg-white px-4 py-4"
-                        >
-                          <div className="flex items-start justify-between gap-4">
-                            <div>
-                              <p className="text-sm font-semibold text-ink-900">{entry.label}</p>
+                      <DetailBlock
+                        title="Comps credits"
+                        subtitle="Review the live balance and grant more report credits without leaving the manager."
+                      >
+                        <div className="space-y-5">
+                          <div className="grid gap-3 sm:grid-cols-2">
+                            <div className="rounded-[18px] bg-verdigris-50 px-4 py-4">
+                              <p className="text-xs font-semibold uppercase tracking-[0.15em] text-ink-400">
+                                Total remaining
+                              </p>
+                              <p className="mt-2 text-2xl font-semibold text-ink-900">
+                                {detail?.credits?.totalRemaining || 0}
+                              </p>
                               <p className="mt-1 text-sm text-ink-500">
-                                Last used {formatDateTime(entry.lastUsedAt, "Never")}
+                                {formatCompsCreditCount(detail?.credits?.totalRemaining || 0)}
                               </p>
                             </div>
-                            <div className="text-right">
-                              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-ink-400">
-                                Current month
+                            <div className="rounded-[18px] bg-sand-50 px-4 py-4">
+                              <p className="text-xs font-semibold uppercase tracking-[0.15em] text-ink-400">
+                                Trial credits
                               </p>
-                              <p className="mt-1 text-lg font-semibold text-ink-900">
-                                {entry.currentMonthCount}
+                              <p className="mt-2 text-2xl font-semibold text-ink-900">
+                                {detail?.credits?.trialRemaining || 0}
                               </p>
-                              <p className="mt-2 text-xs font-semibold uppercase tracking-[0.14em] text-ink-400">
-                                Lifetime
+                              <p className="mt-1 text-sm text-ink-500">
+                                {detail?.credits?.trialExpiresAt
+                                  ? `Expires ${formatDate(detail.credits.trialExpiresAt)}`
+                                  : "No trial credits active"}
+                              </p>
+                            </div>
+                            <div className="rounded-[18px] bg-white px-4 py-4 ring-1 ring-ink-100">
+                              <p className="text-xs font-semibold uppercase tracking-[0.15em] text-ink-400">
+                                Cycle credits
+                              </p>
+                              <p className="mt-2 text-2xl font-semibold text-ink-900">
+                                {detail?.credits?.monthlyIncludedRemaining || 0}
+                              </p>
+                              <p className="mt-1 text-sm text-ink-500">
+                                {detail?.credits?.monthlyExpiresAt
+                                  ? `Cycle resets ${formatDate(detail.credits.monthlyExpiresAt)}`
+                                  : "No active Pro cycle credits"}
+                              </p>
+                            </div>
+                            <div className="rounded-[18px] bg-white px-4 py-4 ring-1 ring-ink-100">
+                              <p className="text-xs font-semibold uppercase tracking-[0.15em] text-ink-400">
+                                Admin granted
+                              </p>
+                              <p className="mt-2 text-2xl font-semibold text-ink-900">
+                                {detail?.credits?.platformGrantedRemaining || 0}
+                              </p>
+                              <p className="mt-1 text-sm text-ink-500">
+                                Permanent support-added credits
+                              </p>
+                            </div>
+                          </div>
+
+                          {detail?.credits?.nextExpiringAt ? (
+                            <div className="rounded-[18px] border border-ink-100 bg-white px-4 py-3">
+                              <p className="text-sm font-medium text-ink-600">
+                                Next credit expiration
                               </p>
                               <p className="mt-1 text-sm font-semibold text-ink-900">
-                                {entry.totalCount}
+                                {formatDateTime(detail.credits.nextExpiringAt)}
                               </p>
                             </div>
-                          </div>
-                        </div>
-                      ))
-                    ) : (
-                      <p className="text-sm text-ink-500">No tracked premium usage yet.</p>
-                    )}
-                  </div>
-                </DetailBlock>
+                          ) : null}
 
-                <DetailBlock
-                  title="Document storage"
-                  subtitle="Quota status, largest files, and the most recent document uploads for this account."
-                >
-                  <div className="space-y-5">
-                    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                      <div className="rounded-[18px] bg-white px-4 py-3 ring-1 ring-ink-100">
-                        <p className="text-xs font-semibold uppercase tracking-[0.15em] text-ink-400">
-                          Storage used
-                        </p>
-                        <p className="mt-2 text-sm font-semibold text-ink-900">
-                          {detail?.documentStorage
-                            ? formatStorageBytes(detail.documentStorage.bytesUsed)
-                            : "0 B"}
-                        </p>
-                      </div>
-                      <div className="rounded-[18px] bg-white px-4 py-3 ring-1 ring-ink-100">
-                        <p className="text-xs font-semibold uppercase tracking-[0.15em] text-ink-400">
-                          Quota
-                        </p>
-                        <p className="mt-2 text-sm font-semibold text-ink-900">
-                          {detail?.documentStorage
-                            ? formatStorageBytes(detail.documentStorage.totalStorageQuotaBytes)
-                            : "0 B"}
-                        </p>
-                      </div>
-                      <div className="rounded-[18px] bg-white px-4 py-3 ring-1 ring-ink-100">
-                        <p className="text-xs font-semibold uppercase tracking-[0.15em] text-ink-400">
-                          Files
-                        </p>
-                        <p className="mt-2 text-sm font-semibold text-ink-900">
-                          {detail?.documentStorage?.fileCount || 0}
-                        </p>
-                      </div>
-                      <div className="rounded-[18px] bg-white px-4 py-3 ring-1 ring-ink-100">
-                        <p className="text-xs font-semibold uppercase tracking-[0.15em] text-ink-400">
-                          Max file size
-                        </p>
-                        <p className="mt-2 text-sm font-semibold text-ink-900">
-                          {detail?.documentStorage
-                            ? formatStorageBytes(detail.documentStorage.maxFileSizeBytes)
-                            : "0 B"}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="grid gap-4 xl:grid-cols-2">
-                      <div className="rounded-[18px] border border-ink-100 bg-white px-4 py-4">
-                        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-ink-400">
-                          Largest files
-                        </p>
-                        <div className="mt-3 space-y-3">
-                          {detail?.documentStorage?.largestFiles?.length ? (
-                            detail.documentStorage.largestFiles.map((file) => (
-                              <div key={file.id} className="rounded-[16px] bg-ink-50/50 px-3 py-3">
-                                <p className="text-sm font-semibold text-ink-900">{file.displayName}</p>
-                                <p className="mt-1 text-sm text-ink-500">
-                                  {file.bytesLabel} • {file.source.replace(/_/g, " ")}
-                                </p>
-                              </div>
-                            ))
-                          ) : (
-                            <p className="text-sm text-ink-500">No stored documents yet.</p>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="rounded-[18px] border border-ink-100 bg-white px-4 py-4">
-                        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-ink-400">
-                          Recent uploads
-                        </p>
-                        <div className="mt-3 space-y-3">
-                          {detail?.documentStorage?.recentUploads?.length ? (
-                            detail.documentStorage.recentUploads.map((file) => (
-                              <div key={file.id} className="rounded-[16px] bg-ink-50/50 px-3 py-3">
-                                <p className="text-sm font-semibold text-ink-900">{file.displayName}</p>
-                                <p className="mt-1 text-sm text-ink-500">
-                                  {file.bytesLabel} • {formatDateTime(file.createdAt)}
-                                </p>
-                              </div>
-                            ))
-                          ) : (
-                            <p className="text-sm text-ink-500">No uploads recorded yet.</p>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </DetailBlock>
-
-                <DetailBlock
-                  title="Support notes"
-                  subtitle="Internal-only notes for future support follow-up."
-                >
-                  <div className="space-y-4">
-                    <textarea
-                      value={noteDraft}
-                      onChange={(event) => setNoteDraft(event.target.value)}
-                      rows={4}
-                      placeholder="Add a note about the user, issue, promise, or follow-up."
-                      className="auth-input min-h-[120px]"
-                    />
-                    <button
-                      type="button"
-                      onClick={handleAddNote}
-                      disabled={detailBusyKey !== "" || !noteDraft.trim()}
-                      className="secondary-action w-full justify-center"
-                    >
-                      {detailBusyKey === "add-note" ? "Saving..." : "Save support note"}
-                    </button>
-                    <div className="space-y-3">
-                      {detail?.supportNotes?.length ? (
-                        detail.supportNotes.map((note) => (
-                          <div
-                            key={note.id}
-                            className="rounded-[18px] border border-ink-100 bg-white px-4 py-4"
-                          >
-                            <div className="flex items-start justify-between gap-4">
-                              <div>
-                                <p className="text-sm font-semibold text-ink-900">{note.authorEmail}</p>
-                                <p className="mt-1 text-xs uppercase tracking-[0.14em] text-ink-400">
-                                  {formatDateTime(note.createdAt)}
-                                </p>
-                              </div>
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  runDetailAction(
-                                    `delete-note-${note.id}`,
-                                    () => deletePlatformManagerSupportNote(note.id),
-                                    "Support note deleted."
-                                  )
-                                }
-                                disabled={detailBusyKey !== ""}
-                                className="text-xs font-semibold uppercase tracking-[0.14em] text-clay-700"
-                              >
-                                Delete
-                              </button>
+                          <form className="space-y-4" onSubmit={handleCreditGrantSubmit}>
+                            <div className="grid gap-4 sm:grid-cols-[160px_minmax(0,1fr)]">
+                              <label className="block">
+                                <span className="text-xs font-semibold uppercase tracking-[0.14em] text-ink-400">
+                                  Credits to add
+                                </span>
+                                <input
+                                  type="number"
+                                  min="1"
+                                  step="1"
+                                  inputMode="numeric"
+                                  value={creditGrantForm.credits}
+                                  onChange={(event) =>
+                                    setCreditGrantForm((previous) => ({
+                                      ...previous,
+                                      credits: event.target.value,
+                                    }))
+                                  }
+                                  className="auth-input mt-2"
+                                />
+                              </label>
+                              <label className="block">
+                                <span className="text-xs font-semibold uppercase tracking-[0.14em] text-ink-400">
+                                  Reason
+                                </span>
+                                <textarea
+                                  value={creditGrantForm.reason}
+                                  onChange={(event) =>
+                                    setCreditGrantForm((previous) => ({
+                                      ...previous,
+                                      reason: event.target.value,
+                                    }))
+                                  }
+                                  rows={3}
+                                  placeholder="Why are you granting extra comps credits?"
+                                  className="auth-input mt-2 min-h-[104px]"
+                                />
+                              </label>
                             </div>
-                            <p className="mt-3 text-sm leading-6 text-ink-600">{note.body}</p>
-                          </div>
-                        ))
-                      ) : (
-                        <p className="text-sm text-ink-500">No support notes saved yet.</p>
-                      )}
-                    </div>
-                  </div>
-                </DetailBlock>
-
-                <DetailBlock
-                  title="Sessions"
-                  subtitle="Recent sessions with auth method, last activity, and expiry state."
-                >
-                  <div className="space-y-3">
-                    {detail?.sessions?.length ? (
-                      detail.sessions.map((session) => (
-                        <div
-                          key={session.id}
-                          className="rounded-[18px] border border-ink-100 bg-white px-4 py-4"
-                        >
-                          <div className="flex items-start justify-between gap-4">
-                            <div>
-                              <div className="flex flex-wrap items-center gap-2">
-                                <p className="text-sm font-semibold text-ink-900">
-                                  {session.authMethod} / {session.sessionType}
-                                </p>
-                                {session.isCurrent ? (
-                                  <span className="rounded-full bg-ink-100 px-3 py-1 text-xs font-semibold text-ink-700">
-                                    Current admin session
-                                  </span>
-                                ) : null}
-                              </div>
-                              <p className="mt-1 text-sm text-ink-500">{session.userAgent}</p>
-                              <p className="mt-2 text-xs uppercase tracking-[0.14em] text-ink-400">
-                                Last activity {formatDateTime(session.lastActivityAt)}
-                              </p>
-                            </div>
-                            <span
-                              className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                                sessionStatusStyles[session.status] || sessionStatusStyles.active
-                              }`}
+                            <button
+                              type="submit"
+                              disabled={detailBusyKey !== ""}
+                              className="primary-action w-full justify-center"
                             >
-                              {session.status}
+                              {detailBusyKey === "grant-credits"
+                                ? "Granting..."
+                                : "Grant comps credits"}
+                            </button>
+                          </form>
+
+                          <div className="space-y-3">
+                            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-ink-400">
+                              Active grants
+                            </p>
+                            {detail?.credits?.activeGrants?.length ? (
+                              detail.credits.activeGrants.slice(0, 8).map((grant) => (
+                                <div
+                                  key={grant.id}
+                                  className="rounded-[18px] border border-ink-100 bg-white px-4 py-4"
+                                >
+                                  <div className="flex items-start justify-between gap-4">
+                                    <div>
+                                      <div className="flex flex-wrap items-center gap-2">
+                                        <p className="text-sm font-semibold text-ink-900">
+                                          {grant.sourceLabel}
+                                        </p>
+                                        <span
+                                          className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                                            compsCreditSourceStyles[grant.sourceType] ||
+                                            compsCreditSourceStyles.purchase_pack
+                                          }`}
+                                        >
+                                          {grant.sourceType === "platform_manager_grant"
+                                            ? "Admin grant"
+                                            : grant.sourceLabel}
+                                        </span>
+                                      </div>
+                                      <p className="mt-1 text-sm text-ink-500">
+                                        {formatCompsCreditCount(grant.remainingCredits)} remaining out of{" "}
+                                        {formatCompsCreditCount(grant.totalCredits)}.
+                                      </p>
+                                      <p className="mt-2 text-xs uppercase tracking-[0.14em] text-ink-400">
+                                        Created {formatDateTime(grant.createdAt)}
+                                      </p>
+                                      {grant.reason ? (
+                                        <p className="mt-2 text-sm leading-6 text-ink-600">
+                                          Reason: {grant.reason}
+                                        </p>
+                                      ) : null}
+                                      {grant.grantedByEmail ? (
+                                        <p className="mt-1 text-sm text-ink-500">
+                                          Granted by {grant.grantedByEmail}
+                                        </p>
+                                      ) : null}
+                                    </div>
+                                    <div className="text-right">
+                                      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-ink-400">
+                                        Expiration
+                                      </p>
+                                      <p className="mt-1 text-sm font-semibold text-ink-900">
+                                        {grant.expiresAt ? formatDateTime(grant.expiresAt) : "Does not expire"}
+                                      </p>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))
+                            ) : (
+                              <p className="text-sm text-ink-500">No active comps-credit grants yet.</p>
+                            )}
+                          </div>
+                        </div>
+                      </DetailBlock>
+
+                      <DetailBlock
+                        title="Activity"
+                        subtitle="Login recency, active session count, and support-side visibility."
+                      >
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <div className="rounded-[18px] bg-white px-4 py-3 ring-1 ring-ink-100">
+                            <p className="text-xs font-semibold uppercase tracking-[0.15em] text-ink-400">
+                              Joined
+                            </p>
+                            <p className="mt-2 text-sm font-semibold text-ink-900">
+                              {formatDateTime(selectedUser.createdAt)}
+                            </p>
+                          </div>
+                          <div className="rounded-[18px] bg-white px-4 py-3 ring-1 ring-ink-100">
+                            <p className="text-xs font-semibold uppercase tracking-[0.15em] text-ink-400">
+                              Last login
+                            </p>
+                            <p className="mt-2 text-sm font-semibold text-ink-900">
+                              {formatDateTime(selectedUser.lastLoginAt, "Never")}
+                            </p>
+                          </div>
+                          <div className="rounded-[18px] bg-sand-50 px-4 py-3">
+                            <p className="text-xs font-semibold uppercase tracking-[0.15em] text-ink-400">
+                              Last seen
+                            </p>
+                            <p className="mt-2 text-sm font-semibold text-ink-900">
+                              {formatDateTime(selectedUser.lastSeenAt, "No session history")}
+                            </p>
+                          </div>
+                          <div className="rounded-[18px] bg-verdigris-50 px-4 py-3">
+                            <p className="text-xs font-semibold uppercase tracking-[0.15em] text-ink-400">
+                              Monthly usage
+                            </p>
+                            <p className="mt-2 text-2xl font-semibold text-ink-900">
+                              {selectedUser.monthlyUsageCount}
+                            </p>
+                          </div>
+                        </div>
+                      </DetailBlock>
+
+                      <DetailBlock
+                        title="Workspace footprint"
+                        subtitle="What the user currently owns inside the product."
+                      >
+                        <div className="grid grid-cols-2 gap-3">
+                          {Object.entries(selectedUser.counts || {}).map(([key, value]) => (
+                            <div
+                              key={key}
+                              className="rounded-[18px] bg-white px-4 py-3 ring-1 ring-ink-100"
+                            >
+                              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-ink-400">
+                                {key.replace(/([A-Z])/g, " $1")}
+                              </p>
+                              <p className="mt-2 text-xl font-semibold text-ink-900">{value}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </DetailBlock>
+
+                      <DetailBlock
+                        title="Guardrails"
+                        subtitle="Actions that remove access or data ownership are intentionally constrained."
+                      >
+                        <div className="space-y-3">
+                          <div className="flex items-start gap-3 rounded-[18px] bg-sand-50 px-4 py-3">
+                            <ExclamationTriangleIcon className="mt-0.5 h-5 w-5 text-ink-700" />
+                            <p className="text-sm leading-6 text-ink-600">
+                              Suspending an account revokes its live sessions but preserves every
+                              owned record.
+                            </p>
+                          </div>
+                          <div className="flex items-start gap-3 rounded-[18px] bg-white px-4 py-3 ring-1 ring-ink-100">
+                            <UsersIcon className="mt-0.5 h-5 w-5 text-ink-700" />
+                            <p className="text-sm leading-6 text-ink-600">
+                              Deletion is only available for empty accounts so user-owned data
+                              never gets orphaned.
+                            </p>
+                          </div>
+                        </div>
+                      </DetailBlock>
+                    </div>
+
+                    <div className="space-y-5">
+                      <DetailBlock
+                        title="Profile and consent"
+                        subtitle="Signup details, login method, and communication permissions recorded for this account."
+                      >
+                        <div className="grid gap-3">
+                          <div className="flex items-center justify-between rounded-[18px] bg-white px-4 py-3 ring-1 ring-ink-100">
+                            <span className="text-sm font-medium text-ink-600">First / last name</span>
+                            <span className="text-sm font-semibold text-ink-900">
+                              {selectedUser.firstName || "Not set"} {selectedUser.lastName || ""}
                             </span>
                           </div>
-                          <div className="mt-3 grid gap-2 text-sm text-ink-600">
-                            <p>Started: {formatDateTime(session.createdAt)}</p>
-                            <p>Expires: {formatDateTime(session.expiresAt, "None")}</p>
-                            <p>IP: {session.ipAddress || "Unknown"}</p>
+                          <div className="flex items-center justify-between rounded-[18px] bg-white px-4 py-3 ring-1 ring-ink-100">
+                            <span className="text-sm font-medium text-ink-600">Company</span>
+                            <span className="text-sm font-semibold text-ink-900">
+                              {selectedUser.companyName || "Not provided"}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between rounded-[18px] bg-white px-4 py-3 ring-1 ring-ink-100">
+                            <span className="text-sm font-medium text-ink-600">Phone</span>
+                            <span className="text-sm font-semibold text-ink-900">
+                              {selectedUser.phoneNumber || "Not provided"}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between rounded-[18px] bg-sand-50 px-4 py-3">
+                            <span className="text-sm font-medium text-ink-600">Sign-in access</span>
+                            <span className="text-sm font-semibold text-ink-900">
+                              {describeAuthAccess(selectedUser.authProviders)}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between rounded-[18px] bg-white px-4 py-3 ring-1 ring-ink-100">
+                            <span className="text-sm font-medium text-ink-600">Terms accepted</span>
+                            <span className="text-sm font-semibold text-ink-900">
+                              {describeConsentState(
+                                selectedUser.consent?.termsAccepted,
+                                selectedUser.consent?.termsAcceptedAt
+                              )}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between rounded-[18px] bg-white px-4 py-3 ring-1 ring-ink-100">
+                            <span className="text-sm font-medium text-ink-600">Marketing outreach</span>
+                            <span className="text-sm font-semibold text-ink-900">
+                              {describeConsentState(
+                                selectedUser.consent?.marketingOptIn,
+                                selectedUser.consent?.marketingConsentAcceptedAt
+                              )}
+                            </span>
                           </div>
                         </div>
-                      ))
-                    ) : (
-                      <p className="text-sm text-ink-500">No session history found.</p>
-                    )}
-                  </div>
-                </DetailBlock>
+                      </DetailBlock>
 
-                <DetailBlock
-                  title="Audit trail"
-                  subtitle="Recent platform-manager actions taken on this account."
-                >
-                  <div className="space-y-3">
-                    {detail?.auditLogs?.length ? (
-                      detail.auditLogs.map((entry) => (
-                        <div
-                          key={entry.id}
-                          className="rounded-[18px] border border-ink-100 bg-white px-4 py-4"
-                        >
-                          <div className="flex items-start gap-3">
-                            <div className="mt-1 flex h-9 w-9 items-center justify-center rounded-2xl bg-sand-100 text-ink-700">
-                              <ClockIcon className="h-4 w-4" />
+                      <DetailBlock
+                        title="Identity support"
+                        subtitle="Update the account email or issue a password reset for support handoff."
+                      >
+                        <form className="space-y-4" onSubmit={handleEmailSubmit}>
+                          <label className="block">
+                            <span className="text-xs font-semibold uppercase tracking-[0.14em] text-ink-400">
+                              Account email
+                            </span>
+                            <input
+                              type="email"
+                              value={emailForm.email}
+                              onChange={(event) =>
+                                setEmailForm((previous) => ({
+                                  ...previous,
+                                  email: event.target.value,
+                                }))
+                              }
+                              className="auth-input mt-2"
+                            />
+                          </label>
+                          <label className="block">
+                            <span className="text-xs font-semibold uppercase tracking-[0.14em] text-ink-400">
+                              Reason
+                            </span>
+                            <textarea
+                              value={emailForm.reason}
+                              onChange={(event) =>
+                                setEmailForm((previous) => ({
+                                  ...previous,
+                                  reason: event.target.value,
+                                }))
+                              }
+                              rows={3}
+                              placeholder="Why are you changing the email?"
+                              className="auth-input mt-2 min-h-[96px]"
+                            />
+                          </label>
+                          <button
+                            type="submit"
+                            disabled={detailBusyKey !== ""}
+                            className="secondary-action w-full justify-center"
+                          >
+                            {detailBusyKey === "save-email" ? "Saving..." : "Update email"}
+                          </button>
+                        </form>
+                      </DetailBlock>
+
+                      <DetailBlock
+                        title="Temporary access"
+                        subtitle="Grant or remove an override, optionally with an expiry date and support reason."
+                      >
+                        <form className="space-y-4" onSubmit={handleOverrideSubmit}>
+                          <div className="grid gap-4 sm:grid-cols-2">
+                            <label className="block">
+                              <span className="text-xs font-semibold uppercase tracking-[0.14em] text-ink-400">
+                                Override
+                              </span>
+                              <select
+                                value={overrideForm.overridePlan}
+                                onChange={(event) =>
+                                  setOverrideForm((previous) => ({
+                                    ...previous,
+                                    overridePlan: event.target.value,
+                                  }))
+                                }
+                                className="auth-input mt-2"
+                              >
+                                <option value="none">No override</option>
+                                <option value="pro">Grant Pro</option>
+                                <option value="free">Force Free</option>
+                              </select>
+                            </label>
+                            <label className="block">
+                              <span className="text-xs font-semibold uppercase tracking-[0.14em] text-ink-400">
+                                Expires
+                              </span>
+                              <input
+                                type="date"
+                                value={overrideForm.expiresAt}
+                                onChange={(event) =>
+                                  setOverrideForm((previous) => ({
+                                    ...previous,
+                                    expiresAt: event.target.value,
+                                  }))
+                                }
+                                disabled={overrideForm.overridePlan === "none"}
+                                className="auth-input mt-2"
+                              />
+                            </label>
+                          </div>
+                          <label className="block">
+                            <span className="text-xs font-semibold uppercase tracking-[0.14em] text-ink-400">
+                              Reason
+                            </span>
+                            <textarea
+                              value={overrideForm.reason}
+                              onChange={(event) =>
+                                setOverrideForm((previous) => ({
+                                  ...previous,
+                                  reason: event.target.value,
+                                }))
+                              }
+                              rows={3}
+                              placeholder="Why are you changing access for this account?"
+                              className="auth-input mt-2 min-h-[100px]"
+                            />
+                          </label>
+                          <button
+                            type="submit"
+                            disabled={detailBusyKey !== ""}
+                            className="primary-action w-full justify-center"
+                          >
+                            {detailBusyKey === "save-override" ? "Saving..." : "Save access rule"}
+                          </button>
+                        </form>
+                      </DetailBlock>
+
+                      <DetailBlock
+                        title="Billing snapshot"
+                        subtitle="Current Stripe-linked state, renewal timing, and sync health."
+                      >
+                        <div className="grid gap-3">
+                          <div className="flex items-center justify-between rounded-[18px] bg-sand-50 px-4 py-3">
+                            <span className="text-sm font-medium text-ink-600">Plan / status</span>
+                            <span className="text-sm font-semibold text-ink-900">
+                              {detail?.billing?.subscriptionPlan || "free"} /{" "}
+                              {detail?.billing?.subscriptionStatus || "inactive"}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between rounded-[18px] bg-white px-4 py-3 ring-1 ring-ink-100">
+                            <span className="text-sm font-medium text-ink-600">Source</span>
+                            <span className="text-sm font-semibold text-ink-900">
+                              {detail?.billing?.subscriptionSource || "none"}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between rounded-[18px] bg-white px-4 py-3 ring-1 ring-ink-100">
+                            <span className="text-sm font-medium text-ink-600">Renews / ends</span>
+                            <span className="text-sm font-semibold text-ink-900">
+                              {formatDateTime(detail?.billing?.subscriptionCurrentPeriodEnd, "Not set")}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between rounded-[18px] bg-white px-4 py-3 ring-1 ring-ink-100">
+                            <span className="text-sm font-medium text-ink-600">Last billing sync</span>
+                            <span className="text-sm font-semibold text-ink-900">
+                              {formatDateTime(detail?.billing?.subscriptionLastSyncedAt, "Never")}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between rounded-[18px] bg-white px-4 py-3 ring-1 ring-ink-100">
+                            <span className="text-sm font-medium text-ink-600">Cancel at period end</span>
+                            <span className="text-sm font-semibold text-ink-900">
+                              {detail?.billing?.cancelAtPeriodEnd ? "Yes" : "No"}
+                            </span>
+                          </div>
+                          {detail?.billing?.cancelAt ? (
+                            <div className="flex items-center justify-between rounded-[18px] bg-white px-4 py-3 ring-1 ring-ink-100">
+                              <span className="text-sm font-medium text-ink-600">Cancel date</span>
+                              <span className="text-sm font-semibold text-ink-900">
+                                {formatDateTime(detail?.billing?.cancelAt)}
+                              </span>
                             </div>
-                            <div className="min-w-0 flex-1">
-                              <div className="flex flex-wrap items-center gap-2">
-                                <p className="text-sm font-semibold text-ink-900">
-                                  {entry.action.replace(/_/g, " ")}
-                                </p>
-                                <span className="text-xs uppercase tracking-[0.14em] text-ink-400">
-                                  {formatDateTime(entry.createdAt)}
-                                </span>
-                              </div>
-                              <p className="mt-1 text-sm text-ink-500">
-                                Actor: {entry.actorEmail || "Unknown"}
+                          ) : null}
+                          <div className="rounded-[18px] bg-clay-50 px-4 py-3">
+                            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-ink-400">
+                              Stripe references
+                            </p>
+                            <p className="mt-2 text-sm text-ink-700">
+                              Customer: {detail?.billing?.stripeCustomerId || "None"}
+                            </p>
+                            <p className="mt-1 text-sm text-ink-700">
+                              Subscription: {detail?.billing?.stripeSubscriptionId || "None"}
+                            </p>
+                          </div>
+                          <div className="grid gap-3 sm:grid-cols-2">
+                            <a
+                              href={detail?.billing?.customerDashboardUrl || "#"}
+                              target="_blank"
+                              rel="noreferrer"
+                              className={`secondary-action justify-center ${
+                                detail?.billing?.customerDashboardUrl
+                                  ? ""
+                                  : "pointer-events-none opacity-50"
+                              }`}
+                            >
+                              Open customer in Stripe
+                            </a>
+                            <a
+                              href={detail?.billing?.subscriptionDashboardUrl || "#"}
+                              target="_blank"
+                              rel="noreferrer"
+                              className={`secondary-action justify-center ${
+                                detail?.billing?.subscriptionDashboardUrl
+                                  ? ""
+                                  : "pointer-events-none opacity-50"
+                              }`}
+                            >
+                              Open subscription in Stripe
+                            </a>
+                          </div>
+                          <div className="space-y-3">
+                            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-ink-400">
+                              Recent invoices
+                            </p>
+                            {detail?.billing?.invoices?.length ? (
+                              detail.billing.invoices.map((invoice) => (
+                                <div
+                                  key={invoice.id}
+                                  className="rounded-[18px] border border-ink-100 bg-white px-4 py-4"
+                                >
+                                  <div className="flex items-start justify-between gap-4">
+                                    <div>
+                                      <p className="text-sm font-semibold text-ink-900">
+                                        {invoice.number || invoice.id}
+                                      </p>
+                                      <p className="mt-1 text-sm text-ink-500">
+                                        {formatDateTime(invoice.createdAt, "Unknown")} /{" "}
+                                        {invoice.status || "unknown"}
+                                      </p>
+                                    </div>
+                                    <div className="text-right">
+                                      <p className="text-sm font-semibold text-ink-900">
+                                        ${(Number(invoice.amountDue || 0) / 100).toFixed(2)}
+                                      </p>
+                                      {invoice.hostedInvoiceUrl ? (
+                                        <a
+                                          href={invoice.hostedInvoiceUrl}
+                                          target="_blank"
+                                          rel="noreferrer"
+                                          className="mt-2 inline-block text-xs font-semibold uppercase tracking-[0.14em] text-verdigris-700"
+                                        >
+                                          Open invoice
+                                        </a>
+                                      ) : null}
+                                    </div>
+                                  </div>
+                                </div>
+                              ))
+                            ) : (
+                              <p className="text-sm text-ink-500">
+                                No invoices found for this customer.
                               </p>
-                              {entry.reason ? (
-                                <p className="mt-2 text-sm leading-6 text-ink-600">
-                                  Reason: {entry.reason}
-                                </p>
-                              ) : null}
+                            )}
+                          </div>
+                        </div>
+                      </DetailBlock>
+
+                      <DetailBlock
+                        title="Feature usage"
+                        subtitle="Recent tracked product usage from billing and premium workflows."
+                      >
+                        <div className="space-y-3">
+                          {detail?.usage?.lifetime?.length ? (
+                            detail.usage.lifetime.map((entry) => (
+                              <div
+                                key={entry.featureKey}
+                                className="rounded-[18px] border border-ink-100 bg-white px-4 py-4"
+                              >
+                                <div className="flex items-start justify-between gap-4">
+                                  <div>
+                                    <p className="text-sm font-semibold text-ink-900">{entry.label}</p>
+                                    <p className="mt-1 text-sm text-ink-500">
+                                      Last used {formatDateTime(entry.lastUsedAt, "Never")}
+                                    </p>
+                                  </div>
+                                  <div className="text-right">
+                                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-ink-400">
+                                      Current month
+                                    </p>
+                                    <p className="mt-1 text-lg font-semibold text-ink-900">
+                                      {entry.currentMonthCount}
+                                    </p>
+                                    <p className="mt-2 text-xs font-semibold uppercase tracking-[0.14em] text-ink-400">
+                                      Lifetime
+                                    </p>
+                                    <p className="mt-1 text-sm font-semibold text-ink-900">
+                                      {entry.totalCount}
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+                            ))
+                          ) : (
+                            <p className="text-sm text-ink-500">No tracked premium usage yet.</p>
+                          )}
+                        </div>
+                      </DetailBlock>
+
+                      <DetailBlock
+                        title="Document storage"
+                        subtitle="Quota status, largest files, and the most recent document uploads for this account."
+                      >
+                        <div className="space-y-5">
+                          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                            <div className="rounded-[18px] bg-white px-4 py-3 ring-1 ring-ink-100">
+                              <p className="text-xs font-semibold uppercase tracking-[0.15em] text-ink-400">
+                                Storage used
+                              </p>
+                              <p className="mt-2 text-sm font-semibold text-ink-900">
+                                {detail?.documentStorage
+                                  ? formatStorageBytes(detail.documentStorage.bytesUsed)
+                                  : "0 B"}
+                              </p>
+                            </div>
+                            <div className="rounded-[18px] bg-white px-4 py-3 ring-1 ring-ink-100">
+                              <p className="text-xs font-semibold uppercase tracking-[0.15em] text-ink-400">
+                                Quota
+                              </p>
+                              <p className="mt-2 text-sm font-semibold text-ink-900">
+                                {detail?.documentStorage
+                                  ? formatStorageBytes(
+                                      detail.documentStorage.totalStorageQuotaBytes
+                                    )
+                                  : "0 B"}
+                              </p>
+                            </div>
+                            <div className="rounded-[18px] bg-white px-4 py-3 ring-1 ring-ink-100">
+                              <p className="text-xs font-semibold uppercase tracking-[0.15em] text-ink-400">
+                                Files
+                              </p>
+                              <p className="mt-2 text-sm font-semibold text-ink-900">
+                                {detail?.documentStorage?.fileCount || 0}
+                              </p>
+                            </div>
+                            <div className="rounded-[18px] bg-white px-4 py-3 ring-1 ring-ink-100">
+                              <p className="text-xs font-semibold uppercase tracking-[0.15em] text-ink-400">
+                                Max file size
+                              </p>
+                              <p className="mt-2 text-sm font-semibold text-ink-900">
+                                {detail?.documentStorage
+                                  ? formatStorageBytes(detail.documentStorage.maxFileSizeBytes)
+                                  : "0 B"}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="grid gap-4 xl:grid-cols-2">
+                            <div className="rounded-[18px] border border-ink-100 bg-white px-4 py-4">
+                              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-ink-400">
+                                Largest files
+                              </p>
+                              <div className="mt-3 space-y-3">
+                                {detail?.documentStorage?.largestFiles?.length ? (
+                                  detail.documentStorage.largestFiles.map((file) => (
+                                    <div
+                                      key={file.id}
+                                      className="rounded-[16px] bg-ink-50/50 px-3 py-3"
+                                    >
+                                      <p className="text-sm font-semibold text-ink-900">
+                                        {file.displayName}
+                                      </p>
+                                      <p className="mt-1 text-sm text-ink-500">
+                                        {file.bytesLabel} • {file.source.replace(/_/g, " ")}
+                                      </p>
+                                    </div>
+                                  ))
+                                ) : (
+                                  <p className="text-sm text-ink-500">No stored documents yet.</p>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="rounded-[18px] border border-ink-100 bg-white px-4 py-4">
+                              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-ink-400">
+                                Recent uploads
+                              </p>
+                              <div className="mt-3 space-y-3">
+                                {detail?.documentStorage?.recentUploads?.length ? (
+                                  detail.documentStorage.recentUploads.map((file) => (
+                                    <div
+                                      key={file.id}
+                                      className="rounded-[16px] bg-ink-50/50 px-3 py-3"
+                                    >
+                                      <p className="text-sm font-semibold text-ink-900">
+                                        {file.displayName}
+                                      </p>
+                                      <p className="mt-1 text-sm text-ink-500">
+                                        {file.bytesLabel} • {formatDateTime(file.createdAt)}
+                                      </p>
+                                    </div>
+                                  ))
+                                ) : (
+                                  <p className="text-sm text-ink-500">No uploads recorded yet.</p>
+                                )}
+                              </div>
                             </div>
                           </div>
                         </div>
-                      ))
-                    ) : (
-                      <p className="text-sm text-ink-500">No audit events have been recorded yet.</p>
-                    )}
-                  </div>
-                </DetailBlock>
+                      </DetailBlock>
 
-                <DetailBlock
-                  title="Guardrails"
-                  subtitle="Actions that remove access or data ownership are intentionally constrained."
-                >
-                  <div className="space-y-3">
-                    <div className="flex items-start gap-3 rounded-[18px] bg-sand-50 px-4 py-3">
-                      <ExclamationTriangleIcon className="mt-0.5 h-5 w-5 text-ink-700" />
-                      <p className="text-sm leading-6 text-ink-600">
-                        Suspending an account revokes its live sessions but preserves every owned
-                        record.
-                      </p>
-                    </div>
-                    <div className="flex items-start gap-3 rounded-[18px] bg-white px-4 py-3 ring-1 ring-ink-100">
-                      <UsersIcon className="mt-0.5 h-5 w-5 text-ink-700" />
-                      <p className="text-sm leading-6 text-ink-600">
-                        Deletion is only available for empty accounts so user-owned data never gets
-                        orphaned.
-                      </p>
+                      <DetailBlock
+                        title="Support notes"
+                        subtitle="Internal-only notes for future support follow-up."
+                      >
+                        <div className="space-y-4">
+                          <textarea
+                            value={noteDraft}
+                            onChange={(event) => setNoteDraft(event.target.value)}
+                            rows={4}
+                            placeholder="Add a note about the user, issue, promise, or follow-up."
+                            className="auth-input min-h-[120px]"
+                          />
+                          <button
+                            type="button"
+                            onClick={handleAddNote}
+                            disabled={detailBusyKey !== "" || !noteDraft.trim()}
+                            className="secondary-action w-full justify-center"
+                          >
+                            {detailBusyKey === "add-note" ? "Saving..." : "Save support note"}
+                          </button>
+                          <div className="space-y-3">
+                            {detail?.supportNotes?.length ? (
+                              detail.supportNotes.map((note) => (
+                                <div
+                                  key={note.id}
+                                  className="rounded-[18px] border border-ink-100 bg-white px-4 py-4"
+                                >
+                                  <div className="flex items-start justify-between gap-4">
+                                    <div>
+                                      <p className="text-sm font-semibold text-ink-900">
+                                        {note.authorEmail}
+                                      </p>
+                                      <p className="mt-1 text-xs uppercase tracking-[0.14em] text-ink-400">
+                                        {formatDateTime(note.createdAt)}
+                                      </p>
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        runDetailAction(
+                                          `delete-note-${note.id}`,
+                                          () => deletePlatformManagerSupportNote(note.id),
+                                          "Support note deleted."
+                                        )
+                                      }
+                                      disabled={detailBusyKey !== ""}
+                                      className="text-xs font-semibold uppercase tracking-[0.14em] text-clay-700"
+                                    >
+                                      Delete
+                                    </button>
+                                  </div>
+                                  <p className="mt-3 text-sm leading-6 text-ink-600">{note.body}</p>
+                                </div>
+                              ))
+                            ) : (
+                              <p className="text-sm text-ink-500">No support notes saved yet.</p>
+                            )}
+                          </div>
+                        </div>
+                      </DetailBlock>
+
+                      <DetailBlock
+                        title="Sessions"
+                        subtitle="Recent sessions with auth method, last activity, and expiry state."
+                      >
+                        <div className="space-y-3">
+                          {detail?.sessions?.length ? (
+                            detail.sessions.map((session) => (
+                              <div
+                                key={session.id}
+                                className="rounded-[18px] border border-ink-100 bg-white px-4 py-4"
+                              >
+                                <div className="flex items-start justify-between gap-4">
+                                  <div>
+                                    <div className="flex flex-wrap items-center gap-2">
+                                      <p className="text-sm font-semibold text-ink-900">
+                                        {session.authMethod} / {session.sessionType}
+                                      </p>
+                                      {session.isCurrent ? (
+                                        <span className="rounded-full bg-ink-100 px-3 py-1 text-xs font-semibold text-ink-700">
+                                          Current admin session
+                                        </span>
+                                      ) : null}
+                                    </div>
+                                    <p className="mt-1 text-sm text-ink-500">{session.userAgent}</p>
+                                    <p className="mt-2 text-xs uppercase tracking-[0.14em] text-ink-400">
+                                      Last activity {formatDateTime(session.lastActivityAt)}
+                                    </p>
+                                  </div>
+                                  <span
+                                    className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                                      sessionStatusStyles[session.status] ||
+                                      sessionStatusStyles.active
+                                    }`}
+                                  >
+                                    {session.status}
+                                  </span>
+                                </div>
+                                <div className="mt-3 grid gap-2 text-sm text-ink-600">
+                                  <p>Started: {formatDateTime(session.createdAt)}</p>
+                                  <p>Expires: {formatDateTime(session.expiresAt, "None")}</p>
+                                  <p>IP: {session.ipAddress || "Unknown"}</p>
+                                </div>
+                              </div>
+                            ))
+                          ) : (
+                            <p className="text-sm text-ink-500">No session history found.</p>
+                          )}
+                        </div>
+                      </DetailBlock>
+
+                      <DetailBlock
+                        title="Audit trail"
+                        subtitle="Recent platform-manager actions taken on this account."
+                      >
+                        <div className="space-y-3">
+                          {detail?.auditLogs?.length ? (
+                            detail.auditLogs.map((entry) => (
+                              <div
+                                key={entry.id}
+                                className="rounded-[18px] border border-ink-100 bg-white px-4 py-4"
+                              >
+                                <div className="flex items-start gap-3">
+                                  <div className="mt-1 flex h-9 w-9 items-center justify-center rounded-2xl bg-sand-100 text-ink-700">
+                                    <ClockIcon className="h-4 w-4" />
+                                  </div>
+                                  <div className="min-w-0 flex-1">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                      <p className="text-sm font-semibold text-ink-900">
+                                        {entry.action.replace(/_/g, " ")}
+                                      </p>
+                                      <span className="text-xs uppercase tracking-[0.14em] text-ink-400">
+                                        {formatDateTime(entry.createdAt)}
+                                      </span>
+                                    </div>
+                                    <p className="mt-1 text-sm text-ink-500">
+                                      Actor: {entry.actorEmail || "Unknown"}
+                                    </p>
+                                    {entry.reason ? (
+                                      <p className="mt-2 text-sm leading-6 text-ink-600">
+                                        Reason: {entry.reason}
+                                      </p>
+                                    ) : null}
+                                  </div>
+                                </div>
+                              </div>
+                            ))
+                          ) : (
+                            <p className="text-sm text-ink-500">
+                              No audit events have been recorded yet.
+                            </p>
+                          )}
+                        </div>
+                      </DetailBlock>
                     </div>
                   </div>
-                </DetailBlock>
-              </div>
-            ) : null}
-          </aside>
+                </div>
+              ) : null}
+            </div>
+          </div>
         ) : null}
       </div>
     </div>
