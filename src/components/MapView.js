@@ -112,6 +112,7 @@ const QaMapPreview = ({ latitude, longitude, markers = [] }) => {
 };
 
 const MapView = ({ latitude, longitude, markers = [], zoom = 14, radiusMiles = null }) => {
+  const qaModeEnabled = isQaMode;
   const mapContainerRef = useRef(null);
   const mapRef = useRef(null);
   const providerRef = useRef(null);
@@ -120,10 +121,6 @@ const MapView = ({ latitude, longitude, markers = [], zoom = 14, radiusMiles = n
   const googleMapsRef = useRef(null);
   const [mapError, setMapError] = useState("");
   const markerPoints = buildMarkerPoints(latitude, longitude, markers);
-
-  if (isQaMode) {
-    return <QaMapPreview latitude={latitude} longitude={longitude} markers={markers} />;
-  }
 
   const clearMarkers = useCallback(() => {
     if (providerRef.current === "google") {
@@ -168,9 +165,19 @@ const MapView = ({ latitude, longitude, markers = [], zoom = 14, radiusMiles = n
     }
   }, [clearMarkers, clearRadiusOverlay]);
 
-  useEffect(() => () => destroyMap(), [destroyMap]);
+  useEffect(() => {
+    if (qaModeEnabled) {
+      return undefined;
+    }
+
+    return () => destroyMap();
+  }, [destroyMap, qaModeEnabled]);
 
   useEffect(() => {
+    if (qaModeEnabled) {
+      return undefined;
+    }
+
     let cancelled = false;
 
     const initializeMapbox = () => {
@@ -246,9 +253,10 @@ const MapView = ({ latitude, longitude, markers = [], zoom = 14, radiusMiles = n
     return () => {
       cancelled = true;
     };
-  }, [destroyMap, latitude, longitude, zoom]);
+  }, [destroyMap, latitude, longitude, qaModeEnabled, zoom]);
 
   useEffect(() => {
+    if (qaModeEnabled) return undefined;
     if (!mapRef.current) return;
 
     const points = buildPoints(latitude, longitude, markers);
@@ -282,9 +290,10 @@ const MapView = ({ latitude, longitude, markers = [], zoom = 14, radiusMiles = n
       mapRef.current.setCenter([longitude, latitude]);
       mapRef.current.setZoom(zoom);
     }
-  }, [latitude, longitude, markers, zoom]);
+  }, [latitude, longitude, markers, qaModeEnabled, zoom]);
 
   useEffect(() => {
+    if (qaModeEnabled) return undefined;
     if (!mapRef.current) return;
 
     clearMarkers();
@@ -337,9 +346,10 @@ const MapView = ({ latitude, longitude, markers = [], zoom = 14, radiusMiles = n
           .setLngLat([marker.lng, marker.lat])
           .addTo(mapRef.current);
       });
-  }, [clearMarkers, latitude, longitude, markers]);
+  }, [clearMarkers, latitude, longitude, markers, qaModeEnabled, markerPoints]);
 
   useEffect(() => {
+    if (qaModeEnabled) return undefined;
     if (!mapRef.current) return;
 
     clearRadiusOverlay();
@@ -394,7 +404,11 @@ const MapView = ({ latitude, longitude, markers = [], zoom = 14, radiusMiles = n
         "line-opacity": 0.45,
       },
     });
-  }, [clearRadiusOverlay, latitude, longitude, radiusMiles]);
+  }, [clearRadiusOverlay, latitude, longitude, qaModeEnabled, radiusMiles]);
+
+  if (qaModeEnabled) {
+    return <QaMapPreview latitude={latitude} longitude={longitude} markers={markers} />;
+  }
 
   if (mapError) {
     return (

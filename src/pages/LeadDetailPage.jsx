@@ -1364,13 +1364,10 @@ const LeadDetailPage = () => {
     typeof lead.property === "object" ? lead.property?._id : lead.property;
   const propertyWorkspaceActive = Boolean(lead.inPropertyWorkspace && propertyWorkspaceId);
   const liveLead = buildLiveLead(lead, detailForm);
-  const dealForm = useMemo(
-    () => ({
-      ...buildDealForm(analysis?.dealInputs || savedReports[0]?.dealSnapshot || {}, liveLead),
-      ...dealOverrides,
-    }),
-    [analysis?.dealInputs, dealOverrides, liveLead, savedReports]
-  );
+  const dealForm = {
+    ...buildDealForm(analysis?.dealInputs || savedReports[0]?.dealSnapshot || {}, liveLead),
+    ...dealOverrides,
+  };
   const workingTargetOffer =
     detailForm.targetOffer === "" ? null : Number(detailForm.targetOffer);
   const workingExitValue =
