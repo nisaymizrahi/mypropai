@@ -325,6 +325,23 @@ export const buildDealPayload = (deal = {}) => ({
 
 export const createEmptyMasterReport = () => null;
 
+export const normalizeMasterReportTitle = (value = "", fallbackAddress = "Property") => {
+  const title = String(value || "").trim();
+  if (!title) {
+    return `${fallbackAddress || "Property"} - Master Deal Report`;
+  }
+
+  if (title.includes("AI Comps Report")) {
+    return title.replace("AI Comps Report", "Master Deal Report");
+  }
+
+  if (title.includes("Saved comps snapshot")) {
+    return title.replace("Saved comps snapshot", "Saved Master Deal Report");
+  }
+
+  return title;
+};
+
 export const getMasterReportPrimaryComps = (report = null) =>
   Array.isArray(report?.comps?.primary?.items) ? report.comps.primary.items : [];
 
@@ -337,7 +354,7 @@ export const normalizeMasterReport = (report = {}, fallbackSubject = {}) => {
   const subject = report.subject || report.subjectSnapshot || fallbackSubject || {};
   return {
     ...report,
-    title: report.title || `${subject.address || report.address || "Property"} - Master Deal Report`,
+    title: normalizeMasterReportTitle(report.title, subject.address || report.address || "Property"),
     subject,
     propertySnapshot: report.propertySnapshot || report.reportData?.propertySnapshot || null,
     dealInputs: report.dealInputs || report.dealSnapshot || report.reportData?.dealInputs || null,
@@ -510,7 +527,7 @@ export const buildSavedReportFromLegacySnapshot = (
     _id: fallbackId,
     kind: "comps",
     contextType: "lead",
-    title: `${subject.address || "Property"} - Saved comps snapshot`,
+    title: `${subject.address || "Property"} - Saved Master Deal Report`,
     address: subject.address || "",
     generatedAt: snapshot.generatedAt,
     subjectSnapshot: subject,

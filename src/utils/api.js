@@ -1,5 +1,6 @@
 // client/src/utils/api.js
 import { API_BASE_URL } from "../config";
+import { MAPBOX_TOKEN } from "./env";
 
 const getErrorPayload = async (res) => {
   try {
@@ -121,7 +122,7 @@ const getTenantAuthHeaders = (isFormData = false) => {
  * ==========================
  */
 export const geocodeAddress = async (address) => {
-  const token = process.env.REACT_APP_MAPBOX_TOKEN;
+  const token = MAPBOX_TOKEN;
   if (!token) throw new Error("Missing REACT_APP_MAPBOX_TOKEN");
   const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(
     address
@@ -132,7 +133,7 @@ export const geocodeAddress = async (address) => {
 };
 
 export const searchAddressSuggestions = async (query, signal) => {
-  const token = process.env.REACT_APP_MAPBOX_TOKEN;
+  const token = MAPBOX_TOKEN;
   if (!token) throw new Error("Missing REACT_APP_MAPBOX_TOKEN");
   if (!query?.trim()) return [];
 
@@ -1170,6 +1171,29 @@ export const requestPasswordReset = async (email) => {
     body: JSON.stringify({ email }),
   });
   if (!res.ok) throw new Error((await res.json()).message || "Failed to request password reset");
+  return res.json();
+};
+
+export const getEmailPreferences = async (token) => {
+  const params = new URLSearchParams({ token });
+  const res = await fetch(`${API_BASE_URL}/email-preferences?${params.toString()}`);
+  if (!res.ok) {
+    throw new Error(await getErrorMessage(res, "Invalid or expired email preferences link"));
+  }
+  return res.json();
+};
+
+export const updateEmailPreferences = async ({ token, marketingConsent }) => {
+  const res = await fetch(`${API_BASE_URL}/email-preferences`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token, marketingConsent }),
+  });
+
+  if (!res.ok) {
+    throw new Error(await getErrorMessage(res, "Failed to update email preferences"));
+  }
+
   return res.json();
 };
 

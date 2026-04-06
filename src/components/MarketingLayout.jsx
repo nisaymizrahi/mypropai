@@ -4,7 +4,7 @@ import { ArrowRightIcon } from "@heroicons/react/24/outline";
 
 import BrandLogo from "./BrandLogo";
 import PublicLegalLinks from "./PublicLegalLinks";
-import { marketingNavItems, resourceArticles } from "../content/marketingContent";
+import { marketingNavItems, pricingModel, resourceArticles } from "../content/marketingContent";
 import { trackMarketingEvent } from "../utils/analytics";
 
 const footerCollections = [
@@ -14,6 +14,7 @@ const footerCollections = [
       { label: "Homepage", to: "/" },
       { label: "Product", to: "/product" },
       { label: "Pricing", to: "/pricing" },
+      { label: "Compare", to: "/compare/flipper-force" },
       { label: "About", to: "/about" },
     ],
   },
@@ -129,8 +130,8 @@ function MarketingLayout({ children }) {
                   One workspace for acquisitions, execution, and property operations.
                 </h2>
                 <p className="mt-4 max-w-2xl text-sm leading-7 text-ink-600 sm:text-base">
-                  Start with the core operating system, then upgrade when you need recurring premium
-                  analysis and reporting.
+                  Start with the core operating system, then upgrade when recurring premium analysis,
+                  reporting, and credits become part of the weekly workflow.
                 </p>
                 <div className="mt-5 flex flex-wrap gap-3">
                   <Link
@@ -184,7 +185,10 @@ function MarketingLayout({ children }) {
 
             <div className="flex flex-wrap items-center justify-between gap-4">
               <PublicLegalLinks className="mt-0" />
-              <p className="text-sm text-ink-500">Starter is free. Pro is $49 per month.</p>
+              <p className="text-sm text-ink-500">
+                Starter is free. Pro is {pricingModel.proMonthlyPrice} per month with a{" "}
+                {pricingModel.proTrialDays}-day trial.
+              </p>
             </div>
           </div>
         </footer>

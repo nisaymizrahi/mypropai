@@ -1504,7 +1504,7 @@ const PropertyFinancePanel = ({
       <div className="space-y-6">
         {!embedded ? (
           <section className="surface-panel px-6 py-7 sm:px-7">
-            <span className="eyebrow">Finance > Budget vs Actual</span>
+            <span className="eyebrow">Finance / Budget vs Actual</span>
             <h3 className="mt-4 font-display text-[2.15rem] leading-[0.96] text-ink-900">
               Expected cost plan versus actual project spend
             </h3>
@@ -1547,7 +1547,7 @@ const PropertyFinancePanel = ({
           <section className="surface-panel px-6 py-7 sm:px-7">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
               <div>
-                <span className="eyebrow">Finance > Draw Operations</span>
+                <span className="eyebrow">Finance / Draw Operations</span>
                 <h3 className="mt-4 font-display text-[2.15rem] leading-[0.96] text-ink-900">
                   Run lender draw workflow from one operational board
                 </h3>
@@ -1939,7 +1939,7 @@ const PropertyFinancePanel = ({
       <div className="space-y-6">
         {!embedded ? (
           <section className="surface-panel px-6 py-7 sm:px-7">
-            <span className="eyebrow">Finance > Payment Schedule</span>
+            <span className="eyebrow">Finance / Payment Schedule</span>
             <h3 className="mt-4 font-display text-[2.15rem] leading-[0.96] text-ink-900">
               Turn modeled debt into a live servicing and cash board
             </h3>
@@ -2375,7 +2375,7 @@ const PropertyFinancePanel = ({
       <div className="space-y-6">
         {!embedded ? (
           <section className="surface-panel px-6 py-7 sm:px-7">
-            <span className="eyebrow">Finance > Sources & Uses</span>
+            <span className="eyebrow">Finance / Sources & Uses</span>
             <h3 className="mt-4 font-display text-[2.15rem] leading-[0.96] text-ink-900">
               Show exactly where the money comes from and where it goes
             </h3>
@@ -2479,7 +2479,7 @@ const PropertyFinancePanel = ({
       <div className="space-y-6">
         {!embedded ? (
           <section className="surface-panel px-6 py-7 sm:px-7">
-            <span className="eyebrow">Finance > Capital Stack</span>
+            <span className="eyebrow">Finance / Capital Stack</span>
             <h3 className="mt-4 font-display text-[2.15rem] leading-[0.96] text-ink-900">
               Model every source of capital, payment draft, and draw flow
             </h3>
@@ -2891,7 +2891,7 @@ const PropertyFinancePanel = ({
     <div className="space-y-6">
       {!embedded ? (
         <section className="surface-panel px-6 py-7 sm:px-7">
-          <span className="eyebrow">Finance > Financial Health</span>
+          <span className="eyebrow">Finance / Financial Health</span>
           <h3 className="mt-4 font-display text-[2.15rem] leading-[0.96] text-ink-900">
             Keep the entire project financial picture in one control tower
           </h3>

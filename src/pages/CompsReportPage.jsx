@@ -15,7 +15,6 @@ import {
 } from "../utils/api";
 import { geocodeAddress, searchAddressSuggestions } from "../utils/locationSearch";
 import {
-  buildAnalysisFromSavedReport,
   buildCompsFilterPayload,
   buildCompsFilters,
   buildCompsReportForm,
@@ -306,6 +305,13 @@ const CompsReportPage = () => {
         const next = {
           ...previous,
           ...mappedPreview,
+          sellerAskingPrice:
+            mappedPreview.sellerAskingPrice !== "" ? mappedPreview.sellerAskingPrice : previewSource.sellerAskingPrice,
+          rehabEstimate:
+            mappedPreview.rehabEstimate !== "" ? mappedPreview.rehabEstimate : previewSource.rehabEstimate,
+          targetOffer:
+            mappedPreview.targetOffer !== "" ? mappedPreview.targetOffer : previewSource.targetOffer,
+          arv: mappedPreview.arv !== "" ? mappedPreview.arv : previewSource.arv,
           latitude: hasCoordinateValue(fallbackLatitude) ? fallbackLatitude : previous.latitude,
           longitude: hasCoordinateValue(fallbackLongitude) ? fallbackLongitude : previous.longitude,
         };
@@ -316,6 +322,7 @@ const CompsReportPage = () => {
       setDealForm((previous) => ({
         ...previous,
         askingPrice: previous.askingPrice || mappedPreview.sellerAskingPrice || previous.askingPrice,
+        rehabEstimate: previous.rehabEstimate || previewSource.rehabEstimate || previous.rehabEstimate,
       }));
       setSuggestions([]);
       resetReport();
@@ -464,7 +471,7 @@ const CompsReportPage = () => {
       </section>
 
       <section className="grid gap-6 xl:grid-cols-[minmax(0,1.25fr)_360px]">
-        <div className="section-card p-6">
+        <div className="section-card p-6" data-testid="property-current-snapshot">
           <div className="flex items-start justify-between gap-4">
             <div>
               <h2 className="text-xl font-semibold text-ink-900">Property intake</h2>

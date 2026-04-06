@@ -993,7 +993,7 @@ const PropertyFinanceReports = ({
       <section className="surface-panel px-6 py-7 sm:px-7">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
           <div>
-            <span className="eyebrow">Finance > Reports</span>
+            <span className="eyebrow">Finance / Reports</span>
             <h3 className="mt-4 font-display text-[2.15rem] leading-[0.96] text-ink-900">
               Export lender-ready and investor-ready project reports
             </h3>

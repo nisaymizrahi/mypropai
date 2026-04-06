@@ -4,6 +4,7 @@ import {
   a11yReportFile,
   defaultBaseUrl,
   ensureDir,
+  getA11yPages,
   resultsDir,
   runId,
   startLocalQaServer,
@@ -11,13 +12,9 @@ import {
 } from "./shared.mjs";
 import {
   attachConsoleCapture,
-  buildMasterReport,
-  fillPropertyIntake,
-  openHomepage,
-  openMasterReportPage,
-  openSavedReport,
-  refreshPropertyFacts,
-  saveMasterReport,
+  getQaBillingGateMessage,
+  isQaBillingGateError,
+  prepareAuditPage,
 } from "./browserHelpers.mjs";
 
 const server = await startLocalQaServer();
@@ -54,6 +51,32 @@ async function collectPageAudit({ id, label, prepare }) {
       incomplete: axe.incomplete.length,
       consoleErrors,
     };
+  } catch (error) {
+    if (isQaBillingGateError(error)) {
+      return {
+        id,
+        label,
+        url: page.url(),
+        violations: [],
+        passes: 0,
+        incomplete: 0,
+        consoleErrors,
+        status: "blocked",
+        blockedReason: getQaBillingGateMessage(error),
+      };
+    }
+
+    return {
+      id,
+      label,
+      url: page.url(),
+      violations: [],
+      passes: 0,
+      incomplete: 0,
+      consoleErrors,
+      status: "error",
+      error: error.message,
+    };
   } finally {
     await page.close();
   }
@@ -62,43 +85,17 @@ async function collectPageAudit({ id, label, prepare }) {
 const pageResults = [];
 
 try {
-  pageResults.push(
-    await collectPageAudit({
-      id: "homepage",
-      label: "Homepage",
-      prepare: async (page) => {
-        await openHomepage(page);
-      },
-    })
-  );
-
-  pageResults.push(
-    await collectPageAudit({
-      id: "master_report",
-      label: "Master Deal Report",
-      prepare: async (page) => {
-        await openMasterReportPage(page);
-        await fillPropertyIntake(page);
-        await refreshPropertyFacts(page);
-        await buildMasterReport(page);
-      },
-    })
-  );
-
-  pageResults.push(
-    await collectPageAudit({
-      id: "saved_report",
-      label: "Saved Report",
-      prepare: async (page) => {
-        await openMasterReportPage(page);
-        await fillPropertyIntake(page);
-        await refreshPropertyFacts(page);
-        await buildMasterReport(page);
-        await saveMasterReport(page);
-        await openSavedReport(page);
-      },
-    })
-  );
+  for (const pageConfig of getA11yPages()) {
+    pageResults.push(
+      await collectPageAudit({
+        id: pageConfig.id,
+        label: pageConfig.label,
+        prepare: async (page) => {
+          await prepareAuditPage(page, pageConfig);
+        },
+      })
+    );
+  }
 
   await writeJson(a11yReportFile, {
     generatedAt: new Date().toISOString(),

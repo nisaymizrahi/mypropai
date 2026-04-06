@@ -1,5 +1,4 @@
-const GA_MEASUREMENT_ID = (process.env.REACT_APP_GA_MEASUREMENT_ID || "").trim();
-const ANALYTICS_DEBUG = process.env.REACT_APP_ANALYTICS_DEBUG === "true";
+import { ANALYTICS_DEBUG, GA_MEASUREMENT_ID } from "./env";
 
 let initialized = false;
 let lastPageViewKey = "";

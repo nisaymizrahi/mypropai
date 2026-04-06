@@ -4,33 +4,49 @@ import { ArrowRightIcon, CheckIcon } from "@heroicons/react/24/outline";
 
 import MarketingLayout from "../components/MarketingLayout";
 import Seo from "../components/Seo";
-import { addOnProducts, faqItems, pricingPlans } from "../content/marketingContent";
+import {
+  addOnProducts,
+  faqItems,
+  planComparisonRows,
+  pricingFacts,
+  pricingModel,
+  pricingPlans,
+} from "../content/marketingContent";
 
 function PricingPage() {
   return (
     <MarketingLayout>
       <Seo
         title="Pricing | Fliprop"
-        description="Compare Fliprop Starter and Pro, including the $49/month Pro plan, included AI comps reports, and one-off add-ons."
+        description={`Compare Fliprop Starter and Pro, including the ${pricingModel.proMonthlyPrice}/month Pro plan, ${pricingModel.proMonthlyCredits} included comps credits per paid cycle, and flexible add-ons.`}
         path="/pricing"
       />
 
       <section className="marketing-hero px-6 py-8 sm:px-8 sm:py-10">
         <span className="eyebrow">Pricing</span>
         <h1 className="mt-5 max-w-4xl font-display text-[3rem] leading-[0.96] text-balance text-ink-900 sm:text-[3.8rem] xl:text-[4.2rem]">
-          Start with the workspace. Pay for premium analysis when the workflow justifies it.
+          Start with the workspace. Turn on premium analysis when the workload justifies it.
         </h1>
-        <p className="mt-5 max-w-2xl text-sm leading-7 text-ink-600 sm:text-base">
-          Starter gets teams into the operating system quickly. Pro adds recurring AI workflows,
-          included comps reports, and simpler subscription management for teams that use the premium
-          tools often.
+        <p className="mt-5 max-w-3xl text-sm leading-7 text-ink-600 sm:text-base">
+          Fliprop now uses a simpler pricing model: Starter is free, Pro is{" "}
+          {pricingModel.proMonthlyPrice} per month, Pro includes a {pricingModel.proTrialDays}-day
+          trial, and premium usage can still scale with credits and one-off add-ons.
         </p>
 
         <div className="mt-7 grid gap-3 sm:grid-cols-3">
           {[
-            ["Start free", "Starter gives operators the core workspace with no subscription friction."],
-            ["Upgrade cleanly", "Pro stays simple at $49 per month with included premium workflows."],
-            ["Buy as needed", "Usage-based add-ons keep occasional premium actions flexible."],
+            [
+              "Start free",
+              "Starter gives operators the core workspace with no subscription friction.",
+            ],
+            [
+              "Upgrade cleanly",
+              `Pro stays simple at ${pricingModel.proMonthlyPrice} per month with ${pricingModel.proMonthlyCredits} included comps credits per paid cycle.`,
+            ],
+            [
+              "Buy as needed",
+              `Use ${pricingModel.starterPackPrice} Starter packs, ${pricingModel.proTopUpPrice} Pro top-ups, and one-off screening when needed.`,
+            ],
           ].map(([title, detail]) => (
             <div key={title} className="marketing-mini-card">
               <h2 className="text-base font-semibold text-ink-900">{title}</h2>
@@ -38,6 +54,18 @@ function PricingPage() {
             </div>
           ))}
         </div>
+      </section>
+
+      <section className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        {pricingFacts.map((fact) => (
+          <div key={fact.label} className="surface-panel p-5">
+            <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-ink-400">
+              {fact.label}
+            </p>
+            <p className="mt-4 font-display text-[2rem] leading-none text-ink-900">{fact.value}</p>
+            <p className="mt-3 text-sm leading-6 text-ink-600">{fact.detail}</p>
+          </div>
+        ))}
       </section>
 
       <section className="mt-6 grid gap-4 xl:grid-cols-2">
@@ -94,18 +122,54 @@ function PricingPage() {
       <section className="surface-panel mt-6 px-6 py-7 sm:px-8">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <span className="eyebrow">Usage-based add-ons</span>
+            <span className="eyebrow">Plan comparison</span>
             <h2 className="mt-4 font-display text-[2.1rem] leading-none text-ink-900">
-              Buy premium actions one at a time when needed
+              Clear plan differences, no hidden math
             </h2>
           </div>
           <p className="max-w-xl text-sm leading-6 text-ink-600">
-            This pricing model is helpful for teams that want the operating system now and only
-            occasional premium analysis later.
+            The best pricing page explains both the core platform and the premium usage model in one
+            pass, so buyers can see what changes when they move from Starter to Pro.
           </p>
         </div>
 
-        <div className="mt-6 grid gap-4 md:grid-cols-2">
+        <div className="mt-6 overflow-x-auto rounded-[20px] border border-ink-100 bg-white/75">
+          <div className="min-w-[720px]">
+            <div className="grid grid-cols-[minmax(0,1.5fr)_minmax(0,0.7fr)_minmax(0,0.7fr)] border-b border-ink-100 bg-white/80 px-5 py-4 text-sm font-semibold text-ink-900">
+              <div>Capability</div>
+              <div className="text-center">Starter</div>
+              <div className="text-center">Pro</div>
+            </div>
+
+            {planComparisonRows.map((row) => (
+              <div
+                key={row.label}
+                className="grid grid-cols-[minmax(0,1.5fr)_minmax(0,0.7fr)_minmax(0,0.7fr)] border-b border-ink-100 px-5 py-4 text-sm last:border-b-0"
+              >
+                <div className="pr-4 leading-6 text-ink-700">{row.label}</div>
+                <div className="text-center leading-6 text-ink-600">{row.starter}</div>
+                <div className="text-center leading-6 text-ink-600">{row.pro}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="surface-panel mt-6 px-6 py-7 sm:px-8">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <span className="eyebrow">Usage-based add-ons</span>
+            <h2 className="mt-4 font-display text-[2.1rem] leading-none text-ink-900">
+              Premium actions you can buy separately
+            </h2>
+          </div>
+          <p className="max-w-xl text-sm leading-6 text-ink-600">
+            This keeps Fliprop flexible for occasional users while still rewarding teams that move
+            into recurring premium workflows.
+          </p>
+        </div>
+
+        <div className="mt-6 grid gap-4 md:grid-cols-3">
           {addOnProducts.map((product) => (
             <div key={product.name} className="section-card p-5">
               <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-ink-400">
@@ -116,7 +180,9 @@ function PricingPage() {
                   <h3 className="text-lg font-semibold text-ink-900">{product.name}</h3>
                   <p className="mt-3 text-sm leading-6 text-ink-600">{product.detail}</p>
                 </div>
-                <p className="font-display text-[2rem] leading-none text-ink-900">{product.price}</p>
+                <p className="text-right font-display text-[1.7rem] leading-none text-ink-900">
+                  {product.price}
+                </p>
               </div>
             </div>
           ))}
@@ -142,7 +208,7 @@ function PricingPage() {
             Open a Starter workspace now and upgrade later.
           </h2>
           <p className="mt-4 text-sm leading-6 text-ink-600">
-            The cleanest path is to get the team into one system, then turn on Pro when premium
+            The cleanest path is to centralize the workflow first, then activate Pro when premium
             analysis becomes recurring instead of occasional.
           </p>
           <div className="mt-6 flex flex-wrap gap-3">

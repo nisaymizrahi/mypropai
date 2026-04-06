@@ -7,29 +7,38 @@ import Seo from "../components/Seo";
 import { aboutPrinciples, productModules, resourcesIntro } from "../content/marketingContent";
 
 function AboutPage() {
-  const timeline = [
-    ["The product got real first", "Lead tracking, comps, tasks, vendors, billing, and property workflows already exist in the app."],
-    ["Now the public story is catching up", "The website is being reshaped around buyer outcomes, pricing clarity, and editorial depth."],
-    ["The next step is trust at first glance", "Analytics, content, and stronger conversion surfaces make the product feel more investable."],
+  const companyStory = [
+    [
+      "Operator reality first",
+      "Real estate teams make decisions across pipeline review, pricing, rehab execution, document management, and billing every week.",
+    ],
+    [
+      "One operating layer instead of tool sprawl",
+      "Fliprop exists to keep that work in a single system so teams can stop rebuilding context between tools.",
+    ],
+    [
+      "Clarity builds trust",
+      "The product, pricing model, and editorial should all help buyers understand the platform quickly and confidently.",
+    ],
   ];
 
   return (
     <MarketingLayout>
       <Seo
         title="About | Fliprop"
-        description="Learn how Fliprop is positioning itself as a professional SaaS workspace for acquisitions, execution, and property operations."
+        description="Learn how Fliprop is building a professional SaaS workspace for acquisitions, execution, and property operations."
         path="/about"
       />
 
       <section className="marketing-hero px-6 py-8 sm:px-8 sm:py-10">
         <span className="eyebrow">About Fliprop</span>
         <h1 className="mt-5 max-w-4xl font-display text-[3rem] leading-[0.96] text-balance text-ink-900 sm:text-[3.8rem] xl:text-[4.2rem]">
-          We are turning a capable real estate workspace into a company buyers can trust quickly.
+          Built for owner-led real estate teams that need clarity from lead intake to daily operations.
         </h1>
         <p className="mt-5 max-w-3xl text-sm leading-7 text-ink-600 sm:text-base">
-          The product already supports lead tracking, comps, execution planning, tasks, vendors, and
-          property work. The next step is to present it with the clarity, editorial depth, and
-          professional structure people expect from a real SaaS product.
+          Fliprop combines acquisitions, rehab execution, property operations, premium analysis, and
+          billing into one calmer operating system. The goal is simple: help teams make better
+          decisions without carrying the same property context across five different tools.
         </p>
       </section>
 
@@ -47,7 +56,7 @@ function AboutPage() {
 
       <section className="mt-6 grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
         <div className="surface-panel p-6">
-          <span className="eyebrow">What exists today</span>
+          <span className="eyebrow">What the platform includes</span>
           <div className="mt-5 grid gap-4 md:grid-cols-2">
             {productModules.map((module) => (
               <div key={module.title} className="section-card p-5">
@@ -70,8 +79,8 @@ function AboutPage() {
           <div className="section-card mt-5 p-5">
             <h3 className="text-base font-semibold text-ink-900">The goal</h3>
             <p className="mt-3 text-sm leading-6 text-ink-600">
-              Make the public experience feel as intentional as the product itself, then use helpful
-              resources to bring the right buyers into the signup flow.
+              Earn trust before the signup by pairing a clearer product story with genuinely useful
+              resources for acquisitions, rehab planning, and operations.
             </p>
             <Link
               to="/resources"
@@ -90,19 +99,19 @@ function AboutPage() {
       <section className="surface-panel mt-6 px-6 py-7 sm:px-8">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <span className="eyebrow">Progression</span>
+            <span className="eyebrow">What we believe</span>
             <h2 className="mt-4 font-display text-[2.1rem] leading-none text-ink-900">
-              How the company narrative is evolving
+              Software should reduce decision friction, not add another layer of management overhead
             </h2>
           </div>
           <p className="max-w-xl text-sm leading-6 text-ink-600">
-            The strongest version of the brand is the one that matches the product surface, the
-            pricing model, and the educational content buyers need before they trust the signup flow.
+            Fliprop is at its best when buyers can see both the platform depth and the simplicity of
+            getting started with it.
           </p>
         </div>
 
         <div className="marketing-timeline mt-6 space-y-5">
-          {timeline.map(([title, detail]) => (
+          {companyStory.map(([title, detail]) => (
             <div key={title} className="marketing-timeline-item">
               <h3 className="text-lg font-semibold text-ink-900">{title}</h3>
               <p className="mt-2 text-sm leading-6 text-ink-600">{detail}</p>

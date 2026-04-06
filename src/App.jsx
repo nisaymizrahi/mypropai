@@ -15,6 +15,7 @@ const DashboardLayout = lazy(() => import("./components/DashboardLayout"));
 const Homepage = lazy(() => import("./pages/Homepage"));
 const ProductPage = lazy(() => import("./pages/ProductPage"));
 const PricingPage = lazy(() => import("./pages/PricingPage"));
+const FlipperForceComparisonPage = lazy(() => import("./pages/FlipperForceComparisonPage"));
 const AboutPage = lazy(() => import("./pages/AboutPage"));
 const ResourcesPage = lazy(() => import("./pages/ResourcesPage"));
 const ResourceArticlePage = lazy(() => import("./pages/ResourceArticlePage"));
@@ -22,6 +23,7 @@ const LoginPage = lazy(() => import("./pages/LoginPage"));
 const LoginContinuePage = lazy(() => import("./pages/LoginContinuePage"));
 const CompleteProfilePage = lazy(() => import("./pages/CompleteProfilePage"));
 const ForgotPasswordPage = lazy(() => import("./pages/ForgotPasswordPage"));
+const EmailPreferencesPage = lazy(() => import("./pages/EmailPreferencesPage"));
 const HelpPage = lazy(() => import("./pages/HelpPage"));
 const LegalDocumentPage = lazy(() => import("./pages/LegalDocumentPage"));
 const ResetPasswordPage = lazy(() => import("./pages/ResetPasswordPage"));
@@ -190,6 +192,14 @@ function App() {
               }
             />
             <Route
+              path="/compare/flipper-force"
+              element={
+                <PublicRoute>
+                  <FlipperForceComparisonPage />
+                </PublicRoute>
+              }
+            />
+            <Route
               path="/resources"
               element={
                 <PublicRoute>
@@ -250,6 +260,14 @@ function App() {
               element={
                 <PublicRoute>
                   <HelpPage />
+                </PublicRoute>
+              }
+            />
+            <Route
+              path="/email-preferences"
+              element={
+                <PublicRoute>
+                  <EmailPreferencesPage />
                 </PublicRoute>
               }
             />

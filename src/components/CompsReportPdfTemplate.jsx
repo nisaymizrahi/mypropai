@@ -8,9 +8,10 @@ import {
   getMasterReportPrimaryComps,
   normalizeComparableRecord,
 } from "../utils/compsReport";
+import { publicAssetUrl } from "../utils/env";
 
-const logoMark = `${process.env.PUBLIC_URL}/brand/brand-mark.svg`;
-const logoHorizontal = `${process.env.PUBLIC_URL}/brand/brand-logo-horizontal.svg`;
+const logoMark = publicAssetUrl("brand/brand-mark.svg");
+const logoHorizontal = publicAssetUrl("brand/brand-logo-horizontal.svg");
 
 const formatNumber = (value, suffix = "") => {
   if (value === null || value === undefined || value === "") return "—";

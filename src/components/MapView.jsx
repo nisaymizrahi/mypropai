@@ -3,10 +3,8 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { loadGoogleMaps } from "../utils/locationSearch";
+import { GOOGLE_MAPS_API_KEY, MAPBOX_TOKEN } from "../utils/env";
 import { QA_MAP_PROVIDER, isQaMode } from "../qa/browser/config";
-
-const GOOGLE_MAPS_API_KEY = process.env.REACT_APP_GOOGLE_MAPS_API_KEY || "";
-const MAPBOX_TOKEN = process.env.REACT_APP_MAPBOX_TOKEN || "";
 
 const buildPoints = (latitude, longitude, markers = []) =>
   [{ lat: latitude, lng: longitude }, ...markers].filter(
@@ -53,6 +51,30 @@ const buildCircleCoordinates = (latitude, longitude, radiusMiles, steps = 64) =>
   }
 
   return coordinates;
+};
+
+const onMapboxStyleReady = (map, callback) => {
+  if (!map || typeof callback !== "function") {
+    return () => {};
+  }
+
+  if (map.isStyleLoaded?.()) {
+    callback();
+    return () => {};
+  }
+
+  let cancelled = false;
+  const handleLoad = () => {
+    if (cancelled) return;
+    callback();
+  };
+
+  map.once("load", handleLoad);
+
+  return () => {
+    cancelled = true;
+    map.off?.("load", handleLoad);
+  };
 };
 
 const QaMapPreview = ({ latitude, longitude, markers = [] }) => {
@@ -135,6 +157,11 @@ const MapView = ({ latitude, longitude, markers = [], zoom = 14, radiusMiles = n
     if (providerRef.current === "google") {
       radiusOverlayRef.current?.setMap?.(null);
     } else if (providerRef.current === "mapbox" && mapRef.current) {
+      if (!mapRef.current.isStyleLoaded?.()) {
+        radiusOverlayRef.current = null;
+        return;
+      }
+
       if (mapRef.current.getLayer("deal-report-radius-fill")) {
         mapRef.current.removeLayer("deal-report-radius-fill");
       }
@@ -373,37 +400,55 @@ const MapView = ({ latitude, longitude, markers = [], zoom = 14, radiusMiles = n
     const circleCoordinates = buildCircleCoordinates(latitude, longitude, radiusMiles);
     if (!circleCoordinates.length) return;
 
-    mapRef.current.addSource("deal-report-radius", {
-      type: "geojson",
-      data: {
-        type: "Feature",
-        geometry: {
-          type: "Polygon",
-          coordinates: [circleCoordinates],
+    let cancelled = false;
+    const renderRadiusOverlay = () => {
+      if (cancelled || !mapRef.current?.isStyleLoaded?.()) {
+        return;
+      }
+
+      if (mapRef.current.getSource("deal-report-radius")) {
+        mapRef.current.removeSource("deal-report-radius");
+      }
+
+      mapRef.current.addSource("deal-report-radius", {
+        type: "geojson",
+        data: {
+          type: "Feature",
+          geometry: {
+            type: "Polygon",
+            coordinates: [circleCoordinates],
+          },
         },
-      },
-    });
+      });
 
-    mapRef.current.addLayer({
-      id: "deal-report-radius-fill",
-      type: "fill",
-      source: "deal-report-radius",
-      paint: {
-        "fill-color": "#d97706",
-        "fill-opacity": 0.08,
-      },
-    });
+      mapRef.current.addLayer({
+        id: "deal-report-radius-fill",
+        type: "fill",
+        source: "deal-report-radius",
+        paint: {
+          "fill-color": "#d97706",
+          "fill-opacity": 0.08,
+        },
+      });
 
-    mapRef.current.addLayer({
-      id: "deal-report-radius-outline",
-      type: "line",
-      source: "deal-report-radius",
-      paint: {
-        "line-color": "#d97706",
-        "line-width": 2,
-        "line-opacity": 0.45,
-      },
-    });
+      mapRef.current.addLayer({
+        id: "deal-report-radius-outline",
+        type: "line",
+        source: "deal-report-radius",
+        paint: {
+          "line-color": "#d97706",
+          "line-width": 2,
+          "line-opacity": 0.45,
+        },
+      });
+    };
+
+    const detach = onMapboxStyleReady(mapRef.current, renderRadiusOverlay);
+
+    return () => {
+      cancelled = true;
+      detach();
+    };
   }, [clearRadiusOverlay, latitude, longitude, qaModeEnabled, radiusMiles]);
 
   if (qaModeEnabled) {

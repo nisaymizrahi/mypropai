@@ -1,7 +1,8 @@
 import React from "react";
+import { publicAssetUrl } from "../utils/env";
 
-const brandMark = `${process.env.PUBLIC_URL}/brand/brand-mark.svg`;
-const brandLogoHorizontal = `${process.env.PUBLIC_URL}/brand/brand-logo-horizontal.svg`;
+const brandMark = publicAssetUrl("brand/brand-mark.svg");
+const brandLogoHorizontal = publicAssetUrl("brand/brand-logo-horizontal.svg");
 
 const BrandLogo = ({
   caption = "",

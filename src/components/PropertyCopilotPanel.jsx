@@ -8,7 +8,7 @@ import {
   XMarkIcon,
 } from "@heroicons/react/24/outline";
 
-import { askPropertyCopilot } from "../utils/api";
+import { askPropertyCopilot, getDocumentAssetAccessUrl } from "../utils/api";
 
 const QUICK_PROMPTS_BY_TAB = {
   overview: [
@@ -88,6 +88,7 @@ const PropertyCopilotPanel = ({
   propertyKey,
   propertyTitle,
   activeTab,
+  followUpSuggestions = [],
   disabled = false,
   onTasksChanged,
 }) => {
@@ -227,6 +228,17 @@ const PropertyCopilotPanel = ({
 
     if (action?.type === "refresh_tasks") {
       onTasksChanged?.();
+      return;
+    }
+
+    if (action?.type === "open_document" && action.assetId) {
+      getDocumentAssetAccessUrl(action.assetId)
+        .then((payload) => {
+          if (payload?.url) {
+            window.open(payload.url, "_blank", "noopener,noreferrer");
+          }
+        })
+        .catch(() => null);
     }
   };
 
@@ -297,7 +309,28 @@ const PropertyCopilotPanel = ({
             </div>
 
             <div className="border-b border-ink-100 px-5 py-4">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-400">
+              {followUpSuggestions.length > 0 ? (
+                <>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-400">
+                    Suggested next moves
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {followUpSuggestions.map((prompt) => (
+                      <button
+                        key={prompt}
+                        type="button"
+                        onClick={() => submitMessage(prompt)}
+                        disabled={isSending || disabled}
+                        className="rounded-full bg-sand-100 px-3 py-2 text-left text-xs font-semibold text-ink-700 transition hover:bg-sand-200 disabled:cursor-not-allowed disabled:text-ink-400"
+                      >
+                        {prompt}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              ) : null}
+
+              <p className={`text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-400 ${followUpSuggestions.length > 0 ? "mt-4" : ""}`}>
                 Try asking
               </p>
               <div className="mt-3 flex flex-wrap gap-2">

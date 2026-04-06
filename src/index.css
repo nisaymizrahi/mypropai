@@ -26,11 +26,20 @@
 
   body {
     min-height: 100vh;
-    font-family: "Manrope", sans-serif;
+    font-family: "Source Sans 3", sans-serif;
+    line-height: 1.5;
     color: var(--app-ink);
     background: linear-gradient(180deg, #fcfaf7 0%, #f6f1ea 100%);
+    text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
   }
 
   #root {
@@ -379,6 +388,84 @@
     background: rgba(255, 255, 255, 0.78);
     border-radius: 18px;
     padding: 1rem;
+  }
+
+  .marketing-window {
+    border: 1px solid rgba(67, 52, 41, 0.08);
+    background: rgba(255, 255, 255, 0.9);
+    border-radius: 24px;
+    overflow: hidden;
+    box-shadow:
+      0 1px 2px rgba(28, 23, 19, 0.04),
+      0 18px 46px rgba(62, 44, 30, 0.08);
+  }
+
+  .marketing-window-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.9rem 1rem;
+    border-bottom: 1px solid rgba(67, 52, 41, 0.08);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(247, 240, 233, 0.82));
+  }
+
+  .marketing-window-dot {
+    width: 0.68rem;
+    height: 0.68rem;
+    border-radius: 999px;
+    background: rgba(67, 52, 41, 0.16);
+  }
+
+  .marketing-window-body {
+    padding: 1rem;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(251, 247, 242, 0.84)),
+      rgba(255, 255, 255, 0.86);
+  }
+
+  .marketing-window-card {
+    border: 1px solid rgba(67, 52, 41, 0.08);
+    background: rgba(255, 255, 255, 0.82);
+    border-radius: 18px;
+    padding: 0.95rem;
+  }
+
+  .marketing-window-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.9rem 0.95rem;
+    border: 1px solid rgba(67, 52, 41, 0.08);
+    background: rgba(255, 255, 255, 0.78);
+    border-radius: 18px;
+  }
+
+  .marketing-window-pill {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    padding: 0.34rem 0.68rem;
+    border: 1px solid rgba(67, 52, 41, 0.08);
+    background: rgba(255, 255, 255, 0.78);
+    color: #4c4038;
+    font-size: 0.72rem;
+    font-weight: 600;
+    line-height: 1;
+  }
+
+  .marketing-window-meter {
+    height: 0.55rem;
+    border-radius: 999px;
+    background: rgba(67, 52, 41, 0.1);
+    overflow: hidden;
+  }
+
+  .marketing-window-meter > span {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, #435f59, #6e9188);
   }
 
   .marketing-timeline {

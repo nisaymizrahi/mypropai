@@ -1,25 +1,39 @@
 export const marketingNavItems = [
   { label: "Product", to: "/product" },
   { label: "Pricing", to: "/pricing" },
+  { label: "Compare", to: "/compare/flipper-force" },
   { label: "Resources", to: "/resources" },
   { label: "About", to: "/about" },
 ];
+
+export const pricingModel = {
+  proMonthlyPrice: "$29",
+  proTrialDays: 30,
+  proTrialCredits: 2,
+  proMonthlyCredits: 50,
+  starterPackCredits: 10,
+  starterPackPrice: "$18",
+  proTopUpCredits: 10,
+  proTopUpPrice: "$9",
+  tenantScreeningPrice: "$45",
+  tenantScreeningSubscriberPrice: "$35",
+};
 
 export const heroSignals = [
   {
     label: "Starter",
     value: "Free",
-    detail: "Create an operator workspace and upgrade only when premium AI workflows make sense.",
+    detail: "Open the workspace, organize the pipeline, and pay only when premium analysis becomes useful.",
   },
   {
     label: "Pro",
-    value: "$49/mo",
-    detail: "Includes 10 AI comps reports each month plus premium reporting workflows.",
+    value: `${pricingModel.proMonthlyPrice}/mo`,
+    detail: `${pricingModel.proTrialDays}-day trial, ${pricingModel.proMonthlyCredits} comps credits every paid cycle, and cheaper top-ups.`,
   },
   {
-    label: "Built for",
-    value: "Lean teams",
-    detail: "Owners, operators, and portfolio teams who need fewer tools and clearer execution.",
+    label: "Premium actions",
+    value: `${pricingModel.starterPackPrice}-${pricingModel.tenantScreeningPrice}`,
+    detail: `Buy ${pricingModel.starterPackCredits}-credit comps packs, discounted Pro top-ups, and screening only when needed.`,
   },
 ];
 
@@ -27,21 +41,21 @@ export const workflowPillars = [
   {
     title: "Acquire",
     description:
-      "Move from an incoming opportunity to a confident decision without losing the assumptions behind it.",
+      "Move from a new opportunity to a decision-ready deal without losing the assumptions behind the price.",
     bullets: [
-      "Track potential properties, contacts, pricing targets, and next steps",
-      "Run AI comps reports from the same workspace where the deal lives",
-      "Keep underwriting notes and market context attached to the asset",
+      "Track potential properties, contacts, pricing targets, and seller context",
+      "Run AI comps reports and keep the recommended offer attached to the same record",
+      "Save underwriting notes, market evidence, and next steps in one place",
     ],
   },
   {
     title: "Execute",
     description:
-      "Coordinate the work between closing and stabilization with budgets, vendors, and clear task ownership.",
+      "Coordinate the work between closing and stabilization with budgets, vendors, scopes, and clear task ownership.",
     bullets: [
-      "Organize renovation scopes, work items, and operating tasks in one place",
+      "Organize renovation scopes, bids, work items, and operating tasks in one place",
       "Manage vendors, documents, and project handoffs without scattered spreadsheets",
-      "Keep the calendar, due dates, and operational follow-up visible across the team",
+      "Keep the calendar, due dates, and follow-up visible across the whole team",
     ],
   },
   {
@@ -49,9 +63,9 @@ export const workflowPillars = [
     description:
       "Run the property from a shared operating system instead of rebuilding context every week.",
     bullets: [
-      "Open a property workspace with overview, financial, document, and settings views",
+      "Open a property workspace with overview, financials, work, documents, analysis, and settings",
       "Monitor daily operations, recurring tasks, and portfolio-level work from one shell",
-      "Manage billing, access, and upgrades from the account center",
+      "Manage billing, access, upgrades, and credits from the account center",
     ],
   },
 ];
@@ -60,7 +74,7 @@ export const productModules = [
   {
     title: "Potential Properties",
     summary:
-      "Keep incoming opportunities organized with pricing notes, ownership context, and decision-ready next steps.",
+      "Keep incoming opportunities organized with pricing notes, ownership context, seller information, and decision-ready next steps.",
   },
   {
     title: "Property Workspace",
@@ -71,6 +85,16 @@ export const productModules = [
     title: "AI Comps Reports",
     summary:
       "Generate comps-driven pricing guidance and investor-ready reporting without exporting the deal into another tool.",
+  },
+  {
+    title: "AI Investment Reports",
+    summary:
+      "Turn pricing, scope, and assumptions into premium reporting workflows for deeper decision support.",
+  },
+  {
+    title: "Financials and Scope",
+    summary:
+      "Keep budget assumptions, rehab scope, costs, and profitability context tied to the same property workspace.",
   },
   {
     title: "Tasks and Calendar",
@@ -85,7 +109,259 @@ export const productModules = [
   {
     title: "Account and Billing",
     summary:
-      "Start on Starter, upgrade to Pro, and manage subscription access from the same account center your team already uses.",
+      "Start on Starter, upgrade to Pro, manage credits, and control subscription access from the same account center your team already uses.",
+  },
+];
+
+export const featureCollections = [
+  {
+    title: "Deal intake and pipeline",
+    description: "Capture everything the team needs before a lead becomes real work.",
+    bullets: [
+      "Potential property pipeline",
+      "Seller context and decision notes",
+      "Pricing targets and follow-up steps",
+    ],
+  },
+  {
+    title: "Analysis and underwriting",
+    description: "Keep comps, valuation evidence, and AI reporting inside the operating workflow.",
+    bullets: [
+      "AI comps analysis",
+      "Saved reports and deal snapshots",
+      "AI investment report generation",
+    ],
+  },
+  {
+    title: "Property workspace",
+    description: "Open a shared record for the asset and keep every team member on the same page.",
+    bullets: [
+      "Overview and status tracking",
+      "Financials and cost context",
+      "Settings and workspace controls",
+    ],
+  },
+  {
+    title: "Execution management",
+    description: "Move the work forward with schedules, tasks, and accountable owners.",
+    bullets: [
+      "Tasks and recurring follow-up",
+      "Master calendar and due dates",
+      "Scope and workstream visibility",
+    ],
+  },
+  {
+    title: "Vendors and documentation",
+    description: "Store the operational memory that usually gets lost between tools.",
+    bullets: [
+      "Vendor directory and trade context",
+      "Property documents and supporting files",
+      "Bids, notes, and handoff material",
+    ],
+  },
+  {
+    title: "Billing and premium actions",
+    description:
+      "Choose a pricing model that fits actual usage instead of forcing a heavy upfront commitment.",
+    bullets: [
+      "Starter for free",
+      "Pro subscription with included credits",
+      "Top-ups and screening when needed",
+    ],
+  },
+];
+
+export const comparisonRows = [
+  {
+    label: "Lifecycle coverage",
+    fliprop:
+      "Acquisitions, rehab execution, property operations, documents, and billing in one workspace.",
+    market:
+      "Many house-flipping tools emphasize analysis and rehab project management first, with a denser software surface.",
+  },
+  {
+    label: "Buyer experience",
+    fliprop:
+      "A calmer, more editorial product story that helps buyers understand the platform quickly.",
+    market:
+      "Feature-heavy navigation can communicate depth, but it can also feel crowded during first evaluation.",
+  },
+  {
+    label: "Pricing model",
+    fliprop:
+      `Free Starter, ${pricingModel.proMonthlyPrice}/month Pro, ${pricingModel.proTrialDays}-day trial, and flexible credits.`,
+    market:
+      "Category pricing often asks for a firmer plan decision earlier instead of letting teams ramp into premium usage.",
+  },
+];
+
+export const operatorProfiles = [
+  {
+    title: "Solo operator",
+    summary:
+      "A better fit when one person is still holding the deal, the pricing, and the next operational move.",
+    bullets: [
+      "Start on Starter without subscription friction",
+      "Move into Pro later when recurring analysis becomes worth it",
+      "Keep pipeline, tasks, and documents together from day one",
+    ],
+  },
+  {
+    title: "Lean acquisitions and rehab team",
+    summary:
+      "Useful when a small team needs deal context to survive the handoff into execution work.",
+    bullets: [
+      "Keep recommended pricing attached to the property record",
+      "Run scopes, vendors, and dates from the same workspace",
+      "Avoid rebuilding context in spreadsheets and shared drives",
+    ],
+  },
+  {
+    title: "Owner-led portfolio team",
+    summary:
+      "A strong fit for teams that want property operations and billing controls beside acquisitions and execution.",
+    bullets: [
+      "Keep the asset record stable after the deal closes",
+      "Manage credits, upgrades, and account access from the same system",
+      "Use editorial resources to support repeatable workflows",
+    ],
+  },
+];
+
+export const comparisonPageHighlights = [
+  {
+    title: "Why teams choose Fliprop",
+    detail:
+      "Fliprop is a better fit when you want a calmer operating system that spans acquisitions, execution, property operations, and flexible premium usage.",
+  },
+  {
+    title: "Where Flipper Force is strong",
+    detail:
+      "Flipper Force publicly emphasizes deep house-flipping analysis, rehab project management, accounting workflows, and mobile field updates.",
+  },
+  {
+    title: "How to read this comparison",
+    detail:
+      "Use it to decide which product shape matches your business: a cleaner operator workspace or a denser flip-specific tool stack.",
+  },
+];
+
+export const comparisonPageRows = [
+  {
+    label: "Best fit",
+    fliprop:
+      "Owner-led teams that want acquisitions, execution, property operations, and billing in one calmer workspace.",
+    flipperForce:
+      "House flippers and rehabbers who want dense analysis, project management, mobile updates, and accounting features.",
+  },
+  {
+    label: "Pricing shape",
+    fliprop:
+      `Free Starter plus a single Pro plan at ${pricingModel.proMonthlyPrice}/month with a ${pricingModel.proTrialDays}-day trial.`,
+    flipperForce:
+      "Public pages show separate Rookie, Solo Analysis, Teams Analysis, Teams, and Business plan families.",
+  },
+  {
+    label: "Paid solo starting point",
+    fliprop: `${pricingModel.proMonthlyPrice}/month on Pro.`,
+    flipperForce: "Public pricing lists Solo Analysis at $49/month.",
+  },
+  {
+    label: "Team starting point",
+    fliprop:
+      "The same Pro plan, then credits and top-ups as premium usage grows.",
+    flipperForce:
+      "Public pricing lists Team Analysis at $129/month and all-in-one Teams at $199/month.",
+  },
+  {
+    label: "Premium usage model",
+    fliprop:
+      `Includes ${pricingModel.proMonthlyCredits} comps credits per paid cycle, ${pricingModel.proTopUpPrice} top-ups, ${pricingModel.starterPackPrice} Starter packs, and one-off screening.`,
+    flipperForce:
+      "Feature access is packaged primarily through tiered subscriptions rather than a credits-plus-add-ons model.",
+  },
+  {
+    label: "Public feature emphasis",
+    fliprop:
+      "Potential properties, property workspaces, AI comps, investment reports, tasks, vendors, documents, and billing.",
+    flipperForce:
+      "Public feature pages emphasize comps, flip and BRRRR analysis, rehab estimating, schedules, tasks, materials, expense tracking, photo logs, and a mobile app.",
+  },
+  {
+    label: "Buyer experience",
+    fliprop:
+      "More editorial, more premium, and easier to understand quickly during evaluation.",
+    flipperForce:
+      "Broader category navigation can communicate depth, but it also creates a denser first impression.",
+  },
+];
+
+export const comparisonSourceNote =
+  "Comparison based on publicly available Flipper Force pricing and feature pages reviewed on April 5, 2026.";
+
+export const pricingFacts = [
+  {
+    label: "Pro trial",
+    value: `${pricingModel.proTrialDays} days`,
+    detail: `Includes ${pricingModel.proTrialCredits} starter comps credits before the paid cycle begins.`,
+  },
+  {
+    label: "Included credits",
+    value: `${pricingModel.proMonthlyCredits}/cycle`,
+    detail: "Paid Pro workspaces receive comps credits every billing cycle.",
+  },
+  {
+    label: "Starter comps pack",
+    value: pricingModel.starterPackPrice,
+    detail: `Buy ${pricingModel.starterPackCredits} permanent comps credits without subscribing.`,
+  },
+  {
+    label: "Pro top-up",
+    value: pricingModel.proTopUpPrice,
+    detail: `Add ${pricingModel.proTopUpCredits} credits any time while Pro is active.`,
+  },
+];
+
+export const planComparisonRows = [
+  {
+    label: "Potential properties and pipeline",
+    starter: "Included",
+    pro: "Included",
+  },
+  {
+    label: "Property workspace, tasks, calendar, vendors, and documents",
+    starter: "Included",
+    pro: "Included",
+  },
+  {
+    label: "Saved reports you already purchased or generated",
+    starter: "Included",
+    pro: "Included",
+  },
+  {
+    label: "AI investment report generation",
+    starter: "Not included",
+    pro: "Included",
+  },
+  {
+    label: "Included comps credits",
+    starter: "None",
+    pro: `${pricingModel.proMonthlyCredits} per paid cycle`,
+  },
+  {
+    label: "Trial credits",
+    starter: "None",
+    pro: `${pricingModel.proTrialCredits} during the ${pricingModel.proTrialDays}-day trial`,
+  },
+  {
+    label: "Additional comps credits",
+    starter: `${pricingModel.starterPackPrice} for ${pricingModel.starterPackCredits}`,
+    pro: `${pricingModel.proTopUpPrice} for ${pricingModel.proTopUpCredits}`,
+  },
+  {
+    label: "Tenant screening price",
+    starter: pricingModel.tenantScreeningPrice,
+    pro: pricingModel.tenantScreeningSubscriberPrice,
   },
 ];
 
@@ -97,29 +373,32 @@ export const pricingPlans = [
     cadence: "",
     badge: "Start here",
     description:
-      "A clean workspace for tracking properties, running daily operations, and buying premium tools only when you need them.",
+      "A clean workspace for tracking deals and property work, with flexible premium purchases only when you need them.",
     ctaLabel: "Start free",
     ctaTo: "/signup",
     features: [
-      "Manage leads, property workflows, tasks, calendar, vendors, and account settings",
+      "Manage potential properties, property workspaces, tasks, calendar, vendors, documents, and account settings",
       "View saved reports that were previously purchased or generated",
-      "Buy AI comps reports and tenant screening individually when needed",
+      `Buy ${pricingModel.starterPackCredits}-credit comps packs for ${pricingModel.starterPackPrice}`,
+      `Buy tenant screening at ${pricingModel.tenantScreeningPrice} per run`,
     ],
   },
   {
     key: "pro",
     name: "Pro",
-    price: "$49",
+    price: pricingModel.proMonthlyPrice,
     cadence: "/month",
     badge: "Most popular",
     description:
-      "For operators who need recurring analysis, premium AI workflows, and a simple monthly plan.",
+      "For operators who need recurring analysis, premium AI workflows, and lower-cost usage as the workspace becomes part of weekly operations.",
     ctaLabel: "Choose Pro",
     ctaTo: "/signup",
     features: [
-      "10 AI comps reports included each month",
-      "AI investment report generation",
-      "Discounted tenant screening pricing",
+      `${pricingModel.proTrialDays}-day free trial with ${pricingModel.proTrialCredits} starter comps credits`,
+      `${pricingModel.proMonthlyCredits} comps credits included every paid billing cycle`,
+      "AI investment report generation and premium analysis workflows",
+      `Buy unlimited ${pricingModel.proTopUpCredits}-credit top-ups for ${pricingModel.proTopUpPrice}`,
+      `Discounted tenant screening at ${pricingModel.tenantScreeningSubscriberPrice} per run`,
       "Billing portal access and subscription management",
     ],
   },
@@ -127,14 +406,19 @@ export const pricingPlans = [
 
 export const addOnProducts = [
   {
-    name: "AI Comps Report",
-    price: "$29",
-    detail: "Unlock one comps analysis run for a specific lead.",
+    name: "Comps Pack (10 Credits)",
+    price: pricingModel.starterPackPrice,
+    detail: "Permanent credits for Starter workspaces that want premium comps without a subscription.",
+  },
+  {
+    name: "Pro Top-Up (10 Credits)",
+    price: pricingModel.proTopUpPrice,
+    detail: "Discounted additional credits available for active Pro subscriptions.",
   },
   {
     name: "Tenant Screening",
-    price: "$45",
-    detail: "One-off screening for an application, with a discounted Pro price available.",
+    price: `${pricingModel.tenantScreeningPrice} or ${pricingModel.tenantScreeningSubscriberPrice} on Pro`,
+    detail: "One-off screening for an application, with a lower subscriber price on active Pro plans.",
   },
 ];
 
@@ -142,22 +426,27 @@ export const faqItems = [
   {
     question: "Who is Fliprop built for?",
     answer:
-      "Fliprop is aimed at owners, operators, flippers, and lean real estate teams who want one workspace for acquisitions, execution, and property operations.",
+      "Fliprop is built for owners, operators, flippers, and lean real estate teams that want one workspace for acquisitions, rehab execution, and property operations.",
+  },
+  {
+    question: "How does the Pro trial work?",
+    answer:
+      `Pro includes a ${pricingModel.proTrialDays}-day free trial with ${pricingModel.proTrialCredits} comps credits. After the trial, paid Pro workspaces receive ${pricingModel.proMonthlyCredits} comps credits every billing cycle.`,
   },
   {
     question: "What is included in Starter vs Pro?",
     answer:
-      "Starter gives you the core operating workspace. Pro adds recurring premium AI workflows, including 10 AI comps reports per month and AI investment reports.",
+      "Starter gives you the core operating workspace. Pro adds included comps credits, AI investment reports, discounted screening, and lower-cost ongoing premium usage.",
   },
   {
     question: "Can I start without committing to a paid plan?",
     answer:
-      "Yes. The account flow starts on Starter, then you can upgrade inside the account center whenever the Pro workflows become useful.",
+      "Yes. You can open a Starter workspace for free, centralize the workflow first, and upgrade later when premium analysis becomes part of the weekly process.",
   },
   {
     question: "Do I have to buy everything as a subscription?",
     answer:
-      "No. Some premium actions can also be purchased individually, which is helpful if you want the workspace now and only occasional premium analysis.",
+      `No. Starter can buy ${pricingModel.starterPackCredits}-credit comps packs for ${pricingModel.starterPackPrice}, and screening can be purchased one run at a time.`,
   },
 ];
 
@@ -165,24 +454,24 @@ export const aboutPrinciples = [
   {
     title: "Built for actual operator workflows",
     description:
-      "The public story now reflects the product that already exists inside the workspace: leads, properties, comps, vendors, tasks, and account controls.",
+      "Fliprop is designed around the way owner-led teams actually work: pipeline review, underwriting, rehab execution, daily operations, and billing decisions.",
   },
   {
     title: "Clarity over software theater",
     description:
-      "We want the product and the marketing site to feel decisive, useful, and calm instead of bloated with noise or vague feature promises.",
+      "We want the product and the public site to feel decisive, useful, and calm instead of bloated with noise or vague promises.",
   },
   {
     title: "AI that earns its place",
     description:
-      "The premium workflows are designed to sit inside real acquisition and operating decisions, not as isolated novelty screens.",
+      "The premium workflows are meant to support real acquisition and operating decisions, not live as isolated novelty screens.",
   },
 ];
 
 export const resourcesIntro = [
   "Actionable playbooks for acquisitions, rehab planning, and property operations.",
   "Practical content that helps teams make better decisions before they ever log in.",
-  "Editorial that supports the same workflows the product is built to manage.",
+  "Editorial that supports the same workflows the product is built to manage and monetize.",
 ];
 
 export const resourceArticles = [

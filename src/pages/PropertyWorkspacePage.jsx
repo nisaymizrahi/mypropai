@@ -247,6 +247,90 @@ const buildLeadCompsAnalysisSnapshotFromReport = (report) => {
   };
 };
 
+const buildPropertyCopilotSuggestions = ({
+  activeTabId,
+  hasPipelineWorkspace,
+  propertyWorkspaceActive,
+  hasAcquisitionWorkspace,
+  leadWorkspace,
+  savedReports,
+  analysis,
+  openPropertyTasks,
+}) => {
+  const suggestions = [];
+  const latestReport = savedReports[0] || null;
+  const latestRecommendedLow =
+    analysis?.recommendedOfferLow ??
+    latestReport?.recommendedOfferLow ??
+    leadWorkspace?.compsAnalysis?.recommendedOfferLow ??
+    null;
+  const latestRecommendedHigh =
+    analysis?.recommendedOfferHigh ??
+    latestReport?.recommendedOfferHigh ??
+    leadWorkspace?.compsAnalysis?.recommendedOfferHigh ??
+    null;
+
+  if (!hasPipelineWorkspace) {
+    suggestions.push("What analysis setup is missing for this property?");
+    suggestions.push("Open settings so I can add the lead workspace");
+    return suggestions;
+  }
+
+  if (!propertyWorkspaceActive) {
+    suggestions.push("What do I unlock if I move this lead into the property workspace?");
+    suggestions.push("Open settings so I can activate analysis here");
+    return suggestions;
+  }
+
+  if (!analysis && savedReports.length === 0) {
+    suggestions.push("What comps analysis should I run next for this property?");
+  }
+
+  if (latestReport || analysis) {
+    suggestions.push("Summarize the latest comps report and recommended offer");
+
+    if (activeTabId === "analysis") {
+      suggestions.push("What is the biggest comps risk or confidence signal right now?");
+    }
+  }
+
+  if (leadWorkspace?.sellerAskingPrice && (latestRecommendedLow || latestRecommendedHigh)) {
+    if (latestRecommendedHigh && Number(leadWorkspace.sellerAskingPrice) > Number(latestRecommendedHigh)) {
+      suggestions.push("How far above the recommended offer range is the asking price?");
+    } else {
+      suggestions.push("Does the seller asking price fit inside the recommended offer range?");
+    }
+  }
+
+  if (leadWorkspace?.nextAction || leadWorkspace?.followUpDate) {
+    suggestions.push("What seller follow-up is due next on this lead?");
+  }
+
+  if ((leadWorkspace?.nextAction || leadWorkspace?.followUpDate) && openPropertyTasks === 0) {
+    suggestions.push(
+      leadWorkspace?.followUpDate
+        ? `Create a task due ${formatCompactDate(
+            leadWorkspace.followUpDate
+          )} for the next seller follow-up`
+        : "Create a task due tomorrow for the next seller follow-up"
+    );
+  }
+
+  if ((leadWorkspace?.nextAction || leadWorkspace?.followUpDate) && openPropertyTasks > 0) {
+    suggestions.push("Do my open property tasks already cover the next seller follow-up?");
+  }
+
+  if (!hasAcquisitionWorkspace && (latestReport || analysis)) {
+    suggestions.push("Based on the comps, what should I set up next in financials?");
+  }
+
+  if (activeTabId === "documents") {
+    suggestions.push("What do the uploaded property documents say about this deal?");
+  }
+
+  return [...new Set(suggestions)].slice(0, 6);
+};
+
 const TabButton = ({ tab, isActive, onSelect }) => {
   const Icon = workspaceTabIcons[tab.id] || HomeModernIcon;
 
@@ -771,6 +855,30 @@ const PropertyWorkspacePage = () => {
     workspaceCount,
   ]);
 
+  const copilotFollowUpSuggestions = useMemo(
+    () =>
+      buildPropertyCopilotSuggestions({
+        activeTabId: activeTab.id,
+        hasPipelineWorkspace,
+        propertyWorkspaceActive,
+        hasAcquisitionWorkspace,
+        leadWorkspace,
+        savedReports,
+        analysis,
+        openPropertyTasks,
+      }),
+    [
+      activeTab.id,
+      analysis,
+      hasAcquisitionWorkspace,
+      hasPipelineWorkspace,
+      leadWorkspace,
+      openPropertyTasks,
+      propertyWorkspaceActive,
+      savedReports,
+    ]
+  );
+
   const handleTabSelect = useCallback(
     (tabId) => {
       navigate(buildPropertyWorkspacePath(property?.propertyKey || propertyKey, tabId));
@@ -897,6 +1005,10 @@ const PropertyWorkspacePage = () => {
         const next = {
           ...current,
           ...mappedPreview,
+          sellerAskingPrice:
+            mappedPreview.sellerAskingPrice !== ""
+              ? mappedPreview.sellerAskingPrice
+              : previewSource.sellerAskingPrice,
         };
         selectedSuggestionRef.current = composeAddress(next) || address;
         return next;
@@ -1147,31 +1259,34 @@ const PropertyWorkspacePage = () => {
     }
   }, [pipelineLeadId]);
 
-  const handleUpdatePropertyWorkspaceStatus = async (nextValue) => {
-    if (!pipelineLeadId) {
-      toast.error("This property is not linked to a lead.");
-      return;
-    }
+  const handleUpdatePropertyWorkspaceStatus = useCallback(
+    async (nextValue) => {
+      if (!pipelineLeadId) {
+        toast.error("This property is not linked to a lead.");
+        return;
+      }
 
-    try {
-      setIsUpdatingWorkspaceStatus(true);
-      const updatedLead = await updateLead(pipelineLeadId, {
-        inPropertyWorkspace: nextValue,
-      });
-      const refreshedProperty = await getPropertyWorkspace(propertyKey);
-      syncPropertyState(refreshedProperty);
-      handleLeadUpdated(updatedLead);
-      await loadLeadWorkspace();
+      try {
+        setIsUpdatingWorkspaceStatus(true);
+        const updatedLead = await updateLead(pipelineLeadId, {
+          inPropertyWorkspace: nextValue,
+        });
+        const refreshedProperty = await getPropertyWorkspace(propertyKey);
+        syncPropertyState(refreshedProperty);
+        handleLeadUpdated(updatedLead);
+        await loadLeadWorkspace();
 
-      toast.success(nextValue ? "Moved to Property Workspace." : "Removed from Property Workspace.");
-    } catch (workspaceStatusError) {
-      toast.error(workspaceStatusError.message || "Failed to update Property Workspace.");
-    } finally {
-      setIsUpdatingWorkspaceStatus(false);
-    }
-  };
+        toast.success(nextValue ? "Moved to Property Workspace." : "Removed from Property Workspace.");
+      } catch (workspaceStatusError) {
+        toast.error(workspaceStatusError.message || "Failed to update Property Workspace.");
+      } finally {
+        setIsUpdatingWorkspaceStatus(false);
+      }
+    },
+    [handleLeadUpdated, loadLeadWorkspace, pipelineLeadId, propertyKey, syncPropertyState]
+  );
 
-  const handleCreatePipelineWorkspace = async () => {
+  const handleCreatePipelineWorkspace = useCallback(async () => {
     try {
       setIsCreatingPipelineWorkspace(true);
       const result = await createPropertyWorkspace(propertyKey, "pipeline");
@@ -1185,9 +1300,9 @@ const PropertyWorkspacePage = () => {
     } finally {
       setIsCreatingPipelineWorkspace(false);
     }
-  };
+  }, [loadLeadWorkspace, propertyKey, syncPropertyState]);
 
-  const handleCreateAcquisitionWorkspace = async () => {
+  const handleCreateAcquisitionWorkspace = useCallback(async () => {
     try {
       setIsCreatingAcquisitionWorkspace(true);
       const result = await createPropertyWorkspace(propertyKey, "acquisitions", {
@@ -1202,9 +1317,9 @@ const PropertyWorkspacePage = () => {
     } finally {
       setIsCreatingAcquisitionWorkspace(false);
     }
-  };
+  }, [acquisitionStrategy, propertyKey, syncPropertyState]);
 
-  const handleCreateManagementWorkspace = async () => {
+  const handleCreateManagementWorkspace = useCallback(async () => {
     try {
       setIsCreatingManagementWorkspace(true);
       const result = await createPropertyWorkspace(propertyKey, "management", {
@@ -1219,7 +1334,7 @@ const PropertyWorkspacePage = () => {
     } finally {
       setIsCreatingManagementWorkspace(false);
     }
-  };
+  }, [managementStrategy, propertyKey, syncPropertyState]);
 
   const renderLeadWorkspaceState = useCallback(
     ({
@@ -1989,12 +2104,38 @@ const PropertyWorkspacePage = () => {
     </div>
   );
 
-  const renderAnalysisTab = () => (
-    <div className="space-y-4">
+  const renderAnalysisTab = () => {
+    const compsAction = buildAnalysisSectionAction("Run new report", ANALYSIS_SECTION_IDS.comps);
+    const scopeAction = buildAnalysisSectionAction("Edit scope", ANALYSIS_SECTION_IDS.scope);
+    const summaryActions = [
+      {
+        label: "Edit profile",
+        onClick: handleOpenProfile,
+      },
+      {
+        label: "Edit financials",
+        onClick: () => handleTabSelect("financials"),
+      },
+      scopeAction,
+    ];
+    const reportActions = [
+      compsAction,
+      {
+        label: "Edit financials",
+        onClick: () => handleTabSelect("financials"),
+      },
+      scopeAction,
+    ];
+
+    return (
+      <div className="space-y-4">
       <PropertyWorkspaceSection
         title="Deal summary"
         helper="Property story from assumptions through current numbers."
         defaultOpen
+        sectionId={ANALYSIS_SECTION_IDS.summary}
+        revealToken={sectionRevealTokens[ANALYSIS_SECTION_IDS.summary] || 0}
+        action={<div className="flex flex-wrap gap-3">{renderWorkspaceButtons(summaryActions)}</div>}
       >
         <PropertySummaryPanel
           property={property}
@@ -2004,12 +2145,37 @@ const PropertyWorkspacePage = () => {
           savedReports={savedReports}
           pipelineLeadPath={pipelineLeadPath}
           embedded
+          embeddedActions={renderWorkspaceButtons(summaryActions)}
+          emptyActions={renderWorkspaceButtons([
+            compsAction,
+            {
+              label: "Edit profile",
+              onClick: handleOpenProfile,
+            },
+          ])}
         />
       </PropertyWorkspaceSection>
 
       <PropertyWorkspaceSection
         title="Comps"
         helper="Run comps and save reports."
+        sectionId={ANALYSIS_SECTION_IDS.comps}
+        revealToken={sectionRevealTokens[ANALYSIS_SECTION_IDS.comps] || 0}
+        action={
+          <div className="flex flex-wrap gap-3">
+            {renderWorkspaceButtons([
+              {
+                label: "Edit profile",
+                onClick: handleOpenProfile,
+              },
+              {
+                label: "Edit financials",
+                onClick: () => handleTabSelect("financials"),
+              },
+              scopeAction,
+            ])}
+          </div>
+        }
       >
         {renderLeadWorkspaceState({
           missingLeadTitle: "Add a lead to run comps",
@@ -2095,6 +2261,9 @@ const PropertyWorkspacePage = () => {
       <PropertyWorkspaceSection
         title="Saved reports"
         helper="Saved report history."
+        sectionId={ANALYSIS_SECTION_IDS.reports}
+        revealToken={sectionRevealTokens[ANALYSIS_SECTION_IDS.reports] || 0}
+        action={<div className="flex flex-wrap gap-3">{renderWorkspaceButtons(reportActions)}</div>}
       >
         {renderLeadWorkspaceState({
           missingLeadTitle: "Add a lead to store reports",
@@ -2112,6 +2281,7 @@ const PropertyWorkspacePage = () => {
               description="Every saved Master Deal Report for this property lives here."
               emptyTitle="No reports saved yet"
               emptyMessage="Run the Master Deal Report, save it, and it will appear here."
+              actions={renderWorkspaceButtons(reportActions)}
             />
           ),
         })}
@@ -2120,6 +2290,22 @@ const PropertyWorkspacePage = () => {
       <PropertyWorkspaceSection
         title="Scope & renovation"
         helper="Renovation assumptions and scope."
+        sectionId={ANALYSIS_SECTION_IDS.scope}
+        revealToken={sectionRevealTokens[ANALYSIS_SECTION_IDS.scope] || 0}
+        action={
+          <div className="flex flex-wrap gap-3">
+            {renderWorkspaceButtons([
+              {
+                label: "Edit profile",
+                onClick: handleOpenProfile,
+              },
+              {
+                label: "Edit financials",
+                onClick: () => handleTabSelect("financials"),
+              },
+            ])}
+          </div>
+        }
       >
         {renderLeadWorkspaceState({
           missingLeadTitle: "Add a lead to manage scope",
@@ -2142,6 +2328,9 @@ const PropertyWorkspacePage = () => {
       <PropertyWorkspaceSection
         title="Original assumptions"
         helper="Original deal thesis."
+        sectionId={ANALYSIS_SECTION_IDS.assumptions}
+        revealToken={sectionRevealTokens[ANALYSIS_SECTION_IDS.assumptions] || 0}
+        action={<div className="flex flex-wrap gap-3">{renderWorkspaceButtons(summaryActions)}</div>}
       >
         <PropertySummaryPanel
           property={property}
@@ -2151,10 +2340,19 @@ const PropertyWorkspacePage = () => {
           savedReports={savedReports}
           pipelineLeadPath={pipelineLeadPath}
           embedded
+          embeddedActions={renderWorkspaceButtons(summaryActions)}
+          emptyActions={renderWorkspaceButtons([
+            compsAction,
+            {
+              label: "Edit profile",
+              onClick: handleOpenProfile,
+            },
+          ])}
         />
       </PropertyWorkspaceSection>
-    </div>
-  );
+      </div>
+    );
+  };
 
   const renderSettingsTab = () => (
     <PropertyWorkspaceSettingsPanel
@@ -2292,6 +2490,7 @@ const PropertyWorkspacePage = () => {
           propertyKey={property.propertyKey}
           propertyTitle={property.title}
           activeTab={activeTab}
+          followUpSuggestions={copilotFollowUpSuggestions}
           onTasksChanged={() => loadPropertyTasks(property.propertyKey)}
         />
       ) : null}

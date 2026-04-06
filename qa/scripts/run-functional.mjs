@@ -12,6 +12,7 @@ try {
       QA_RUN_ID: runId,
       QA_RESULTS_DIR: resultsDir,
       QA_BASE_URL: process.env.QA_BASE_URL || server.baseUrl,
+      QA_EXTERNAL_TARGET: process.env.QA_BASE_URL ? "1" : "0",
       QA_SERVER_STARTED: "1",
     },
     label: "Functional QA suite",

@@ -1124,6 +1124,10 @@ const LeadDetailPage = () => {
         const next = {
           ...previous,
           ...mappedPreview,
+          sellerAskingPrice:
+            mappedPreview.sellerAskingPrice !== ""
+              ? mappedPreview.sellerAskingPrice
+              : previewSource.sellerAskingPrice,
         };
         selectedSuggestionRef.current = composeAddress(next) || address;
         return next;

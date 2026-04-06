@@ -422,7 +422,7 @@ const PropertyOperationsPanel = ({
       <div className="space-y-6">
         {!embedded ? (
           <section className="surface-panel px-6 py-7 sm:px-7">
-            <span className="eyebrow">Operations > Schedule</span>
+            <span className="eyebrow">Operations / Schedule</span>
             <h3 className="mt-4 font-display text-[2.15rem] leading-[0.96] text-ink-900">
               Run the property with a real schedule instead of scattered reminders
             </h3>
@@ -478,7 +478,7 @@ const PropertyOperationsPanel = ({
           <section className="surface-panel px-6 py-7 sm:px-7">
             <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
               <div>
-                <span className="eyebrow">Operations > Timeline</span>
+                <span className="eyebrow">Operations / Timeline</span>
                 <h3 className="mt-4 font-display text-[2.15rem] leading-[0.96] text-ink-900">
                   A colorful property timeline across vendors, costs, documents, and milestones
                 </h3>
@@ -586,7 +586,7 @@ const PropertyOperationsPanel = ({
           <section className="surface-panel px-6 py-7 sm:px-7">
             <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
               <div>
-                <span className="eyebrow">Operations > Vendors</span>
+                <span className="eyebrow">Operations / Vendors</span>
                 <h3 className="mt-4 font-display text-[2.15rem] leading-[0.96] text-ink-900">
                   See who is involved, what they are committed to, and whether their packet is ready
                 </h3>
@@ -741,7 +741,7 @@ const PropertyOperationsPanel = ({
     <div className="space-y-6">
       {!embedded ? (
         <section className="surface-panel px-6 py-7 sm:px-7">
-          <span className="eyebrow">Operations > Activity</span>
+          <span className="eyebrow">Operations / Activity</span>
           <h3 className="mt-4 font-display text-[2.15rem] leading-[0.96] text-ink-900">
             Watch the property activity stream across schedule, vendors, costs, and documents
           </h3>

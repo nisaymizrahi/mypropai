@@ -592,7 +592,7 @@ const PropertyCostsPanel = ({
         <div className="space-y-6">
           {!embedded ? (
             <section className="surface-panel px-6 py-7 sm:px-7">
-              <span className="eyebrow">Costs > Budget</span>
+              <span className="eyebrow">Costs / Budget</span>
               <h3 className="mt-4 font-display text-[2.15rem] leading-[0.96] text-ink-900">
                 Keep the expected cost plan editable and visible at every step
               </h3>
@@ -696,7 +696,7 @@ const PropertyCostsPanel = ({
         <div className="space-y-6">
           {!embedded ? (
             <section className="surface-panel px-6 py-7 sm:px-7">
-              <span className="eyebrow">Costs > Expenses</span>
+                <span className="eyebrow">Costs / Expenses</span>
               <h3 className="mt-4 font-display text-[2.15rem] leading-[0.96] text-ink-900">
                 Capture every property expense in one ledger
               </h3>
@@ -1293,7 +1293,7 @@ const PropertyCostsPanel = ({
       <div className="space-y-6">
         {!embedded ? (
           <section className="surface-panel px-6 py-7 sm:px-7">
-            <span className="eyebrow">Costs > Commitments</span>
+            <span className="eyebrow">Costs / Commitments</span>
             <h3 className="mt-4 font-display text-[2.15rem] leading-[0.96] text-ink-900">
               Track what has been awarded, what has been paid, and what is still outstanding
             </h3>

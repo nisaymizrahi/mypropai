@@ -1,12 +1,12 @@
+import React from "react";
 import { render, screen } from "@testing-library/react";
+import { vi } from "vitest";
 
 import App from "./App";
 
-jest.mock(
+vi.mock(
   "react-router-dom",
   () => {
-    const React = require("react");
-
     const BrowserRouter = ({ children }) => <>{children}</>;
     const Route = () => null;
     const Navigate = ({ to }) => <div>Navigate:{to}</div>;
@@ -49,37 +49,40 @@ jest.mock(
       Routes,
     };
   },
-  { virtual: true }
 );
 
-jest.mock("react-hot-toast", () => ({
+vi.mock("react-hot-toast", () => ({
   Toaster: () => null,
 }));
 
-jest.mock("./context/AuthContext", () => ({
+vi.mock("./context/AuthContext", () => ({
   AuthProvider: ({ children }) => children,
 }));
 
-jest.mock("./components/DashboardLayout", () => ({ children }) => (
-  <div data-testid="dashboard-layout">{children}</div>
-));
-jest.mock("./components/ProtectedRoute", () => ({ children }) => children);
-jest.mock("./components/PlatformManagerRoute", () => ({ children }) => children);
+vi.mock("./components/DashboardLayout", () => ({
+  default: ({ children }) => <div data-testid="dashboard-layout">{children}</div>,
+}));
+vi.mock("./components/ProtectedRoute", () => ({
+  default: ({ children }) => children,
+}));
+vi.mock("./components/PlatformManagerRoute", () => ({
+  default: ({ children }) => children,
+}));
 
-jest.mock("./pages/Homepage", () => () => <div>Homepage screen</div>);
-jest.mock("./pages/LoginPage", () => () => <div>Workspace login screen</div>);
-jest.mock("./pages/LoginContinuePage", () => () => <div>Login continue screen</div>);
-jest.mock("./pages/SignupPage", () => () => <div>Signup screen</div>);
-jest.mock("./pages/CompsReportPage", () => () => <div>Comps report screen</div>);
-jest.mock("./pages/LeadsPage", () => () => <div>Leads screen</div>);
-jest.mock("./pages/LeadDetailPage", () => () => <div>Lead detail screen</div>);
-jest.mock("./pages/TasksPage", () => () => <div>Tasks screen</div>);
-jest.mock("./pages/MasterCalendarPage", () => () => <div>Master calendar screen</div>);
-jest.mock("./pages/VendorsPage", () => () => <div>Vendors screen</div>);
-jest.mock("./pages/CreatePropertyPage", () => () => <div>Create property screen</div>);
-jest.mock("./pages/PropertyWorkspacePage", () => () => <div>Property workspace screen</div>);
-jest.mock("./pages/AccountCenter", () => () => <div>Account center screen</div>);
-jest.mock("./pages/PlatformManagerPage", () => () => <div>Platform manager screen</div>);
+vi.mock("./pages/Homepage", () => ({ default: () => <div>Homepage screen</div> }));
+vi.mock("./pages/LoginPage", () => ({ default: () => <div>Workspace login screen</div> }));
+vi.mock("./pages/LoginContinuePage", () => ({ default: () => <div>Login continue screen</div> }));
+vi.mock("./pages/SignupPage", () => ({ default: () => <div>Signup screen</div> }));
+vi.mock("./pages/CompsReportPage", () => ({ default: () => <div>Comps report screen</div> }));
+vi.mock("./pages/LeadsPage", () => ({ default: () => <div>Leads screen</div> }));
+vi.mock("./pages/LeadDetailPage", () => ({ default: () => <div>Lead detail screen</div> }));
+vi.mock("./pages/TasksPage", () => ({ default: () => <div>Tasks screen</div> }));
+vi.mock("./pages/MasterCalendarPage", () => ({ default: () => <div>Master calendar screen</div> }));
+vi.mock("./pages/VendorsPage", () => ({ default: () => <div>Vendors screen</div> }));
+vi.mock("./pages/CreatePropertyPage", () => ({ default: () => <div>Create property screen</div> }));
+vi.mock("./pages/PropertyWorkspacePage", () => ({ default: () => <div>Property workspace screen</div> }));
+vi.mock("./pages/AccountCenter", () => ({ default: () => <div>Account center screen</div> }));
+vi.mock("./pages/PlatformManagerPage", () => ({ default: () => <div>Platform manager screen</div> }));
 
 describe("App routes", () => {
   const renderAtPath = (path) => {

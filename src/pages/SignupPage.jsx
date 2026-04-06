@@ -26,7 +26,7 @@ const workspaceUseCases = [
 ];
 
 const onboardingPromises = [
-  "Start on Starter, then upgrade when Pro workflows become useful.",
+  "Start on Starter, then activate Pro later with a 30-day trial when premium workflows become useful.",
   "Required fields stay tight: first name, last name, email, and password.",
   "Google signup can collect missing details after sign-in.",
 ];

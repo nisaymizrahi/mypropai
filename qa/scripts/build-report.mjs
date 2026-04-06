@@ -21,6 +21,7 @@ function parseFunctionalReport(report) {
     "map markers track the visible comp set": "map_and_comps",
     "saved report export produces a non-empty pdf": "saved_report_export",
     "mobile viewport keeps the primary flow usable": "mobile_sanity",
+    "protected report route is gated behind login on the live site": "protected_route_guard",
   };
 
   const flows = {};
@@ -34,27 +35,81 @@ function parseFunctionalReport(report) {
     if (!flowId) continue;
 
     const results = spec.tests?.[0]?.results || [];
+    const skipDescriptions = (spec.tests?.[0]?.annotations || [])
+      .filter((annotation) => annotation.type === "skip")
+      .map((annotation) => annotation.description)
+      .filter(Boolean);
+    const blockedDescriptions = (spec.tests?.[0]?.annotations || [])
+      .filter((annotation) => annotation.type === "blocked")
+      .map((annotation) => annotation.description)
+      .filter(Boolean);
+    const allErrors = results
+      .flatMap((result) =>
+        result.error ? [result.error.message] : (result.errors || []).map((error) => error.message)
+      )
+      .filter(Boolean);
+    const blockedError = allErrors.find((message) => String(message).includes("QA_BILLING_GATE:"));
     const failed = results.some((result) => ["failed", "timedOut", "interrupted"].includes(result.status));
     const passed = results.some((result) => result.status === "passed");
+    const skipped = results.some((result) => result.status === "skipped");
 
     flows[flowId] = {
       title: spec.title,
-      status: failed ? "failed" : passed ? "passed" : "skipped",
-      errors: results.flatMap((result) => result.error ? [result.error.message] : (result.errors || []).map((error) => error.message)).filter(Boolean),
+      status:
+        blockedDescriptions.length || blockedError
+          ? "blocked"
+          : failed
+            ? "failed"
+            : passed
+              ? "passed"
+              : skipped
+                ? "skipped"
+                : "skipped",
+      errors: allErrors,
+      skipReasons: skipDescriptions,
+      blockedReason:
+        blockedDescriptions[0] ||
+        (blockedError ? String(blockedError).replace("QA_BILLING_GATE:", "").trim() : null),
     };
   }
 
-  const score =
-    Object.entries(functionalFlowWeights).reduce((sum, [flowId, weight]) => {
-      return sum + (flows[flowId]?.status === "passed" ? weight : 0);
-    }, 0);
+  const totalWeight = Object.values(functionalFlowWeights).reduce((sum, weight) => sum + weight, 0);
+  const eligibleWeight = Object.entries(functionalFlowWeights).reduce((sum, [flowId, weight]) => {
+    return sum + (["skipped", "blocked"].includes(flows[flowId]?.status) ? 0 : weight);
+  }, 0);
+  const blockedWeight = Object.entries(functionalFlowWeights).reduce((sum, [flowId, weight]) => {
+    return sum + (flows[flowId]?.status === "blocked" ? weight : 0);
+  }, 0);
+  const skippedWeight = Object.entries(functionalFlowWeights).reduce((sum, [flowId, weight]) => {
+    return sum + (flows[flowId]?.status === "skipped" ? weight : 0);
+  }, 0);
+  const passedWeight = Object.entries(functionalFlowWeights).reduce((sum, [flowId, weight]) => {
+    return sum + (flows[flowId]?.status === "passed" ? weight : 0);
+  }, 0);
+  const qualityScore = eligibleWeight ? Math.round((passedWeight / eligibleWeight) * 100) : 0;
+  const coveragePercent = totalWeight ? Math.round((eligibleWeight / totalWeight) * 100) : 0;
+  const score = Math.round(qualityScore * (0.5 + (0.5 * coveragePercent) / 100));
 
   return {
     score,
     flows,
+    coverage: {
+      testedWeight: eligibleWeight,
+      blockedWeight,
+      skippedWeight,
+      totalWeight,
+      percent: coveragePercent,
+    },
+    qualityScore,
     pass:
       score >= 85 &&
-      ["home_landing", "property_intake", "master_report", "map_and_comps", "saved_report_export"].every(
+      coveragePercent >= 60 &&
+      Object.entries(flows)
+        .filter(([, flow]) => !["skipped", "blocked"].includes(flow.status))
+        .every(([, flow]) => flow.status === "passed") &&
+      ["home_landing", "property_intake", "master_report", "map_and_comps", "saved_report_export"].filter(
+        (flowId) => !["skipped", "blocked"].includes(flows[flowId]?.status)
+      ).every(
         (flowId) => flows[flowId]?.status === "passed"
       ),
   };
@@ -70,6 +125,20 @@ function scoreA11y(report) {
   };
 
   const pages = (report?.pages || []).map((page) => {
+    if (page.status === "blocked") {
+      return {
+        ...page,
+        score: null,
+      };
+    }
+
+    if (page.error) {
+      return {
+        ...page,
+        score: 0,
+      };
+    }
+
     const penalty = page.violations.reduce(
       (sum, violation) => sum + (penaltyByImpact[violation.impact] || penaltyByImpact.unknown),
       0
@@ -82,21 +151,30 @@ function scoreA11y(report) {
     };
   });
 
-  const averageScore = pages.length
-    ? pages.reduce((sum, page) => sum + page.score, 0) / pages.length
+  const scorablePages = pages.filter((page) => page.score !== null);
+  const averageScore = scorablePages.length
+    ? scorablePages.reduce((sum, page) => sum + page.score, 0) / scorablePages.length
     : 0;
-  const hasCritical = pages.some((page) => page.violations.some((violation) => violation.impact === "critical"));
-  const hasSerious = pages.some((page) => page.violations.some((violation) => violation.impact === "serious"));
+  const hasErrors = pages.some((page) => Boolean(page.error));
+  const hasCritical = scorablePages.some((page) => page.violations.some((violation) => violation.impact === "critical"));
+  const hasSerious = scorablePages.some((page) => page.violations.some((violation) => violation.impact === "serious"));
 
   return {
     score: Math.round(averageScore),
     pages,
-    pass: !hasCritical && !hasSerious,
+    pass: !hasErrors && !hasCritical && !hasSerious,
   };
 }
 
 function scoreLighthouse(report) {
   const pages = (report?.pages || []).map((page) => {
+    if (page.status === "blocked") {
+      return {
+        ...page,
+        technicalScore: null,
+      };
+    }
+
     const technicalScore =
       page.scores.performance * 0.5 +
       page.scores.bestPractices * 0.3 +
@@ -108,8 +186,9 @@ function scoreLighthouse(report) {
     };
   });
 
-  const averageScore = pages.length
-    ? pages.reduce((sum, page) => sum + page.technicalScore, 0) / pages.length
+  const scorablePages = pages.filter((page) => page.technicalScore !== null);
+  const averageScore = scorablePages.length
+    ? scorablePages.reduce((sum, page) => sum + page.technicalScore, 0) / scorablePages.length
     : 0;
 
   return {
@@ -120,7 +199,8 @@ function scoreLighthouse(report) {
 }
 
 function scoreUx(report) {
-  const completedScreens = (report?.screens || []).filter((screen) => screen.review?.status === "completed");
+  const completedStatuses = new Set(["completed", "heuristic_fallback"]);
+  const completedScreens = (report?.screens || []).filter((screen) => completedStatuses.has(screen.review?.status));
 
   if (!completedScreens.length) {
     return {
@@ -177,9 +257,44 @@ function computeOverallScore(sections) {
 function buildTopIssues(functionality, accessibility, lighthouse, ux) {
   const issues = [];
 
+  if (functionality.coverage?.percent < 100) {
+    const blockedWeight = functionality.coverage?.blockedWeight || 0;
+    const skippedWeight = functionality.coverage?.skippedWeight || 0;
+    const coverageNotes = [];
+
+    if (blockedWeight > 0) {
+      coverageNotes.push(
+        `${Math.round((blockedWeight / functionality.coverage.totalWeight) * 100)}% was blocked by billing access on the tested account`
+      );
+    }
+    if (skippedWeight > 0) {
+      coverageNotes.push(
+        `${Math.round((skippedWeight / functionality.coverage.totalWeight) * 100)}% was skipped because the flow was not available in this run`
+      );
+    }
+
+    issues.push({
+      area: "Coverage",
+      severity: 1,
+      text: `Functional coverage was ${functionality.coverage.percent}%. ${coverageNotes.join(". ") || "Some flows were not exercised in this run."}`,
+    });
+  }
+
+  const blockedFlows = Object.entries(functionality.flows).filter(([, flow]) => flow.status === "blocked");
+  if (blockedFlows.length) {
+    issues.push({
+      area: "Billing",
+      severity: 2,
+      text: `Paid report flows were blocked for this account: ${blockedFlows.map(([, flow]) => flow.title).join(", ")}.`,
+    });
+  }
+
   Object.entries(functionality.flows)
     .filter(([, flow]) => flow.status !== "passed")
     .forEach(([flowId, flow]) => {
+      if (["skipped", "blocked"].includes(flow.status)) {
+        return;
+      }
       issues.push({
         area: "Functionality",
         severity: 1,
@@ -188,6 +303,19 @@ function buildTopIssues(functionality, accessibility, lighthouse, ux) {
     });
 
   accessibility.pages.forEach((page) => {
+    if (page.status === "blocked") {
+      return;
+    }
+
+    if (page.error) {
+      issues.push({
+        area: "Accessibility",
+        severity: 2,
+        text: `${page.label}: accessibility audit could not complete (${page.error}).`,
+      });
+      return;
+    }
+
     page.violations
       .filter((violation) => violation.impact === "critical" || violation.impact === "serious")
       .slice(0, 2)
@@ -201,6 +329,19 @@ function buildTopIssues(functionality, accessibility, lighthouse, ux) {
   });
 
   lighthouse.pages.forEach((page) => {
+    if (page.status === "blocked") {
+      return;
+    }
+
+    if (page.error) {
+      issues.push({
+        area: "Lighthouse",
+        severity: 3,
+        text: `${page.label}: Lighthouse audit could not complete (${page.error}).`,
+      });
+      return;
+    }
+
     if (page.technicalScore < 80) {
       issues.push({
         area: "Lighthouse",
@@ -219,7 +360,7 @@ function buildTopIssues(functionality, accessibility, lighthouse, ux) {
   });
 
   ux.screens
-    .filter((screen) => screen.review?.status === "completed")
+    .filter((screen) => ["completed", "heuristic_fallback"].includes(screen.review?.status))
     .forEach((screen) => {
       (screen.review.frictionPoints || []).slice(0, 2).forEach((point) => {
         issues.push({
@@ -227,6 +368,26 @@ function buildTopIssues(functionality, accessibility, lighthouse, ux) {
           severity: 5,
           text: `${screen.label}: ${point}`,
         });
+      });
+    });
+
+  ux.screens
+    .filter((screen) => screen.review?.status === "blocked")
+    .forEach((screen) => {
+      issues.push({
+        area: "Coverage",
+        severity: 4,
+        text: `${screen.label}: UX review was blocked because the tested account could not unlock this paid flow.`,
+      });
+    });
+
+  ux.screens
+    .filter((screen) => screen.review?.status === "error")
+    .forEach((screen) => {
+      issues.push({
+        area: "UX",
+        severity: 4,
+        text: `${screen.label}: UX review could not complete (${screen.review.error}).`,
       });
     });
 
@@ -254,6 +415,10 @@ function renderMarkdown(summary) {
 | Usability / AI UX | ${sections.usability.score ?? "Skipped"}${sections.usability.score !== null ? "/100" : ""} | ${sections.usability.pass === null ? "Skipped" : sections.usability.pass ? "Pass" : "Fail"} |
 | Polish / Trust | ${sections.polish.score ?? "Skipped"}${sections.polish.score !== null ? "/100" : ""} | ${sections.polish.pass === null ? "Skipped" : sections.polish.pass ? "Pass" : "Fail"} |
 
+- Functional quality on tested flows: ${sections.functionality.details.qualityScore ?? 0}/100
+- Functional coverage: ${sections.functionality.details.coverage?.percent ?? 0}% of weighted flows exercised
+- Billing-gated flow weight: ${sections.functionality.details.coverage?.blockedWeight ?? 0}/${sections.functionality.details.coverage?.totalWeight ?? 0}
+
 ## Top Issues To Fix First
 
 ${topIssues.length ? topIssues.map((issue) => `- [${issue.area}] ${issue.text}`).join("\n") : "- No major issues surfaced."}
@@ -261,13 +426,23 @@ ${topIssues.length ? topIssues.map((issue) => `- [${issue.area}] ${issue.text}`)
 ## Functional Results
 
 ${Object.entries(sections.functionality.details.flows)
-  .map(([flowId, flow]) => `- ${flow.title || flowId}: ${flow.status}`)
+  .map(([flowId, flow]) => {
+    if (flow.status === "blocked" && flow.blockedReason) {
+      return `- ${flow.title || flowId}: blocked (${flow.blockedReason})`;
+    }
+    if (flow.status === "skipped" && flow.skipReasons?.length) {
+      return `- ${flow.title || flowId}: skipped (${flow.skipReasons[0]})`;
+    }
+    return `- ${flow.title || flowId}: ${flow.status}`;
+  })
   .join("\n")}
 
 ## Accessibility Findings
 
 ${sections.accessibility.details.pages
-  .map((page) => `- ${page.label}: ${page.violations.length} violations, score ${page.score}`)
+  .map((page) => page.status === "blocked"
+    ? `- ${page.label}: blocked (${page.blockedReason})`
+    : `- ${page.label}: ${page.violations.length} violations, score ${page.score}`)
   .join("\n")}
 
 ## Lighthouse Scores
@@ -275,7 +450,9 @@ ${sections.accessibility.details.pages
 ${sections.performance.details.pages
   .map(
     (page) =>
-      `- ${page.label}: perf ${page.scores.performance}, a11y ${page.scores.accessibility}, best practices ${page.scores.bestPractices}, seo ${page.scores.seo}`
+      page.status === "blocked"
+        ? `- ${page.label}: blocked (${page.blockedReason})`
+        : `- ${page.label}: perf ${page.scores.performance}, a11y ${page.scores.accessibility}, best practices ${page.scores.bestPractices}, seo ${page.scores.seo}`
   )
   .join("\n")}
 
@@ -283,7 +460,12 @@ ${sections.performance.details.pages
 
 ${sections.usability.details.screens.length
   ? sections.usability.details.screens
-      .map((screen) => `- ${screen.label}: ${screen.review?.status === "completed" ? `${screen.review.score}/10` : screen.review?.status || "pending"}`)
+      .map((screen) => {
+        if (screen.review?.status === "blocked") {
+          return `- ${screen.label}: blocked (${screen.review.reason})`;
+        }
+        return `- ${screen.label}: ${["completed", "heuristic_fallback"].includes(screen.review?.status) ? `${screen.review.score}/10` : screen.review?.status || "pending"}`;
+      })
       .join("\n")
   : "- No UX screens were captured."}
 `;

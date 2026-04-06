@@ -1,14 +1,15 @@
 import React from "react";
 import { render, screen, waitFor } from "@testing-library/react";
+import { vi } from "vitest";
 
 import BidsTab from "./BidsTab";
 
-jest.mock("../utils/api", () => ({
-  createBid: jest.fn(),
-  deleteBid: jest.fn(),
-  getVendors: jest.fn(() => Promise.resolve([])),
-  importBid: jest.fn(),
-  updateBid: jest.fn(),
+vi.mock("../utils/api", () => ({
+  createBid: vi.fn(),
+  deleteBid: vi.fn(),
+  getVendors: vi.fn(() => Promise.resolve([])),
+  importBid: vi.fn(),
+  updateBid: vi.fn(),
 }));
 
 describe("BidsTab", () => {

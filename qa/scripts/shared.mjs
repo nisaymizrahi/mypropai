@@ -9,6 +9,18 @@ export const projectRoot = path.resolve(scriptsDir, "../..");
 export const qaToken = "qa-token";
 export const defaultQaPort = Number(process.env.QA_PORT || 4173);
 export const defaultBaseUrl = process.env.QA_BASE_URL || `http://127.0.0.1:${defaultQaPort}`;
+export const qaUserEmail = process.env.QA_USER_EMAIL || "";
+export const qaUserPassword = process.env.QA_USER_PASSWORD || "";
+export const hasQaCredentials = Boolean(qaUserEmail && qaUserPassword);
+export const isExternalQaTarget =
+  process.env.QA_EXTERNAL_TARGET === "1" ||
+  (Boolean(process.env.QA_BASE_URL) && process.env.QA_SERVER_STARTED !== "1");
+export const canRunProtectedQaFlows = !isExternalQaTarget || hasQaCredentials;
+export const qaTargetMode = !isExternalQaTarget
+  ? "local_qa"
+  : hasQaCredentials
+    ? "external_authenticated"
+    : "external_public";
 export const runId =
   process.env.QA_RUN_ID ||
   new Date().toISOString().replace(/[:.]/g, "-");
@@ -47,19 +59,75 @@ export const functionalFlowWeights = {
   map_and_comps: 20,
   saved_report_export: 15,
   mobile_sanity: 5,
+  protected_route_guard: 10,
 };
 
-export const lighthousePages = [
-  { id: "home", label: "Homepage", path: "/", authenticated: false },
-  { id: "login", label: "Login", path: "/login", authenticated: false },
-  { id: "master_report", label: "Master Deal Report", path: "/comps-report", authenticated: true },
-];
+export function getLighthousePages() {
+  if (!isExternalQaTarget) {
+    return [
+      { id: "home", label: "Homepage", path: "/", authenticated: false },
+      { id: "login", label: "Login", path: "/login", authenticated: false },
+      { id: "master_report", label: "Master Deal Report", path: "/comps-report", authenticated: true },
+    ];
+  }
 
-export const uxScreens = [
-  { id: "homepage", label: "Homepage", path: "/", authenticated: false },
-  { id: "master_report", label: "Master Deal Report", path: "/comps-report", authenticated: true },
-  { id: "saved_report", label: "Saved Report", path: "/comps-report", authenticated: true, needsSavedTab: true },
-];
+  const pages = [
+    { id: "home", label: "Homepage", path: "/", authenticated: false },
+    { id: "login", label: "Login", path: "/login", authenticated: false },
+    { id: "product", label: "Product", path: "/product", authenticated: false },
+    { id: "pricing", label: "Pricing", path: "/pricing", authenticated: false },
+  ];
+
+  if (canRunProtectedQaFlows) {
+    pages.push({ id: "master_report", label: "Master Deal Report", path: "/comps-report", authenticated: true });
+  }
+
+  return pages;
+}
+
+export function getUxScreens() {
+  if (!isExternalQaTarget) {
+    return [
+      { id: "homepage", label: "Homepage", path: "/", authenticated: false },
+      { id: "master_report", label: "Master Deal Report", path: "/comps-report", authenticated: true },
+      { id: "saved_report", label: "Saved Report", path: "/comps-report", authenticated: true, needsSavedTab: true },
+    ];
+  }
+
+  const screens = [
+    { id: "homepage", label: "Homepage", path: "/", authenticated: false },
+    { id: "login", label: "Login", path: "/login", authenticated: false },
+    { id: "pricing", label: "Pricing", path: "/pricing", authenticated: false },
+  ];
+
+  if (canRunProtectedQaFlows) {
+    screens.push({ id: "master_report", label: "Master Deal Report", path: "/comps-report", authenticated: true });
+  }
+
+  return screens;
+}
+
+export function getA11yPages() {
+  if (!isExternalQaTarget) {
+    return [
+      { id: "homepage", label: "Homepage" },
+      { id: "master_report", label: "Master Deal Report" },
+      { id: "saved_report", label: "Saved Report" },
+    ];
+  }
+
+  const pages = [
+    { id: "homepage", label: "Homepage" },
+    { id: "login", label: "Login" },
+    { id: "pricing", label: "Pricing" },
+  ];
+
+  if (canRunProtectedQaFlows) {
+    pages.push({ id: "master_report", label: "Master Deal Report" });
+  }
+
+  return pages;
+}
 
 export async function ensureDir(targetDir) {
   await fs.mkdir(targetDir, { recursive: true });
@@ -99,6 +167,57 @@ export function getReleaseBand(score) {
 
 export function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+const placeholderHosts = new Set([
+  "your-staging-or-prod-url",
+  "example.com",
+  "www.example.com",
+  "your-domain.com",
+]);
+
+export async function validateQaBaseUrl(rawBaseUrl) {
+  let parsedUrl;
+
+  try {
+    parsedUrl = new URL(rawBaseUrl);
+  } catch (error) {
+    throw new Error(
+      `QA_BASE_URL must be a full URL like https://staging.fliprop.com. Received: ${rawBaseUrl}`
+    );
+  }
+
+  if (!["http:", "https:"].includes(parsedUrl.protocol)) {
+    throw new Error(
+      `QA_BASE_URL must start with http:// or https://. Received: ${rawBaseUrl}`
+    );
+  }
+
+  if (
+    placeholderHosts.has(parsedUrl.hostname) ||
+    /your-.*url/i.test(parsedUrl.hostname)
+  ) {
+    throw new Error(
+      `QA_BASE_URL is still using the placeholder host "${parsedUrl.hostname}". Replace it with a real environment URL such as https://staging.fliprop.com or unset QA_BASE_URL to let the local QA server start automatically.`
+    );
+  }
+
+  try {
+    const response = await fetch(parsedUrl.toString(), {
+      redirect: "manual",
+      signal: AbortSignal.timeout(15000),
+    });
+
+    if (!response) {
+      throw new Error("No response received");
+    }
+  } catch (error) {
+    throw new Error(
+      `Could not reach QA_BASE_URL at ${parsedUrl.toString()}. Make sure the host resolves and the site is online before running the QA suite. Original error: ${error.message}`
+    );
+  }
+
+  return parsedUrl.toString().replace(/\/$/, "");
 }
 
 export async function waitForUrl(url, { timeoutMs = 120000, intervalMs = 1000 } = {}) {
@@ -162,27 +281,22 @@ export async function runCommand(command, args, { cwd = projectRoot, env = {}, l
 }
 
 async function findFreshBuildArtifacts(buildStartedAtMs) {
-  const buildDir = path.join(projectRoot, "build");
-  const staticJsDir = path.join(buildDir, "static", "js");
+  const buildDir = path.join(projectRoot, "dist");
+  const assetDir = path.join(buildDir, "assets");
 
   try {
-    const [manifestStat, indexStat, jsFiles] = await Promise.all([
-      fs.stat(path.join(buildDir, "asset-manifest.json")),
+    const [indexStat, assetFiles] = await Promise.all([
       fs.stat(path.join(buildDir, "index.html")),
-      fs.readdir(staticJsDir),
+      fs.readdir(assetDir),
     ]);
 
-    const mainBundle = jsFiles.find((fileName) => /^main\..+\.js$/.test(fileName));
+    const mainBundle = assetFiles.find((fileName) => fileName.endsWith(".js"));
     if (!mainBundle) {
       return null;
     }
 
-    const mainBundleStat = await fs.stat(path.join(staticJsDir, mainBundle));
-    const newestMtimeMs = Math.max(
-      manifestStat.mtimeMs,
-      indexStat.mtimeMs,
-      mainBundleStat.mtimeMs
-    );
+    const mainBundleStat = await fs.stat(path.join(assetDir, mainBundle));
+    const newestMtimeMs = Math.max(indexStat.mtimeMs, mainBundleStat.mtimeMs);
 
     if (newestMtimeMs < buildStartedAtMs) {
       return null;
@@ -223,7 +337,7 @@ async function waitForBuildArtifacts(buildStartedAtMs, { timeoutMs = 60000, idle
 }
 
 async function buildFrontendForQa() {
-  const buildDir = path.join(projectRoot, "build");
+  const buildDir = path.join(projectRoot, "dist");
   const buildStartedAtMs = Date.now();
 
   await fs.rm(buildDir, { recursive: true, force: true });
@@ -276,7 +390,7 @@ async function buildFrontendForQa() {
   }
 
   process.stdout.write(
-    `Detected complete QA build artifacts (${outcome.artifacts.mainBundle}); continuing even though react-scripts build is still open.\n`
+    `Detected complete QA build artifacts (${outcome.artifacts.mainBundle}); continuing after the output stabilized.\n`
   );
 
   child.kill("SIGTERM");
@@ -334,7 +448,7 @@ async function startStaticQaServer() {
 
   const child = spawn(
     "npx",
-    ["serve", "-s", "build", "-l", String(qaPort)],
+    ["serve", "-s", "dist", "-l", String(qaPort)],
     {
       cwd: projectRoot,
       env: {
@@ -365,7 +479,6 @@ async function startDevQaServer() {
     cwd: projectRoot,
     env: {
       ...process.env,
-      BROWSER: "none",
       CI: "true",
       HOST: "127.0.0.1",
       PORT: String(qaPort),
@@ -389,8 +502,12 @@ async function startDevQaServer() {
 
 export async function startLocalQaServer() {
   if (process.env.QA_SERVER_STARTED === "1" || process.env.QA_BASE_URL) {
+    const resolvedBaseUrl = process.env.QA_BASE_URL
+      ? await validateQaBaseUrl(process.env.QA_BASE_URL)
+      : defaultBaseUrl;
+
     return {
-      baseUrl: defaultBaseUrl,
+      baseUrl: resolvedBaseUrl,
       mode: "external",
       stop: async () => {},
     };

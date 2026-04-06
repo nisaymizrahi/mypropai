@@ -1,13 +1,14 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { API_BASE_URL } from '../config';
 import { logoutUser } from "../utils/api";
+import { AUTH_IDLE_TIMEOUT_MINUTES } from "../utils/env";
 
 const AuthContext = createContext();
 const TOKEN_KEY = "token";
 const PLATFORM_MANAGER_TOKEN_KEY = "platformManagerToken";
 const LAST_ACTIVITY_KEY = "authLastActivityAt";
-const IDLE_TIMEOUT_MINUTES = Number.parseInt(process.env.REACT_APP_AUTH_IDLE_TIMEOUT_MINUTES || "30", 10);
-const IDLE_TIMEOUT_MS = (Number.isFinite(IDLE_TIMEOUT_MINUTES) ? IDLE_TIMEOUT_MINUTES : 30) * 60 * 1000;
+const IDLE_TIMEOUT_MS =
+  (Number.isFinite(AUTH_IDLE_TIMEOUT_MINUTES) ? AUTH_IDLE_TIMEOUT_MINUTES : 30) * 60 * 1000;
 const ACTIVITY_WRITE_INTERVAL_MS = 15 * 1000;
 
 const decodeJwtPayload = (token) => {

@@ -6,7 +6,7 @@ module.exports = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ["Manrope", ...defaultTheme.fontFamily.sans],
+        sans: ["Source Sans 3", ...defaultTheme.fontFamily.sans],
         display: ["Fraunces", ...defaultTheme.fontFamily.serif],
       },
       colors: {

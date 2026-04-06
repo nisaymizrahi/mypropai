@@ -1,5 +1,4 @@
-const GOOGLE_MAPS_API_KEY = process.env.REACT_APP_GOOGLE_MAPS_API_KEY;
-const MAPBOX_TOKEN = process.env.REACT_APP_MAPBOX_TOKEN;
+import { GOOGLE_MAPS_API_KEY, MAPBOX_TOKEN } from "./env";
 const GOOGLE_MAPS_LOAD_TIMEOUT_MS = 5000;
 const GOOGLE_MAPS_CALLBACK_NAME = "__flipropGoogleMapsReady";
 

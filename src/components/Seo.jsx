@@ -1,7 +1,6 @@
 import { useEffect } from "react";
 import { trackPageView } from "../utils/analytics";
-
-const SITE_URL = process.env.REACT_APP_SITE_URL || "https://fliprop.com";
+import { SITE_URL } from "../utils/env";
 
 const upsertMetaTag = (attributeName, attributeValue, content) => {
   if (!content) {

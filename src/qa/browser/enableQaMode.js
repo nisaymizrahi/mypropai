@@ -252,27 +252,6 @@ const ACTIVE_MARKET = [
   },
 ];
 
-const RENT_COMPS = [
-  {
-    address: "700 Evergreen Terrace, Springfield, IL 62704",
-    rent: 2395,
-    distance: 0.21,
-    listedDate: "2026-03-28T00:00:00.000Z",
-  },
-  {
-    address: "860 Maple Drive, Springfield, IL 62704",
-    rent: 2525,
-    distance: 0.39,
-    listedDate: "2026-03-18T00:00:00.000Z",
-  },
-  {
-    address: "515 Oak Lane, Springfield, IL 62704",
-    rent: 2450,
-    distance: 0.56,
-    listedDate: "2026-03-11T00:00:00.000Z",
-  },
-];
-
 const clone = (value) => JSON.parse(JSON.stringify(value));
 
 const jsonResponse = (data, status = 200) =>

@@ -63,7 +63,10 @@ const MasterDealReportWorkspace = ({
             Combine property facts, comps, market context, deal math, and AI underwriting into one premium report.
           </p>
 
-          <div className="mt-4 rounded-[20px] border border-ink-100 bg-sand-50/70 p-4 text-sm">
+          <div
+            className="mt-4 rounded-[20px] border border-ink-100 bg-sand-50/70 p-4 text-sm"
+            data-testid="master-report-access-panel"
+          >
             {isBillingAccessLoading ? (
               <p className="text-ink-500">Checking report access...</p>
             ) : billingAccess?.accessGranted ? (
@@ -123,6 +126,7 @@ const MasterDealReportWorkspace = ({
                       type="button"
                       onClick={onStartSubscription}
                       disabled={isStartingSubscription}
+                      data-testid="start-subscription-checkout"
                       className="secondary-action w-full justify-center disabled:opacity-50"
                     >
                       {isStartingSubscription ? "Redirecting..." : startSubscriptionLabel}
@@ -133,6 +137,7 @@ const MasterDealReportWorkspace = ({
                       type="button"
                       onClick={onBuyReport}
                       disabled={isStartingCheckout}
+                      data-testid="buy-report-credits"
                       className="primary-action w-full justify-center disabled:opacity-50"
                     >
                       {isStartingCheckout ? "Redirecting..." : "Buy 10 Credits"}

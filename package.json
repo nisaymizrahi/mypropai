@@ -24,27 +24,22 @@
     "react-dom": "^19.1.0",
     "react-hot-toast": "^2.5.2",
     "react-router-dom": "^7.6.3",
-    "react-scripts": "^5.0.1",
     "web-vitals": "^2.1.4"
   },
   "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build",
-    "test": "react-scripts test",
+    "start": "vite",
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "qa": "node qa/scripts/run-suite.mjs",
     "qa:full": "node qa/scripts/run-suite.mjs",
     "qa:functional": "node qa/scripts/run-functional.mjs",
     "qa:a11y": "node qa/scripts/run-a11y.mjs",
     "qa:lighthouse": "node qa/scripts/run-lighthouse.mjs",
     "qa:ux": "node qa/scripts/run-ai-review.mjs",
-    "qa:report": "node qa/scripts/build-report.mjs",
-    "eject": "react-scripts eject"
-  },
-  "eslintConfig": {
-    "extends": [
-      "react-app",
-      "react-app/jest"
-    ]
+    "qa:report": "node qa/scripts/build-report.mjs"
   },
   "browserslist": {
     "production": [
@@ -61,13 +56,17 @@
   "devDependencies": {
     "@axe-core/playwright": "^4.11.0",
     "@playwright/test": "^1.55.0",
+    "@vitejs/plugin-react": "^6.0.1",
     "autoprefixer": "^10.4.21",
     "browserslist": "^4.25.1",
     "caniuse-lite": "^1.0.30001779",
+    "happy-dom": "^20.8.9",
     "lighthouse": "^12.8.2",
     "openai": "^6.4.0",
     "postcss": "^8.5.6",
     "serve": "^14.2.4",
-    "tailwindcss": "^3.4.3"
+    "tailwindcss": "^3.4.3",
+    "vite": "^8.0.3",
+    "vitest": "^4.1.2"
   }
 }
