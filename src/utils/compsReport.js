@@ -40,6 +40,29 @@ export const formatCurrency = (value) => {
   }).format(Number(value));
 };
 
+export const formatPercent = (value, digits = 1) => {
+  if (value === null || value === undefined || value === "") return "—";
+  return `${Number(value).toFixed(digits)}%`;
+};
+
+export const formatCompactCurrency = (value) => {
+  if (value === null || value === undefined || value === "") return "—";
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    notation: "compact",
+    maximumFractionDigits: 1,
+  }).format(Number(value));
+};
+
+export const formatSignedCurrency = (value) => {
+  if (value === null || value === undefined || value === "") return "—";
+  const amount = Number(value);
+  const formatted = formatCurrency(Math.abs(amount));
+  if (!Number.isFinite(amount) || amount === 0) return formatted;
+  return amount > 0 ? `+${formatted}` : `-${formatted}`;
+};
+
 export const formatDate = (value) => {
   if (!value) return "—";
   const date = new Date(value);
@@ -404,6 +427,8 @@ export const countSavableComparables = (comps = []) =>
         Boolean(comp.address) && comp.salePrice !== null && comp.salePrice !== undefined
     ).length;
 
+const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
+
 const average = (values = []) => {
   if (!values.length) return null;
   return values.reduce((sum, value) => sum + value, 0) / values.length;
@@ -421,6 +446,14 @@ const median = (values = []) => {
 const roundCurrency = (value) => {
   if (value === null || value === undefined) return null;
   return Math.round(Number(value) / 1000) * 1000;
+};
+
+const roundNumber = (value, digits = 1) => {
+  if (value === null || value === undefined) return null;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return null;
+  const factor = 10 ** digits;
+  return Math.round(parsed * factor) / factor;
 };
 
 export const buildSelectionSummary = (subject = {}, comps = [], valuationContext = null) => {
@@ -473,6 +506,348 @@ export const buildSelectionSummary = (subject = {}, comps = [], valuationContext
     askingPriceDelta: roundCurrency(askingPriceDelta),
     recommendedOfferLow: estimatedValueLow ? roundCurrency(estimatedValueLow * 0.98) : null,
     recommendedOfferHigh: estimatedValue ? roundCurrency(estimatedValue) : null,
+  };
+};
+
+const sumAmounts = (items = []) =>
+  items.reduce((total, item) => total + (toNullableNumber(item?.amount) || 0), 0);
+
+const normalizeVerdictLabel = (value = "") => {
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase();
+
+  if (!normalized) return "Moderate";
+  if (["strong", "good", "favorable"].includes(normalized)) return "Strong";
+  if (["mixed", "moderate", "average", "watch"].includes(normalized)) return "Moderate";
+  if (["risky", "weak", "poor"].includes(normalized)) return "Risky";
+  return String(value || "Moderate").trim();
+};
+
+const normalizeCompSupportLabel = (value = "") => {
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase();
+
+  if (!normalized) return "Moderate";
+  if (["strong", "high"].includes(normalized)) return "Strong";
+  if (["moderate", "medium", "average"].includes(normalized)) return "Moderate";
+  if (["weak", "low"].includes(normalized)) return "Weak";
+  return String(value || "Moderate").trim();
+};
+
+const normalizeConfidenceLabel = (value = "") => {
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase();
+
+  if (!normalized) return "Medium";
+  if (normalized === "high") return "High";
+  if (normalized === "low") return "Low";
+  if (normalized === "medium") return "Medium";
+  return String(value || "Medium").trim();
+};
+
+export const buildCostStackFromAnalysis = (analysis = {}, deal = {}) => {
+  const costBreakdown = Array.isArray(analysis?.costBreakdown) ? analysis.costBreakdown : [];
+  const purchasePrice =
+    toNullableNumber(analysis?.metrics?.purchasePrice) ?? toNullableNumber(deal?.askingPrice);
+  const rehabEstimate =
+    toNullableNumber(analysis?.metrics?.rehabEstimate) ?? toNullableNumber(deal?.rehabEstimate);
+  const softCosts = roundCurrency(
+    costBreakdown
+      .filter((item) => item?.group === "soft")
+      .reduce((sum, item) => sum + (toNullableNumber(item?.amount) || 0), 0)
+  );
+  const carryCosts = roundCurrency(
+    costBreakdown
+      .filter((item) => item?.group === "carry")
+      .reduce((sum, item) => sum + (toNullableNumber(item?.amount) || 0), 0)
+  );
+  const sellingCosts = roundCurrency(
+    costBreakdown
+      .filter((item) => item?.group === "exit")
+      .reduce((sum, item) => sum + (toNullableNumber(item?.amount) || 0), 0)
+  );
+
+  const items = [
+    {
+      key: "purchase",
+      label: "Purchase",
+      amount: purchasePrice,
+      color: "#1b4d47",
+      tone: "deep",
+    },
+    {
+      key: "rehab",
+      label: "Renovation",
+      amount: rehabEstimate,
+      color: "#ba7252",
+      tone: "warm",
+    },
+    {
+      key: "soft",
+      label: "Soft Costs",
+      amount: softCosts,
+      color: "#827469",
+      tone: "neutral",
+    },
+    {
+      key: "carry",
+      label: "Carry",
+      amount: carryCosts,
+      color: "#d2a33f",
+      tone: "sand",
+    },
+    {
+      key: "selling",
+      label: "Selling",
+      amount: sellingCosts,
+      color: "#5f7c96",
+      tone: "sky",
+    },
+  ].filter((item) => item.amount !== null && item.amount !== undefined && item.amount !== 0);
+
+  const total = sumAmounts(items);
+
+  return items.map((item) => ({
+    ...item,
+    share: total ? roundNumber((item.amount / total) * 100, 1) : 0,
+  }));
+};
+
+export const buildFinancialSnapshot = (report = null) => {
+  const valuation = report?.valuation || {};
+  const deal = report?.dealInputs || {};
+  const analysis = report?.dealAnalysis || {};
+  const mode = analysis?.mode === "hold" ? "hold" : "flip";
+  const costStack = buildCostStackFromAnalysis(analysis, deal);
+  const askingPrice =
+    toNullableNumber(analysis?.metrics?.purchasePrice) ?? toNullableNumber(deal?.askingPrice);
+  const rehabEstimate =
+    toNullableNumber(analysis?.metrics?.rehabEstimate) ?? toNullableNumber(deal?.rehabEstimate);
+  const softCosts = sumAmounts(costStack.filter((item) => item.key === "soft"));
+  const carryCosts = sumAmounts(costStack.filter((item) => item.key === "carry"));
+  const sellingCosts = sumAmounts(costStack.filter((item) => item.key === "selling"));
+  const totalProjectCost =
+    mode === "hold"
+      ? toNullableNumber(analysis?.metrics?.stabilizedBasis)
+      : toNullableNumber(analysis?.metrics?.totalProjectCost);
+  const estimatedValue =
+    mode === "hold"
+      ? toNullableNumber(valuation?.blendedEstimate) ??
+        toNullableNumber(analysis?.metrics?.exitValue) ??
+        toNullableNumber(valuation?.rentCastEstimate)
+      : toNullableNumber(analysis?.metrics?.exitValue) ??
+        toNullableNumber(valuation?.blendedEstimate) ??
+        toNullableNumber(valuation?.rentCastEstimate);
+  const estimatedProfit =
+    mode === "hold"
+      ? toNullableNumber(analysis?.metrics?.equitySpread)
+      : toNullableNumber(analysis?.metrics?.estimatedProfit);
+  const marginPercent =
+    mode === "hold"
+      ? toNullableNumber(analysis?.metrics?.grossYieldPercent)
+      : toNullableNumber(analysis?.metrics?.marginPercent);
+  const returnPercent =
+    mode === "hold"
+      ? toNullableNumber(analysis?.metrics?.onePercentRule)
+      : toNullableNumber(analysis?.metrics?.returnOnCostPercent);
+  const loanAmount = toNullableNumber(analysis?.metrics?.loanAmount);
+  const cashRequired = toNullableNumber(analysis?.metrics?.cashRequired);
+  const valueGap =
+    estimatedValue !== null && totalProjectCost !== null
+      ? roundCurrency(estimatedValue - totalProjectCost)
+      : null;
+  const coveragePercent =
+    estimatedValue && totalProjectCost ? roundNumber((totalProjectCost / estimatedValue) * 100, 1) : null;
+
+  return {
+    mode,
+    askingPrice,
+    rehabEstimate,
+    softCosts: roundCurrency(softCosts),
+    carryCosts: roundCurrency(carryCosts),
+    sellingCosts: roundCurrency(sellingCosts),
+    totalProjectCost,
+    estimatedValue,
+    estimatedProfit,
+    marginPercent,
+    returnPercent,
+    loanAmount,
+    cashRequired,
+    valueGap,
+    coveragePercent,
+    costStack,
+    spreadLabel: mode === "hold" ? "Equity Spread" : "Estimated Profit",
+    marginLabel: mode === "hold" ? "Gross Yield" : "Margin",
+    returnLabel: mode === "hold" ? "1% Rule" : "Return On Cost",
+    valueLabel: mode === "hold" ? "Estimated Value" : "Exit Value",
+  };
+};
+
+export const buildDraftFinancialSnapshot = ({
+  subject = {},
+  deal = {},
+  filters = {},
+  report = null,
+} = {}) => {
+  const strategy = String(deal?.strategy || "flip").trim().toLowerCase() || "flip";
+  const askingPrice =
+    toNullableNumber(deal?.askingPrice) ?? toNullableNumber(subject?.sellerAskingPrice) ?? 0;
+  const rehabEstimate =
+    toNullableNumber(deal?.rehabEstimate) ?? toNullableNumber(subject?.rehabEstimate) ?? 0;
+  const holdingPeriodMonths = toNullableNumber(deal?.holdingPeriodMonths) ?? 6;
+  const acquisitionClosingCostPercent =
+    toNullableNumber(deal?.acquisitionClosingCostPercent) ?? 2;
+  const contingencyPercent = toNullableNumber(deal?.contingencyPercent) ?? 7;
+  const financingPointsPercent = toNullableNumber(deal?.financingPointsPercent) ?? 2;
+  const interestRatePercent = toNullableNumber(deal?.interestRatePercent) ?? 10;
+  const loanToCostPercent = toNullableNumber(deal?.loanToCostPercent) ?? 85;
+  const annualTaxes = toNullableNumber(deal?.annualTaxes) ?? 0;
+  const monthlyInsurance = toNullableNumber(deal?.monthlyInsurance) ?? 150;
+  const monthlyUtilities = toNullableNumber(deal?.monthlyUtilities) ?? 150;
+  const monthlyMaintenance = toNullableNumber(deal?.monthlyMaintenance) ?? 120;
+  const sellingCostPercent = toNullableNumber(deal?.sellingCostPercent) ?? 8;
+  const estimatedValue =
+    toNullableNumber(report?.valuation?.blendedEstimate) ??
+    toNullableNumber(subject?.arv) ??
+    toNullableNumber(subject?.targetOffer);
+  const hasMeaningfulBasis =
+    askingPrice > 0 || rehabEstimate > 0 || estimatedValue !== null;
+
+  if (!hasMeaningfulBasis) {
+    return {
+      strategy,
+      askingPrice: null,
+      rehabEstimate: null,
+      totalProjectCost: null,
+      estimatedValue: null,
+      estimatedProfit: null,
+      holdingPeriodMonths,
+      radius: toNullableNumber(filters?.radius),
+      saleDateMonths: toNullableNumber(filters?.saleDateMonths),
+      maxComps: toNullableNumber(filters?.maxComps),
+      address: subject?.address || "",
+      propertyType: subject?.propertyType || "",
+      costStack: [],
+    };
+  }
+
+  const acquisitionClosingCosts = askingPrice * (acquisitionClosingCostPercent / 100);
+  const contingency = rehabEstimate * (contingencyPercent / 100);
+  const loanAmount = (askingPrice + rehabEstimate) * (loanToCostPercent / 100);
+  const financingPoints = loanAmount * (financingPointsPercent / 100);
+  const monthlyInterestCarry = loanAmount * (interestRatePercent / 100) / 12;
+  const totalHoldingCarry =
+    (monthlyInterestCarry +
+      annualTaxes / 12 +
+      monthlyInsurance +
+      monthlyUtilities +
+      monthlyMaintenance) *
+    holdingPeriodMonths;
+  const sellingCosts =
+    strategy === "hold" || strategy === "rental" || estimatedValue === null
+      ? 0
+      : estimatedValue * (sellingCostPercent / 100);
+  const totalProjectCost =
+    askingPrice +
+    rehabEstimate +
+    acquisitionClosingCosts +
+    financingPoints +
+    totalHoldingCarry +
+    contingency +
+    sellingCosts;
+  const estimatedProfit =
+    estimatedValue !== null ? roundCurrency(estimatedValue - totalProjectCost) : null;
+  const costStack = [
+    { key: "purchase", label: "Purchase", amount: roundCurrency(askingPrice), color: "#1b4d47" },
+    { key: "rehab", label: "Renovation", amount: roundCurrency(rehabEstimate), color: "#ba7252" },
+    { key: "soft", label: "Soft Costs", amount: roundCurrency(acquisitionClosingCosts + financingPoints + contingency), color: "#827469" },
+    { key: "carry", label: "Carry", amount: roundCurrency(totalHoldingCarry), color: "#d2a33f" },
+    { key: "selling", label: "Selling", amount: roundCurrency(sellingCosts), color: "#5f7c96" },
+  ]
+    .filter((item) => item.amount)
+    .map((item) => ({
+      ...item,
+      share: totalProjectCost ? roundNumber((item.amount / totalProjectCost) * 100, 1) : 0,
+    }));
+
+  return {
+    strategy,
+    askingPrice: roundCurrency(askingPrice),
+    rehabEstimate: roundCurrency(rehabEstimate),
+    totalProjectCost: roundCurrency(totalProjectCost),
+    estimatedValue: roundCurrency(estimatedValue),
+    estimatedProfit,
+    holdingPeriodMonths,
+    radius: toNullableNumber(filters?.radius),
+    saleDateMonths: toNullableNumber(filters?.saleDateMonths),
+    maxComps: toNullableNumber(filters?.maxComps),
+    address: subject?.address || "",
+    propertyType: subject?.propertyType || "",
+    costStack,
+  };
+};
+
+export const getVerdictMeta = (report = null) => {
+  const ai = report?.aiVerdict || report || {};
+  const verdict = normalizeVerdictLabel(ai?.verdict);
+  const compSupport = normalizeCompSupportLabel(ai?.compSupport);
+  const confidence = normalizeConfidenceLabel(ai?.confidence);
+  const financialSnapshot =
+    report?.dealAnalysis || report?.dealInputs || report?.valuation
+      ? buildFinancialSnapshot(report)
+      : null;
+  const primaryCompCount = toNullableNumber(report?.comps?.primary?.summary?.count) || 0;
+
+  const baseScore =
+    verdict === "Strong" ? 78 : verdict === "Risky" ? 34 : 58;
+  const compAdjustment =
+    compSupport === "Strong" ? 8 : compSupport === "Weak" ? -8 : 0;
+  const confidenceAdjustment =
+    confidence === "High" ? 4 : confidence === "Low" ? -4 : 0;
+  const compCountAdjustment = primaryCompCount >= 5 ? 3 : primaryCompCount >= 3 ? 0 : -4;
+
+  let performanceAdjustment = 0;
+  if (financialSnapshot?.mode === "hold") {
+    if ((financialSnapshot?.marginPercent || 0) >= 10) performanceAdjustment += 8;
+    else if ((financialSnapshot?.marginPercent || 0) >= 7) performanceAdjustment += 4;
+    else if ((financialSnapshot?.marginPercent || 0) < 5) performanceAdjustment -= 8;
+  } else if (financialSnapshot) {
+    if ((financialSnapshot?.estimatedProfit || 0) > 0) performanceAdjustment += 4;
+    else if ((financialSnapshot?.estimatedProfit || 0) < 0) performanceAdjustment -= 12;
+
+    if ((financialSnapshot?.marginPercent || 0) >= 15) performanceAdjustment += 8;
+    else if ((financialSnapshot?.marginPercent || 0) >= 8) performanceAdjustment += 4;
+    else if ((financialSnapshot?.marginPercent || 0) < 0) performanceAdjustment -= 10;
+  }
+
+  const score = clamp(
+    baseScore + compAdjustment + confidenceAdjustment + compCountAdjustment + performanceAdjustment,
+    18,
+    96
+  );
+
+  const tone =
+    verdict === "Strong" ? "strong" : verdict === "Risky" ? "risky" : "moderate";
+
+  return {
+    label: verdict,
+    tone,
+    score,
+    scoreLabel: `${score}/100`,
+    compSupport,
+    confidence,
+    headline:
+      ai?.headline ||
+      ai?.executiveSummary ||
+      (verdict === "Strong"
+        ? "The current inputs support an above-average deal setup."
+        : verdict === "Risky"
+          ? "The current inputs suggest this deal needs caution."
+          : "The current inputs show a workable but assumption-sensitive deal."),
+    narrative: ai?.dealTakeaway || ai?.valueTakeaway || ai?.executiveSummary || "",
   };
 };
 

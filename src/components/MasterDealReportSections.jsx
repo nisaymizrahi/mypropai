@@ -2,10 +2,15 @@ import React, { useMemo } from "react";
 
 import MapView from "./MapView";
 import {
+  buildFinancialSnapshot,
+  formatCompactCurrency,
   formatCurrency,
   formatDate,
+  formatPercent,
+  formatSignedCurrency,
   getMasterReportMapComps,
   getMasterReportPrimaryComps,
+  getVerdictMeta,
   normalizeComparableRecord,
 } from "../utils/compsReport";
 
@@ -14,17 +19,12 @@ const formatNumber = (value, suffix = "") => {
   return `${Number(value).toLocaleString()}${suffix}`;
 };
 
-const formatPercent = (value) => {
-  if (value === null || value === undefined || value === "") return "—";
-  return `${Number(value).toFixed(1)}%`;
-};
-
-const SectionCard = ({ title, subtitle, children, action }) => (
-  <section className="section-card p-6">
+const SectionCard = ({ id, title, subtitle, children, action, className = "" }) => (
+  <section id={id} className={`section-card overflow-hidden p-6 ${className}`.trim()}>
     <div className="flex flex-wrap items-start justify-between gap-4">
       <div>
-        <h3 className="text-2xl font-semibold text-ink-900">{title}</h3>
-        {subtitle ? <p className="mt-1 text-sm text-ink-500">{subtitle}</p> : null}
+        <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-ink-400">{title}</p>
+        {subtitle ? <p className="mt-2 max-w-3xl text-sm leading-7 text-ink-500">{subtitle}</p> : null}
       </div>
       {action}
     </div>
@@ -32,27 +32,123 @@ const SectionCard = ({ title, subtitle, children, action }) => (
   </section>
 );
 
-const KeyValueGrid = ({ items = [] }) => (
+const MetricCard = ({ label, value, hint, tone = "default" }) => (
+  <div className={`report-metric-card ${tone !== "default" ? `report-metric-card-${tone}` : ""}`}>
+    <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-ink-400">{label}</p>
+    <p className="mt-3 text-[1.9rem] font-semibold text-ink-900">{value}</p>
+    {hint ? <p className="mt-2 text-sm leading-6 text-ink-500">{hint}</p> : null}
+  </div>
+);
+
+const DetailGrid = ({ items = [] }) => (
   <dl className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
     {items.map((item) => (
-      <div key={item.label} className="rounded-[18px] bg-sand-50 px-4 py-3">
-        <dt className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-400">
-          {item.label}
-        </dt>
+      <div key={item.label} className="rounded-[20px] border border-ink-100 bg-white/80 px-4 py-4">
+        <dt className="text-[10px] font-semibold uppercase tracking-[0.2em] text-ink-400">{item.label}</dt>
         <dd className="mt-2 text-sm font-semibold text-ink-900">{item.value || "—"}</dd>
-        {item.hint ? <p className="mt-1 text-xs text-ink-500">{item.hint}</p> : null}
+        {item.hint ? <p className="mt-1 text-xs leading-5 text-ink-500">{item.hint}</p> : null}
       </div>
     ))}
   </dl>
 );
 
-const MetricTile = ({ label, value, hint, tone = "text-ink-900" }) => (
-  <div className="metric-tile p-5">
-    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-400">{label}</p>
-    <p className={`mt-3 text-3xl font-semibold ${tone}`}>{value}</p>
-    {hint ? <p className="mt-2 text-sm leading-6 text-ink-500">{hint}</p> : null}
+const InsightList = ({ title, items = [], emptyText }) => (
+  <div className="rounded-[22px] border border-ink-100 bg-white/85 px-5 py-5">
+    <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-ink-400">{title}</p>
+    {items.length ? (
+      <ul className="mt-3 space-y-2 text-sm text-ink-600">
+        {items.map((item) => (
+          <li key={item} className="rounded-[16px] bg-sand-50 px-4 py-3 leading-6">
+            {item}
+          </li>
+        ))}
+      </ul>
+    ) : (
+      <p className="mt-3 text-sm leading-6 text-ink-500">{emptyText}</p>
+    )}
   </div>
 );
+
+const ComparisonBar = ({ leftLabel, leftValue, rightLabel, rightValue }) => {
+  const maxValue = Math.max(leftValue || 0, rightValue || 0, 1);
+  const leftWidth = Math.max(((leftValue || 0) / maxValue) * 100, leftValue ? 12 : 0);
+  const rightWidth = Math.max(((rightValue || 0) / maxValue) * 100, rightValue ? 12 : 0);
+
+  return (
+    <div className="space-y-4">
+      <div className="space-y-2">
+        <div className="flex items-center justify-between gap-3 text-sm">
+          <span className="font-medium text-ink-600">{leftLabel}</span>
+          <span className="font-semibold text-ink-900">{formatCurrency(leftValue)}</span>
+        </div>
+        <div className="h-4 overflow-hidden rounded-full bg-sand-100">
+          <div
+            className="h-full rounded-full bg-ink-900"
+            style={{ width: `${leftWidth}%` }}
+          />
+        </div>
+      </div>
+      <div className="space-y-2">
+        <div className="flex items-center justify-between gap-3 text-sm">
+          <span className="font-medium text-ink-600">{rightLabel}</span>
+          <span className="font-semibold text-ink-900">{formatCurrency(rightValue)}</span>
+        </div>
+        <div className="h-4 overflow-hidden rounded-full bg-verdigris-100/70">
+          <div
+            className="h-full rounded-full bg-verdigris-600"
+            style={{ width: `${rightWidth}%` }}
+          />
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const CostStackFigure = ({ items = [] }) => {
+  if (!items.length) {
+    return (
+      <div className="rounded-[22px] border border-dashed border-ink-200 bg-white/70 px-6 py-10 text-center text-sm text-ink-500">
+        No cost stack is available for this report yet.
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex h-4 overflow-hidden rounded-full bg-sand-100">
+        {items.map((item) => (
+          <div
+            key={item.key}
+            style={{
+              width: `${Math.max(item.share || 0, 4)}%`,
+              backgroundColor: item.color,
+            }}
+          />
+        ))}
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        {items.map((item) => (
+          <div key={item.key} className="rounded-[20px] border border-ink-100 bg-white/85 px-4 py-4">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <span
+                  className="h-3 w-3 rounded-full"
+                  style={{ backgroundColor: item.color }}
+                />
+                <p className="text-sm font-semibold text-ink-900">{item.label}</p>
+              </div>
+              <span className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-400">
+                {formatPercent(item.share, 0)}
+              </span>
+            </div>
+            <p className="mt-2 text-sm text-ink-600">{formatCurrency(item.amount)}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
 
 const Table = ({
   columns = [],
@@ -61,7 +157,7 @@ const Table = ({
   testId,
   rowTestId,
 }) => (
-  <div className="overflow-x-auto rounded-[20px] border border-ink-100" data-testid={testId}>
+  <div className="overflow-x-auto rounded-[22px] border border-ink-100" data-testid={testId}>
     <table className="min-w-full text-sm">
       <thead className="bg-sand-50 text-left text-ink-500">
         <tr>
@@ -99,50 +195,6 @@ const Table = ({
   </div>
 );
 
-const DealBreakdownTable = ({ items = [] }) => (
-  <div className="overflow-hidden rounded-[20px] border border-ink-100 bg-white">
-    <table className="min-w-full text-sm">
-      <thead className="bg-sand-50 text-left text-ink-500">
-        <tr>
-          <th className="px-4 py-3 font-semibold">Category</th>
-          <th className="px-4 py-3 font-semibold">Group</th>
-          <th className="px-4 py-3 font-semibold">Amount</th>
-        </tr>
-      </thead>
-      <tbody className="divide-y divide-ink-100">
-        {items.map((item) => (
-          <tr key={`${item.label}-${item.group}`}>
-            <td className="px-4 py-4 font-medium text-ink-900">{item.label}</td>
-            <td className="px-4 py-4 capitalize text-ink-600">{item.group}</td>
-            <td className="px-4 py-4 text-ink-700">{formatCurrency(item.amount)}</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  </div>
-);
-
-const Legend = () => (
-  <div className="flex flex-wrap gap-3 text-xs text-ink-500">
-    <span className="inline-flex items-center gap-2">
-      <span className="h-2.5 w-2.5 rounded-full bg-verdigris-600" />
-      Subject
-    </span>
-    <span className="inline-flex items-center gap-2">
-      <span className="h-2.5 w-2.5 rounded-full bg-amber-500" />
-      AVM valuation comps
-    </span>
-    <span className="inline-flex items-center gap-2">
-      <span className="h-2.5 w-2.5 rounded-full bg-clay-500" />
-      Recent sales
-    </span>
-    <span className="inline-flex items-center gap-2">
-      <span className="h-2.5 w-2.5 rounded-full bg-sky-500" />
-      Active market listings
-    </span>
-  </div>
-);
-
 const buildMapMarkers = (report) =>
   getMasterReportMapComps(report).map((comp) => ({
     lat: comp.latitude,
@@ -152,7 +204,7 @@ const buildMapMarkers = (report) =>
         ? "#b45309"
         : comp.category === "active_market"
           ? "#0284c7"
-          : "#d97706",
+          : "#167267",
   }));
 
 const buildCompColumns = (showSource = false) => {
@@ -164,9 +216,7 @@ const buildCompColumns = (showSource = false) => {
         <div>
           <p className="font-semibold text-ink-900">{row.address || "—"}</p>
           <p className="mt-1 text-xs text-ink-500">
-            {[row.propertyType, row.status || null, row.listingType || null]
-              .filter(Boolean)
-              .join(" • ") || "Comparable"}
+            {[row.propertyType, row.status || null, row.listingType || null].filter(Boolean).join(" • ") || "Comparable"}
           </p>
         </div>
       ),
@@ -178,15 +228,12 @@ const buildCompColumns = (showSource = false) => {
         <div>
           <p>{formatCurrency(row.salePrice)}</p>
           <p className="mt-1 text-xs text-ink-500">{formatDate(row.saleDate || row.listedDate)}</p>
-          {row.estimatedValue ? (
-            <p className="mt-1 text-xs text-ink-500">AVM context {formatCurrency(row.estimatedValue)}</p>
-          ) : null}
         </div>
       ),
     },
     {
       key: "size",
-      label: "Beds/Baths/Sqft",
+      label: "Beds / Baths / Sqft",
       render: (row) =>
         [
           row.bedrooms !== null && row.bedrooms !== undefined ? `${row.bedrooms} bd` : null,
@@ -207,16 +254,6 @@ const buildCompColumns = (showSource = false) => {
       render: (row) => formatNumber(row.pricePerSqft, " / sqft"),
     },
     {
-      key: "daysOnMarket",
-      label: "DOM",
-      render: (row) => formatNumber(row.daysOnMarket),
-    },
-    {
-      key: "similarityScore",
-      label: "Similarity",
-      render: (row) => formatNumber(row.similarityScore),
-    },
-    {
       key: "whySelected",
       label: "Why Included",
       render: (row) => <span className="text-sm leading-6 text-ink-600">{row.whySelected || "—"}</span>,
@@ -234,7 +271,11 @@ const buildCompColumns = (showSource = false) => {
   return columns;
 };
 
-const MasterDealReportSections = ({ report = null, emptyTitle = "No deal report yet", emptyMessage = "Run the report to build the property, comps, value, and deal analysis." }) => {
+const MasterDealReportSections = ({
+  report = null,
+  emptyTitle = "No deal report yet",
+  emptyMessage = "Run the report to build the property, comps, value, and deal analysis.",
+}) => {
   const primaryComps = useMemo(
     () => getMasterReportPrimaryComps(report).map((comp, index) => normalizeComparableRecord(comp, index)),
     [report]
@@ -270,213 +311,286 @@ const MasterDealReportSections = ({ report = null, emptyTitle = "No deal report 
   const analysis = report.dealAnalysis || {};
   const ai = report.aiVerdict || {};
   const market = report.marketContext || {};
+  const verdictMeta = getVerdictMeta(report);
+  const financial = buildFinancialSnapshot(report);
+  const primarySummary = report.comps?.primary?.summary || {};
+  const recentSummary = report.comps?.recentSales?.summary || {};
+  const activeSummary = report.comps?.activeMarket?.summary || {};
+
+  const valueGapTone =
+    (financial.valueGap || 0) > 0 ? "positive" : (financial.valueGap || 0) < 0 ? "negative" : "default";
 
   return (
     <div className="space-y-6" data-testid="master-deal-report">
       <section className="surface-panel-strong overflow-hidden px-6 py-7 sm:px-7">
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1.15fr)_340px]">
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_360px]">
           <div>
             <span className="eyebrow">Master Deal Report</span>
-            <h2 className="mt-4 font-display text-[2.7rem] leading-[0.95] text-ink-900">
+            <h2 className="mt-4 font-display text-[2.7rem] leading-[0.94] text-ink-900">
               {report.title || report.subject?.address || "Deal report"}
             </h2>
-            <p className="mt-4 max-w-3xl text-sm leading-7 text-ink-600">
+            <p className="mt-3 max-w-3xl text-sm leading-7 text-ink-600">
               {ai.executiveSummary ||
-                "Property intelligence, comps, market context, and deal math combined into one investor-ready report."}
+                "Property identity, comparable support, cost stack, and investor-facing conclusion in one report."}
             </p>
-          </div>
-          <div className="space-y-4">
-            <div className="rounded-[24px] bg-white/85 px-5 py-4">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-400">
-                Deal verdict
-              </p>
-              <p className="mt-2 text-2xl font-semibold text-ink-900">{ai.verdict || "Pending"}</p>
-              <p className="mt-2 text-sm text-ink-500">
-                Comp support {ai.compSupport || "—"} • Confidence {ai.confidence || "—"}
-              </p>
+
+            <div className="mt-6 grid gap-3 sm:grid-cols-3">
+              <div className="rounded-[22px] border border-ink-100 bg-white/80 px-4 py-4">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-ink-400">Property</p>
+                <p className="mt-2 text-sm font-semibold text-ink-900">
+                  {[
+                    property.propertyType,
+                    property.squareFootage ? `${formatNumber(property.squareFootage)} sqft` : null,
+                  ]
+                    .filter(Boolean)
+                    .join(" • ") || "Property details pending"}
+                </p>
+                <p className="mt-1 text-xs text-ink-500">
+                  {[
+                    property.bedrooms !== null && property.bedrooms !== undefined ? `${property.bedrooms} bd` : null,
+                    property.bathrooms !== null && property.bathrooms !== undefined ? `${property.bathrooms} ba` : null,
+                    property.yearBuilt ? `Built ${property.yearBuilt}` : null,
+                  ]
+                    .filter(Boolean)
+                    .join(" • ") || "Subject profile"}
+                </p>
+              </div>
+
+              <div className="rounded-[22px] border border-ink-100 bg-white/80 px-4 py-4">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-ink-400">Asking / rehab</p>
+                <p className="mt-2 text-sm font-semibold text-ink-900">
+                  {formatCurrency(financial.askingPrice)} / {formatCurrency(financial.rehabEstimate)}
+                </p>
+                <p className="mt-1 text-xs text-ink-500">
+                  {String(deal.strategy || "flip").toUpperCase()} • {deal.holdingPeriodMonths || "—"} month hold
+                </p>
+              </div>
+
+              <div className="rounded-[22px] border border-ink-100 bg-white/80 px-4 py-4">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-ink-400">Generated</p>
+                <p className="mt-2 text-sm font-semibold text-ink-900">{formatDate(report.generatedAt)}</p>
+                <p className="mt-1 text-xs text-ink-500">
+                  {primaryComps.length} primary comps • {report.compFilters?.radius || "—"} mile radius
+                </p>
+              </div>
             </div>
-            <div className="rounded-[24px] bg-white/85 px-5 py-4">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-400">
-                Generated
-              </p>
-              <p className="mt-2 text-sm font-semibold text-ink-900">{formatDate(report.generatedAt)}</p>
+          </div>
+
+          <div className={`report-verdict-card report-verdict-card-large report-verdict-${verdictMeta.tone}`}>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.22em]">Deal verdict</p>
+            <div className="mt-4 flex items-end justify-between gap-4">
+              <div>
+                <p className="text-5xl font-semibold">{verdictMeta.score}</p>
+                <p className="mt-1 text-lg font-semibold">{verdictMeta.label}</p>
+              </div>
+              <div className="rounded-[20px] bg-white/18 px-4 py-3 text-right">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] opacity-80">Confidence</p>
+                <p className="mt-1 text-sm font-semibold">{verdictMeta.confidence}</p>
+              </div>
+            </div>
+            <p className="mt-4 text-sm leading-7 text-white/88">{verdictMeta.headline}</p>
+            <div className="mt-5 flex flex-wrap gap-2 text-xs">
+              <span className="rounded-full bg-white/14 px-3 py-1.5 font-semibold">
+                {verdictMeta.compSupport} comp support
+              </span>
+              <span className="rounded-full bg-white/14 px-3 py-1.5 font-semibold">
+                {financial.valueLabel}: {formatCompactCurrency(financial.estimatedValue)}
+              </span>
+              <span className="rounded-full bg-white/14 px-3 py-1.5 font-semibold">
+                {financial.spreadLabel}: {formatSignedCurrency(financial.estimatedProfit)}
+              </span>
             </div>
           </div>
         </div>
       </section>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <MetricTile
-          label="Blended Value"
-          value={formatCurrency(valuation.blendedEstimate)}
+      <section className="surface-panel px-4 py-4 sm:px-5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-ink-400">
+            Report navigation
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <a href="#report-overview" className="report-mini-chip">Overview</a>
+            <a href="#report-financials" className="report-mini-chip">Financials</a>
+            <a href="#report-comps" className="report-mini-chip">Comps</a>
+            <a href="#report-context" className="report-mini-chip">Context</a>
+            <a href="#report-conclusion" className="report-mini-chip">Conclusion</a>
+          </div>
+        </div>
+      </section>
+
+      <div id="report-overview" className="grid gap-4 scroll-mt-24 md:grid-cols-2 xl:grid-cols-4">
+        <MetricCard
+          label="Total Project Cost"
+          value={formatCurrency(financial.totalProjectCost)}
+          hint={`${formatCurrency(financial.askingPrice)} purchase • ${formatCurrency(financial.rehabEstimate)} renovation`}
+        />
+        <MetricCard
+          label={financial.valueLabel}
+          value={formatCurrency(financial.estimatedValue)}
           hint={`${formatCurrency(valuation.blendedLow)} to ${formatCurrency(valuation.blendedHigh)}`}
         />
-        <MetricTile
-          label="RentCast AVM"
-          value={formatCurrency(valuation.rentCastEstimate)}
-          hint={`${formatCurrency(valuation.rentCastLow)} to ${formatCurrency(valuation.rentCastHigh)}`}
+        <MetricCard
+          label={financial.spreadLabel}
+          value={formatSignedCurrency(financial.estimatedProfit)}
+          hint={`${financial.marginLabel} ${formatPercent(financial.marginPercent)}`}
+          tone={financial.estimatedProfit > 0 ? "positive" : financial.estimatedProfit < 0 ? "negative" : "default"}
         />
-        <MetricTile
-          label="Asking Price"
-          value={formatCurrency(deal.askingPrice)}
-          hint={`Rehab ${formatCurrency(deal.rehabEstimate)}`}
-        />
-        <MetricTile
-          label={analysis.mode === "hold" ? "Stabilized Basis" : "Estimated Profit"}
-          value={
-            analysis.mode === "hold"
-              ? formatCurrency(analysis.metrics?.stabilizedBasis)
-              : formatCurrency(analysis.metrics?.estimatedProfit)
-          }
+        <MetricCard
+          label={financial.returnLabel}
+          value={formatPercent(financial.returnPercent)}
           hint={
-            analysis.mode === "hold"
-              ? `Gross yield ${formatPercent(analysis.metrics?.grossYieldPercent)}`
-              : `Margin ${formatPercent(analysis.metrics?.marginPercent)}`
-          }
-          tone={
-            analysis.mode === "hold"
-              ? "text-ink-900"
-              : (analysis.metrics?.estimatedProfit || 0) >= 0
-                ? "text-verdigris-700"
-                : "text-clay-700"
+            financial.mode === "hold"
+              ? `Loan ${formatCurrency(financial.loanAmount)}`
+              : `Cash required ${formatCurrency(financial.cashRequired)}`
           }
         />
       </div>
 
-      <SectionCard
-        title="Property Snapshot"
-        subtitle="RentCast property, listing, owner, and tax data combined into the current subject profile."
-      >
-        <KeyValueGrid
-          items={[
-            { label: "Address", value: property.address || report.subject?.address || "—" },
-            { label: "Property", value: [property.propertyType, property.squareFootage ? `${formatNumber(property.squareFootage)} sqft` : null].filter(Boolean).join(" • ") || "—" },
-            { label: "Beds / Baths", value: [property.bedrooms, property.bathrooms].filter((value) => value !== null && value !== undefined).join(" / ") || "—" },
-            { label: "Lot Size", value: formatNumber(property.lotSize) },
-            { label: "Year Built", value: formatNumber(property.yearBuilt) },
-            { label: "Owner", value: property.owner?.name || "—", hint: property.owner?.occupied === null ? null : property.owner?.occupied ? "Owner occupied" : "Not owner occupied" },
-            { label: "Owner Type", value: property.owner?.type || "—" },
-            { label: "Last Sale", value: formatCurrency(property.lastSalePrice), hint: formatDate(property.lastSaleDate) },
-            { label: "Latest Tax", value: formatCurrency(property.latestTax?.taxAmount), hint: property.latestTax?.year ? `Tax year ${property.latestTax.year}` : null },
-            { label: "Assessed Value", value: formatCurrency(property.latestTax?.assessedValue) },
-            { label: "HOA", value: formatCurrency(property.hoaFee) },
-            { label: "Parcel / Legal", value: property.parcelId || "—", hint: property.legalDescription || null },
-          ]}
-        />
-      </SectionCard>
-
-      <div className="grid gap-6 lg:grid-cols-2">
-        <SectionCard title="Deal Input Summary" subtitle="User-provided assumptions feeding the deal model.">
-          <KeyValueGrid
-            items={[
-              { label: "Strategy", value: deal.strategy || "—" },
-              { label: "Asking Price", value: formatCurrency(deal.askingPrice) },
-              { label: "Rehab Estimate", value: formatCurrency(deal.rehabEstimate) },
-              { label: "Holding Period", value: formatNumber(deal.holdingPeriodMonths, " months") },
-              { label: "Acquisition Closing", value: formatPercent(deal.acquisitionClosingCostPercent) },
-              { label: "Selling Costs", value: formatPercent(deal.sellingCostPercent) },
-              { label: "Interest Rate", value: formatPercent(deal.interestRatePercent) },
-              { label: "Financing Points", value: formatPercent(deal.financingPointsPercent) },
-              { label: "Loan To Cost", value: formatPercent(deal.loanToCostPercent) },
-              { label: "Annual Taxes", value: formatCurrency(deal.annualTaxes) },
-              { label: "Insurance / Utilities", value: `${formatCurrency(deal.monthlyInsurance)} / ${formatCurrency(deal.monthlyUtilities)}` },
-              { label: "Desired Margin", value: formatPercent(deal.desiredProfitMarginPercent) },
-            ]}
-          />
-          {deal.notes ? (
-            <div className="mt-5 rounded-[20px] border border-ink-100 bg-white px-5 py-5">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-400">Notes</p>
-              <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-ink-600">{deal.notes}</p>
-            </div>
-          ) : null}
+      <div id="report-financials" className="grid gap-6 scroll-mt-24 xl:grid-cols-[1.02fr_0.98fr]">
+        <SectionCard
+          title="Financial Snapshot"
+          subtitle="The report organizes the economics into a quick investor read before the detailed comps and notes."
+          className="bg-white/80"
+        >
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3" data-testid="deal-analysis-section">
+            <MetricCard label="Purchase" value={formatCurrency(financial.askingPrice)} />
+            <MetricCard label="Renovation" value={formatCurrency(financial.rehabEstimate)} />
+            <MetricCard label="Soft Costs" value={formatCurrency(financial.softCosts)} />
+            <MetricCard label="Carry Costs" value={formatCurrency(financial.carryCosts)} />
+            <MetricCard label="Selling Costs" value={formatCurrency(financial.sellingCosts)} />
+            <MetricCard
+              label="Value Gap"
+              value={formatSignedCurrency(financial.valueGap)}
+              hint={financial.coveragePercent ? `${formatPercent(financial.coveragePercent)} of value consumed by cost` : "Value coverage pending"}
+              tone={valueGapTone}
+            />
+          </div>
         </SectionCard>
 
-        <SectionCard title="Value Section" subtitle="Transparent pricing inputs rather than a single magic number.">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="rounded-[20px] bg-sand-50 px-5 py-5">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-400">
-                Blended indication
-              </p>
-              <p className="mt-3 text-3xl font-semibold text-ink-900">
-                {formatCurrency(valuation.blendedEstimate)}
-              </p>
-              <p className="mt-2 text-sm text-ink-500">
-                {formatCurrency(valuation.blendedLow)} to {formatCurrency(valuation.blendedHigh)}
-              </p>
+        <SectionCard
+          title="Executive Read"
+          subtitle="What matters most before anyone reads the longer narrative."
+        >
+          <div className="rounded-[24px] bg-sand-50 px-5 py-5">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-ink-400">Bottom line</p>
+            <p className="mt-3 text-2xl font-semibold text-ink-900">
+              {ai.headline || `${verdictMeta.label} deal with ${verdictMeta.compSupport.toLowerCase()} comp support.`}
+            </p>
+            <p className="mt-3 text-sm leading-7 text-ink-600">
+              {ai.dealTakeaway ||
+                ai.valueTakeaway ||
+                "Use the pricing range, cost stack, and comp support together before committing to an offer."}
+            </p>
+          </div>
+
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <InsightList
+              title="Upside"
+              items={ai.upsideFactors || []}
+              emptyText="No upside factors were generated for this run."
+            />
+            <InsightList
+              title="Risk flags"
+              items={ai.riskFlags || []}
+              emptyText="No risk flags were generated for this run."
+            />
+          </div>
+        </SectionCard>
+      </div>
+
+      <div className="grid gap-6 xl:grid-cols-[1fr_0.95fr]">
+        <SectionCard
+          title="Value Vs Cost"
+          subtitle="A quick visual of how much room exists between the all-in basis and the estimated value."
+        >
+          <ComparisonBar
+            leftLabel="Total project cost"
+            leftValue={financial.totalProjectCost}
+            rightLabel={financial.valueLabel}
+            rightValue={financial.estimatedValue}
+          />
+
+          <div className="mt-5 grid gap-3 sm:grid-cols-3">
+            <div className="rounded-[20px] border border-ink-100 bg-white/85 px-4 py-4">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-ink-400">Spread</p>
+              <p className="mt-2 text-sm font-semibold text-ink-900">{formatSignedCurrency(financial.estimatedProfit)}</p>
             </div>
-            <div className="rounded-[20px] bg-white px-5 py-5">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-400">
-                Comp-supported medians
-              </p>
-              <p className="mt-3 text-sm leading-7 text-ink-600">
-                AVM comps {formatCurrency(valuation.primaryCompMedian)}
-                <br />
-                Recent sales {formatCurrency(valuation.recentSaleMedian)}
-                <br />
-                Active market {formatCurrency(valuation.activeMarketMedian)}
-              </p>
+            <div className="rounded-[20px] border border-ink-100 bg-white/85 px-4 py-4">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-ink-400">{financial.marginLabel}</p>
+              <p className="mt-2 text-sm font-semibold text-ink-900">{formatPercent(financial.marginPercent)}</p>
+            </div>
+            <div className="rounded-[20px] border border-ink-100 bg-white/85 px-4 py-4">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-ink-400">{financial.returnLabel}</p>
+              <p className="mt-2 text-sm font-semibold text-ink-900">{formatPercent(financial.returnPercent)}</p>
             </div>
           </div>
-          {valuation.notes?.length ? (
-            <ul className="mt-5 space-y-2 text-sm text-ink-600">
-              {valuation.notes.map((note) => (
-                <li key={note} className="rounded-[16px] bg-white px-4 py-3">
-                  {note}
-                </li>
-              ))}
-            </ul>
-          ) : null}
+        </SectionCard>
+
+        <SectionCard
+          title="Capital Stack"
+          subtitle="Purchase, renovation, soft costs, carry, and selling costs shown as one stack."
+        >
+          <CostStackFigure items={financial.costStack} />
         </SectionCard>
       </div>
 
       <SectionCard
-        title="Comps Logic"
-        subtitle="How the current comp set was built and where each layer comes from."
+        id="report-comps"
+        title="Comparable Support"
+        subtitle="The report separates valuation comps, recorded sales, and active listings so the support is easier to read honestly."
       >
-        <KeyValueGrid
-          items={[
-            { label: "AVM raw candidates", value: formatNumber(report.comps?.logic?.rawComparableCount) },
-            { label: "AVM local candidates", value: formatNumber(report.comps?.logic?.candidateComparableCount) },
-            { label: "Primary valuation comps", value: formatNumber(report.comps?.logic?.visiblePrimaryCount) },
-            { label: "Recent sale comps", value: formatNumber(report.comps?.logic?.visibleRecentSaleCount) },
-            { label: "Active market comps", value: formatNumber(report.comps?.logic?.visibleActiveMarketCount) },
-            { label: "Radius", value: formatNumber(report.compFilters?.radius, " mi") },
-          ]}
-        />
-        {report.comps?.logic?.notes?.length ? (
-          <ul className="mt-5 space-y-2 text-sm text-ink-600">
-            {report.comps.logic.notes.map((note) => (
-              <li key={note} className="rounded-[16px] bg-white px-4 py-3">
-                {note}
-              </li>
-            ))}
-          </ul>
-        ) : null}
-      </SectionCard>
+        <div className="grid gap-6 xl:grid-cols-[320px_minmax(0,1fr)]">
+          <div className="space-y-3">
+            <MetricCard
+              label="Primary valuation comps"
+              value={formatNumber(primarySummary.count)}
+              hint={`Median ${formatCurrency(primarySummary.medianPrice)}`}
+            />
+            <MetricCard
+              label="Recent sales"
+              value={formatNumber(recentSummary.count)}
+              hint={`Median ${formatCurrency(recentSummary.medianPrice)}`}
+            />
+            <MetricCard
+              label="Active listings"
+              value={formatNumber(activeSummary.count)}
+              hint={`Median ${formatCurrency(activeSummary.medianPrice)}`}
+            />
 
-      <SectionCard
-        title="Map Section"
-        subtitle="Subject and the actual visible comp set, plotted together with the current radius."
-        action={<Legend />}
-      >
-        {property.latitude !== null && property.latitude !== undefined && property.longitude !== null && property.longitude !== undefined ? (
-          <MapView
-            latitude={property.latitude}
-            longitude={property.longitude}
-            markers={mapMarkers}
-            radiusMiles={report.compFilters?.radius}
-            zoom={13}
-          />
-        ) : (
-          <div className="flex h-[380px] items-center justify-center rounded-[20px] border border-dashed border-ink-200 bg-sand-50 px-6 text-center text-sm text-ink-500">
-            No coordinates were available for the subject property.
+            {report.comps?.logic?.notes?.length ? (
+              <InsightList
+                title="Comp notes"
+                items={report.comps.logic.notes}
+                emptyText="No comp notes were generated."
+              />
+            ) : null}
           </div>
-        )}
+
+          <div>
+            {property.latitude !== null &&
+            property.latitude !== undefined &&
+            property.longitude !== null &&
+            property.longitude !== undefined ? (
+              <MapView
+                latitude={property.latitude}
+                longitude={property.longitude}
+                markers={mapMarkers}
+                radiusMiles={report.compFilters?.radius}
+                zoom={13}
+              />
+            ) : (
+              <div className="flex h-[380px] items-center justify-center rounded-[22px] border border-dashed border-ink-200 bg-sand-50 px-6 text-center text-sm text-ink-500">
+                No coordinates were available for the subject property.
+              </div>
+            )}
+          </div>
+        </div>
       </SectionCard>
 
       <SectionCard
         title="Primary Valuation Comps"
-        subtitle={report.comps?.primary?.honestLabel || "Primary comps used for valuation support."}
+        subtitle={report.comps?.primary?.honestLabel || "These are the primary comps supporting the valuation range."}
       >
         <Table
           columns={buildCompColumns()}
@@ -502,7 +616,7 @@ const MasterDealReportSections = ({ report = null, emptyTitle = "No deal report 
         </SectionCard>
         <SectionCard
           title="Active Market Comps"
-          subtitle={report.comps?.activeMarket?.honestLabel || "Current market listings for pricing context."}
+          subtitle={report.comps?.activeMarket?.honestLabel || "Current listings used as market context."}
         >
           <Table
             columns={buildCompColumns(true)}
@@ -514,139 +628,138 @@ const MasterDealReportSections = ({ report = null, emptyTitle = "No deal report 
         </SectionCard>
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[1fr_0.95fr]">
+      <div id="report-context" className="grid gap-6 scroll-mt-24 xl:grid-cols-[1fr_0.98fr]">
         <SectionCard
-          title="Deal Analysis"
-          subtitle="Cost stack and headline investment math using transparent assumptions."
+          title="Property And Market Context"
+          subtitle="Subject facts, tax history, and zip-level market signals in one place."
         >
-          <div data-testid="deal-analysis-section">
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            <MetricTile label="Total Project Cost" value={formatCurrency(analysis.metrics?.totalProjectCost || analysis.metrics?.stabilizedBasis)} />
-            <MetricTile label={analysis.mode === "hold" ? "Estimated Rent" : "Exit Value"} value={formatCurrency(analysis.mode === "hold" ? analysis.metrics?.estimatedMonthlyRent : analysis.metrics?.exitValue)} />
-            <MetricTile label={analysis.mode === "hold" ? "Gross Yield" : "Estimated Profit"} value={analysis.mode === "hold" ? formatPercent(analysis.metrics?.grossYieldPercent) : formatCurrency(analysis.metrics?.estimatedProfit)} />
-            <MetricTile label={analysis.mode === "hold" ? "1% Rule" : "Margin"} value={analysis.mode === "hold" ? formatPercent(analysis.metrics?.onePercentRule) : formatPercent(analysis.metrics?.marginPercent)} />
-            <MetricTile label="Loan Amount" value={formatCurrency(analysis.metrics?.loanAmount)} />
-            <MetricTile label={analysis.mode === "hold" ? "Equity Spread" : "Cash On Cash"} value={analysis.mode === "hold" ? formatCurrency(analysis.metrics?.equitySpread) : formatPercent(analysis.metrics?.cashOnCashPercent)} />
-          </div>
-          <div className="mt-6">
-            <DealBreakdownTable items={Array.isArray(analysis.costBreakdown) ? analysis.costBreakdown : []} />
-          </div>
-          </div>
+          <DetailGrid
+            items={[
+              { label: "Address", value: property.address || report.subject?.address || "—" },
+              {
+                label: "Property",
+                value:
+                  [
+                    property.propertyType,
+                    property.squareFootage ? `${formatNumber(property.squareFootage)} sqft` : null,
+                  ]
+                    .filter(Boolean)
+                    .join(" • ") || "—",
+              },
+              {
+                label: "Beds / Baths",
+                value:
+                  [property.bedrooms, property.bathrooms]
+                    .filter((value) => value !== null && value !== undefined)
+                    .join(" / ") || "—",
+              },
+              { label: "Lot Size", value: formatNumber(property.lotSize) },
+              { label: "Year Built", value: formatNumber(property.yearBuilt) },
+              { label: "Owner", value: property.owner?.name || "—", hint: property.owner?.type || null },
+              { label: "Last Sale", value: formatCurrency(property.lastSalePrice), hint: formatDate(property.lastSaleDate) },
+              {
+                label: "Latest Tax",
+                value: formatCurrency(property.latestTax?.taxAmount),
+                hint: property.latestTax?.year ? `Tax year ${property.latestTax.year}` : null,
+              },
+              {
+                label: "Zip Market",
+                value: formatCurrency(market.saleData?.medianPrice),
+                hint: `Median DOM ${formatNumber(market.saleData?.medianDaysOnMarket, " days")}`,
+              },
+            ]}
+          />
+
+          {market.notes?.length ? (
+            <div className="mt-4">
+              <InsightList
+                title="Market notes"
+                items={market.notes}
+                emptyText="No market notes were returned for this zip code."
+              />
+            </div>
+          ) : null}
         </SectionCard>
 
         <SectionCard
-          title="AI Deal Verdict"
-          subtitle="Decision-oriented summary, with assumptions and comp quality called out explicitly."
-          action={
-            ai.confidence ? (
-              <span className="rounded-full bg-white/80 px-3 py-2 text-sm font-semibold text-ink-700">
-                {ai.confidence} confidence
-              </span>
-            ) : null
-          }
+          title="Assumptions And Notes"
+          subtitle="The underwriting depends on these assumptions. Review them before sharing the report."
         >
-          <div className="space-y-5" data-testid="ai-deal-verdict-section">
-            <div className="rounded-[20px] bg-sand-50 px-5 py-5">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-400">
-                Verdict
-              </p>
-              <p className="mt-3 text-2xl font-semibold text-ink-900">
-                {ai.headline || ai.verdict || "No AI verdict was generated."}
-              </p>
-              {ai.valueTakeaway ? <p className="mt-3 text-sm leading-7 text-ink-600">{ai.valueTakeaway}</p> : null}
-            </div>
+          <DetailGrid
+            items={[
+              { label: "Strategy", value: deal.strategy || "—" },
+              { label: "Asking Price", value: formatCurrency(deal.askingPrice) },
+              { label: "Rehab Estimate", value: formatCurrency(deal.rehabEstimate) },
+              { label: "Holding Period", value: formatNumber(deal.holdingPeriodMonths, " months") },
+              { label: "Closing Costs", value: formatPercent(deal.acquisitionClosingCostPercent) },
+              { label: "Selling Costs", value: formatPercent(deal.sellingCostPercent) },
+              { label: "Interest Rate", value: formatPercent(deal.interestRatePercent) },
+              { label: "Financing Points", value: formatPercent(deal.financingPointsPercent) },
+              { label: "Loan To Cost", value: formatPercent(deal.loanToCostPercent) },
+              { label: "Annual Taxes", value: formatCurrency(deal.annualTaxes) },
+              {
+                label: "Insurance / Utilities / Maintenance",
+                value: `${formatCurrency(deal.monthlyInsurance)} / ${formatCurrency(
+                  deal.monthlyUtilities
+                )} / ${formatCurrency(deal.monthlyMaintenance)}`,
+              },
+              { label: "Target Margin", value: formatPercent(deal.desiredProfitMarginPercent) },
+            ]}
+          />
 
-            {ai.dealTakeaway ? (
-              <div className="rounded-[20px] border border-ink-100 bg-white px-5 py-5">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-400">
-                  Deal Takeaway
-                </p>
-                <p className="mt-3 text-sm leading-7 text-ink-600">{ai.dealTakeaway}</p>
-              </div>
-            ) : null}
-
-            {ai.upsideFactors?.length ? (
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-400">
-                  Upside Factors
-                </p>
-                <ul className="mt-3 space-y-2 text-sm text-ink-600">
-                  {ai.upsideFactors.map((item) => (
-                    <li key={item} className="rounded-[16px] bg-white px-4 py-3">
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ) : null}
-
-            {ai.riskFlags?.length ? (
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-400">
-                  Risk Flags
-                </p>
-                <ul className="mt-3 space-y-2 text-sm text-ink-600">
-                  {ai.riskFlags.map((item) => (
-                    <li key={item} className="rounded-[16px] bg-white px-4 py-3">
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ) : null}
-
-            {ai.keyAssumptions?.length ? (
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-400">
-                  Key Assumptions
-                </p>
-                <ul className="mt-3 space-y-2 text-sm text-ink-600">
-                  {ai.keyAssumptions.map((item) => (
-                    <li key={item} className="rounded-[16px] bg-white px-4 py-3">
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ) : null}
-
-            {ai.nextSteps?.length ? (
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-400">
-                  Next Steps
-                </p>
-                <ul className="mt-3 space-y-2 text-sm text-ink-600">
-                  {ai.nextSteps.map((item) => (
-                    <li key={item} className="rounded-[16px] bg-white px-4 py-3">
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ) : null}
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <InsightList
+              title="Key assumptions"
+              items={ai.keyAssumptions || []}
+              emptyText="No key assumptions were generated."
+            />
+            <InsightList
+              title="Deal notes"
+              items={deal.notes ? [deal.notes] : []}
+              emptyText="No custom notes were entered for this report."
+            />
           </div>
         </SectionCard>
       </div>
 
       <SectionCard
-        title="Market Context"
-        subtitle="Zip-level sale and listing context from RentCast market data."
+        id="report-conclusion"
+        title="AI Conclusion"
+        subtitle="A clean narrative summary suitable for investor, client, or partner review."
+        action={
+          ai.confidence ? (
+            <span className="glass-chip">{ai.confidence} confidence</span>
+          ) : null
+        }
+        className="bg-white/82"
       >
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <MetricTile label="Median Sale" value={formatCurrency(market.saleData?.medianPrice)} />
-          <MetricTile label="Median $ / Sqft" value={formatNumber(market.saleData?.medianPricePerSquareFoot, " / sqft")} />
-          <MetricTile label="Median DOM" value={formatNumber(market.saleData?.medianDaysOnMarket, " days")} />
-          <MetricTile label="New Listings" value={formatNumber(market.saleData?.newListings)} hint={`Total ${formatNumber(market.saleData?.totalListings)}`} />
+        <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]" data-testid="ai-deal-verdict-section">
+          <div className="rounded-[24px] bg-sand-50 px-6 py-6">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-ink-400">Summary</p>
+            <p className="mt-3 text-2xl font-semibold text-ink-900">
+              {ai.verdict || verdictMeta.label} deal with {verdictMeta.compSupport.toLowerCase()} support.
+            </p>
+            <p className="mt-4 text-sm leading-7 text-ink-600">
+              {ai.executiveSummary ||
+                ai.dealTakeaway ||
+                ai.valueTakeaway ||
+                "Review the valuation range, comp quality, and cost stack together before pricing this deal."}
+            </p>
+          </div>
+
+          <div className="space-y-4">
+            <InsightList
+              title="What supports the conclusion"
+              items={[ai.valueTakeaway, ai.dealTakeaway].filter(Boolean)}
+              emptyText="No supporting narrative was generated."
+            />
+            <InsightList
+              title="Next steps"
+              items={ai.nextSteps || []}
+              emptyText="No next steps were generated."
+            />
+          </div>
         </div>
-        {market.notes?.length ? (
-          <ul className="mt-5 space-y-2 text-sm text-ink-600">
-            {market.notes.map((note) => (
-              <li key={note} className="rounded-[16px] bg-white px-4 py-3">
-                {note}
-              </li>
-            ))}
-          </ul>
-        ) : null}
       </SectionCard>
     </div>
   );

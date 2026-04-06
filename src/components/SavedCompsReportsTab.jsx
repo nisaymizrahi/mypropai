@@ -1,18 +1,89 @@
 import React, { useEffect, useMemo, useState } from "react";
 
 import CompsSavedReportView from "./CompsSavedReportView";
-import { formatCurrency, formatDate } from "../utils/compsReport";
-
-const formatPercent = (value) => {
-  if (value === null || value === undefined || value === "") return "—";
-  return `${Number(value).toFixed(1)}%`;
-};
+import {
+  buildFinancialSnapshot,
+  formatCompactCurrency,
+  formatCurrency,
+  formatDate,
+  formatPercent,
+  getVerdictMeta,
+} from "../utils/compsReport";
 
 const getContextLabel = (contextType = "") => {
   if (contextType === "project") return "Project";
   if (contextType === "lead") return "Lead";
   if (contextType === "standalone") return "Standalone";
   return "Saved";
+};
+
+const SavedReportCard = ({ report, isActive, onSelect }) => {
+  const verdictMeta = getVerdictMeta(report);
+  const financial = buildFinancialSnapshot(report);
+  const primaryCount = report?.comps?.primary?.summary?.count || 0;
+
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      className={`saved-report-card ${isActive ? `saved-report-card-active saved-report-card-${verdictMeta.tone}` : ""}`}
+    >
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <p className="truncate text-base font-semibold text-ink-900">
+            {report.propertySnapshot?.address || report.subject?.address || report.address}
+          </p>
+          <p className="mt-1 truncate text-sm text-ink-500">
+            {report.title || "Master Deal Report"}
+          </p>
+        </div>
+        <div className="text-right">
+          <div className={`report-score-pill report-score-pill-${verdictMeta.tone}`}>{verdictMeta.score}</div>
+          <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-400">
+            {verdictMeta.label}
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-4 flex flex-wrap gap-2">
+        <span className="glass-chip">{getContextLabel(report.contextType)}</span>
+        <span className="glass-chip">{formatDate(report.generatedAt)}</span>
+        <span className="glass-chip">{primaryCount} primary comps</span>
+      </div>
+
+      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        <div className="rounded-[18px] border border-ink-100 bg-white/85 px-3 py-3">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-ink-400">Value</p>
+          <p className="mt-2 text-sm font-semibold text-ink-900">
+            {formatCurrency(report.valuation?.blendedEstimate ?? report.estimatedValue)}
+          </p>
+          <p className="mt-1 text-xs text-ink-500">
+            Cost {formatCompactCurrency(financial.totalProjectCost)}
+          </p>
+        </div>
+        <div className="rounded-[18px] border border-ink-100 bg-white/85 px-3 py-3">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-ink-400">
+            {financial.mode === "hold" ? "Yield" : "Profit"}
+          </p>
+          <p className="mt-2 text-sm font-semibold text-ink-900">
+            {financial.mode === "hold"
+              ? formatPercent(financial.marginPercent)
+              : formatCurrency(financial.estimatedProfit)}
+          </p>
+          <p className="mt-1 text-xs text-ink-500">
+            Ask {formatCompactCurrency(report.dealInputs?.askingPrice ?? report.dealSnapshot?.askingPrice)}
+          </p>
+        </div>
+      </div>
+
+      <p className="mt-4 text-sm leading-6 text-ink-600">
+        {report.aiVerdict?.headline ||
+          report.aiVerdict?.executiveSummary ||
+          report.report?.headline ||
+          "Saved report ready to reopen and export."}
+      </p>
+    </button>
+  );
 };
 
 const SavedCompsReportsTab = ({
@@ -46,13 +117,26 @@ const SavedCompsReportsTab = ({
     [reports, selectedReportId]
   );
 
+  const reportStats = useMemo(() => {
+    const strongCount = reports.filter((report) => getVerdictMeta(report).label === "Strong").length;
+    const averageValue =
+      reports.reduce((sum, report) => sum + (Number(report.valuation?.blendedEstimate ?? report.estimatedValue) || 0), 0) /
+      (reports.length || 1);
+
+    return {
+      strongCount,
+      averageValue: reports.length ? averageValue : null,
+      latestGeneratedAt: reports[0]?.generatedAt || null,
+    };
+  }, [reports]);
+
   if (isLoading) {
     return (
       <div className="section-card p-6 sm:p-7">
         <span className="eyebrow">Saved reports</span>
         <h3 className="mt-4 text-3xl font-semibold text-ink-900">Loading saved reports</h3>
         <p className="mt-3 max-w-2xl text-sm leading-6 text-ink-500">
-          Pulling your saved comps report snapshots now.
+          Pulling your report library now.
         </p>
       </div>
     );
@@ -71,75 +155,43 @@ const SavedCompsReportsTab = ({
   }
 
   return (
-    <div className="grid grid-cols-1 gap-6 xl:grid-cols-[320px_minmax(0,1fr)]">
-      <section className="section-card p-6">
+    <div className="grid grid-cols-1 gap-6 xl:grid-cols-[380px_minmax(0,1fr)]">
+      <section className="surface-panel-strong px-6 py-6">
         <span className="eyebrow">Saved reports</span>
-        <h3 className="mt-4 text-3xl font-semibold text-ink-900">{title}</h3>
-        <p className="mt-3 text-sm leading-6 text-ink-500">{description}</p>
+        <h3 className="mt-4 font-display text-[2.2rem] leading-[0.96] text-ink-900">{title}</h3>
+        <p className="mt-3 text-sm leading-7 text-ink-500">{description}</p>
         {actions ? <div className="mt-5 flex flex-wrap gap-3">{actions}</div> : null}
+
+        <div className="mt-6 grid gap-3 sm:grid-cols-3 xl:grid-cols-1">
+          <div className="rounded-[20px] border border-ink-100 bg-white/85 px-4 py-4">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-ink-400">Reports</p>
+            <p className="mt-2 text-2xl font-semibold text-ink-900">{reports.length}</p>
+            <p className="mt-1 text-xs text-ink-500">In this library</p>
+          </div>
+          <div className="rounded-[20px] border border-ink-100 bg-white/85 px-4 py-4">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-ink-400">Strong deals</p>
+            <p className="mt-2 text-2xl font-semibold text-ink-900">{reportStats.strongCount}</p>
+            <p className="mt-1 text-xs text-ink-500">Saved with a strong verdict</p>
+          </div>
+          <div className="rounded-[20px] border border-ink-100 bg-white/85 px-4 py-4">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-ink-400">Avg value</p>
+            <p className="mt-2 text-2xl font-semibold text-ink-900">
+              {formatCompactCurrency(reportStats.averageValue)}
+            </p>
+            <p className="mt-1 text-xs text-ink-500">
+              Latest {formatDate(reportStats.latestGeneratedAt)}
+            </p>
+          </div>
+        </div>
 
         <div className="mt-6 space-y-3">
           {reports.map((report) => (
-            <button
+            <SavedReportCard
               key={report._id}
-              type="button"
-              onClick={() => setSelectedReportId(report._id)}
-              className={`w-full rounded-[24px] border px-4 py-4 text-left transition ${
-                selectedReport?._id === report._id
-                  ? "border-verdigris-200 bg-verdigris-50/70"
-                  : "border-ink-100 bg-white hover:border-ink-200"
-              }`}
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-sm font-semibold text-ink-900">{report.title || report.address}</p>
-                  <p className="mt-1 text-sm text-ink-500">
-                    {report.propertySnapshot?.address || report.subject?.address || report.address}
-                  </p>
-                </div>
-                <div className="flex flex-wrap justify-end gap-2">
-                  <span className="rounded-full bg-sand-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-sand-700">
-                    {getContextLabel(report.contextType)}
-                  </span>
-                  <span className="rounded-full bg-white/80 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">
-                    {formatDate(report.generatedAt)}
-                  </span>
-                </div>
-              </div>
-
-              <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                <div className="rounded-[18px] bg-white/80 px-3 py-3">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-400">
-                    Verdict
-                  </p>
-                  <p className="mt-2 text-sm font-semibold text-ink-900">
-                    {report.aiVerdict?.verdict || report.report?.verdict || "Pending"}
-                  </p>
-                </div>
-                <div className="rounded-[18px] bg-white/80 px-3 py-3">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-400">
-                    Blended value
-                  </p>
-                  <p className="mt-2 text-sm font-semibold text-ink-900">
-                    {formatCurrency(report.valuation?.blendedEstimate ?? report.estimatedValue)}
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-3 rounded-[18px] bg-white/80 px-3 py-3">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-400">
-                  Deal snapshot
-                </p>
-                <p className="mt-2 text-sm font-semibold text-ink-900">
-                  Ask {formatCurrency(report.dealInputs?.askingPrice ?? report.dealSnapshot?.askingPrice)}
-                </p>
-                <p className="mt-1 text-xs text-ink-500">
-                  {report.dealAnalysis?.mode === "hold"
-                    ? `Yield ${formatPercent(report.dealAnalysis?.metrics?.grossYieldPercent)}`
-                    : `Profit ${formatCurrency(report.dealAnalysis?.metrics?.estimatedProfit)}`}
-                </p>
-              </div>
-            </button>
+              report={report}
+              isActive={selectedReport?._id === report._id}
+              onSelect={() => setSelectedReportId(report._id)}
+            />
           ))}
         </div>
       </section>

@@ -2,15 +2,19 @@ import React, { useMemo } from "react";
 
 import DealMapFigure from "./DealMapFigure";
 import {
+  buildFinancialSnapshot,
+  formatCompactCurrency,
   formatCurrency,
   formatDate,
+  formatPercent,
+  formatSignedCurrency,
   getMasterReportMapComps,
   getMasterReportPrimaryComps,
+  getVerdictMeta,
   normalizeComparableRecord,
 } from "../utils/compsReport";
 import { publicAssetUrl } from "../utils/env";
 
-const logoMark = publicAssetUrl("brand/brand-mark.svg");
 const logoHorizontal = publicAssetUrl("brand/brand-logo-horizontal.svg");
 
 const formatNumber = (value, suffix = "") => {
@@ -18,14 +22,9 @@ const formatNumber = (value, suffix = "") => {
   return `${Number(value).toLocaleString()}${suffix}`;
 };
 
-const formatPercent = (value) => {
-  if (value === null || value === undefined || value === "") return "—";
-  return `${Number(value).toFixed(1)}%`;
-};
-
 const SectionShell = ({ title, subtitle, children, className = "" }) => (
   <section
-    className={`rounded-[30px] border border-[#ddd3c7] bg-white px-7 py-7 ${className}`.trim()}
+    className={`rounded-[28px] border border-[#ddd3c7] bg-white px-7 py-7 ${className}`.trim()}
     style={{ breakInside: "avoid" }}
   >
     <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-[#7b6d63]">{title}</p>
@@ -34,11 +33,11 @@ const SectionShell = ({ title, subtitle, children, className = "" }) => (
   </section>
 );
 
-const MetricCard = ({ label, value, hint, tone = "text-[#1d1713]", shell = "bg-white/10" }) => (
-  <div className={`rounded-[24px] border border-white/12 ${shell} px-5 py-5`} style={{ breakInside: "avoid" }}>
-    <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-white/68">{label}</p>
-    <p className={`mt-3 text-[1.9rem] font-semibold ${tone}`}>{value}</p>
-    {hint ? <p className="mt-2 text-xs leading-5 text-white/72">{hint}</p> : null}
+const MetricCard = ({ label, value, hint, shell = "bg-[#faf6f1]" }) => (
+  <div className={`rounded-[22px] border border-[#e5ddd3] ${shell} px-5 py-5`} style={{ breakInside: "avoid" }}>
+    <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[#8c7d72]">{label}</p>
+    <p className="mt-3 text-[1.8rem] font-semibold text-[#1d1713]">{value}</p>
+    {hint ? <p className="mt-2 text-xs leading-5 text-[#6d5e55]">{hint}</p> : null}
   </div>
 );
 
@@ -70,6 +69,82 @@ const TextList = ({ label, items = [], emptyText = "No notes provided." }) => (
     )}
   </div>
 );
+
+const ComparisonBar = ({ leftLabel, leftValue, rightLabel, rightValue }) => {
+  const maxValue = Math.max(leftValue || 0, rightValue || 0, 1);
+  const leftWidth = Math.max(((leftValue || 0) / maxValue) * 100, leftValue ? 12 : 0);
+  const rightWidth = Math.max(((rightValue || 0) / maxValue) * 100, rightValue ? 12 : 0);
+
+  return (
+    <div className="space-y-4">
+      <div className="space-y-2">
+        <div className="flex items-center justify-between gap-3 text-sm text-[#40342c]">
+          <span>{leftLabel}</span>
+          <span className="font-semibold">{formatCurrency(leftValue)}</span>
+        </div>
+        <div className="h-4 overflow-hidden rounded-full bg-[#eadfd4]">
+          <div className="h-full rounded-full bg-[#1d1713]" style={{ width: `${leftWidth}%` }} />
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <div className="flex items-center justify-between gap-3 text-sm text-[#40342c]">
+          <span>{rightLabel}</span>
+          <span className="font-semibold">{formatCurrency(rightValue)}</span>
+        </div>
+        <div className="h-4 overflow-hidden rounded-full bg-[#d6e8e2]">
+          <div className="h-full rounded-full bg-[#1f6c63]" style={{ width: `${rightWidth}%` }} />
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const CostStackFigure = ({ items = [] }) => {
+  if (!items.length) {
+    return (
+      <div className="rounded-[22px] border border-dashed border-[#ddd3c7] bg-[#faf6f1] px-6 py-10 text-center text-sm text-[#6d5e55]">
+        No cost stack is available for this report yet.
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex h-4 overflow-hidden rounded-full bg-[#eadfd4]">
+        {items.map((item) => (
+          <div
+            key={item.key}
+            style={{
+              width: `${Math.max(item.share || 0, 4)}%`,
+              backgroundColor: item.color,
+            }}
+          />
+        ))}
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        {items.map((item) => (
+          <div key={item.key} className="rounded-[20px] border border-[#e5ddd3] bg-white px-4 py-4">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <span
+                  className="h-3 w-3 rounded-full"
+                  style={{ backgroundColor: item.color }}
+                />
+                <p className="text-sm font-semibold text-[#1d1713]">{item.label}</p>
+              </div>
+              <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#8c7d72]">
+                {formatPercent(item.share, 0)}
+              </span>
+            </div>
+            <p className="mt-2 text-sm text-[#40342c]">{formatCurrency(item.amount)}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
 
 const DataTable = ({ title, subtitle, columns = [], rows = [], emptyText = "No rows available." }) => (
   <SectionShell title={title} subtitle={subtitle}>
@@ -108,29 +183,6 @@ const DataTable = ({ title, subtitle, columns = [], rows = [], emptyText = "No r
   </SectionShell>
 );
 
-const CostTable = ({ items = [] }) => (
-  <div className="overflow-hidden rounded-[22px] border border-[#ddd3c7]">
-    <table className="min-w-full text-sm">
-      <thead className="bg-[#f4eee7] text-left text-[#7b6d63]">
-        <tr>
-          <th className="px-4 py-3 font-semibold">Category</th>
-          <th className="px-4 py-3 font-semibold">Group</th>
-          <th className="px-4 py-3 font-semibold">Amount</th>
-        </tr>
-      </thead>
-      <tbody className="divide-y divide-[#ebe2d7] bg-white">
-        {items.map((item) => (
-          <tr key={`${item.label}-${item.group}`}>
-            <td className="px-4 py-4 font-medium text-[#1d1713]">{item.label}</td>
-            <td className="px-4 py-4 capitalize text-[#6d5e55]">{item.group}</td>
-            <td className="px-4 py-4 text-[#40342c]">{formatCurrency(item.amount)}</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  </div>
-);
-
 const buildCompColumns = () => [
   {
     key: "address",
@@ -151,9 +203,6 @@ const buildCompColumns = () => [
       <div>
         <p>{formatCurrency(row.salePrice)}</p>
         <p className="mt-1 text-xs text-[#7b6d63]">{formatDate(row.saleDate || row.listedDate)}</p>
-        {row.estimatedValue ? (
-          <p className="mt-1 text-xs text-[#7b6d63]">AVM context {formatCurrency(row.estimatedValue)}</p>
-        ) : null}
       </div>
     ),
   },
@@ -175,9 +224,9 @@ const buildCompColumns = () => [
     render: (row) => formatNumber(row.distance, " mi"),
   },
   {
-    key: "similarity",
-    label: "Similarity",
-    render: (row) => formatNumber(row.similarityScore),
+    key: "pricePerSqft",
+    label: "$ / Sqft",
+    render: (row) => formatNumber(row.pricePerSqft, " / sqft"),
   },
   {
     key: "why",
@@ -215,16 +264,13 @@ const CompsReportPdfTemplate = ({ report = null }) => {
   const property = report.propertySnapshot || {};
   const deal = report.dealInputs || {};
   const valuation = report.valuation || {};
-  const analysis = report.dealAnalysis || {};
   const ai = report.aiVerdict || {};
   const market = report.marketContext || {};
-  const valueBand = `${formatCurrency(valuation.blendedLow)} - ${formatCurrency(valuation.blendedHigh)}`;
-  const headlineMetric =
-    analysis.mode === "hold"
-      ? formatPercent(analysis.metrics?.grossYieldPercent)
-      : formatCurrency(analysis.metrics?.estimatedProfit);
-  const headlineMetricLabel =
-    analysis.mode === "hold" ? "Gross yield" : "Estimated profit";
+  const financial = buildFinancialSnapshot(report);
+  const verdictMeta = getVerdictMeta(report);
+  const primarySummary = report.comps?.primary?.summary || {};
+  const recentSummary = report.comps?.recentSales?.summary || {};
+  const activeSummary = report.comps?.activeMarket?.summary || {};
 
   return (
     <div className="w-[980px] bg-[#f6f1ea] px-8 py-8 text-[#1d1713]">
@@ -235,12 +281,6 @@ const CompsReportPdfTemplate = ({ report = null }) => {
         <div className="absolute inset-y-0 right-0 w-[360px] bg-gradient-to-l from-[#102c2b] to-transparent" />
         <div className="absolute -right-20 -top-16 h-56 w-56 rounded-full bg-[#dfc692]/18" />
         <div className="absolute bottom-0 right-16 h-44 w-44 rounded-full border border-white/10 bg-white/[0.04]" />
-        <img
-          src={logoMark}
-          alt=""
-          aria-hidden="true"
-          className="absolute right-8 top-8 h-32 w-32 object-contain opacity-[0.08] saturate-0 brightness-200"
-        />
 
         <div className="relative">
           <div className="flex items-start justify-between gap-8">
@@ -253,222 +293,117 @@ const CompsReportPdfTemplate = ({ report = null }) => {
                   <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-white/68">
                     Master Deal Report
                   </p>
-                  <p className="mt-1 text-sm font-semibold text-white">Investor-ready underwriting package</p>
+                  <p className="mt-1 text-sm font-semibold text-white">Investor presentation package</p>
                 </div>
               </div>
 
-              <h1 className="mt-6 max-w-3xl font-display text-[3.05rem] leading-[0.92]">
-                {report.title || report.subject?.address || "Master Deal Report"}
+              <h1 className="mt-6 max-w-3xl font-display text-[3rem] leading-[0.92]">
+                {property.address || report.subject?.address || report.title || "Master Deal Report"}
               </h1>
               <p className="mt-4 max-w-3xl text-base leading-7 text-white/76">
-                Property facts, valuation support, deal math, market context, and a sober AI verdict in one report designed to answer the real question: does this deal work?
+                This report combines property facts, comparable support, value-versus-cost analysis, and an AI underwriting conclusion into one client-ready package.
               </p>
             </div>
 
-            <div className="space-y-3">
-              <div className="rounded-[24px] border border-white/15 bg-white/10 px-5 py-4 text-right">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-white/70">Generated</p>
-                <p className="mt-2 text-sm font-semibold">{formatDate(report.generatedAt)}</p>
-              </div>
-              <div className="rounded-[24px] border border-[#dfc692]/18 bg-[#dfc692]/10 px-5 py-4 text-right">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-[#f7ebcf]">Verdict</p>
-                <p className="mt-2 text-lg font-semibold text-white">{ai.verdict || "Pending review"}</p>
-                <p className="mt-1 text-xs text-white/72">
-                  Comp support {ai.compSupport || "—"} • Confidence {ai.confidence || "—"}
-                </p>
-              </div>
+            <div className="w-[240px] rounded-[26px] border border-white/14 bg-white/10 px-5 py-5 text-right">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-white/70">Deal score</p>
+              <p className="mt-3 text-[3rem] font-semibold">{verdictMeta.score}</p>
+              <p className="mt-1 text-lg font-semibold">{verdictMeta.label}</p>
+              <p className="mt-3 text-xs text-white/72">
+                {verdictMeta.compSupport} comp support • {verdictMeta.confidence} confidence
+              </p>
             </div>
           </div>
 
-          <div className="mt-8 rounded-[30px] border border-white/12 bg-[#113532]/84 px-6 py-6">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-white/64">Subject property</p>
-            <h2 className="mt-3 font-display text-[2.15rem] leading-[0.95]">{property.address || report.subject?.address || "—"}</h2>
-            <p className="mt-3 text-sm leading-6 text-white/74">
-              {[
-                property.propertyType,
-                property.squareFootage ? `${formatNumber(property.squareFootage)} sqft` : null,
-                property.bedrooms !== null && property.bedrooms !== undefined ? `${property.bedrooms} bd` : null,
-                property.bathrooms !== null && property.bathrooms !== undefined ? `${property.bathrooms} ba` : null,
-              ]
-                .filter(Boolean)
-                .join(" • ") || "Property facts are still limited for this subject."}
+          <div className="mt-8 grid grid-cols-4 gap-4">
+            <MetricCard
+              label="Estimated value"
+              value={formatCurrency(financial.estimatedValue)}
+              hint={`${formatCurrency(valuation.blendedLow)} - ${formatCurrency(valuation.blendedHigh)}`}
+              shell="bg-white/10 border-white/12"
+            />
+            <MetricCard
+              label="Total cost"
+              value={formatCurrency(financial.totalProjectCost)}
+              hint={`${formatCompactCurrency(financial.askingPrice)} purchase • ${formatCompactCurrency(financial.rehabEstimate)} rehab`}
+              shell="bg-white/10 border-white/12"
+            />
+            <MetricCard
+              label={financial.spreadLabel}
+              value={formatSignedCurrency(financial.estimatedProfit)}
+              hint={`${financial.marginLabel} ${formatPercent(financial.marginPercent)}`}
+              shell="bg-white/10 border-white/12"
+            />
+            <MetricCard
+              label={financial.returnLabel}
+              value={formatPercent(financial.returnPercent)}
+              hint={`Generated ${formatDate(report.generatedAt)}`}
+              shell="bg-white/10 border-white/12"
+            />
+          </div>
+
+          <div className="mt-6 rounded-[28px] border border-white/12 bg-[#113532]/84 px-6 py-6">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-white/64">Executive summary</p>
+            <p className="mt-3 text-sm leading-7 text-white/78">
+              {ai.executiveSummary ||
+                ai.dealTakeaway ||
+                ai.valueTakeaway ||
+                "Review the comp support, cost stack, and value range together before making a pricing decision."}
             </p>
-          </div>
-
-          <div className="mt-6 grid grid-cols-4 gap-4">
-            <MetricCard
-              label="Blended value"
-              value={formatCurrency(valuation.blendedEstimate)}
-              hint={valueBand}
-            />
-            <MetricCard
-              label="Asking price"
-              value={formatCurrency(deal.askingPrice)}
-              hint={`Rehab ${formatCurrency(deal.rehabEstimate)}`}
-            />
-            <MetricCard
-              label={headlineMetricLabel}
-              value={headlineMetric}
-              hint={
-                analysis.mode === "hold"
-                  ? `Stabilized basis ${formatCurrency(analysis.metrics?.stabilizedBasis)}`
-                  : `Margin ${formatPercent(analysis.metrics?.marginPercent)}`
-              }
-            />
-            <MetricCard
-              label="RentCast AVM"
-              value={formatCurrency(valuation.rentCastEstimate)}
-              hint={`${formatCurrency(valuation.rentCastLow)} - ${formatCurrency(valuation.rentCastHigh)}`}
-            />
-          </div>
-
-          <div className="mt-6 flex items-center justify-between gap-4 border-t border-white/10 pt-5 text-xs text-white/62">
-            <p>Prepared from RentCast property, AVM, listing, and market data plus a transparent assumptions model.</p>
-            <p>{deal.strategy ? `${String(deal.strategy).toUpperCase()} strategy` : "Deal underwriting"}</p>
           </div>
         </div>
       </section>
 
-      <div className="mt-6 grid grid-cols-[1fr_0.96fr] gap-6">
+      <div className="mt-6 grid grid-cols-[1.02fr_0.98fr] gap-6">
         <SectionShell
-          title="Property Snapshot"
-          subtitle="Current facts, owner context, tax context, and the most recent recorded sale information."
-        >
-          <DetailGrid
-            items={[
-              { label: "Property", value: property.propertyType || "—" },
-              { label: "Beds / Baths", value: [property.bedrooms, property.bathrooms].filter((value) => value !== null && value !== undefined).join(" / ") || "—" },
-              { label: "Square Footage", value: formatNumber(property.squareFootage) },
-              { label: "Lot Size", value: formatNumber(property.lotSize) },
-              { label: "Year Built", value: formatNumber(property.yearBuilt) },
-              { label: "Owner", value: property.owner?.name || "—", hint: property.owner?.occupied === null ? null : property.owner?.occupied ? "Owner occupied" : "Not owner occupied" },
-              { label: "Owner Type", value: property.owner?.type || "—" },
-              { label: "Last Sale", value: formatCurrency(property.lastSalePrice), hint: formatDate(property.lastSaleDate) },
-              { label: "Tax Amount", value: formatCurrency(property.latestTax?.taxAmount), hint: property.latestTax?.year ? `Tax year ${property.latestTax.year}` : null },
-              { label: "Assessed Value", value: formatCurrency(property.latestTax?.assessedValue) },
-              { label: "HOA", value: formatCurrency(property.hoaFee) },
-              { label: "Parcel / Legal", value: property.parcelId || "—", hint: property.legalDescription || null },
-            ]}
-          />
-        </SectionShell>
-
-        <SectionShell
-          title="Deal Inputs"
-          subtitle="User-entered assumptions feeding the underwriting model."
-        >
-          <DetailGrid
-            items={[
-              { label: "Strategy", value: deal.strategy || "—" },
-              { label: "Asking Price", value: formatCurrency(deal.askingPrice) },
-              { label: "Renovation", value: formatCurrency(deal.rehabEstimate) },
-              { label: "Hold Period", value: formatNumber(deal.holdingPeriodMonths, " months") },
-              { label: "Acquisition Closing", value: formatPercent(deal.acquisitionClosingCostPercent) },
-              { label: "Selling Costs", value: formatPercent(deal.sellingCostPercent) },
-              { label: "Interest Rate", value: formatPercent(deal.interestRatePercent) },
-              { label: "Loan Points", value: formatPercent(deal.financingPointsPercent) },
-              { label: "Loan To Cost", value: formatPercent(deal.loanToCostPercent) },
-              { label: "Annual Taxes", value: formatCurrency(deal.annualTaxes) },
-              { label: "Insurance / Utilities", value: `${formatCurrency(deal.monthlyInsurance)} / ${formatCurrency(deal.monthlyUtilities)}` },
-              { label: "Target Margin", value: formatPercent(deal.desiredProfitMarginPercent) },
-            ]}
-          />
-          <div className="mt-4 rounded-[20px] border border-[#e5ddd3] bg-[#faf6f1] px-5 py-5">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-[#7b6d63]">Notes</p>
-            <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-[#40342c]">
-              {deal.notes || "No custom deal notes were entered for this report."}
-            </p>
-          </div>
-        </SectionShell>
-      </div>
-
-      <div className="mt-6 grid grid-cols-[0.98fr_1.02fr] gap-6">
-        <SectionShell
-          title="Value Summary"
-          subtitle="The report blends AVM output with the comp sets shown below rather than pretending there is one perfect number."
+          title="Financial Snapshot"
+          subtitle="The headline numbers are organized so the economics can be reviewed in seconds."
         >
           <div className="grid grid-cols-2 gap-3">
-            <div className="rounded-[22px] bg-[#173f3b] px-5 py-5 text-white">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-white/65">Blended estimate</p>
-              <p className="mt-3 text-[2.1rem] font-semibold">{formatCurrency(valuation.blendedEstimate)}</p>
-              <p className="mt-2 text-sm text-white/74">{valueBand}</p>
-            </div>
-            <div className="rounded-[22px] border border-[#ddd3c7] bg-[#faf6f1] px-5 py-5">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-[#7b6d63]">Source medians</p>
-              <div className="mt-3 space-y-2 text-sm leading-6 text-[#40342c]">
-                <p>RentCast AVM: {formatCurrency(valuation.rentCastEstimate)}</p>
-                <p>Primary comps: {formatCurrency(valuation.primaryCompMedian)}</p>
-                <p>Recent sales: {formatCurrency(valuation.recentSaleMedian)}</p>
-                <p>Active market: {formatCurrency(valuation.activeMarketMedian)}</p>
-              </div>
-            </div>
+            <MetricCard label="Purchase" value={formatCurrency(financial.askingPrice)} />
+            <MetricCard label="Renovation" value={formatCurrency(financial.rehabEstimate)} />
+            <MetricCard label="Soft Costs" value={formatCurrency(financial.softCosts)} />
+            <MetricCard label="Carry Costs" value={formatCurrency(financial.carryCosts)} />
+            <MetricCard label="Selling Costs" value={formatCurrency(financial.sellingCosts)} />
+            <MetricCard label="Value Gap" value={formatSignedCurrency(financial.valueGap)} />
           </div>
-
-          {valuation.notes?.length ? (
-            <div className="mt-4">
-              <TextList
-                label="Pricing commentary"
-                items={valuation.notes}
-                emptyText="No pricing commentary was generated."
-              />
-            </div>
-          ) : null}
         </SectionShell>
 
         <SectionShell
-          title="Deal Analysis"
-          subtitle="Headline math plus the transparent cost stack that produced it."
+          title="Value Vs Cost"
+          subtitle="A quick visual of the all-in basis against the report value conclusion."
         >
-          <div className="grid grid-cols-3 gap-3">
-            <div className="rounded-[20px] bg-[#faf6f1] px-4 py-4">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[#7b6d63]">
-                {analysis.mode === "hold" ? "Stabilized Basis" : "Total Project Cost"}
-              </p>
-              <p className="mt-2 text-lg font-semibold text-[#1d1713]">
-                {formatCurrency(analysis.mode === "hold" ? analysis.metrics?.stabilizedBasis : analysis.metrics?.totalProjectCost)}
-              </p>
-            </div>
-            <div className="rounded-[20px] bg-[#faf6f1] px-4 py-4">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[#7b6d63]">
-                {analysis.mode === "hold" ? "Estimated Rent" : "Exit Value"}
-              </p>
-              <p className="mt-2 text-lg font-semibold text-[#1d1713]">
-                {formatCurrency(analysis.mode === "hold" ? analysis.metrics?.estimatedMonthlyRent : analysis.metrics?.exitValue)}
-              </p>
-            </div>
-            <div className="rounded-[20px] bg-[#faf6f1] px-4 py-4">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[#7b6d63]">
-                {analysis.mode === "hold" ? "Gross Yield" : "Estimated Profit"}
-              </p>
-              <p className="mt-2 text-lg font-semibold text-[#1d1713]">
-                {analysis.mode === "hold" ? formatPercent(analysis.metrics?.grossYieldPercent) : formatCurrency(analysis.metrics?.estimatedProfit)}
-              </p>
-            </div>
-          </div>
+          <ComparisonBar
+            leftLabel="Total project cost"
+            leftValue={financial.totalProjectCost}
+            rightLabel={financial.valueLabel}
+            rightValue={financial.estimatedValue}
+          />
 
-          <div className="mt-4">
-            <CostTable items={Array.isArray(analysis.costBreakdown) ? analysis.costBreakdown : []} />
+          <div className="mt-4 grid grid-cols-3 gap-3">
+            <MetricCard label={financial.marginLabel} value={formatPercent(financial.marginPercent)} />
+            <MetricCard label={financial.returnLabel} value={formatPercent(financial.returnPercent)} />
+            <MetricCard label="Cash Required" value={formatCurrency(financial.cashRequired)} />
           </div>
         </SectionShell>
       </div>
 
-      <div className="mt-6 grid grid-cols-[1.04fr_0.96fr] gap-6">
+      <div className="mt-6 grid grid-cols-[1fr_0.95fr] gap-6">
         <SectionShell
-          title="Comp Logic And Map"
-          subtitle="The visible comp set is shown honestly: AVM valuation comps, recorded recent sales, and active market listings are separate layers."
+          title="Capital Stack"
+          subtitle="Purchase, renovation, soft costs, carry, and selling costs shown as one stack."
+        >
+          <CostStackFigure items={financial.costStack} />
+        </SectionShell>
+
+        <SectionShell
+          title="Comparable Support"
+          subtitle="Primary valuation comps, recorded recent sales, and active listings are separated clearly."
         >
           <div className="grid grid-cols-3 gap-3">
-            <div className="rounded-[20px] bg-[#faf6f1] px-4 py-4">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[#7b6d63]">AVM candidates</p>
-              <p className="mt-2 text-lg font-semibold text-[#1d1713]">{formatNumber(report.comps?.logic?.rawComparableCount)}</p>
-            </div>
-            <div className="rounded-[20px] bg-[#faf6f1] px-4 py-4">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[#7b6d63]">Visible primary comps</p>
-              <p className="mt-2 text-lg font-semibold text-[#1d1713]">{formatNumber(report.comps?.logic?.visiblePrimaryCount)}</p>
-            </div>
-            <div className="rounded-[20px] bg-[#faf6f1] px-4 py-4">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[#7b6d63]">Radius</p>
-              <p className="mt-2 text-lg font-semibold text-[#1d1713]">{formatNumber(report.compFilters?.radius, " mi")}</p>
-            </div>
+            <MetricCard label="Primary comps" value={formatNumber(primarySummary.count)} hint={`Median ${formatCurrency(primarySummary.medianPrice)}`} />
+            <MetricCard label="Recent sales" value={formatNumber(recentSummary.count)} hint={`Median ${formatCurrency(recentSummary.medianPrice)}`} />
+            <MetricCard label="Active listings" value={formatNumber(activeSummary.count)} hint={`Median ${formatCurrency(activeSummary.medianPrice)}`} />
           </div>
 
           <div className="mt-4">
@@ -477,35 +412,57 @@ const CompsReportPdfTemplate = ({ report = null }) => {
               comps={mapComps}
               radiusMiles={report.compFilters?.radius}
               title="Visible comp map"
-              subtitle="Subject centered with the actual comp set shown in this report."
+              subtitle="Subject centered with the comp set shown in this report."
             />
           </div>
-
-          {report.comps?.logic?.notes?.length ? (
-            <div className="mt-4">
-              <TextList
-                label="Filtering notes"
-                items={report.comps.logic.notes}
-                emptyText="No comp logic notes were generated."
-              />
-            </div>
-          ) : null}
         </SectionShell>
+      </div>
 
+      <div className="mt-6 grid grid-cols-[1fr_0.98fr] gap-6">
         <SectionShell
-          title="AI Deal Verdict"
-          subtitle="A sober, client-ready narrative that calls out what matters most."
+          title="AI Conclusion"
+          subtitle="A clean narrative summary suitable for clients, investors, and partners."
         >
           <div className="rounded-[22px] bg-[#173f3b] px-6 py-6 text-white">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-white/68">Verdict</p>
-            <p className="mt-3 text-[2rem] font-semibold">{ai.headline || ai.verdict || "No AI verdict was generated."}</p>
-            {ai.executiveSummary ? <p className="mt-4 text-sm leading-7 text-white/76">{ai.executiveSummary}</p> : null}
+            <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-white/68">Bottom line</p>
+            <p className="mt-3 text-[2rem] font-semibold">
+              {ai.verdict || verdictMeta.label} deal with {verdictMeta.compSupport.toLowerCase()} support.
+            </p>
+            <p className="mt-4 text-sm leading-7 text-white/78">
+              {ai.executiveSummary ||
+                ai.dealTakeaway ||
+                ai.valueTakeaway ||
+                "Use the comp support, value range, and cost stack together before pricing this opportunity."}
+            </p>
           </div>
 
           <div className="mt-4 grid grid-cols-1 gap-4">
             <TextList label="Upside factors" items={ai.upsideFactors || []} emptyText="No upside factors were captured." />
             <TextList label="Risk flags" items={ai.riskFlags || []} emptyText="No risk flags were captured." />
-            <TextList label="Key assumptions" items={ai.keyAssumptions || []} emptyText="No key assumptions were captured." />
+          </div>
+        </SectionShell>
+
+        <SectionShell
+          title="Assumptions"
+          subtitle="The underwriting is only as good as the assumptions behind it."
+        >
+          <DetailGrid
+            items={[
+              { label: "Strategy", value: deal.strategy || "—" },
+              { label: "Asking Price", value: formatCurrency(deal.askingPrice) },
+              { label: "Renovation", value: formatCurrency(deal.rehabEstimate) },
+              { label: "Hold Period", value: formatNumber(deal.holdingPeriodMonths, " months") },
+              { label: "Closing Costs", value: formatPercent(deal.acquisitionClosingCostPercent) },
+              { label: "Selling Costs", value: formatPercent(deal.sellingCostPercent) },
+              { label: "Interest Rate", value: formatPercent(deal.interestRatePercent) },
+              { label: "Loan To Cost", value: formatPercent(deal.loanToCostPercent) },
+              { label: "Annual Taxes", value: formatCurrency(deal.annualTaxes) },
+              { label: "Insurance / Utilities", value: `${formatCurrency(deal.monthlyInsurance)} / ${formatCurrency(deal.monthlyUtilities)}` },
+            ]}
+          />
+
+          <div className="mt-4">
+            <TextList label="Deal notes" items={deal.notes ? [deal.notes] : []} emptyText="No custom notes were entered for this report." />
           </div>
         </SectionShell>
       </div>
@@ -529,7 +486,7 @@ const CompsReportPdfTemplate = ({ report = null }) => {
           />
           <DataTable
             title="Active Market Listings"
-            subtitle={report.comps?.activeMarket?.honestLabel || "Current listings shown as market context, not closed sales."}
+            subtitle={report.comps?.activeMarket?.honestLabel || "Current listings shown as market context."}
             columns={buildCompColumns()}
             rows={activeListings}
             emptyText="No active market listings were available."
@@ -537,70 +494,42 @@ const CompsReportPdfTemplate = ({ report = null }) => {
         </div>
       </div>
 
-      <div className="mt-6 grid grid-cols-[0.98fr_1.02fr] gap-6">
+      <div className="mt-6 grid grid-cols-[1.02fr_0.98fr] gap-6">
+        <SectionShell
+          title="Property Context"
+          subtitle="Current subject facts, owner context, and the most recent recorded sale information."
+        >
+          <DetailGrid
+            items={[
+              { label: "Property", value: property.propertyType || "—" },
+              { label: "Beds / Baths", value: [property.bedrooms, property.bathrooms].filter((value) => value !== null && value !== undefined).join(" / ") || "—" },
+              { label: "Square Footage", value: formatNumber(property.squareFootage) },
+              { label: "Lot Size", value: formatNumber(property.lotSize) },
+              { label: "Year Built", value: formatNumber(property.yearBuilt) },
+              { label: "Owner", value: property.owner?.name || "—", hint: property.owner?.type || null },
+              { label: "Last Sale", value: formatCurrency(property.lastSalePrice), hint: formatDate(property.lastSaleDate) },
+              { label: "Tax Amount", value: formatCurrency(property.latestTax?.taxAmount), hint: property.latestTax?.year ? `Tax year ${property.latestTax.year}` : null },
+            ]}
+          />
+        </SectionShell>
+
         <SectionShell
           title="Market Context"
           subtitle="Zip-level sale and listing context from RentCast market data."
         >
           <div className="grid grid-cols-2 gap-3">
-            <div className="rounded-[20px] bg-[#faf6f1] px-4 py-4">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[#7b6d63]">Median sale</p>
-              <p className="mt-2 text-lg font-semibold text-[#1d1713]">{formatCurrency(market.saleData?.medianPrice)}</p>
-            </div>
-            <div className="rounded-[20px] bg-[#faf6f1] px-4 py-4">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[#7b6d63]">Median $ / sqft</p>
-              <p className="mt-2 text-lg font-semibold text-[#1d1713]">{formatNumber(market.saleData?.medianPricePerSquareFoot, " / sqft")}</p>
-            </div>
-            <div className="rounded-[20px] bg-[#faf6f1] px-4 py-4">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[#7b6d63]">Median DOM</p>
-              <p className="mt-2 text-lg font-semibold text-[#1d1713]">{formatNumber(market.saleData?.medianDaysOnMarket, " days")}</p>
-            </div>
-            <div className="rounded-[20px] bg-[#faf6f1] px-4 py-4">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[#7b6d63]">New listings</p>
-              <p className="mt-2 text-lg font-semibold text-[#1d1713]">{formatNumber(market.saleData?.newListings)}</p>
-            </div>
+            <MetricCard label="Median sale" value={formatCurrency(market.saleData?.medianPrice)} />
+            <MetricCard label="Median $ / sqft" value={formatNumber(market.saleData?.medianPricePerSquareFoot, " / sqft")} />
+            <MetricCard label="Median DOM" value={formatNumber(market.saleData?.medianDaysOnMarket, " days")} />
+            <MetricCard label="New listings" value={formatNumber(market.saleData?.newListings)} />
           </div>
+
           <div className="mt-4">
             <TextList
               label="Market notes"
               items={market.notes || []}
               emptyText="No market notes were available for this zip code."
             />
-          </div>
-        </SectionShell>
-
-        <SectionShell
-          title="Investment Conclusion"
-          subtitle="The report conclusion should be read together with the comp strength and assumption sensitivity."
-          className="bg-[#fbf7f2]"
-        >
-          <div className="rounded-[22px] bg-white px-6 py-6">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-[#7b6d63]">Bottom line</p>
-            <p className="mt-3 text-xl font-semibold text-[#1d1713]">
-              {ai.verdict || "Review required"} deal with {ai.compSupport || "moderate"} comp support.
-            </p>
-            <p className="mt-4 text-sm leading-7 text-[#40342c]">
-              {ai.dealTakeaway ||
-                ai.valueTakeaway ||
-                "Use the valuation range, cost stack, and comp notes above before making a pricing decision."}
-            </p>
-          </div>
-
-          <div className="mt-4 rounded-[22px] border border-[#e5ddd3] bg-white px-6 py-6">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-[#7b6d63]">Next steps</p>
-            <ul className="mt-3 space-y-2">
-              {(ai.nextSteps || []).length ? (
-                ai.nextSteps.map((step) => (
-                  <li key={step} className="rounded-[16px] bg-[#faf6f1] px-4 py-3 text-sm leading-6 text-[#40342c]">
-                    {step}
-                  </li>
-                ))
-              ) : (
-                <li className="rounded-[16px] bg-[#faf6f1] px-4 py-3 text-sm leading-6 text-[#40342c]">
-                  Recheck the visible comp set, confirm renovation scope, and pressure-test the cost assumptions before underwriting an offer.
-                </li>
-              )}
-            </ul>
           </div>
         </SectionShell>
       </div>
