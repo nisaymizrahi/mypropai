@@ -17,7 +17,7 @@ function ResourcesPage() {
         path="/resources"
       />
 
-      <section className="surface-panel-strong px-6 py-8 sm:px-8 sm:py-10">
+      <section className="marketing-hero px-6 py-8 sm:px-8 sm:py-10">
         <span className="eyebrow">Resources</span>
         <h1 className="mt-5 max-w-4xl font-display text-[3rem] leading-[0.96] text-balance text-ink-900 sm:text-[3.8rem] xl:text-[4.2rem]">
           Editorial playbooks for operators who want sharper decisions and calmer execution.
@@ -31,7 +31,12 @@ function ResourcesPage() {
       <section className="mt-6 grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
         <Link
           to={`/resources/${featuredArticle.slug}`}
-          className="surface-panel-strong block px-6 py-7 transition hover:-translate-y-0.5"
+          className="marketing-spotlight marketing-link-card block px-6 py-7"
+          data-analytics-event="resource_article_open"
+          data-analytics-label={featuredArticle.title}
+          data-analytics-location="resources_featured"
+          data-analytics-category="content"
+          data-analytics-slug={featuredArticle.slug}
         >
           <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-ink-400">
             Featured guide
@@ -65,7 +70,14 @@ function ResourcesPage() {
             <p className="mt-3 text-sm leading-6 text-ink-600">
               Read the process here, then use Fliprop to manage the same work in a shared workspace.
             </p>
-            <Link to="/signup" className="primary-action mt-4">
+            <Link
+              to="/signup"
+              className="primary-action mt-4"
+              data-analytics-event="marketing_cta_click"
+              data-analytics-label="Start free"
+              data-analytics-location="resources_sidebar"
+              data-analytics-category="conversion"
+            >
               Start free
             </Link>
           </div>
@@ -77,7 +89,12 @@ function ResourcesPage() {
           <Link
             key={article.slug}
             to={`/resources/${article.slug}`}
-            className="surface-panel block p-6 transition hover:-translate-y-0.5"
+            className="surface-panel marketing-link-card block p-6"
+            data-analytics-event="resource_article_open"
+            data-analytics-label={article.title}
+            data-analytics-location="resources_library"
+            data-analytics-category="content"
+            data-analytics-slug={article.slug}
           >
             <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-ink-400">
               {article.category}

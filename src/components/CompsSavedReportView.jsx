@@ -25,6 +25,7 @@ const CompsSavedReportView = ({
   emptyEyebrow = "Saved reports",
   emptyTitle = "No saved report was found",
   emptyMessage = "Run and save a Master Deal Report to review it here.",
+  actions = null,
 }) => {
   const exportRef = useRef(null);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
@@ -60,6 +61,7 @@ const CompsSavedReportView = ({
         <span className="eyebrow">{emptyEyebrow}</span>
         <h3 className="mt-4 text-3xl font-semibold text-ink-900">{emptyTitle}</h3>
         <p className="mt-3 max-w-2xl text-sm leading-6 text-ink-500">{emptyMessage}</p>
+        {actions ? <div className="mt-5 flex flex-wrap gap-3">{actions}</div> : null}
       </div>
     );
   }
@@ -82,6 +84,7 @@ const CompsSavedReportView = ({
             <p className="mt-4 max-w-3xl text-sm leading-7 text-ink-600">
               Reopen the full property, comps, deal math, and verdict package exactly as it was saved, then export a polished client-ready PDF when needed.
             </p>
+            {actions ? <div className="mt-5 flex flex-wrap gap-3">{actions}</div> : null}
           </div>
 
           <div className="flex flex-wrap gap-3">

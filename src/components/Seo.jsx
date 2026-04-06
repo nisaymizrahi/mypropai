@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { trackPageView } from "../utils/analytics";
 
 const SITE_URL = process.env.REACT_APP_SITE_URL || "https://fliprop.com";
 
@@ -32,7 +33,7 @@ const upsertCanonicalLink = (href) => {
 
 const buildAbsoluteUrl = (path) => new URL(path, SITE_URL).toString();
 
-function Seo({ title, description, path = "/" }) {
+function Seo({ title, description, path = "/", section = "marketing" }) {
   useEffect(() => {
     const url = buildAbsoluteUrl(path);
 
@@ -52,7 +53,8 @@ function Seo({ title, description, path = "/" }) {
     upsertMetaTag("property", "og:url", url);
     upsertMetaTag("name", "twitter:card", "summary_large_image");
     upsertCanonicalLink(url);
-  }, [description, path, title]);
+    trackPageView({ path, title, section });
+  }, [description, path, section, title]);
 
   return null;
 }

@@ -24,6 +24,13 @@ const moduleIcons = [
 ];
 
 function ProductPage() {
+  const platformLayers = [
+    ["Acquisition context", "Lead notes, pricing, comps, and next moves stay attached to the opportunity."],
+    ["Execution layer", "Tasks, vendors, schedules, and operating follow-up keep the work moving."],
+    ["Property memory", "Documents, financial context, and settings remain attached to the asset."],
+    ["Account controls", "Billing, plan changes, and user access are part of the same system."],
+  ];
+
   return (
     <MarketingLayout>
       <Seo
@@ -33,7 +40,7 @@ function ProductPage() {
       />
 
       <section className="grid gap-6 xl:grid-cols-[minmax(0,1.05fr)_380px]">
-        <div className="surface-panel-strong px-6 py-8 sm:px-8 sm:py-10">
+        <div className="marketing-hero px-6 py-8 sm:px-8 sm:py-10">
           <span className="eyebrow">Product overview</span>
           <h1 className="mt-5 max-w-4xl font-display text-[3rem] leading-[0.96] text-balance text-ink-900 sm:text-[3.8rem] xl:text-[4.3rem]">
             The operating system for teams moving from deal flow to live property work.
@@ -44,17 +51,31 @@ function ProductPage() {
           </p>
 
           <div className="mt-7 flex flex-wrap items-center gap-3">
-            <Link to="/signup" className="primary-action">
+            <Link
+              to="/signup"
+              className="primary-action"
+              data-analytics-event="marketing_cta_click"
+              data-analytics-label="Start free"
+              data-analytics-location="product_hero"
+              data-analytics-category="conversion"
+            >
               Start free
               <ArrowRightIcon className="ml-2 h-4 w-4" />
             </Link>
-            <Link to="/pricing" className="secondary-action">
+            <Link
+              to="/pricing"
+              className="secondary-action"
+              data-analytics-event="marketing_cta_click"
+              data-analytics-label="Compare plans"
+              data-analytics-location="product_hero"
+              data-analytics-category="pricing"
+            >
               Compare plans
             </Link>
           </div>
         </div>
 
-        <aside className="surface-panel px-6 py-6">
+        <aside className="marketing-spotlight px-6 py-6">
           <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-ink-400">
             What the workspace connects
           </p>
@@ -71,6 +92,30 @@ function ProductPage() {
             ))}
           </div>
         </aside>
+      </section>
+
+      <section className="marketing-spotlight px-6 py-7 sm:px-8">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <span className="eyebrow">Platform architecture</span>
+            <h2 className="mt-4 font-display text-[2.1rem] leading-none text-ink-900">
+              One system, four layers of context
+            </h2>
+          </div>
+          <p className="max-w-xl text-sm leading-6 text-ink-600">
+            The product story lands better when buyers can see how deal context, work, property
+            memory, and account controls fit together.
+          </p>
+        </div>
+
+        <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          {platformLayers.map(([title, detail]) => (
+            <div key={title} className="marketing-mini-card">
+              <h3 className="text-base font-semibold text-ink-900">{title}</h3>
+              <p className="mt-3 text-sm leading-6 text-ink-600">{detail}</p>
+            </div>
+          ))}
+        </div>
       </section>
 
       <section className="mt-6 grid gap-4 lg:grid-cols-3">

@@ -78,6 +78,14 @@ const workspaceTabIcons = {
   settings: Cog6ToothIcon,
 };
 
+const ANALYSIS_SECTION_IDS = {
+  summary: "analysis-deal-summary",
+  comps: "analysis-comps",
+  reports: "analysis-saved-reports",
+  scope: "analysis-scope",
+  assumptions: "analysis-original-assumptions",
+};
+
 const toOptionalNumber = (value) => {
   if (value === "" || value === null || value === undefined) {
     return undefined;
@@ -347,6 +355,7 @@ const PropertyWorkspacePage = () => {
   const [isCreatingManagementWorkspace, setIsCreatingManagementWorkspace] = useState(false);
   const [acquisitionStrategy, setAcquisitionStrategy] = useState("flip");
   const [managementStrategy, setManagementStrategy] = useState("rental");
+  const [sectionRevealTokens, setSectionRevealTokens] = useState({});
 
   const activeWorkspaceRoute = useMemo(
     () =>
@@ -780,6 +789,61 @@ const PropertyWorkspacePage = () => {
       block: "start",
     });
   }, [activeTab.id, navigate, property?.propertyKey, propertyKey]);
+
+  const revealWorkspaceSection = useCallback((sectionId) => {
+    setSectionRevealTokens((current) => ({
+      ...current,
+      [sectionId]: (current[sectionId] || 0) + 1,
+    }));
+
+    window.requestAnimationFrame(() => {
+      window.setTimeout(() => {
+        document.getElementById(sectionId)?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      }, 40);
+    });
+  }, []);
+
+  const buildAnalysisSectionAction = useCallback(
+    (readyLabel, sectionId) => {
+      if (!hasPipelineWorkspace) {
+        return {
+          label: "Add lead",
+          onClick: () => handleTabSelect("settings"),
+        };
+      }
+
+      if (!propertyWorkspaceActive) {
+        return {
+          label: "Activate analysis",
+          onClick: () => handleTabSelect("settings"),
+        };
+      }
+
+      return {
+        label: readyLabel,
+        onClick: () => revealWorkspaceSection(sectionId),
+      };
+    },
+    [handleTabSelect, hasPipelineWorkspace, propertyWorkspaceActive, revealWorkspaceSection]
+  );
+
+  const renderWorkspaceButtons = useCallback(
+    (actions, tone = "secondary-action") =>
+      actions.map((action) => (
+        <button
+          key={action.label}
+          type="button"
+          onClick={action.onClick}
+          className={tone}
+        >
+          {action.label}
+        </button>
+      )),
+    []
+  );
 
   const handleChange = (event) => {
     const { name, value } = event.target;

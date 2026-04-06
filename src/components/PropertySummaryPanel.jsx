@@ -153,7 +153,7 @@ const VarianceRow = ({ label, originalLabel, originalValue, currentLabel, curren
   </div>
 );
 
-const EmptySnapshotState = ({ pipelineLeadPath }) => (
+const EmptySnapshotState = ({ pipelineLeadPath, actions = null }) => (
   <section className="section-card p-6 sm:p-7">
     <span className="eyebrow">Property story</span>
     <h3 className="mt-4 text-3xl font-semibold text-ink-900">Original deal details are still missing</h3>
@@ -161,13 +161,14 @@ const EmptySnapshotState = ({ pipelineLeadPath }) => (
       This property does not have a linked lead snapshot yet, so we cannot reconstruct the
       original assumptions or the acquisition story from inside the workspace.
     </p>
-    {pipelineLeadPath ? (
-      <div className="mt-6">
+    <div className="mt-6 flex flex-wrap gap-3">
+      {actions}
+      {pipelineLeadPath ? (
         <Link to={pipelineLeadPath} className="secondary-action">
           Open source lead
         </Link>
-      </div>
-    ) : null}
+      ) : null}
+    </div>
   </section>
 );
 
@@ -179,6 +180,8 @@ const PropertySummaryPanel = ({
   savedReports = [],
   pipelineLeadPath = "",
   embedded = false,
+  embeddedActions = null,
+  emptyActions = null,
 }) => {
   const investmentId = property?.workspaces?.acquisitions?.id || "";
   const acquisitionsPath = property?.workspaces?.acquisitions?.path || "";
@@ -322,11 +325,18 @@ const PropertySummaryPanel = ({
   ];
 
   if (!sourceSnapshot) {
-    return <EmptySnapshotState pipelineLeadPath={pipelineLeadPath} />;
+    return <EmptySnapshotState pipelineLeadPath={pipelineLeadPath} actions={emptyActions} />;
   }
+
+  const embeddedActionBar = embedded && embeddedActions ? (
+    <section className="section-card p-4">
+      <div className="flex flex-wrap gap-3">{embeddedActions}</div>
+    </section>
+  ) : null;
 
   const renderAcquisitionSummary = () => (
     <div className="space-y-4">
+      {embeddedActionBar}
       {!embedded ? (
         <section className="surface-panel px-6 py-7 sm:px-7">
           <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
@@ -526,6 +536,7 @@ const PropertySummaryPanel = ({
 
   const renderOriginalAssumptions = () => (
     <div className="space-y-4">
+      {embeddedActionBar}
       {!embedded ? (
         <section className="surface-panel px-6 py-7 sm:px-7">
           <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">

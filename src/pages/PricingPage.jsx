@@ -15,7 +15,7 @@ function PricingPage() {
         path="/pricing"
       />
 
-      <section className="surface-panel-strong px-6 py-8 sm:px-8 sm:py-10">
+      <section className="marketing-hero px-6 py-8 sm:px-8 sm:py-10">
         <span className="eyebrow">Pricing</span>
         <h1 className="mt-5 max-w-4xl font-display text-[3rem] leading-[0.96] text-balance text-ink-900 sm:text-[3.8rem] xl:text-[4.2rem]">
           Start with the workspace. Pay for premium analysis when the workflow justifies it.
@@ -25,6 +25,19 @@ function PricingPage() {
           included comps reports, and simpler subscription management for teams that use the premium
           tools often.
         </p>
+
+        <div className="mt-7 grid gap-3 sm:grid-cols-3">
+          {[
+            ["Start free", "Starter gives operators the core workspace with no subscription friction."],
+            ["Upgrade cleanly", "Pro stays simple at $49 per month with included premium workflows."],
+            ["Buy as needed", "Usage-based add-ons keep occasional premium actions flexible."],
+          ].map(([title, detail]) => (
+            <div key={title} className="marketing-mini-card">
+              <h2 className="text-base font-semibold text-ink-900">{title}</h2>
+              <p className="mt-3 text-sm leading-6 text-ink-600">{detail}</p>
+            </div>
+          ))}
+        </div>
       </section>
 
       <section className="mt-6 grid gap-4 xl:grid-cols-2">
@@ -63,7 +76,14 @@ function PricingPage() {
               ))}
             </div>
 
-            <Link to={plan.ctaTo} className="primary-action mt-6">
+            <Link
+              to={plan.ctaTo}
+              className="primary-action mt-6"
+              data-analytics-event="marketing_cta_click"
+              data-analytics-label={plan.ctaLabel}
+              data-analytics-location={`pricing_plan_${plan.key}`}
+              data-analytics-category="conversion"
+            >
               {plan.ctaLabel}
               <ArrowRightIcon className="ml-2 h-4 w-4" />
             </Link>
@@ -126,10 +146,24 @@ function PricingPage() {
             analysis becomes recurring instead of occasional.
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
-            <Link to="/signup" className="primary-action">
+            <Link
+              to="/signup"
+              className="primary-action"
+              data-analytics-event="marketing_cta_click"
+              data-analytics-label="Start free"
+              data-analytics-location="pricing_final_cta"
+              data-analytics-category="conversion"
+            >
               Start free
             </Link>
-            <Link to="/product" className="secondary-action">
+            <Link
+              to="/product"
+              className="secondary-action"
+              data-analytics-event="marketing_cta_click"
+              data-analytics-label="See the product"
+              data-analytics-location="pricing_final_cta"
+              data-analytics-category="product"
+            >
               See the product
             </Link>
           </div>

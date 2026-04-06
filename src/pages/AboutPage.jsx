@@ -7,6 +7,12 @@ import Seo from "../components/Seo";
 import { aboutPrinciples, productModules, resourcesIntro } from "../content/marketingContent";
 
 function AboutPage() {
+  const timeline = [
+    ["The product got real first", "Lead tracking, comps, tasks, vendors, billing, and property workflows already exist in the app."],
+    ["Now the public story is catching up", "The website is being reshaped around buyer outcomes, pricing clarity, and editorial depth."],
+    ["The next step is trust at first glance", "Analytics, content, and stronger conversion surfaces make the product feel more investable."],
+  ];
+
   return (
     <MarketingLayout>
       <Seo
@@ -15,7 +21,7 @@ function AboutPage() {
         path="/about"
       />
 
-      <section className="surface-panel-strong px-6 py-8 sm:px-8 sm:py-10">
+      <section className="marketing-hero px-6 py-8 sm:px-8 sm:py-10">
         <span className="eyebrow">About Fliprop</span>
         <h1 className="mt-5 max-w-4xl font-display text-[3rem] leading-[0.96] text-balance text-ink-900 sm:text-[3.8rem] xl:text-[4.2rem]">
           We are turning a capable real estate workspace into a company buyers can trust quickly.
@@ -52,7 +58,7 @@ function AboutPage() {
           </div>
         </div>
 
-        <aside className="surface-panel p-6">
+        <aside className="marketing-spotlight p-6">
           <span className="eyebrow">Why editorial matters</span>
           <div className="soft-list mt-5">
             {resourcesIntro.map((line) => (
@@ -67,11 +73,42 @@ function AboutPage() {
               Make the public experience feel as intentional as the product itself, then use helpful
               resources to bring the right buyers into the signup flow.
             </p>
-            <Link to="/resources" className="secondary-action mt-4">
+            <Link
+              to="/resources"
+              className="secondary-action mt-4"
+              data-analytics-event="marketing_cta_click"
+              data-analytics-label="Visit resources"
+              data-analytics-location="about_sidebar"
+              data-analytics-category="content"
+            >
               Visit resources
             </Link>
           </div>
         </aside>
+      </section>
+
+      <section className="surface-panel mt-6 px-6 py-7 sm:px-8">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <span className="eyebrow">Progression</span>
+            <h2 className="mt-4 font-display text-[2.1rem] leading-none text-ink-900">
+              How the company narrative is evolving
+            </h2>
+          </div>
+          <p className="max-w-xl text-sm leading-6 text-ink-600">
+            The strongest version of the brand is the one that matches the product surface, the
+            pricing model, and the educational content buyers need before they trust the signup flow.
+          </p>
+        </div>
+
+        <div className="marketing-timeline mt-6 space-y-5">
+          {timeline.map(([title, detail]) => (
+            <div key={title} className="marketing-timeline-item">
+              <h3 className="text-lg font-semibold text-ink-900">{title}</h3>
+              <p className="mt-2 text-sm leading-6 text-ink-600">{detail}</p>
+            </div>
+          ))}
+        </div>
       </section>
 
       <section className="surface-panel mt-6 px-6 py-7 sm:px-8">
@@ -83,11 +120,25 @@ function AboutPage() {
             </h2>
           </div>
           <div className="flex flex-wrap gap-3">
-            <Link to="/signup" className="primary-action">
+            <Link
+              to="/signup"
+              className="primary-action"
+              data-analytics-event="marketing_cta_click"
+              data-analytics-label="Create your workspace"
+              data-analytics-location="about_final_cta"
+              data-analytics-category="conversion"
+            >
               Create your workspace
               <ArrowRightIcon className="ml-2 h-4 w-4" />
             </Link>
-            <Link to="/pricing" className="secondary-action">
+            <Link
+              to="/pricing"
+              className="secondary-action"
+              data-analytics-event="marketing_cta_click"
+              data-analytics-label="Review pricing"
+              data-analytics-location="about_final_cta"
+              data-analytics-category="pricing"
+            >
               Review pricing
             </Link>
           </div>

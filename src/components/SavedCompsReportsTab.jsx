@@ -15,6 +15,8 @@ const SavedCompsReportsTab = ({
   description = "Open any saved Master Deal Report and review the property, value, comps, and deal verdict package.",
   emptyTitle = "No saved reports yet",
   emptyMessage = "Run a Master Deal Report, save it, and your report library will build here.",
+  actions = null,
+  reportActions = null,
 }) => {
   const [selectedReportId, setSelectedReportId] = useState("");
 
@@ -56,6 +58,7 @@ const SavedCompsReportsTab = ({
         emptyEyebrow="Saved reports"
         emptyTitle={emptyTitle}
         emptyMessage={emptyMessage}
+        actions={actions}
       />
     );
   }
@@ -66,6 +69,7 @@ const SavedCompsReportsTab = ({
         <span className="eyebrow">Saved reports</span>
         <h3 className="mt-4 text-3xl font-semibold text-ink-900">{title}</h3>
         <p className="mt-3 text-sm leading-6 text-ink-500">{description}</p>
+        {actions ? <div className="mt-5 flex flex-wrap gap-3">{actions}</div> : null}
 
         <div className="mt-6 space-y-3">
           {reports.map((report) => (
@@ -128,7 +132,7 @@ const SavedCompsReportsTab = ({
         </div>
       </section>
 
-      <CompsSavedReportView report={selectedReport} />
+      <CompsSavedReportView report={selectedReport} actions={reportActions || actions} />
     </div>
   );
 };

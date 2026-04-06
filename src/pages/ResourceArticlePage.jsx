@@ -24,8 +24,15 @@ function ResourceArticlePage() {
         path={`/resources/${article.slug}`}
       />
 
-      <section className="surface-panel-strong px-6 py-8 sm:px-8 sm:py-10">
-        <Link to="/resources" className="ghost-action">
+      <section className="marketing-hero px-6 py-8 sm:px-8 sm:py-10">
+        <Link
+          to="/resources"
+          className="ghost-action"
+          data-analytics-event="marketing_cta_click"
+          data-analytics-label="Back to resources"
+          data-analytics-location="resource_article_header"
+          data-analytics-category="content"
+        >
           <ArrowLeftIcon className="mr-2 h-4 w-4" />
           Back to resources
         </Link>
@@ -79,7 +86,7 @@ function ResourceArticlePage() {
             </div>
           </div>
 
-          <div className="surface-panel-strong p-6">
+          <div className="marketing-spotlight p-6">
             <span className="eyebrow">Use it in practice</span>
             <h2 className="mt-4 font-display text-[2rem] leading-none text-ink-900">
               Turn the process into a shared workspace.
@@ -89,11 +96,25 @@ function ResourceArticlePage() {
               decisions without rebuilding the system from scratch each week.
             </p>
             <div className="mt-5 flex flex-wrap gap-3">
-              <Link to="/signup" className="primary-action">
+              <Link
+                to="/signup"
+                className="primary-action"
+                data-analytics-event="marketing_cta_click"
+                data-analytics-label="Start free"
+                data-analytics-location="resource_article_sidebar"
+                data-analytics-category="conversion"
+              >
                 Start free
                 <ArrowRightIcon className="ml-2 h-4 w-4" />
               </Link>
-              <Link to="/product" className="secondary-action">
+              <Link
+                to="/product"
+                className="secondary-action"
+                data-analytics-event="marketing_cta_click"
+                data-analytics-label="See the product"
+                data-analytics-location="resource_article_sidebar"
+                data-analytics-category="product"
+              >
                 See the product
               </Link>
             </div>
@@ -109,7 +130,14 @@ function ResourceArticlePage() {
               Related guides for the rest of the workflow
             </h2>
           </div>
-          <Link to="/resources" className="secondary-action">
+          <Link
+            to="/resources"
+            className="secondary-action"
+            data-analytics-event="marketing_cta_click"
+            data-analytics-label="View all resources"
+            data-analytics-location="resource_article_related_header"
+            data-analytics-category="content"
+          >
             View all resources
           </Link>
         </div>
@@ -119,7 +147,12 @@ function ResourceArticlePage() {
             <Link
               key={relatedArticle.slug}
               to={`/resources/${relatedArticle.slug}`}
-              className="surface-panel block p-6 transition hover:-translate-y-0.5"
+              className="surface-panel marketing-link-card block p-6"
+              data-analytics-event="resource_article_open"
+              data-analytics-label={relatedArticle.title}
+              data-analytics-location="resource_article_related_grid"
+              data-analytics-category="content"
+              data-analytics-slug={relatedArticle.slug}
             >
               <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-ink-400">
                 {relatedArticle.category}

@@ -7,6 +7,7 @@ import BrandLogo from "../components/BrandLogo";
 import PublicLegalLinks from "../components/PublicLegalLinks";
 import Seo from "../components/Seo";
 import { useAuth } from "../context/AuthContext";
+import { trackAnalyticsEvent } from "../utils/analytics";
 import { loginUser } from "../utils/api";
 
 const workspaceNotes = [
@@ -53,6 +54,11 @@ const LoginPage = () => {
   }, [authenticated, loading, navigate, user]);
 
   const handleGoogleLogin = () => {
+    trackAnalyticsEvent("workspace_login_google_started", {
+      page_section: "auth",
+      auth_method: "google",
+      interaction_location: "login_form",
+    });
     window.location.href = `${API_BASE_URL}/auth/google`;
   };
 
@@ -65,10 +71,20 @@ const LoginPage = () => {
       return;
     }
 
+    trackAnalyticsEvent("workspace_login_submitted", {
+      page_section: "auth",
+      auth_method: "email",
+      interaction_location: "login_form",
+    });
+
     setIsSubmitting(true);
 
     try {
       const data = await loginUser(email, password);
+      trackAnalyticsEvent("workspace_login_completed", {
+        page_section: "auth",
+        auth_method: "email",
+      });
       login(data.token);
     } catch (err) {
       setError(err.message || "Unable to sign you in.");
@@ -85,6 +101,7 @@ const LoginPage = () => {
         title="Workspace login | Fliprop"
         description="Sign in to your Fliprop workspace for acquisitions, execution, and property operations."
         path="/login"
+        section="auth"
       />
       <div className="mx-auto flex min-h-screen max-w-[1240px] flex-col px-4 py-4 sm:px-6 lg:px-8">
         <header className="surface-panel flex items-center justify-between gap-4 px-5 py-4">

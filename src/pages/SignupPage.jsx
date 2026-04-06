@@ -7,6 +7,7 @@ import BrandLogo from "../components/BrandLogo";
 import PublicLegalLinks from "../components/PublicLegalLinks";
 import Seo from "../components/Seo";
 import { useAuth } from "../context/AuthContext";
+import { trackAnalyticsEvent } from "../utils/analytics";
 import { signupUser } from "../utils/api";
 
 const workspaceUseCases = [
@@ -65,6 +66,11 @@ const SignupPage = () => {
   };
 
   const handleGoogleSignup = () => {
+    trackAnalyticsEvent("workspace_signup_google_started", {
+      page_section: "auth",
+      auth_method: "google",
+      interaction_location: "signup_form",
+    });
     window.location.href = `${API_BASE_URL}/auth/google`;
   };
 
@@ -87,10 +93,20 @@ const SignupPage = () => {
       return;
     }
 
+    trackAnalyticsEvent("workspace_signup_submitted", {
+      page_section: "auth",
+      auth_method: "email",
+      interaction_location: "signup_form",
+    });
+
     setIsSubmitting(true);
 
     try {
       const data = await signupUser(formData);
+      trackAnalyticsEvent("workspace_signup_completed", {
+        page_section: "auth",
+        auth_method: "email",
+      });
       login(data.token);
     } catch (err) {
       setError(err.message || "Failed to create account.");
@@ -104,6 +120,7 @@ const SignupPage = () => {
         title="Create your workspace | Fliprop"
         description="Start a Fliprop workspace for acquisitions, execution, and property operations."
         path="/signup"
+        section="auth"
       />
       <div className="mx-auto flex min-h-screen max-w-[1280px] flex-col px-4 py-4 sm:px-6 lg:px-8">
         <header className="surface-panel flex items-center justify-between gap-4 px-5 py-4">
