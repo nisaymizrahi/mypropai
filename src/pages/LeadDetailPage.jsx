@@ -18,7 +18,6 @@ import { useAuth } from "../context/AuthContext";
 import {
   analyzeLeadComps,
   createOneTimeCheckout,
-  createSubscriptionCheckout,
   getBidsForLead,
   getBillingAccess,
   getLeadDetails,
@@ -43,6 +42,7 @@ import BidsTab from "../components/BidsTab";
 import MasterDealReportWorkspace from "../components/MasterDealReportWorkspace";
 import SavedCompsReportsTab from "../components/SavedCompsReportsTab";
 import TasksPanel from "../components/TasksPanel";
+import useSubscriptionCheckoutConsent from "../hooks/useSubscriptionCheckoutConsent";
 
 const occupancyOptions = ["Unknown", "Vacant", "Owner Occupied", "Tenant Occupied"];
 const leadStatusOptions = [
@@ -769,9 +769,26 @@ const LeadDetailPage = () => {
   const [activeTab, setActiveTab] = useState("details");
   const [billingAccess, setBillingAccess] = useState(null);
   const [isBillingAccessLoading, setIsBillingAccessLoading] = useState(true);
-  const [isStartingSubscription, setIsStartingSubscription] = useState(false);
   const [isStartingCheckout, setIsStartingCheckout] = useState(false);
   const [isMovingToPropertyWorkspace, setIsMovingToPropertyWorkspace] = useState(false);
+  const subscriptionOffer = billingAccess?.subscriptionOffer || null;
+
+  const handleSubscriptionCheckoutError = useCallback((error) => {
+    setError(error.message || "Could not start the Pro checkout.");
+  }, []);
+
+  const {
+    openSubscriptionConsent: handleStartSubscription,
+    isStartingSubscription,
+    subscriptionConsentDialog,
+  } = useSubscriptionCheckoutConsent({
+    planKey: "pro",
+    monthlyPriceCents: subscriptionOffer?.monthlyPriceCents ?? null,
+    trialPeriodDays: subscriptionOffer?.trialPeriodDays || 0,
+    trialEligible: Boolean(billingAccess?.trialEligible),
+    source: "lead_detail",
+    onError: handleSubscriptionCheckoutError,
+  });
 
   const fetchData = useCallback(async () => {
     try {
@@ -1251,17 +1268,6 @@ const LeadDetailPage = () => {
       toast.error(err.message || "Failed to save comps report.");
     } finally {
       setIsSavingReport(false);
-    }
-  };
-
-  const handleStartSubscription = async () => {
-    setIsStartingSubscription(true);
-    try {
-      const { url } = await createSubscriptionCheckout("pro");
-      window.location.href = url;
-    } catch (err) {
-      setError(err.message || "Could not start the Pro checkout.");
-      setIsStartingSubscription(false);
     }
   };
 
@@ -2340,6 +2346,8 @@ const LeadDetailPage = () => {
           emptyDescription="Add the first follow-up, diligence item, or contractor action for this lead."
         />
       )}
+
+      {subscriptionConsentDialog}
     </div>
   );
 };

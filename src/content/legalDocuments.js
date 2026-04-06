@@ -1,5 +1,6 @@
-export const LEGAL_LAST_UPDATED = "March 16, 2026";
-export const LEGAL_BUSINESS_NAME = "S&N Property Managment LLC";
+export const LEGAL_VERSION = "2026-04-05";
+export const LEGAL_LAST_UPDATED = "April 5, 2026";
+export const LEGAL_BUSINESS_NAME = "S&N Property Management LLC";
 export const LEGAL_CONTACT_EMAIL = "nisay@snmanager.com";
 export const LEGAL_GOVERNING_STATE = "Pennsylvania";
 
@@ -48,7 +49,15 @@ export const LEGAL_DOCUMENTS = {
         heading: "Billing and paid services",
         paragraphs: [
           "Paid subscriptions, usage-based features, and one-time purchases may be offered through the platform. Pricing, billing frequency, renewal timing, and included usage are presented at checkout or within your account settings.",
-          "If a subscription renews automatically, you authorize Fliprop and its payment providers to charge the applicable payment method unless you cancel before the next renewal date.",
+          "If you start Pro or another automatically renewing subscription, it may begin with a free trial if one is offered. Unless you cancel before the trial ends or before the next billing date, the subscription renews automatically each month at the disclosed rate until canceled, and you authorize Fliprop and its payment providers to charge the applicable payment method for each renewal.",
+          "Subscription fees and other paid charges are non-refundable except where required by law. You can manage or cancel an active subscription using the billing settings or billing portal made available in your account.",
+        ],
+      },
+      {
+        heading: "Leasing and property compliance",
+        paragraphs: [
+          "If you use Fliprop to collect rental applications, communicate with prospects or residents, or manage leasing workflows, you are responsible for complying with applicable fair housing, landlord-tenant, privacy, fee, notice, recordkeeping, and consumer-protection laws.",
+          "Fliprop provides software workflows and recordkeeping tools only. Fliprop does not make rental decisions for you and does not guarantee that your forms, notices, disclosures, policies, or business practices satisfy any legal requirement.",
         ],
       },
       {
@@ -107,14 +116,16 @@ export const LEGAL_DOCUMENTS = {
       {
         heading: "Information we collect",
         paragraphs: [
-          "We collect information you provide directly, including your name, email address, company name, phone number, account credentials, support communications, uploaded files, and workspace content you choose to store in Fliprop.",
+          "We collect information you provide directly, including your name, email address, company name, phone number, account credentials, support communications, uploaded files, workspace content you choose to store in Fliprop, and records of legal acceptances, subscription selections, and billing-related interactions.",
+          "If you submit a rental application through Fliprop, we may collect information such as your contact details, date of birth, residence history, employment details, income information, and other information you choose to provide in the application.",
           "We also collect technical and usage information such as IP address, browser details, device data, login timestamps, session activity, and feature usage history. Payment details may be collected by our payment processors rather than stored directly by Fliprop.",
         ],
       },
       {
         heading: "How we use information",
         paragraphs: [
-          "We use personal information to create and secure accounts, provide the service, process transactions, respond to support requests, personalize workflows, maintain platform performance, detect misuse, and communicate operational updates.",
+          "We use personal information to create and secure accounts, provide the service, process transactions, maintain subscription, renewal, and consent records, respond to support requests, personalize workflows, maintain platform performance, detect misuse, and communicate operational updates.",
+          "We also use rental application information to route the application to the property manager or owner you applied with, administer the application workflow, collect application fees where enabled, and communicate about the application.",
           "We may also use information to improve the platform, understand feature adoption, enforce our terms, comply with legal obligations, and protect our rights, users, and systems.",
         ],
       },
@@ -129,6 +140,7 @@ export const LEGAL_DOCUMENTS = {
         heading: "How we share information",
         paragraphs: [
           "We may share personal information with service providers that help us operate Fliprop, including providers for hosting, authentication, payment processing, analytics, communications, customer support, and infrastructure security.",
+          "If you submit a rental application through Fliprop, we share that application and related payment status with the property manager, owner, and authorized team members associated with that application.",
           "We may also share information when required by law, to enforce agreements, to protect rights or safety, in connection with a merger or asset transfer, or with your direction or consent.",
         ],
       },
@@ -149,12 +161,21 @@ export const LEGAL_DOCUMENTS = {
         heading: "Cookies and similar technologies",
         paragraphs: [
           "We and our service providers may use cookies, local storage, session technologies, and similar tools to keep you signed in, remember preferences, measure traffic, and improve site performance.",
+          "Some pages may use third-party analytics tools, including Google Analytics, which can collect information about your device, browser, pages viewed, and interactions with the site.",
+        ],
+      },
+      {
+        heading: "Do Not Track disclosures",
+        paragraphs: [
+          "At this time, Fliprop does not respond to browser Do Not Track signals.",
+          "You can manage cookies through your browser settings and any in-product controls we make available. Third-party analytics providers may have their own privacy controls and disclosures.",
         ],
       },
       {
         heading: "Your choices",
         paragraphs: [
-          "You can review and update certain account details inside the platform. You can also opt out of marketing communications as described above. Depending on your location, you may have additional privacy rights under applicable law.",
+          "You can review and update certain account details inside the platform. You can also opt out of marketing communications as described above.",
+          `You may also contact us at ${LEGAL_CONTACT_EMAIL} to request access to, correction of, or deletion of personal information we hold about you, subject to verification and applicable law. Depending on your location, you may have additional privacy rights under applicable law.`,
         ],
       },
       {

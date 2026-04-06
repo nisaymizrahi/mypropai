@@ -1,31 +1,23 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { Link, useLocation, useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import {
   ArrowLeftIcon,
   BanknotesIcon,
   CheckCircleIcon,
   ClipboardDocumentListIcon,
-  ShieldCheckIcon,
-  SparklesIcon,
   UserCircleIcon,
   XCircleIcon,
 } from "@heroicons/react/24/outline";
 import toast from "react-hot-toast";
 
-import { useAuth } from "../context/AuthContext";
 import {
   createApplicationPaymentIntent,
-  createOneTimeCheckout,
   getApplicationDetails,
-  getBillingAccess,
-  initiateScreening,
-  syncBillingCheckoutSession,
   updateApplicationStatus,
 } from "../utils/api";
 
 const statusStyles = {
   "Pending Payment": "bg-sand-100 text-sand-700",
-  "Pending Screening": "bg-clay-50 text-clay-700",
   "Under Review": "bg-ink-100 text-ink-700",
   Approved: "bg-verdigris-50 text-verdigris-700",
   Denied: "bg-clay-100 text-clay-800",
@@ -61,15 +53,11 @@ const ActionButton = ({ className, ...props }) => (
 
 const ApplicationDetailPage = () => {
   const { id } = useParams();
-  const location = useLocation();
-  const { refreshUser } = useAuth();
   const [application, setApplication] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [isActionLoading, setIsActionLoading] = useState(false);
-  const [screeningAccess, setScreeningAccess] = useState(null);
-  const [isScreeningAccessLoading, setIsScreeningAccessLoading] = useState(true);
-  const [isStartingCheckout, setIsStartingCheckout] = useState(false);
+  const [isOpeningCheckout, setIsOpeningCheckout] = useState(false);
 
   const fetchData = useCallback(async () => {
     try {
@@ -87,44 +75,6 @@ const ApplicationDetailPage = () => {
     fetchData();
   }, [fetchData]);
 
-  const loadScreeningAccess = useCallback(async () => {
-    try {
-      setIsScreeningAccessLoading(true);
-      const access = await getBillingAccess("tenant_screening", id);
-      setScreeningAccess(access);
-    } catch (err) {
-      setScreeningAccess(null);
-    } finally {
-      setIsScreeningAccessLoading(false);
-    }
-  }, [id]);
-
-  useEffect(() => {
-    loadScreeningAccess();
-  }, [loadScreeningAccess]);
-
-  useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    const sessionId = params.get("session_id");
-
-    if (!sessionId) {
-      return;
-    }
-
-    const syncSession = async () => {
-      try {
-        await syncBillingCheckoutSession(sessionId);
-        await refreshUser();
-        await loadScreeningAccess();
-        toast.success("Tenant screening purchase confirmed.");
-      } catch (err) {
-        toast.error(err.message || "We could not confirm that billing session yet.");
-      }
-    };
-
-    syncSession();
-  }, [loadScreeningAccess, location.search, refreshUser]);
-
   const handleStatusUpdate = async (status) => {
     setIsActionLoading(true);
     try {
@@ -138,53 +88,23 @@ const ApplicationDetailPage = () => {
     }
   };
 
-  const handleMarkFeePaid = async () => {
-    setIsActionLoading(true);
+  const handleOpenFeeCheckout = async () => {
+    setIsOpeningCheckout(true);
     try {
       const result = await createApplicationPaymentIntent(id);
-      toast.success(result.msg || "Application fee marked as paid.");
-      await loadScreeningAccess();
-      fetchData();
-    } catch (err) {
-      toast.error(err.message || "Failed to update fee status.");
-    } finally {
-      setIsActionLoading(false);
-    }
-  };
 
-  const handleRunScreening = async () => {
-    setIsActionLoading(true);
-    try {
-      await initiateScreening(id);
-      toast.success("Screening process initiated.");
-      await loadScreeningAccess();
-      fetchData();
-    } catch (err) {
-      toast.error(err.message || "Failed to start screening.");
-    } finally {
-      setIsActionLoading(false);
-    }
-  };
-
-  const handleBuyScreening = async () => {
-    setIsStartingCheckout(true);
-    try {
-      const result = await createOneTimeCheckout({
-        kind: "tenant_screening",
-        resourceId: id,
-      });
-
-      if (result.alreadyUnlocked) {
-        toast.success(result.msg || "This application already has screening access.");
-        await loadScreeningAccess();
-        setIsStartingCheckout(false);
+      if (result.url) {
+        window.open(result.url, "_blank", "noopener,noreferrer");
+        toast.success(result.msg || "Opened a fresh fee checkout in a new tab.");
         return;
       }
 
-      window.location.href = result.url;
+      toast.success(result.msg || "Application fee is already marked as paid.");
+      fetchData();
     } catch (err) {
-      toast.error(err.message || "Failed to start screening checkout.");
-      setIsStartingCheckout(false);
+      toast.error(err.message || "Failed to create a fee checkout session.");
+    } finally {
+      setIsOpeningCheckout(false);
     }
   };
 
@@ -210,6 +130,11 @@ const ApplicationDetailPage = () => {
   const applicationsQueueHref = application.property?._id
     ? `/applications?${new URLSearchParams({ propertyId: application.property._id }).toString()}`
     : "/applications";
+  const reviewReadiness = application.feePaid
+    ? application.status === "Under Review"
+      ? "Ready for manager decision"
+      : "Decision has already been recorded"
+    : "Waiting for application fee";
 
   return (
     <div className="space-y-6">
@@ -225,7 +150,8 @@ const ApplicationDetailPage = () => {
               {unitLabel} at {propertyLabel}
             </p>
             <p className="page-hero-copy">
-              Review the applicant profile, confirm fee and screening steps, and make an approval decision with all of the supporting context in one place.
+              Review the applicant profile, confirm the application fee status, and record an
+              approval or denial decision with the supporting details in one place.
             </p>
 
             <div className="mt-8 flex flex-wrap gap-3">
@@ -266,15 +192,9 @@ const ApplicationDetailPage = () => {
 
               <div className="rounded-[18px] border border-ink-100 bg-white px-4 py-4">
                 <p className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-400">
-                  Screening access
+                  Review readiness
                 </p>
-                <p className="mt-1 text-sm font-semibold text-ink-900">
-                  {isScreeningAccessLoading
-                    ? "Checking access..."
-                    : screeningAccess?.accessGranted
-                      ? "Unlocked"
-                      : "Not unlocked"}
-                </p>
+                <p className="mt-1 text-sm font-semibold text-ink-900">{reviewReadiness}</p>
               </div>
             </div>
           </div>
@@ -287,7 +207,8 @@ const ApplicationDetailPage = () => {
             <span className="eyebrow">Actions</span>
             <h3 className="mt-4 text-2xl font-semibold text-ink-900">Application workflow controls</h3>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-ink-500">
-              Move the applicant forward by confirming payment, purchasing screening, launching screening, or closing the decision.
+              Keep payment and decision handling tidy by opening a fresh fee checkout when needed
+              and only approving or denying applications once they are under review.
             </p>
           </div>
 
@@ -295,33 +216,12 @@ const ApplicationDetailPage = () => {
             {application.status === "Pending Payment" && (
               <ActionButton
                 type="button"
-                onClick={handleMarkFeePaid}
-                disabled={isActionLoading}
+                onClick={handleOpenFeeCheckout}
+                disabled={isOpeningCheckout}
                 className="bg-sand-500 text-white hover:bg-sand-600"
               >
-                {isActionLoading ? "Updating..." : "Mark fee paid"}
+                {isOpeningCheckout ? "Opening..." : "Open fee checkout"}
               </ActionButton>
-            )}
-
-            {application.status === "Pending Screening" && (
-              <>
-                <ActionButton
-                  type="button"
-                  onClick={handleBuyScreening}
-                  disabled={isStartingCheckout}
-                  className="secondary-action"
-                >
-                  {isStartingCheckout ? "Redirecting..." : "Buy screening"}
-                </ActionButton>
-                <ActionButton
-                  type="button"
-                  onClick={handleRunScreening}
-                  disabled={isActionLoading || isScreeningAccessLoading || !screeningAccess?.accessGranted}
-                  className="primary-action"
-                >
-                  {isActionLoading ? "Starting..." : "Run screening"}
-                </ActionButton>
-              </>
             )}
 
             {application.status === "Under Review" && (
@@ -347,13 +247,10 @@ const ApplicationDetailPage = () => {
           </div>
         </div>
 
-        {application.status === "Pending Screening" && (
+        {application.status === "Pending Payment" && (
           <div className="mt-6 rounded-[24px] border border-ink-100 bg-sand-50 p-5 text-sm leading-6 text-ink-600">
-            {isScreeningAccessLoading
-              ? "Checking tenant screening access..."
-              : screeningAccess?.accessGranted
-                ? "Screening payment is already unlocked for this application."
-                : "Screening is billed as a one-time service for each application."}
+            The applicant must complete the application fee before this record moves into manager
+            review.
           </div>
         )}
       </section>
@@ -372,6 +269,18 @@ const ApplicationDetailPage = () => {
                     ? new Date(application.applicantInfo.dateOfBirth).toLocaleDateString()
                     : "N/A"
                 }
+              />
+              <InfoPair
+                label="Consent recorded"
+                value={
+                  application.applicantConsent?.acceptedAt
+                    ? new Date(application.applicantConsent.acceptedAt).toLocaleString()
+                    : "Not recorded"
+                }
+              />
+              <InfoPair
+                label="Legal version"
+                value={application.applicantConsent?.legalVersion || "Not recorded"}
               />
             </div>
           </DetailSection>
@@ -441,38 +350,20 @@ const ApplicationDetailPage = () => {
                 </div>
               </div>
               <div className="flex items-start gap-3 rounded-[20px] bg-white px-4 py-4 ring-1 ring-ink-100">
-                <SparklesIcon className="mt-0.5 h-5 w-5 flex-shrink-0 text-clay-700" />
+                <ClipboardDocumentListIcon className="mt-0.5 h-5 w-5 flex-shrink-0 text-ink-700" />
                 <div>
-                  <p className="text-sm font-semibold text-ink-900">Screening</p>
-                  <p className="mt-1 text-sm leading-6 text-ink-500">
-                    {application.screeningReportId
-                      ? `Screening started with report ID ${application.screeningReportId}`
-                      : "No screening report has been attached yet."}
-                  </p>
+                  <p className="text-sm font-semibold text-ink-900">Next step</p>
+                  <p className="mt-1 text-sm leading-6 text-ink-500">{reviewReadiness}</p>
                 </div>
               </div>
             </div>
           </DetailSection>
 
-          <DetailSection eyebrow="Reports" title="Screening and review">
-            {application.screeningReportId ? (
-              <div className="rounded-[22px] border border-verdigris-200 bg-verdigris-50 p-5 text-verdigris-900">
-                <div className="flex items-start gap-3">
-                  <ShieldCheckIcon className="mt-0.5 h-6 w-6 flex-shrink-0" />
-                  <div>
-                    <p className="font-semibold">Screening in progress</p>
-                    <p className="mt-2 text-sm leading-6 text-verdigris-800">
-                      Screening reports from your provider will appear here once the process is complete.
-                    </p>
-                    <p className="mt-3 text-sm font-medium">Report ID: {application.screeningReportId}</p>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="rounded-[22px] border border-dashed border-ink-200 bg-sand-50 px-5 py-10 text-center text-ink-500">
-                Screening reports will appear here once the billing and screening flow is complete.
-              </div>
-            )}
+          <DetailSection eyebrow="Review" title="Review guidance">
+            <div className="rounded-[22px] border border-dashed border-ink-200 bg-sand-50 px-5 py-10 text-center text-ink-500">
+              Use the applicant information, housing history, and employment details on this page
+              as the source of truth for your review decision.
+            </div>
 
             <div className="space-y-3">
               <div className="flex items-start gap-3 rounded-[20px] border border-ink-100 bg-white px-4 py-4">
@@ -480,7 +371,8 @@ const ApplicationDetailPage = () => {
                 <div>
                   <p className="text-sm font-semibold text-ink-900">Applicant record</p>
                   <p className="mt-1 text-sm leading-6 text-ink-500">
-                    Keep this page as the source of truth while the application moves from payment to decision.
+                    Keep this page as the source of truth while the application moves from payment
+                    to decision.
                   </p>
                 </div>
               </div>

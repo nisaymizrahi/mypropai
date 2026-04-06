@@ -1539,11 +1539,16 @@ export const getBillingAccess = async (kind, resourceId) => {
   );
 };
 
-export const createSubscriptionCheckout = async (planKey = "pro") => {
+export const createSubscriptionCheckout = async (planKeyOrOptions = "pro") => {
+  const payload =
+    typeof planKeyOrOptions === "string"
+      ? { planKey: planKeyOrOptions }
+      : { ...(planKeyOrOptions || {}) };
+
   const res = await fetch(`${API_BASE_URL}/billing/checkout/subscription`, {
     method: "POST",
     headers: getAuthHeaders(),
-    body: JSON.stringify({ planKey }),
+    body: JSON.stringify(payload),
   });
   if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to start subscription checkout"));
   return res.json();
@@ -1817,21 +1822,6 @@ export const updateApplicationStatus = async (applicationId, status) => {
   if (!res.ok) {
     const error = await res.json().catch(() => ({}));
     throw new Error(error.msg || error.message || "Failed to update application status");
-  }
-  return res.json();
-};
-
-export const initiateScreening = async (applicationId) => {
-  const res = await fetch(
-    `${API_BASE_URL}/applications/${applicationId}/initiate-screening`,
-    {
-      method: "POST",
-      headers: getAuthHeaders(),
-    }
-  );
-  if (!res.ok) {
-    const error = await res.json().catch(() => ({}));
-    throw new Error(error.msg || error.message || "Failed to initiate screening");
   }
   return res.json();
 };

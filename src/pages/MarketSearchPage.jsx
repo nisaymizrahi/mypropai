@@ -5,8 +5,10 @@ import {
   ArrowPathIcon,
   ArrowTopRightOnSquareIcon,
   BuildingOffice2Icon,
+  ListBulletIcon,
   MagnifyingGlassIcon,
   MapPinIcon,
+  PhotoIcon,
   XMarkIcon,
 } from "@heroicons/react/24/outline";
 import toast from "react-hot-toast";
@@ -71,6 +73,11 @@ const DAY_ON_MARKET_OPTIONS = [
   { value: "90", label: "90 days or newer" },
 ];
 
+const RESULT_VIEW_OPTIONS = [
+  { value: "listing", label: "Listing view", icon: PhotoIcon },
+  { value: "compact", label: "Compact", icon: ListBulletIcon },
+];
+
 const propertyFilterOptions = [
   { value: "", label: "Any property type" },
   ...propertyTypeOptions.filter((option) => option.value),
@@ -117,13 +124,6 @@ const buildListingFacts = (listing) =>
     listing.bedrooms ? `${listing.bedrooms} bd` : null,
     listing.bathrooms ? `${listing.bathrooms} ba` : null,
     listing.squareFootage ? `${formatInteger(listing.squareFootage)} sqft` : null,
-  ].filter(Boolean);
-
-const buildListingMeta = (listing) =>
-  [
-    listing.propertyType || null,
-    listing.status || null,
-    listing.daysOnMarket ? `${listing.daysOnMarket} DOM` : null,
   ].filter(Boolean);
 
 const getPropertyTypeLabel = (value) =>
@@ -276,28 +276,161 @@ const buildImageInitials = (listing) =>
     .map((token) => token.charAt(0).toUpperCase())
     .join("");
 
+const buildGalleryPhotos = (listing) => {
+  const seen = new Set();
+
+  return [listing?.photoUrl, ...(Array.isArray(listing?.photos) ? listing.photos : [])]
+    .map((photo) => String(photo || "").trim())
+    .filter((photo) => {
+      if (!photo || seen.has(photo)) {
+        return false;
+      }
+
+      seen.add(photo);
+      return true;
+    });
+};
+
+const buildListingLocationLine = (listing) => {
+  const cityState = [listing?.city, listing?.state].filter(Boolean).join(", ");
+  if (cityState && listing?.zipCode) {
+    return `${cityState} ${listing.zipCode}`;
+  }
+
+  return cityState || listing?.zipCode || "";
+};
+
+const buildListingHighlights = (listing) =>
+  [
+    listing.propertyType || null,
+    listing.yearBuilt ? `Built ${listing.yearBuilt}` : null,
+    listing.lotSize ? `Lot ${formatInteger(listing.lotSize)} sqft` : null,
+    listing.mlsNumber ? `MLS ${listing.mlsNumber}` : null,
+  ].filter(Boolean);
+
+const buildListingTimeline = (listing) => {
+  const photoCount = Math.max(listing?.photoCount || 0, buildGalleryPhotos(listing).length);
+
+  return [
+    listing.listedDate ? `Listed ${formatMarketDate(listing.listedDate)}` : null,
+    listing.daysOnMarket ? `${listing.daysOnMarket} DOM` : null,
+    photoCount ? `${photoCount} photo${photoCount === 1 ? "" : "s"}` : null,
+  ].filter(Boolean);
+};
+
+const getListingStatusLabel = (listing) =>
+  listing?.existingLeadId ? "In Potential" : listing?.status || "For Sale";
+
+const buildListingDetailRows = (listing) => [
+  { label: "Address", value: listing?.address || "—" },
+  { label: "City / State", value: buildListingLocationLine(listing) || "—" },
+  { label: "Price", value: formatCurrency(listing?.price) },
+  { label: "Status", value: getListingStatusLabel(listing) },
+  {
+    label: "Beds / Baths",
+    value:
+      [
+        listing?.bedrooms ? `${listing.bedrooms} bd` : null,
+        listing?.bathrooms ? `${listing.bathrooms} ba` : null,
+      ].filter(Boolean).join(" • ") || "—",
+  },
+  {
+    label: "Interior",
+    value: listing?.squareFootage ? `${formatInteger(listing.squareFootage)} sqft` : "—",
+  },
+  {
+    label: "Lot size",
+    value: listing?.lotSize ? `${formatInteger(listing.lotSize)} sqft` : "—",
+  },
+  { label: "Year built", value: listing?.yearBuilt || "—" },
+  { label: "Property type", value: listing?.propertyType || "—" },
+  { label: "Listed", value: formatMarketDate(listing?.listedDate) },
+  {
+    label: "Days on market",
+    value: listing?.daysOnMarket ? `${listing.daysOnMarket} days` : "—",
+  },
+  {
+    label: "MLS",
+    value: [listing?.mlsNumber, listing?.mlsName].filter(Boolean).join(" • ") || "—",
+  },
+  {
+    label: "HOA",
+    value: listing?.hoaFee ? formatCurrency(listing.hoaFee) : "—",
+  },
+];
+
 const mergeImportedListingState = (listing, response) => ({
   ...listing,
   existingLeadId: response.leadId || listing.existingLeadId || "",
   existingLeadStatus: response?.lead?.status || listing.existingLeadStatus || "Potential",
 });
 
-const ListingImage = ({ listing, tall = false }) => {
+const ListingStatusBadge = ({ listing, onImage = false }) => {
+  const classes = listing?.existingLeadId
+    ? onImage
+      ? "bg-verdigris-600/92 text-white shadow-[0_12px_24px_rgba(67,95,89,0.24)]"
+      : "bg-verdigris-50 text-verdigris-700 ring-1 ring-verdigris-100"
+    : onImage
+      ? "bg-white/92 text-ink-900 shadow-[0_12px_24px_rgba(28,23,19,0.14)]"
+      : "bg-sand-100 text-ink-700 ring-1 ring-sand-200";
+
+  return (
+    <span
+      className={`inline-flex items-center rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ${classes}`}
+    >
+      {getListingStatusLabel(listing)}
+    </span>
+  );
+};
+
+const ListingImage = ({ listing, tall = false, overlay = true }) => {
+  const photoCount = Math.max(listing?.photoCount || 0, buildGalleryPhotos(listing).length);
+
   if (listing.photoUrl) {
     return (
-      <img
-        src={listing.photoUrl}
-        alt={listing.address || "Property listing"}
-        className={`h-full w-full object-cover ${tall ? "" : "rounded-[18px]"}`}
-        loading="lazy"
-      />
+      <div className={`relative h-full w-full overflow-hidden ${tall ? "" : "rounded-[22px]"}`}>
+        <img
+          src={listing.photoUrl}
+          alt={listing.address || "Property listing"}
+          className="h-full w-full object-cover"
+          loading="lazy"
+        />
+
+        {overlay ? (
+          <>
+            <div className="absolute inset-x-0 top-0 flex items-start justify-between gap-3 p-3">
+              <ListingStatusBadge listing={listing} onImage />
+              {photoCount > 1 ? (
+                <span className="inline-flex items-center rounded-full bg-black/55 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-white backdrop-blur-sm">
+                  {photoCount} photos
+                </span>
+              ) : null}
+            </div>
+
+            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent px-4 py-4 text-white">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/72">
+                {listing.propertyType || "For sale"}
+              </p>
+              <p className="mt-1 text-sm font-medium text-white/92">
+                {buildListingLocationLine(listing) || listing.address || "Market listing"}
+              </p>
+            </div>
+          </>
+        ) : null}
+      </div>
     );
   }
 
   return (
     <div
-      className={`flex h-full w-full items-end justify-between bg-[radial-gradient(circle_at_top_left,_rgba(168,115,91,0.32),_transparent_42%),linear-gradient(145deg,_rgba(67,95,89,0.96),_rgba(28,23,19,0.92))] px-4 py-4 text-white ${tall ? "" : "rounded-[18px]"}`}
+      className={`relative flex h-full w-full items-end justify-between overflow-hidden bg-[radial-gradient(circle_at_top_left,_rgba(168,115,91,0.32),_transparent_42%),linear-gradient(145deg,_rgba(67,95,89,0.96),_rgba(28,23,19,0.92))] px-4 py-4 text-white ${tall ? "" : "rounded-[22px]"}`}
     >
+      {overlay ? (
+        <div className="absolute inset-x-0 top-0 flex items-start justify-between gap-3 p-3">
+          <ListingStatusBadge listing={listing} onImage />
+        </div>
+      ) : null}
+
       <div>
         <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/70">
           {listing.propertyType || "For sale"}
@@ -311,6 +444,79 @@ const ListingImage = ({ listing, tall = false }) => {
   );
 };
 
+const ListingGallery = ({ listing, showAllThumbnails = false, tall = false }) => {
+  const galleryPhotos = buildGalleryPhotos(listing);
+  const [activePhotoIndex, setActivePhotoIndex] = useState(0);
+
+  useEffect(() => {
+    setActivePhotoIndex(0);
+  }, [listing?.id]);
+
+  if (!galleryPhotos.length) {
+    return (
+      <div className={`relative overflow-hidden ${tall ? "h-72 sm:h-[24rem]" : "h-64 sm:h-72"}`}>
+        <ListingImage listing={listing} tall />
+      </div>
+    );
+  }
+
+  const thumbnailPhotos = showAllThumbnails ? galleryPhotos : galleryPhotos.slice(0, 4);
+  const activePhoto = galleryPhotos[activePhotoIndex] || galleryPhotos[0];
+
+  return (
+    <div className="space-y-3">
+      <div className={`relative overflow-hidden ${tall ? "h-72 sm:h-[24rem]" : "h-64 sm:h-72"}`}>
+        <img
+          src={activePhoto}
+          alt={listing.address || "Property listing"}
+          className="h-full w-full object-cover"
+          loading="lazy"
+        />
+
+        <div className="absolute inset-x-0 top-0 flex items-start justify-between gap-3 p-4">
+          <ListingStatusBadge listing={listing} onImage />
+          <span className="inline-flex items-center rounded-full bg-black/55 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-white backdrop-blur-sm">
+            {galleryPhotos.length} photo{galleryPhotos.length === 1 ? "" : "s"}
+          </span>
+        </div>
+
+        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 via-black/35 to-transparent px-5 py-4 text-white">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/72">
+            Selected listing
+          </p>
+          <p className="mt-2 text-sm font-medium text-white/92">
+            {buildListingLocationLine(listing) || listing.address || "Market listing"}
+          </p>
+        </div>
+      </div>
+
+      {galleryPhotos.length > 1 ? (
+        <div className="flex gap-2 overflow-x-auto px-4 pb-4">
+          {thumbnailPhotos.map((photo, index) => (
+            <button
+              key={`${listing.id}-thumb-${index}`}
+              type="button"
+              onClick={() => setActivePhotoIndex(index)}
+              className={`relative w-20 flex-none overflow-hidden rounded-[14px] transition ${
+                index === activePhotoIndex
+                  ? "ring-2 ring-verdigris-500 ring-offset-2 ring-offset-white"
+                  : "opacity-85 hover:opacity-100"
+              }`}
+            >
+              <img
+                src={photo}
+                alt={`${listing.address || "Property listing"} photo ${index + 1}`}
+                className="h-16 w-full object-cover"
+                loading="lazy"
+              />
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+};
+
 const ListingCard = ({
   listing,
   selected,
@@ -318,9 +524,91 @@ const ListingCard = ({
   onSelect,
   onImport,
   onOpenLead,
+  variant = "listing",
 }) => {
   const factLine = buildListingFacts(listing);
-  const metaLine = buildListingMeta(listing);
+  const metaLine = buildListingHighlights(listing);
+  const timelineLine = buildListingTimeline(listing);
+
+  if (variant === "compact") {
+    return (
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={onSelect}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            onSelect();
+          }
+        }}
+        className={`section-card cursor-pointer overflow-hidden border transition ${
+          selected
+            ? "border-ink-900/20 bg-white shadow-[0_16px_36px_rgba(28,23,19,0.08)]"
+            : "border-transparent bg-white/82 hover:border-ink-900/10 hover:bg-white"
+        }`}
+      >
+        <div className="grid gap-4 p-4 sm:grid-cols-[124px_minmax(0,1fr)]">
+          <div className="h-28 overflow-hidden rounded-[18px]">
+            <ListingImage listing={listing} overlay={false} />
+          </div>
+
+          <div className="min-w-0">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-lg font-semibold tracking-tight text-ink-900">
+                  {formatCurrency(listing.price)}
+                </p>
+                <p className="mt-1 text-sm font-semibold text-ink-900">{listing.address}</p>
+              </div>
+
+              <ListingStatusBadge listing={listing} />
+            </div>
+
+            <p className="mt-3 text-sm text-ink-500">
+              {factLine.length ? factLine.join(" • ") : "Property details are still loading."}
+            </p>
+            <p className="mt-1 text-sm text-ink-500">
+              {metaLine.length ? metaLine.join(" • ") : "Sale listing"}
+            </p>
+
+            <div className="mt-4 flex flex-wrap items-center gap-2">
+              {listing.existingLeadId ? (
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onOpenLead();
+                  }}
+                  className="secondary-action px-4 py-2"
+                >
+                  <ArrowTopRightOnSquareIcon className="mr-2 h-4 w-4" />
+                  Open lead
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onImport();
+                  }}
+                  disabled={saving}
+                  className="primary-action px-4 py-2 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {saving ? (
+                    <ArrowPathIcon className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <BuildingOffice2Icon className="mr-2 h-4 w-4" />
+                  )}
+                  Add to Potential
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -339,39 +627,61 @@ const ListingCard = ({
           : "border-transparent bg-white/82 hover:border-ink-900/10 hover:bg-white"
       }`}
     >
-      <div className="grid gap-4 p-4 sm:grid-cols-[124px_minmax(0,1fr)]">
-        <div className="h-28 overflow-hidden rounded-[18px]">
+      <div className="space-y-0">
+        <div className="h-52 overflow-hidden">
           <ListingImage listing={listing} />
         </div>
 
-        <div className="min-w-0">
+        <div className="min-w-0 space-y-4 p-4">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="text-lg font-semibold tracking-tight text-ink-900">
+              <p className="text-[1.9rem] font-semibold leading-none tracking-tight text-ink-900">
                 {formatCurrency(listing.price)}
               </p>
-              <p className="mt-1 text-sm font-semibold text-ink-900">{listing.address}</p>
+              <p className="mt-2 text-base font-semibold text-ink-900">{listing.address}</p>
+              {buildListingLocationLine(listing) ? (
+                <p className="mt-1 text-sm text-ink-500">{buildListingLocationLine(listing)}</p>
+              ) : null}
             </div>
 
-            {listing.existingLeadId ? (
-              <span className="rounded-full bg-verdigris-50 px-2.5 py-1 text-[11px] font-semibold text-verdigris-700">
-                In Potential
-              </span>
-            ) : listing.status ? (
-              <span className="rounded-full bg-sand-100 px-2.5 py-1 text-[11px] font-semibold text-ink-700">
-                {listing.status}
-              </span>
-            ) : null}
+            <ListingStatusBadge listing={listing} />
           </div>
 
-          <p className="mt-3 text-sm text-ink-500">
-            {factLine.length ? factLine.join(" • ") : "Property details are still loading."}
-          </p>
-          <p className="mt-1 text-sm text-ink-500">
-            {metaLine.length ? metaLine.join(" • ") : "Sale listing"}
+          <div className="flex flex-wrap gap-2">
+            {factLine.length ? (
+              factLine.map((fact) => (
+                <span
+                  key={fact}
+                  className="rounded-full bg-ink-900 px-3 py-1.5 text-sm font-semibold text-white"
+                >
+                  {fact}
+                </span>
+              ))
+            ) : (
+              <span className="rounded-full bg-sand-100 px-3 py-1.5 text-sm font-medium text-ink-600">
+                Property details pending
+              </span>
+            )}
+          </div>
+
+          {metaLine.length ? (
+            <div className="flex flex-wrap gap-2">
+              {metaLine.map((detail) => (
+                <span
+                  key={detail}
+                  className="rounded-full bg-sand-50 px-3 py-1.5 text-xs font-medium text-ink-600 ring-1 ring-ink-100"
+                >
+                  {detail}
+                </span>
+              ))}
+            </div>
+          ) : null}
+
+          <p className="text-sm text-ink-500">
+            {timelineLine.length ? timelineLine.join(" • ") : "RentCast market listing"}
           </p>
 
-          <div className="mt-4 flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {listing.existingLeadId ? (
               <button
                 type="button"
@@ -409,122 +719,244 @@ const ListingCard = ({
   );
 };
 
-const SelectedListingDetails = ({
+const ListingQuickViewModal = ({
   listing,
   saving,
+  onClose,
   onImport,
   onOpenLead,
 }) => {
+  useEffect(() => {
+    if (!listing) {
+      return undefined;
+    }
+
+    const previousOverflow = document.body.style.overflow;
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    };
+
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [listing, onClose]);
+
   if (!listing) {
-    return (
-      <section className="section-card border border-dashed border-ink-200 bg-white/72 px-5 py-6">
-        <span className="eyebrow">Selected listing</span>
-        <h2 className="mt-4 text-xl font-semibold tracking-tight text-ink-900">
-          Choose a listing to inspect it.
-        </h2>
-        <p className="mt-2 text-sm leading-6 text-ink-500">
-          Click any card or marker to preview the property, review its quick facts, and send it to
-          Potential Properties when it looks promising.
-        </p>
-      </section>
-    );
+    return null;
   }
 
   const primaryFacts = buildListingFacts(listing);
-  const secondaryFacts = buildListingMeta(listing);
+  const secondaryFacts = buildListingHighlights(listing);
+  const timelineFacts = buildListingTimeline(listing);
+  const hasSavedLead = Boolean(listing.existingLeadId);
+  const detailRows = buildListingDetailRows(listing);
+  const galleryPhotoCount = Math.max(buildGalleryPhotos(listing).length, listing.photoCount || 0, listing.photoUrl ? 1 : 0);
 
   return (
-    <section className="overflow-hidden rounded-[24px] border border-ink-900/10 bg-white shadow-[0_20px_44px_rgba(28,23,19,0.08)]">
-      <div className="relative h-56 overflow-hidden">
-        <ListingImage listing={listing} tall />
-        <div className="absolute inset-x-0 top-0 flex items-start justify-between gap-3 p-4">
-          <span className="eyebrow bg-white/90">Selected listing</span>
-          {listing.existingLeadId ? (
-            <span className="rounded-full bg-white/90 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-verdigris-700">
-              Saved to potential
-            </span>
-          ) : null}
-        </div>
-      </div>
-
-      <div className="space-y-5 px-5 py-5">
-        <div>
-          <p className="text-[2rem] font-semibold leading-none tracking-tight text-ink-900">
-            {formatCurrency(listing.price)}
-          </p>
-          <p className="mt-2 text-base font-semibold text-ink-900">{listing.address}</p>
-          <p className="mt-2 text-sm text-ink-500">
-            {primaryFacts.length ? primaryFacts.join(" • ") : "Property details pending"}
-          </p>
-          <p className="mt-1 text-sm text-ink-500">
-            {secondaryFacts.length ? secondaryFacts.join(" • ") : "For-sale inventory"}
-          </p>
-        </div>
-
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div className="metric-tile p-4">
-            <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-ink-400">
-              Listed
+    <div
+      className="fixed inset-0 z-[80] flex items-start justify-center bg-ink-900/55 px-3 py-4 backdrop-blur-sm sm:p-6"
+      onClick={onClose}
+    >
+      <div
+        className="max-h-[calc(100vh-2rem)] w-full max-w-6xl overflow-hidden rounded-[30px] border border-white/40 bg-[#fcfaf7] shadow-[0_32px_90px_rgba(15,23,42,0.32)]"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-4 border-b border-ink-100 bg-white/80 px-5 py-4 backdrop-blur-sm sm:px-6">
+          <div className="min-w-0">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-400">
+              Listing quick view
             </p>
-            <p className="mt-2 text-sm font-semibold text-ink-900">
-              {formatMarketDate(listing.listedDate)}
-            </p>
+            <p className="mt-2 truncate text-lg font-semibold text-ink-900">{listing.address}</p>
+            {buildListingLocationLine(listing) ? (
+              <p className="mt-1 text-sm text-ink-500">{buildListingLocationLine(listing)}</p>
+            ) : null}
           </div>
-          <div className="metric-tile p-4">
-            <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-ink-400">
-              Days on market
-            </p>
-            <p className="mt-2 text-sm font-semibold text-ink-900">
-              {listing.daysOnMarket ? `${listing.daysOnMarket} days` : "—"}
-            </p>
-          </div>
-          <div className="metric-tile p-4">
-            <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-ink-400">
-              Lot size
-            </p>
-            <p className="mt-2 text-sm font-semibold text-ink-900">
-              {listing.lotSize ? `${formatInteger(listing.lotSize)} sqft` : "—"}
-            </p>
-          </div>
-          <div className="metric-tile p-4">
-            <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-ink-400">
-              Year built
-            </p>
-            <p className="mt-2 text-sm font-semibold text-ink-900">
-              {listing.yearBuilt || "—"}
-            </p>
-          </div>
-        </div>
 
-        <div className="flex flex-wrap gap-2">
-          {listing.existingLeadId ? (
-            <button type="button" onClick={onOpenLead} className="primary-action">
-              <ArrowTopRightOnSquareIcon className="mr-2 h-4 w-4" />
-              Open saved lead
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={onImport}
-              disabled={saving}
-              className="primary-action disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {saving ? (
-                <ArrowPathIcon className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <BuildingOffice2Icon className="mr-2 h-4 w-4" />
-              )}
-              Add to Potential Properties
-            </button>
-          )}
-
-          <button type="button" onClick={onOpenLead} className="secondary-action" disabled={!listing.existingLeadId}>
-            <ArrowTopRightOnSquareIcon className="mr-2 h-4 w-4" />
-            Open lead
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full border border-ink-100 bg-white text-ink-600 transition hover:bg-sand-50"
+            aria-label="Close listing quick view"
+          >
+            <XMarkIcon className="h-5 w-5" />
           </button>
         </div>
+
+        <div className="grid max-h-[calc(100vh-7rem)] overflow-y-auto xl:grid-cols-[minmax(0,1.25fr)_360px]">
+          <div className="border-b border-ink-100 xl:border-b-0 xl:border-r">
+            <ListingGallery listing={listing} showAllThumbnails tall />
+
+            <div className="space-y-6 px-5 pb-6 sm:px-6">
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <ListingStatusBadge listing={listing} />
+                  <span className="rounded-full bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-500 ring-1 ring-ink-100">
+                    {galleryPhotoCount} photo{galleryPhotoCount === 1 ? "" : "s"}
+                  </span>
+                </div>
+
+                <p className="mt-4 text-[2.35rem] font-semibold leading-none tracking-tight text-ink-900">
+                  {formatCurrency(listing.price)}
+                </p>
+
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {primaryFacts.length ? (
+                    primaryFacts.map((fact) => (
+                      <span
+                        key={fact}
+                        className="rounded-full bg-ink-900 px-3 py-1.5 text-sm font-semibold text-white"
+                      >
+                        {fact}
+                      </span>
+                    ))
+                  ) : (
+                    <span className="rounded-full bg-sand-100 px-3 py-1.5 text-sm font-medium text-ink-600">
+                      Property details pending
+                    </span>
+                  )}
+                </div>
+
+                {secondaryFacts.length ? (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {secondaryFacts.map((fact) => (
+                      <span
+                        key={fact}
+                        className="rounded-full bg-sand-50 px-3 py-1.5 text-xs font-medium text-ink-600 ring-1 ring-ink-100"
+                      >
+                        {fact}
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
+
+                <p className="mt-3 text-sm text-ink-500">
+                  {timelineFacts.length ? timelineFacts.join(" • ") : "RentCast for-sale inventory"}
+                </p>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-3">
+                <div className="metric-tile p-4">
+                  <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-ink-400">
+                    Listed
+                  </p>
+                  <p className="mt-2 text-sm font-semibold text-ink-900">
+                    {formatMarketDate(listing.listedDate)}
+                  </p>
+                </div>
+                <div className="metric-tile p-4">
+                  <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-ink-400">
+                    Days on market
+                  </p>
+                  <p className="mt-2 text-sm font-semibold text-ink-900">
+                    {listing.daysOnMarket ? `${listing.daysOnMarket} days` : "—"}
+                  </p>
+                </div>
+                <div className="metric-tile p-4">
+                  <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-ink-400">
+                    MLS
+                  </p>
+                  <p className="mt-2 text-sm font-semibold text-ink-900">
+                    {listing.mlsNumber || "—"}
+                  </p>
+                </div>
+              </div>
+
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-400">
+                  Property details
+                </p>
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  {detailRows.map((row) => (
+                    <div key={row.label} className="rounded-[18px] border border-ink-100 bg-white px-4 py-3">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-400">
+                        {row.label}
+                      </p>
+                      <p className="mt-2 text-sm font-semibold text-ink-900">{row.value}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <aside className="space-y-5 bg-white/72 px-5 py-5 sm:px-6">
+            <div className="rounded-[22px] border border-ink-100 bg-white px-5 py-5 shadow-[0_18px_40px_rgba(28,23,19,0.06)]">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-400">
+                Acquisition workflow
+              </p>
+              <p className="mt-3 text-lg font-semibold text-ink-900">
+                Save the listing or move straight into the lead workspace.
+              </p>
+              <p className="mt-2 text-sm leading-6 text-ink-500">
+                This keeps the search feeling like a real listings browser while still letting your acquisitions team act fast.
+              </p>
+
+              <div className="mt-5 flex flex-col gap-3">
+                {hasSavedLead ? (
+                  <button type="button" onClick={onOpenLead} className="primary-action justify-center">
+                    <ArrowTopRightOnSquareIcon className="mr-2 h-4 w-4" />
+                    Open saved lead
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={onImport}
+                    disabled={saving}
+                    className="primary-action justify-center disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {saving ? (
+                      <ArrowPathIcon className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <BuildingOffice2Icon className="mr-2 h-4 w-4" />
+                    )}
+                    Add to Potential Properties
+                  </button>
+                )}
+
+                <button type="button" onClick={onClose} className="secondary-action justify-center">
+                  Keep browsing
+                </button>
+
+                {hasSavedLead ? (
+                  <button type="button" onClick={onOpenLead} className="ghost-action justify-center">
+                    <ArrowTopRightOnSquareIcon className="mr-2 h-4 w-4" />
+                    Open lead workspace
+                  </button>
+                ) : null}
+              </div>
+            </div>
+
+            <div className="rounded-[22px] border border-ink-100 bg-white px-5 py-5">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-400">
+                Market snapshot
+              </p>
+              <div className="mt-4 space-y-3">
+                {timelineFacts.length ? (
+                  timelineFacts.map((fact) => (
+                    <div
+                      key={fact}
+                      className="rounded-[16px] bg-sand-50 px-4 py-3 text-sm font-medium text-ink-700"
+                    >
+                      {fact}
+                    </div>
+                  ))
+                ) : (
+                  <div className="rounded-[16px] bg-sand-50 px-4 py-3 text-sm font-medium text-ink-700">
+                    Listing details are still loading.
+                  </div>
+                )}
+              </div>
+            </div>
+          </aside>
+        </div>
       </div>
-    </section>
+    </div>
   );
 };
 
@@ -857,6 +1289,7 @@ const MarketSearchPage = () => {
   const [listings, setListings] = useState([]);
   const [searchMeta, setSearchMeta] = useState(null);
   const [selectedListingId, setSelectedListingId] = useState("");
+  const [quickViewListingId, setQuickViewListingId] = useState("");
   const [fitBoundsToken, setFitBoundsToken] = useState(0);
   const [focusSelectedToken, setFocusSelectedToken] = useState(0);
   const [pendingViewport, setPendingViewport] = useState(null);
@@ -864,6 +1297,7 @@ const MarketSearchPage = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [savingListingId, setSavingListingId] = useState("");
   const [error, setError] = useState("");
+  const [resultsView, setResultsView] = useState("listing");
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(true);
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
   const selectedQueryRef = useRef("");
@@ -920,6 +1354,8 @@ const MarketSearchPage = () => {
   const activeFilterChips = buildActiveFilterChips(filters);
   const selectedListing =
     listings.find((listing) => listing.id === selectedListingId) || listings[0] || null;
+  const quickViewListing =
+    listings.find((listing) => listing.id === quickViewListingId) || null;
 
   const searchCenter =
     searchMeta?.searchCenter ||
@@ -931,6 +1367,16 @@ const MarketSearchPage = () => {
       : DEFAULT_MAP_CENTER);
 
   const resultCountLabel = buildResultCountLabel(listings.length);
+
+  useEffect(() => {
+    if (!quickViewListingId) {
+      return;
+    }
+
+    if (!listings.some((listing) => listing.id === quickViewListingId)) {
+      setQuickViewListingId("");
+    }
+  }, [listings, quickViewListingId]);
 
   const executeSearch = async ({
     location = activeLocation,
@@ -1095,6 +1541,7 @@ const MarketSearchPage = () => {
 
   const handleSelectListing = (listingId, { source = "list" } = {}) => {
     setSelectedListingId(listingId);
+    setQuickViewListingId(listingId);
 
     if (source !== "map") {
       setFocusSelectedToken((current) => current + 1);
@@ -1103,6 +1550,10 @@ const MarketSearchPage = () => {
     if (!isDesktop) {
       setIsMobileDrawerOpen(true);
     }
+  };
+
+  const handleCloseQuickView = () => {
+    setQuickViewListingId("");
   };
 
   const handleSearchArea = async () => {
@@ -1162,13 +1613,6 @@ const MarketSearchPage = () => {
 
   const renderResultsPanel = () => (
     <div className="space-y-5">
-      <SelectedListingDetails
-        listing={selectedListing}
-        saving={savingListingId === selectedListing?.id}
-        onImport={() => handleImportListing(selectedListing)}
-        onOpenLead={() => handleOpenLead(selectedListing?.existingLeadId)}
-      />
-
       <section className="space-y-4">
         <div className="flex items-start justify-between gap-3">
           <div>
@@ -1187,9 +1631,51 @@ const MarketSearchPage = () => {
                   ? "Try widening the radius or relaxing a few filters."
                   : "Run a search to start filling the map and results panel."}
             </p>
+            {listings.length ? (
+              <p className="mt-2 text-sm leading-6 text-ink-500">
+                Click any listing card or map marker to open the full photo-and-details quick view.
+              </p>
+            ) : null}
           </div>
 
-          {isLoading ? <ArrowPathIcon className="mt-1 h-5 w-5 animate-spin text-ink-400" /> : null}
+          <div className="flex items-center gap-2">
+            {listings.length ? (
+              <div className="flex flex-wrap items-center gap-2">
+                {RESULT_VIEW_OPTIONS.map((option) => {
+                  const Icon = option.icon;
+                  const isActive = resultsView === option.value;
+
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => setResultsView(option.value)}
+                      className={`inline-flex items-center rounded-full px-3 py-2 text-sm font-medium transition ${
+                        isActive
+                          ? "bg-ink-900 text-white shadow-[0_12px_24px_rgba(28,23,19,0.16)]"
+                          : "bg-white text-ink-600 ring-1 ring-ink-100 hover:bg-sand-50"
+                      }`}
+                    >
+                      <Icon className="mr-2 h-4 w-4" />
+                      {option.label}
+                    </button>
+                  );
+                })}
+              </div>
+            ) : null}
+
+            {selectedListing ? (
+              <button
+                type="button"
+                onClick={() => setQuickViewListingId(selectedListing.id)}
+                className="secondary-action whitespace-nowrap"
+              >
+                Open selected
+              </button>
+            ) : null}
+
+            {isLoading ? <ArrowPathIcon className="h-5 w-5 animate-spin text-ink-400" /> : null}
+          </div>
         </div>
 
         {listings.length ? (
@@ -1200,6 +1686,7 @@ const MarketSearchPage = () => {
                 listing={listing}
                 selected={listing.id === selectedListing?.id}
                 saving={savingListingId === listing.id}
+                variant={resultsView}
                 onSelect={() => handleSelectListing(listing.id)}
                 onImport={() => handleImportListing(listing)}
                 onOpenLead={() => handleOpenLead(listing.existingLeadId)}
@@ -1421,7 +1908,18 @@ const MarketSearchPage = () => {
     </div>
   );
 
-  return isDesktop ? renderDesktopLayout() : renderMobileLayout();
+  return (
+    <>
+      {isDesktop ? renderDesktopLayout() : renderMobileLayout()}
+      <ListingQuickViewModal
+        listing={quickViewListing}
+        saving={savingListingId === quickViewListing?.id}
+        onClose={handleCloseQuickView}
+        onImport={() => handleImportListing(quickViewListing)}
+        onOpenLead={() => handleOpenLead(quickViewListing?.existingLeadId)}
+      />
+    </>
+  );
 };
 
 export default MarketSearchPage;

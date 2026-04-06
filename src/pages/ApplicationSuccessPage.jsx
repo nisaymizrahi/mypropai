@@ -94,7 +94,7 @@ const ApplicationSuccessPage = () => {
               <div>
                 <p className="text-sm font-semibold text-ink-900">What happens next</p>
                 <p className="mt-2 text-sm leading-6 text-ink-500">
-                  The property manager will review your application details and follow up if anything else is needed. Keep an eye on your email for payment or screening updates.
+                  The property manager will review your application details and follow up if anything else is needed. Keep an eye on your email for payment or application-status updates.
                 </p>
               </div>
             </div>

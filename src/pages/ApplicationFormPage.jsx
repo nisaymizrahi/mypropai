@@ -11,6 +11,8 @@ import {
 import toast from "react-hot-toast";
 
 import BrandLogo from "../components/BrandLogo";
+import PublicLegalLinks from "../components/PublicLegalLinks";
+import { LEGAL_VERSION } from "../content/legalDocuments";
 import { getPublicApplicationDetails, submitApplication } from "../utils/api";
 
 const applicantFields = [
@@ -157,7 +159,7 @@ const ApplicationFormPage = () => {
       },
       {
         title: "Guided review",
-        description: "The property team can move you through payment and screening faster.",
+        description: "The property team can move you through payment and review follow-up faster.",
         icon: UserGroupIcon,
       },
       {
@@ -327,6 +329,10 @@ const ApplicationFormPage = () => {
         unitId,
         inviteToken: inviteToken || undefined,
         ...formData,
+        applicantConsent: {
+          acceptedAt: new Date().toISOString(),
+          legalVersion: LEGAL_VERSION,
+        },
       };
       const response = await submitApplication(payload);
 
@@ -651,8 +657,15 @@ const ApplicationFormPage = () => {
           className="mt-1 h-4 w-4 rounded border-ink-300 text-verdigris-600 focus:ring-verdigris-200"
         />
         <span className="text-sm leading-6 text-ink-600">
-          I certify that the information above is accurate and I agree to future screening as part
-          of the application review process.
+          I certify that the information above is accurate and I agree to the{" "}
+          <Link to="/terms" className="font-semibold text-ink-900 underline underline-offset-4">
+            Terms of Use
+          </Link>{" "}
+          and{" "}
+          <Link to="/privacy" className="font-semibold text-ink-900 underline underline-offset-4">
+            Privacy Policy
+          </Link>
+          .
         </span>
       </label>
     </div>
@@ -838,6 +851,8 @@ const ApplicationFormPage = () => {
                   </div>
                 </div>
               </form>
+
+              <PublicLegalLinks className="mt-6 justify-start" />
             </section>
           </div>
         </main>

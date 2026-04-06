@@ -14,7 +14,6 @@ import {
   analyzeLeadComps,
   createOneTimeCheckout,
   createPropertyWorkspace,
-  createSubscriptionCheckout,
   getBidsForLead,
   getBidsForProject,
   getBillingAccess,
@@ -57,6 +56,7 @@ import PropertyWorkspaceSection from "../components/PropertyWorkspaceSection";
 import PropertyWorkspaceSettingsPanel from "../components/PropertyWorkspaceSettingsPanel";
 import SavedCompsReportsTab from "../components/SavedCompsReportsTab";
 import TasksPanel from "../components/TasksPanel";
+import useSubscriptionCheckoutConsent from "../hooks/useSubscriptionCheckoutConsent";
 
 const propertyTypeOptions = [
   { value: "", label: "Select property type" },
@@ -493,7 +493,6 @@ const PropertyWorkspacePage = () => {
   const [bids, setBids] = useState([]);
   const [billingAccess, setBillingAccess] = useState(null);
   const [isBillingAccessLoading, setIsBillingAccessLoading] = useState(false);
-  const [isStartingSubscription, setIsStartingSubscription] = useState(false);
   const [isStartingCheckout, setIsStartingCheckout] = useState(false);
   const [isUpdatingWorkspaceStatus, setIsUpdatingWorkspaceStatus] = useState(false);
   const [propertyTasks, setPropertyTasks] = useState([]);
@@ -505,6 +504,24 @@ const PropertyWorkspacePage = () => {
   const [acquisitionStrategy, setAcquisitionStrategy] = useState("flip");
   const [managementStrategy, setManagementStrategy] = useState("rental");
   const [sectionRevealTokens, setSectionRevealTokens] = useState({});
+  const subscriptionOffer = billingAccess?.subscriptionOffer || null;
+
+  const handleSubscriptionCheckoutError = useCallback((error) => {
+    setLeadWorkspaceError(error.message || "Could not start the Pro checkout.");
+  }, []);
+
+  const {
+    openSubscriptionConsent: handleStartSubscription,
+    isStartingSubscription,
+    subscriptionConsentDialog,
+  } = useSubscriptionCheckoutConsent({
+    planKey: "pro",
+    monthlyPriceCents: subscriptionOffer?.monthlyPriceCents ?? null,
+    trialPeriodDays: subscriptionOffer?.trialPeriodDays || 0,
+    trialEligible: Boolean(billingAccess?.trialEligible),
+    source: "property_workspace",
+    onError: handleSubscriptionCheckoutError,
+  });
 
   const activeWorkspaceRoute = useMemo(
     () =>
@@ -1285,17 +1302,6 @@ const PropertyWorkspacePage = () => {
       toast.error(saveError.message || "Failed to save comps report.");
     } finally {
       setIsSavingReport(false);
-    }
-  };
-
-  const handleStartSubscription = async () => {
-    setIsStartingSubscription(true);
-    try {
-      const { url } = await createSubscriptionCheckout("pro");
-      window.location.href = url;
-    } catch (subscriptionError) {
-      setLeadWorkspaceError(subscriptionError.message || "Could not start the Pro checkout.");
-      setIsStartingSubscription(false);
     }
   };
 
@@ -2602,6 +2608,8 @@ const PropertyWorkspacePage = () => {
           onTasksChanged={() => loadPropertyTasks(property.propertyKey)}
         />
       ) : null}
+
+      {subscriptionConsentDialog}
     </div>
   );
 };

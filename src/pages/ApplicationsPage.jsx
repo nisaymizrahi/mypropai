@@ -14,7 +14,6 @@ import { getApplications, getManagedProperties } from "../utils/api";
 
 const statusStyles = {
   "Pending Payment": "bg-sand-100 text-sand-700",
-  "Pending Screening": "bg-clay-50 text-clay-700",
   "Under Review": "bg-ink-100 text-ink-700",
   Approved: "bg-verdigris-50 text-verdigris-700",
   Denied: "bg-clay-100 text-clay-800",
@@ -149,7 +148,7 @@ const ApplicationsPage = () => {
 
   const summary = useMemo(() => {
     const pending = applications.filter((application) =>
-      ["Pending Payment", "Pending Screening", "Under Review"].includes(application.status)
+      ["Pending Payment", "Under Review"].includes(application.status)
     ).length;
     const approved = applications.filter((application) => application.status === "Approved").length;
     const denied = applications.filter((application) => application.status === "Denied").length;
@@ -167,7 +166,7 @@ const ApplicationsPage = () => {
 
     return applications.filter((application) => {
       if (statusFilter === "in_progress") {
-        if (!["Pending Payment", "Pending Screening", "Under Review"].includes(application.status)) {
+        if (!["Pending Payment", "Under Review"].includes(application.status)) {
           return false;
         }
       } else if (statusFilter !== "all" && application.status !== statusFilter) {
@@ -411,7 +410,7 @@ const ApplicationsPage = () => {
               </p>
               <p className="mt-4 text-3xl font-semibold text-ink-900">{summary.pending}</p>
               <p className="mt-3 text-sm leading-6 text-ink-500">
-                Applications still moving through payment, screening, or review.
+                Applications still moving through payment or review.
               </p>
             </div>
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-sand-100 text-sand-700">
