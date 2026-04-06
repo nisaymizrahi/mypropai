@@ -30,7 +30,7 @@ function PricingPage() {
         <p className="mt-5 max-w-3xl text-sm leading-7 text-ink-600 sm:text-base">
           Fliprop now uses a simpler pricing model: Starter is free, Pro is{" "}
           {pricingModel.proMonthlyPrice} per month, Pro includes a {pricingModel.proTrialDays}-day
-          trial, and premium usage can still scale with credits and one-off add-ons.
+          trial, and premium usage can still scale with credits.
         </p>
 
         <div className="mt-7 grid gap-3 sm:grid-cols-3">
@@ -45,7 +45,7 @@ function PricingPage() {
             ],
             [
               "Buy as needed",
-              `Use ${pricingModel.starterPackPrice} Starter packs, ${pricingModel.proTopUpPrice} Pro top-ups, and one-off screening when needed.`,
+              `Use ${pricingModel.starterPackPrice} Starter packs and ${pricingModel.proTopUpPrice} Pro top-ups when extra comps are needed.`,
             ],
           ].map(([title, detail]) => (
             <div key={title} className="marketing-mini-card">
@@ -128,8 +128,8 @@ function PricingPage() {
             </h2>
           </div>
           <p className="max-w-xl text-sm leading-6 text-ink-600">
-            The best pricing page explains both the core platform and the premium usage model in one
-            pass, so buyers can see what changes when they move from Starter to Pro.
+            See exactly what changes when you move from Starter to Pro, without hidden tiers or
+            complicated packaging.
           </p>
         </div>
 
@@ -160,7 +160,7 @@ function PricingPage() {
           <div>
             <span className="eyebrow">Usage-based add-ons</span>
             <h2 className="mt-4 font-display text-[2.1rem] leading-none text-ink-900">
-              Premium actions you can buy separately
+              Extra credits you can buy separately
             </h2>
           </div>
           <p className="max-w-xl text-sm leading-6 text-ink-600">
@@ -169,7 +169,7 @@ function PricingPage() {
           </p>
         </div>
 
-        <div className="mt-6 grid gap-4 md:grid-cols-3">
+        <div className="mt-6 grid gap-4 md:grid-cols-2">
           {addOnProducts.map((product) => (
             <div key={product.name} className="section-card p-5">
               <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-ink-400">

@@ -55,7 +55,7 @@ function ProductPage() {
     <MarketingLayout>
       <Seo
         title="Product | Fliprop"
-        description="See how Fliprop helps real estate teams manage acquisitions, comps, vendors, tasks, execution, and property operations from one workspace."
+        description="See how Fliprop helps real estate teams manage acquisitions, comps, vendors, tasks, execution, and ongoing property work from one workspace."
         path="/product"
       />
 
@@ -123,8 +123,8 @@ function ProductPage() {
             </h2>
           </div>
           <p className="max-w-xl text-sm leading-6 text-ink-600">
-            The strongest product story here is that pricing evidence, work execution, asset memory,
-            and billing controls stay attached to the same property record.
+            Pricing evidence, work execution, asset memory, and billing controls stay attached to
+            the same property record.
           </p>
         </div>
 
@@ -141,14 +141,14 @@ function ProductPage() {
       <section className="surface-panel mt-6 px-6 py-7 sm:px-8">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <span className="eyebrow">Why it lands better</span>
+            <span className="eyebrow">Why teams choose it</span>
             <h2 className="mt-4 font-display text-[2.1rem] leading-none text-ink-900">
-              Built to feel more premium than a dense category dashboard
+              Clarity without sacrificing depth
             </h2>
           </div>
           <p className="max-w-xl text-sm leading-6 text-ink-600">
-            The product depth matters, but the story matters too. Buyers should understand why
-            Fliprop is different before they even open the account.
+            The workspace stays organized and easy to scan without burying important context in a
+            dense interface.
           </p>
         </div>
 
@@ -193,12 +193,12 @@ function ProductPage() {
           <div>
             <span className="eyebrow">Feature collections</span>
             <h2 className="mt-4 font-display text-[2.2rem] leading-none text-ink-900">
-              Organized around the real work of operating a property business
+              Organized around the work, not the software
             </h2>
           </div>
           <p className="max-w-xl text-sm leading-6 text-ink-600">
-            Fliprop is strongest when the product surface is grouped around concrete buyer jobs, not
-            abstract feature buckets.
+            The platform is grouped around real workflows so teams can move faster with less
+            context switching.
           </p>
         </div>
 
@@ -224,11 +224,11 @@ function ProductPage() {
           <div>
             <span className="eyebrow">Core modules</span>
             <h2 className="mt-4 font-display text-[2.2rem] leading-none text-ink-900">
-              The product surface, shown clearly
+              The core workspace at a glance
             </h2>
           </div>
           <p className="max-w-xl text-sm leading-6 text-ink-600">
-            This is the platform story buyers should be able to see in a single scan.
+            Scan the main modules once and see how the workspace fits together.
           </p>
         </div>
 

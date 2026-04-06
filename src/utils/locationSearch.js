@@ -158,7 +158,15 @@ const geocodeWithMapbox = async (address) => {
   return res.json();
 };
 
-const searchWithMapbox = async (query, signal) => {
+const buildMapboxSuggestionTypes = (options = {}) => {
+  if (options.searchContext === "location") {
+    return "address,place,postcode,neighborhood,locality,region";
+  }
+
+  return "address";
+};
+
+const searchWithMapbox = async (query, signal, options = {}) => {
   if (!MAPBOX_TOKEN) throw new Error("Missing REACT_APP_MAPBOX_TOKEN");
   if (!query?.trim()) return [];
 
@@ -167,9 +175,9 @@ const searchWithMapbox = async (query, signal) => {
   );
   url.searchParams.set("access_token", MAPBOX_TOKEN);
   url.searchParams.set("autocomplete", "true");
-  url.searchParams.set("limit", "5");
-  url.searchParams.set("types", "address");
-  url.searchParams.set("country", "us");
+  url.searchParams.set("limit", String(options.limit || 5));
+  url.searchParams.set("types", buildMapboxSuggestionTypes(options));
+  url.searchParams.set("country", options.country || "us");
 
   const res = await fetch(url.toString(), { signal });
   if (!res.ok) throw new Error("Address search failed");
@@ -282,7 +290,7 @@ const searchWithGoogleAutocompleteData = async (maps, query, signal) => {
     .filter(Boolean);
 };
 
-const searchWithGoogleLegacy = async (maps, query, signal) => {
+const searchWithGoogleLegacy = async (maps, query, signal, options = {}) => {
   if (!maps?.places?.AutocompleteService) {
     return null;
   }
@@ -293,8 +301,8 @@ const searchWithGoogleLegacy = async (maps, query, signal) => {
     autocompleteService.getPlacePredictions(
       {
         input: query,
-        componentRestrictions: { country: "us" },
-        types: ["address"],
+        componentRestrictions: { country: options.country || "us" },
+        types: [options.searchContext === "location" ? "geocode" : "address"],
       },
       (matches, status) => {
         if (signal?.aborted) {
@@ -323,7 +331,7 @@ const searchWithGoogleLegacy = async (maps, query, signal) => {
   }));
 };
 
-const searchWithGoogle = async (query, signal) => {
+const searchWithGoogle = async (query, signal, options = {}) => {
   if (!query?.trim()) return [];
   throwIfAborted(signal);
 
@@ -333,7 +341,7 @@ const searchWithGoogle = async (query, signal) => {
     maps = await loadGoogleMaps();
   } catch (error) {
     if (hasMapboxToken()) {
-      return searchWithMapbox(query, signal);
+      return searchWithMapbox(query, signal, options);
     }
 
     throw error;
@@ -341,7 +349,7 @@ const searchWithGoogle = async (query, signal) => {
 
   if (!maps) {
     if (hasMapboxToken()) {
-      return searchWithMapbox(query, signal);
+      return searchWithMapbox(query, signal, options);
     }
 
     return [];
@@ -353,7 +361,7 @@ const searchWithGoogle = async (query, signal) => {
       return newResults;
     }
 
-    const legacyResults = await searchWithGoogleLegacy(maps, query, signal);
+    const legacyResults = await searchWithGoogleLegacy(maps, query, signal, options);
     if (Array.isArray(legacyResults)) {
       return legacyResults;
     }
@@ -365,7 +373,7 @@ const searchWithGoogle = async (query, signal) => {
     }
 
     if (hasMapboxToken()) {
-      return searchWithMapbox(query, signal);
+      return searchWithMapbox(query, signal, options);
     }
 
     throw error;
@@ -380,13 +388,19 @@ export const geocodeAddress = async (address) => {
   return geocodeWithMapbox(address);
 };
 
-export const searchAddressSuggestions = async (query, signal) => {
+export const searchAddressSuggestions = async (query, signal, options = {}) => {
   if (hasGoogleMapsKey()) {
-    return searchWithGoogle(query, signal);
+    return searchWithGoogle(query, signal, options);
   }
 
-  return searchWithMapbox(query, signal);
+  return searchWithMapbox(query, signal, options);
 };
+
+export const searchLocationSuggestions = async (query, signal, options = {}) =>
+  searchAddressSuggestions(query, signal, {
+    ...options,
+    searchContext: "location",
+  });
 
 export const getLocationProviderName = () => {
   if (hasGoogleMapsKey() && hasMapboxToken()) {

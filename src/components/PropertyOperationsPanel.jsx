@@ -465,6 +465,7 @@ const PropertyOperationsPanel = ({
           investment={investment}
           tasks={tasks}
           vendors={vendors}
+          budgetItems={budgetItems}
           onUpdate={loadOperationsWorkspace}
         />
       </div>

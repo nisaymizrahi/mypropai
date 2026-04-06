@@ -8,6 +8,13 @@ const formatPercent = (value) => {
   return `${Number(value).toFixed(1)}%`;
 };
 
+const getContextLabel = (contextType = "") => {
+  if (contextType === "project") return "Project";
+  if (contextType === "lead") return "Lead";
+  if (contextType === "standalone") return "Standalone";
+  return "Saved";
+};
+
 const SavedCompsReportsTab = ({
   reports = [],
   isLoading = false,
@@ -90,9 +97,14 @@ const SavedCompsReportsTab = ({
                     {report.propertySnapshot?.address || report.subject?.address || report.address}
                   </p>
                 </div>
-                <span className="rounded-full bg-white/80 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">
-                  {formatDate(report.generatedAt)}
-                </span>
+                <div className="flex flex-wrap justify-end gap-2">
+                  <span className="rounded-full bg-sand-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-sand-700">
+                    {getContextLabel(report.contextType)}
+                  </span>
+                  <span className="rounded-full bg-white/80 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">
+                    {formatDate(report.generatedAt)}
+                  </span>
+                </div>
               </div>
 
               <div className="mt-4 grid gap-3 sm:grid-cols-2">

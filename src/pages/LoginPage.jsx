@@ -99,7 +99,7 @@ const LoginPage = () => {
     <div className="public-shell min-h-screen text-ink-900">
       <Seo
         title="Workspace login | Fliprop"
-        description="Sign in to your Fliprop workspace for acquisitions, execution, and property operations."
+        description="Sign in to your Fliprop workspace for acquisitions, execution, and ongoing property work."
         path="/login"
         section="auth"
       />

@@ -18,7 +18,7 @@ function AboutPage() {
     ],
     [
       "Clarity builds trust",
-      "The product, pricing model, and editorial should all help buyers understand the platform quickly and confidently.",
+      "The product, pricing model, and editorial should all help teams understand the platform quickly and confidently.",
     ],
   ];
 
@@ -26,18 +26,18 @@ function AboutPage() {
     <MarketingLayout>
       <Seo
         title="About | Fliprop"
-        description="Learn how Fliprop is building a professional SaaS workspace for acquisitions, execution, and property operations."
+        description="Learn how Fliprop is building a professional workspace for acquisitions, execution, and ongoing property work."
         path="/about"
       />
 
       <section className="marketing-hero px-6 py-8 sm:px-8 sm:py-10">
         <span className="eyebrow">About Fliprop</span>
         <h1 className="mt-5 max-w-4xl font-display text-[3rem] leading-[0.96] text-balance text-ink-900 sm:text-[3.8rem] xl:text-[4.2rem]">
-          Built for owner-led real estate teams that need clarity from lead intake to daily operations.
+          Built for owner-led real estate teams that need clarity from first lead to active project.
         </h1>
         <p className="mt-5 max-w-3xl text-sm leading-7 text-ink-600 sm:text-base">
-          Fliprop combines acquisitions, rehab execution, property operations, premium analysis, and
-          billing into one calmer operating system. The goal is simple: help teams make better
+          Fliprop combines acquisitions, rehab execution, ongoing property work, premium analysis,
+          and billing into one calmer operating system. The goal is simple: help teams make better
           decisions without carrying the same property context across five different tools.
         </p>
       </section>
@@ -79,8 +79,8 @@ function AboutPage() {
           <div className="section-card mt-5 p-5">
             <h3 className="text-base font-semibold text-ink-900">The goal</h3>
             <p className="mt-3 text-sm leading-6 text-ink-600">
-              Earn trust before the signup by pairing a clearer product story with genuinely useful
-              resources for acquisitions, rehab planning, and operations.
+              Earn trust before signup with genuinely useful resources for acquisitions, rehab
+              planning, and active property work.
             </p>
             <Link
               to="/resources"
@@ -105,8 +105,8 @@ function AboutPage() {
             </h2>
           </div>
           <p className="max-w-xl text-sm leading-6 text-ink-600">
-            Fliprop is at its best when buyers can see both the platform depth and the simplicity of
-            getting started with it.
+            Fliprop works best when teams can see both the platform depth and how easy it is to get
+            started.
           </p>
         </div>
 

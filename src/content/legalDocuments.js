@@ -8,7 +8,7 @@ export const LEGAL_DOCUMENTS = {
     title: "Terms of Use",
     eyebrow: "Fliprop legal",
     intro:
-      `These Terms of Use govern your access to the Fliprop website, application, and related services used to analyze deals, manage properties, coordinate operations, and communicate with your team. Fliprop is operated by ${LEGAL_BUSINESS_NAME}.`,
+      `These Terms of Use govern your access to the Fliprop website, application, and related services used to analyze deals, organize property work, coordinate operations, and communicate with your team. Fliprop is operated by ${LEGAL_BUSINESS_NAME}.`,
     sections: [
       {
         heading: "Who these terms apply to",
@@ -26,7 +26,7 @@ export const LEGAL_DOCUMENTS = {
       {
         heading: "What Fliprop provides",
         paragraphs: [
-          "Fliprop provides software tools for real estate operators, owners, and teams. Features may include underwriting workflows, property and task management, reporting, billing features, and operational collaboration tools.",
+          "Fliprop provides software tools for real estate operators, owners, and teams. Features may include underwriting workflows, property workspaces, task management, reporting, billing features, and collaboration tools.",
           "Fliprop may add, remove, improve, or revise features over time. Some features may be subject to paid plans, usage limits, or third-party service terms.",
         ],
       },
@@ -68,7 +68,7 @@ export const LEGAL_DOCUMENTS = {
         heading: "Disclaimers",
         paragraphs: [
           "Fliprop is provided on an as-available and as-is basis. To the fullest extent permitted by law, Fliprop disclaims warranties of merchantability, fitness for a particular purpose, non-infringement, and uninterrupted or error-free operation.",
-          "Analyses, projections, reports, and workflow suggestions inside the platform are informational tools only and do not constitute legal, tax, investment, accounting, brokerage, or property management advice.",
+          "Analyses, projections, reports, and workflow suggestions inside the platform are informational tools only and do not constitute legal, tax, investment, accounting, or brokerage advice.",
         ],
       },
       {

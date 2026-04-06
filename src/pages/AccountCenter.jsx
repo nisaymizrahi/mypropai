@@ -74,7 +74,7 @@ const PreferenceOptionCard = ({
   active,
   label,
   description,
-  previewText = "Sample workspace text",
+  previewText = "Preview your workspace",
   previewStyle,
   onClick,
 }) => (

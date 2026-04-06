@@ -10,6 +10,7 @@ import toast from "react-hot-toast";
 
 import AddBudgetItemModal from "./AddBudgetItemModal";
 import AddExpenseModal from "./AddExpenseModal";
+import AddTaskModal from "./AddTaskModal";
 import AIRehabBuilderModal from "./AIRehabBuilderModal";
 import BudgetAwardModal from "./BudgetAwardModal";
 import BudgetLineItem from "./BudgetLineItem";
@@ -18,9 +19,12 @@ import {
   addBudgetAward,
   createPropertyWorkspace,
   deleteBudgetAward,
+  getBidsForProject,
   getBudgetItems,
   getExpenses,
   getInvestment,
+  getProjectReceipts,
+  getProjectTasks,
   getVendors,
   updateExpense,
   updateBudgetAward,
@@ -56,6 +60,49 @@ const formatDate = (value) => {
     day: "numeric",
     year: "numeric",
   });
+};
+
+const normalizeComparisonKey = (value = "") =>
+  String(value || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+
+const bidAssignmentMatchesBudgetItem = (assignment, item) => {
+  if (!assignment || !item) {
+    return false;
+  }
+
+  const budgetItemId = typeof item === "object" ? item._id || "" : item || "";
+  const budgetItemLabel = item?.category || "";
+
+  if (assignment.budgetItemId && assignment.budgetItemId === budgetItemId) {
+    return true;
+  }
+
+  if (assignment.renovationItemId && assignment.renovationItemId === budgetItemId) {
+    return true;
+  }
+
+  if (
+    item?.sourceRenovationItemId &&
+    assignment.renovationItemId === item.sourceRenovationItemId
+  ) {
+    return true;
+  }
+
+  const assignmentName = normalizeComparisonKey(
+    assignment.budgetItemLabel || assignment.renovationItemName
+  );
+  const itemName = normalizeComparisonKey(budgetItemLabel);
+
+  return Boolean(
+    assignmentName &&
+      itemName &&
+      (assignmentName === itemName ||
+        assignmentName.includes(itemName) ||
+        itemName.includes(assignmentName))
+  );
 };
 
 const MetricTile = ({ icon: Icon, label, value, hint, tone = "text-ink-900" }) => (
@@ -143,6 +190,9 @@ const PropertyCostsPanel = ({
   const [investment, setInvestment] = useState(null);
   const [budgetItems, setBudgetItems] = useState([]);
   const [expenses, setExpenses] = useState([]);
+  const [projectReceipts, setProjectReceipts] = useState([]);
+  const [projectTasks, setProjectTasks] = useState([]);
+  const [projectBids, setProjectBids] = useState([]);
   const [vendors, setVendors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -161,6 +211,10 @@ const PropertyCostsPanel = ({
     budgetItem: null,
     award: null,
   });
+  const [taskModalState, setTaskModalState] = useState({
+    isOpen: false,
+    budgetItemId: "",
+  });
 
   useEffect(() => {
     setSelectedStrategy(property?.workspaces?.acquisitions?.strategy || "flip");
@@ -171,6 +225,9 @@ const PropertyCostsPanel = ({
       setInvestment(null);
       setBudgetItems([]);
       setExpenses([]);
+      setProjectReceipts([]);
+      setProjectTasks([]);
+      setProjectBids([]);
       setVendors([]);
       setError("");
       setLoading(false);
@@ -181,16 +238,30 @@ const PropertyCostsPanel = ({
       setLoading(true);
       setError("");
 
-      const [investmentData, budgetData, expenseData, vendorData] = await Promise.all([
+      const [
+        investmentData,
+        budgetData,
+        expenseData,
+        vendorData,
+        receiptData,
+        taskData,
+        bidData,
+      ] = await Promise.all([
         getInvestment(investmentId),
         getBudgetItems(investmentId),
         getExpenses(investmentId),
         getVendors(),
+        getProjectReceipts(investmentId),
+        getProjectTasks(investmentId),
+        getBidsForProject(investmentId).catch(() => []),
       ]);
 
       setInvestment(investmentData);
       setBudgetItems(Array.isArray(budgetData) ? budgetData : []);
       setExpenses(Array.isArray(expenseData) ? expenseData : []);
+      setProjectReceipts(Array.isArray(receiptData) ? receiptData : []);
+      setProjectTasks(Array.isArray(taskData) ? taskData : []);
+      setProjectBids(Array.isArray(bidData) ? bidData : []);
       setVendors(Array.isArray(vendorData) ? vendorData : []);
     } catch (loadError) {
       setError(loadError.message || "Failed to load the costs workspace.");
@@ -235,6 +306,68 @@ const PropertyCostsPanel = ({
 
     return groups;
   }, [expenses]);
+
+  const tasksByBudgetItemId = useMemo(() => {
+    const groups = new Map();
+
+    projectTasks.forEach((task) => {
+      const key =
+        typeof task.budgetItem === "object" ? task.budgetItem?._id || "" : task.budgetItem || "";
+
+      if (!key) {
+        return;
+      }
+
+      const current = groups.get(key) || [];
+      current.push(task);
+      groups.set(key, current);
+    });
+
+    return groups;
+  }, [projectTasks]);
+
+  const receiptsByBudgetItemId = useMemo(() => {
+    const groups = new Map();
+
+    projectReceipts.forEach((receipt) => {
+      const key =
+        typeof receipt.budgetItem === "object"
+          ? receipt.budgetItem?._id || ""
+          : receipt.budgetItem || "";
+
+      if (!key) {
+        return;
+      }
+
+      const current = groups.get(key) || [];
+      current.push(receipt);
+      groups.set(key, current);
+    });
+
+    return groups;
+  }, [projectReceipts]);
+
+  const bidsByBudgetItemId = useMemo(() => {
+    const groups = new Map();
+
+    budgetItems.forEach((item) => {
+      const matches = projectBids.flatMap((bid) =>
+        (Array.isArray(bid.renovationAssignments) ? bid.renovationAssignments : [])
+          .filter((assignment) => bidAssignmentMatchesBudgetItem(assignment, item))
+          .map((assignment) => ({
+            ...assignment,
+            bidId: bid._id,
+            bid,
+          }))
+      );
+
+      if (matches.length > 0) {
+        groups.set(item._id, matches);
+      }
+    });
+
+    return groups;
+  }, [budgetItems, projectBids]);
 
   const categorySpendSummary = useMemo(() => {
     const groups = new Map();
@@ -473,6 +606,13 @@ const PropertyCostsPanel = ({
     });
   };
 
+  const handleOpenTaskModal = (budgetItemId = "") => {
+    setTaskModalState({
+      isOpen: true,
+      budgetItemId,
+    });
+  };
+
   const handleExpenseStatusChange = async (expenseId, status) => {
     try {
       await updateExpense(expenseId, { status });
@@ -574,6 +714,15 @@ const PropertyCostsPanel = ({
         investmentId={investment._id}
         onSuccess={loadCostsWorkspace}
       />
+      <AddTaskModal
+        isOpen={taskModalState.isOpen}
+        onClose={() => setTaskModalState({ isOpen: false, budgetItemId: "" })}
+        onSuccess={loadCostsWorkspace}
+        investmentId={investment._id}
+        vendors={vendors}
+        budgetItems={budgetItems}
+        defaultBudgetItemId={taskModalState.budgetItemId}
+      />
       <BudgetAwardModal
         isOpen={awardModalState.isOpen}
         onClose={() => setAwardModalState({ isOpen: false, budgetItem: null, award: null })}
@@ -657,6 +806,45 @@ const PropertyCostsPanel = ({
           <section className="section-card p-6 sm:p-7">
             <span className="eyebrow">Scope budget</span>
             <h4 className="mt-4 text-2xl font-semibold text-ink-900">Budget lines and scope items</h4>
+            <p className="mt-3 max-w-3xl text-sm leading-6 text-ink-500">
+              Each scope item is the working hub for this project. Budget, committed vendors,
+              actual spend, receipts, related bids, and task progress all roll up here.
+            </p>
+
+            <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              <div className="rounded-[20px] border border-ink-100 bg-white/90 px-4 py-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-400">
+                  Scope items with tasks
+                </p>
+                <p className="mt-2 text-lg font-semibold text-ink-900">
+                  {budgetItems.filter((item) => (tasksByBudgetItemId.get(item._id) || []).length > 0).length}
+                </p>
+              </div>
+              <div className="rounded-[20px] border border-ink-100 bg-white/90 px-4 py-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-400">
+                  Scope items with receipts
+                </p>
+                <p className="mt-2 text-lg font-semibold text-ink-900">
+                  {budgetItems.filter((item) => (receiptsByBudgetItemId.get(item._id) || []).length > 0).length}
+                </p>
+              </div>
+              <div className="rounded-[20px] border border-ink-100 bg-white/90 px-4 py-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-400">
+                  Scope items with quotes
+                </p>
+                <p className="mt-2 text-lg font-semibold text-ink-900">
+                  {budgetItems.filter((item) => (bidsByBudgetItemId.get(item._id) || []).length > 0).length}
+                </p>
+              </div>
+              <div className="rounded-[20px] border border-ink-100 bg-white/90 px-4 py-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-400">
+                  Unlinked receipts
+                </p>
+                <p className="mt-2 text-lg font-semibold text-ink-900">
+                  {projectReceipts.filter((receipt) => !receipt.expense).length}
+                </p>
+              </div>
+            </div>
 
             <div className="mt-8 space-y-4">
               {budgetItems.length > 0 ? (
@@ -665,9 +853,14 @@ const PropertyCostsPanel = ({
                     key={item._id}
                     item={item}
                     expenses={expensesByBudgetItemId.get(item._id) || []}
+                    tasks={tasksByBudgetItemId.get(item._id) || []}
+                    receipts={receiptsByBudgetItemId.get(item._id) || []}
+                    relatedBids={bidsByBudgetItemId.get(item._id) || []}
                     fundingSources={fundingSources}
                     drawRequests={drawRequests}
                     onAddExpense={() => handleOpenExpenseModal({ budgetItemId: item._id })}
+                    onScanReceipt={() => handleOpenExpenseModal({ budgetItemId: item._id, mode: "receipt" })}
+                    onAddTask={() => handleOpenTaskModal(item._id)}
                     onAddAward={() =>
                       setAwardModalState({ isOpen: true, budgetItem: item, award: null })
                     }
@@ -744,6 +937,12 @@ const PropertyCostsPanel = ({
               hint="Entries created with receipt OCR assistance."
             />
             <MetricTile
+              icon={ReceiptPercentIcon}
+              label="Receipt inbox"
+              value={projectReceipts.filter((receipt) => !receipt.expense).length}
+              hint="Saved receipts still waiting to be tied to a final expense."
+            />
+            <MetricTile
               icon={ArrowTrendingUpIcon}
               label="Duplicate watch"
               value={duplicateGroups.length}
@@ -785,6 +984,85 @@ const PropertyCostsPanel = ({
               hint="Payments already tied to a specific draw."
             />
           </div>
+
+          <section className="section-card p-6 sm:p-7">
+            <span className="eyebrow">Receipt workflow</span>
+            <h4 className="mt-4 text-2xl font-semibold text-ink-900">
+              Saved receipts waiting for expense confirmation
+            </h4>
+
+            <div className="mt-8 grid gap-4 xl:grid-cols-2">
+              <div className="rounded-[24px] border border-ink-100 bg-white/90 p-5">
+                <p className="text-sm font-semibold text-ink-900">Needs confirmation</p>
+                <div className="mt-4 space-y-3">
+                  {projectReceipts.filter((receipt) => !receipt.expense).length > 0 ? (
+                    projectReceipts
+                      .filter((receipt) => !receipt.expense)
+                      .slice(0, 5)
+                      .map((receipt) => (
+                        <div
+                          key={receipt._id}
+                          className="rounded-[18px] border border-ink-100 bg-ink-50/50 p-4"
+                        >
+                          <div className="flex items-start justify-between gap-4">
+                            <div>
+                              <p className="text-sm font-semibold text-ink-900">
+                                {receipt.title || receipt.payeeName || "Receipt"}
+                              </p>
+                              <p className="mt-1 text-sm text-ink-500">
+                                {receipt.budgetItem?.category || "Unassigned scope"} · {formatDate(receipt.createdAt)}
+                              </p>
+                            </div>
+                            <p className="text-sm font-semibold text-ink-900">
+                              {receipt.amount ? formatCurrency(receipt.amount) : "—"}
+                            </p>
+                          </div>
+                        </div>
+                      ))
+                  ) : (
+                    <div className="rounded-[18px] border border-dashed border-ink-200 bg-ink-50/40 p-4 text-sm leading-6 text-ink-500">
+                      No pending receipt reviews right now.
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="rounded-[24px] border border-ink-100 bg-white/90 p-5">
+                <p className="text-sm font-semibold text-ink-900">Recently linked</p>
+                <div className="mt-4 space-y-3">
+                  {projectReceipts.filter((receipt) => receipt.expense).length > 0 ? (
+                    projectReceipts
+                      .filter((receipt) => receipt.expense)
+                      .slice(0, 5)
+                      .map((receipt) => (
+                        <div
+                          key={receipt._id}
+                          className="rounded-[18px] border border-ink-100 bg-ink-50/50 p-4"
+                        >
+                          <div className="flex items-start justify-between gap-4">
+                            <div>
+                              <p className="text-sm font-semibold text-ink-900">
+                                {receipt.expense?.title || receipt.title || "Expense receipt"}
+                              </p>
+                              <p className="mt-1 text-sm text-ink-500">
+                                {receipt.budgetItem?.category || "Project-level"} · {formatDate(receipt.linkedAt || receipt.updatedAt)}
+                              </p>
+                            </div>
+                            <p className="text-sm font-semibold text-ink-900">
+                              {receipt.amount ? formatCurrency(receipt.amount) : "—"}
+                            </p>
+                          </div>
+                        </div>
+                      ))
+                  ) : (
+                    <div className="rounded-[18px] border border-dashed border-ink-200 bg-ink-50/40 p-4 text-sm leading-6 text-ink-500">
+                      Linked receipts will appear here after expense confirmation.
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </section>
 
           <section className="section-card p-6 sm:p-7">
             <span className="eyebrow">AP workflow</span>

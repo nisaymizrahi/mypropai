@@ -43,7 +43,8 @@ function FlipperForceComparisonPage() {
         <p className="mt-5 max-w-3xl text-sm leading-7 text-ink-600 sm:text-base">
           Flipper Force is a real category player for house flippers and rehabbers. Fliprop is the
           better fit when you want a calmer operator workspace that spans acquisitions, execution,
-          property operations, and flexible premium usage without forcing a heavy tier decision early.
+          ongoing property work, and flexible premium usage without forcing a heavy tier decision
+          early.
         </p>
 
         <div className="mt-7 flex flex-wrap items-center gap-3">
@@ -89,7 +90,7 @@ function FlipperForceComparisonPage() {
             </h2>
           </div>
           <p className="max-w-xl text-sm leading-6 text-ink-600">
-            This comparison is meant to help buyers pick the better business fit, not pretend the
+            This comparison is meant to help you pick the better business fit, not pretend the
             tools are identical.
           </p>
         </div>
@@ -99,7 +100,7 @@ function FlipperForceComparisonPage() {
             <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] border-b border-ink-100 bg-white/80 px-5 py-4 text-sm font-semibold text-ink-900">
               <div>Category</div>
               <div className="pl-4">Fliprop</div>
-              <div className="pl-4">Flipper Force public pages</div>
+              <div className="pl-4">Flipper Force website</div>
             </div>
 
             {comparisonPageRows.map((row) => (
@@ -121,8 +122,8 @@ function FlipperForceComparisonPage() {
           <span className="eyebrow">Choose Fliprop if...</span>
           <div className="soft-list mt-5">
             {[
-              "You want a professional, more editorial buyer experience instead of a dense flipping-software layout.",
-              "You need one workspace for acquisitions, rehab execution, property operations, and billing controls.",
+              "You want a clear, modern workspace instead of a dense flipping-software layout.",
+              "You need one workspace for acquisitions, rehab execution, ongoing property work, and billing controls.",
               `You want to start free, move to ${pricingModel.proMonthlyPrice}/month Pro, and scale premium usage through credits instead of jumping between plan families.`,
             ].map((item) => (
               <div key={item} className="py-4 first:pt-0 last:pb-0">

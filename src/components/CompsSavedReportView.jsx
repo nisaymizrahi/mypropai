@@ -12,6 +12,13 @@ const formatPercent = (value) => {
   return `${Number(value).toFixed(1)}%`;
 };
 
+const getContextLabel = (contextType = "") => {
+  if (contextType === "project") return "Project report";
+  if (contextType === "lead") return "Lead report";
+  if (contextType === "standalone") return "Standalone report";
+  return "Saved report";
+};
+
 const MetricPill = ({ label, value, hint }) => (
   <div className="rounded-[22px] border border-ink-100 bg-white/80 px-4 py-4">
     <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-400">{label}</p>
@@ -88,6 +95,9 @@ const CompsSavedReportView = ({
           </div>
 
           <div className="flex flex-wrap gap-3">
+            <div className="rounded-full border border-verdigris-200 bg-verdigris-50 px-4 py-2 text-sm font-semibold text-verdigris-700">
+              {getContextLabel(report.contextType)}
+            </div>
             <div className="rounded-full border border-sand-200 bg-sand-50 px-4 py-2 text-sm font-semibold text-sand-700">
               Generated {formatDate(report.generatedAt)}
             </div>

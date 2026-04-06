@@ -14,7 +14,6 @@ import {
   BriefcaseIcon,
   BuildingOffice2Icon,
   ChartBarIcon,
-  ClipboardDocumentListIcon,
   HomeIcon,
   HomeModernIcon,
   MagnifyingGlassIcon,
@@ -29,7 +28,6 @@ import {
 const GROUP_ORDER = [
   "Quick Actions",
   "Properties",
-  "Applications",
   "Leads",
   "Platform",
 ];
@@ -112,24 +110,12 @@ const buildQuickActions = (user) => {
     createEntry({
       id: "quick-dashboard",
       group: "Quick Actions",
-      title: "Open dashboard overview",
-      subtitle: "Portfolio snapshot, priorities, and recent activity",
-      to: "/dashboard",
+      title: "Open property workspace",
+      subtitle: "Shared property records, documents, financials, and work",
+      to: "/properties",
       icon: HomeIcon,
-      keywords: ["overview home portfolio"],
+      keywords: ["overview properties workspace portfolio"],
       priority: 200,
-      pinned: true,
-    }),
-    createEntry({
-      id: "quick-applications",
-      group: "Quick Actions",
-      title: "Review applications",
-      subtitle: "Leasing pipeline, applicant queue, and screening steps",
-      to: "/applications",
-      icon: ClipboardDocumentListIcon,
-      keywords: ["leasing applicants screening"],
-      tone: "sand",
-      priority: 190,
       pinned: true,
     }),
     createEntry({
@@ -404,7 +390,7 @@ const CommandPalette = ({ isOpen, onClose, user }) => {
       return dedupeEntries([
         ...searchEntries.filter((entry) => entry.pinned).slice(0, 7),
         ...searchEntries
-          .filter((entry) => ["Properties", "Applications", "Leads"].includes(entry.group))
+          .filter((entry) => ["Properties", "Leads"].includes(entry.group))
           .slice(0, 6),
       ]).slice(0, 12);
     }
@@ -512,7 +498,7 @@ const CommandPalette = ({ isOpen, onClose, user }) => {
               type="text"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search pages, properties, leads, tenants, or applicants"
+              placeholder="Search pages, properties, or leads"
               className="w-full border-none bg-transparent text-sm text-ink-900 outline-none placeholder:text-ink-400"
             />
             <button
@@ -524,7 +510,7 @@ const CommandPalette = ({ isOpen, onClose, user }) => {
             </button>
           </div>
           <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-ink-400">
-            <span>Try an address, tenant name, lead status, or applicant email.</span>
+            <span>Try an address, property key, or lead status.</span>
             <span className="rounded-full bg-sand-100 px-2.5 py-1 font-mono uppercase tracking-[0.16em] text-ink-500">
               Ctrl/⌘ K
             </span>
@@ -575,7 +561,7 @@ const CommandPalette = ({ isOpen, onClose, user }) => {
             <div className="px-2 py-10 text-center">
               <p className="text-lg font-semibold text-ink-900">No matches yet</p>
               <p className="mt-2 text-sm leading-6 text-ink-500">
-                Try a property address, tenant name, applicant, or lead keyword.
+                Try a property address, property key, or lead keyword.
               </p>
             </div>
           )}

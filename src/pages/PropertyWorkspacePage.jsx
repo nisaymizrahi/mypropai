@@ -16,6 +16,7 @@ import {
   createPropertyWorkspace,
   createSubscriptionCheckout,
   getBidsForLead,
+  getBidsForProject,
   getBillingAccess,
   getLeadDetails,
   getPropertyReports,
@@ -247,6 +248,70 @@ const buildLeadCompsAnalysisSnapshotFromReport = (report) => {
   };
 };
 
+const sortReportsByGeneratedAt = (reports = []) =>
+  [...reports].sort(
+    (left, right) =>
+      new Date(right?.generatedAt || right?.createdAt || 0).valueOf() -
+      new Date(left?.generatedAt || left?.createdAt || 0).valueOf()
+  );
+
+const buildWorkspaceSavedReports = ({
+  leadData,
+  pipelineLeadId,
+  leadReports = [],
+  projectReports = [],
+}) => {
+  const combinedReports = sortReportsByGeneratedAt([
+    ...projectReports,
+    ...leadReports,
+  ])
+    .map((report) => normalizeMasterReport(report, leadData))
+    .filter(Boolean);
+
+  const seenReports = new Set();
+  const dedupedReports = combinedReports.filter((report) => {
+    const reportKey =
+      String(report?._id || "").trim() ||
+      [
+        report?.contextType || "saved",
+        report?.generatedAt || "",
+        report?.title || report?.address || "",
+      ].join(":");
+
+    if (!reportKey || seenReports.has(reportKey)) {
+      return false;
+    }
+
+    seenReports.add(reportKey);
+    return true;
+  });
+
+  const legacySavedReport = buildSavedReportFromLegacySnapshot(
+    leadData,
+    leadData?.compsAnalysis,
+    `legacy-${leadData?._id || pipelineLeadId}`
+  );
+
+  if (!legacySavedReport) {
+    return dedupedReports;
+  }
+
+  const normalizedLegacyReport = normalizeMasterReport(legacySavedReport, leadData);
+  const hasMatchingSavedReport = dedupedReports.some(
+    (report) =>
+      Number(new Date(report?.generatedAt || 0).valueOf()) ===
+        Number(new Date(normalizedLegacyReport?.generatedAt || 0).valueOf()) &&
+      String(report?.address || report?.subject?.address || "").trim() ===
+        String(
+          normalizedLegacyReport?.address || normalizedLegacyReport?.subject?.address || ""
+        ).trim()
+  );
+
+  return hasMatchingSavedReport
+    ? dedupedReports
+    : sortReportsByGeneratedAt([...dedupedReports, normalizedLegacyReport]);
+};
+
 const buildPropertyCopilotSuggestions = ({
   activeTabId,
   hasPipelineWorkspace,
@@ -455,6 +520,7 @@ const PropertyWorkspacePage = () => {
   const pipelineLeadId = property?.workspaces?.pipeline?.id || "";
   const pipelineLeadPath = property?.workspaces?.pipeline?.path || "";
   const pipelineLeadStatus = property?.workspaces?.pipeline?.status || "";
+  const acquisitionWorkspaceId = property?.workspaces?.acquisitions?.id || "";
   const propertyWorkspaceActive = Boolean(property?.workspaces?.pipeline?.inPropertyWorkspace);
   const hasPipelineWorkspace = Boolean(property?.workspaces?.pipeline);
   const hasAcquisitionWorkspace = Boolean(property?.workspaces?.acquisitions);
@@ -584,41 +650,56 @@ const PropertyWorkspacePage = () => {
       setIsBillingAccessLoading(true);
       setLeadWorkspaceError("");
 
-      const [leadData, bidsData, savedReportsData, access] = await Promise.all([
-        getLeadDetails(pipelineLeadId),
-        getBidsForLead(pipelineLeadId).catch((bidsError) => {
-          console.error("Failed to load property workspace bids", bidsError);
-          return [];
-        }),
-        getPropertyReports({
-          kind: "comps",
-          contextType: "lead",
-          leadId: pipelineLeadId,
-        }).catch((savedReportsError) => {
-          if (!isSavedReportsBackendUnavailable(savedReportsError)) {
-            console.error("Failed to load property workspace reports", savedReportsError);
-          }
-          return [];
-        }),
-        getBillingAccess("comps_report", pipelineLeadId).catch(() => null),
-      ]);
+      const [leadData, bidsData, leadSavedReportsData, projectSavedReportsData, access] =
+        await Promise.all([
+          getLeadDetails(pipelineLeadId),
+          acquisitionWorkspaceId
+            ? getBidsForProject(acquisitionWorkspaceId).catch((bidsError) => {
+                console.error("Failed to load property workspace bids", bidsError);
+                return [];
+              })
+            : getBidsForLead(pipelineLeadId).catch((bidsError) => {
+                console.error("Failed to load property workspace bids", bidsError);
+                return [];
+              }),
+          getPropertyReports({
+            kind: "comps",
+            contextType: "lead",
+            leadId: pipelineLeadId,
+          }).catch((savedReportsError) => {
+            if (!isSavedReportsBackendUnavailable(savedReportsError)) {
+              console.error("Failed to load property workspace reports", savedReportsError);
+            }
+            return [];
+          }),
+          acquisitionWorkspaceId
+            ? getPropertyReports({
+                kind: "comps",
+                contextType: "project",
+                investmentId: acquisitionWorkspaceId,
+              }).catch((savedReportsError) => {
+                if (!isSavedReportsBackendUnavailable(savedReportsError)) {
+                  console.error(
+                    "Failed to load property workspace project reports",
+                    savedReportsError
+                  );
+                }
+                return [];
+              })
+            : Promise.resolve([]),
+          getBillingAccess("comps_report", pipelineLeadId).catch(() => null),
+        ]);
 
       setLeadWorkspace(leadData);
       setBids(bidsData);
       setBillingAccess(access);
 
-      const legacySavedReport = buildSavedReportFromLegacySnapshot(
+      const nextSavedReports = buildWorkspaceSavedReports({
         leadData,
-        leadData.compsAnalysis,
-        `legacy-${leadData._id || pipelineLeadId}`
-      );
-
-      const nextSavedReports =
-        savedReportsData.length > 0
-          ? savedReportsData.map((report) => normalizeMasterReport(report, leadData))
-          : legacySavedReport
-            ? [normalizeMasterReport(legacySavedReport, leadData)]
-            : [];
+        pipelineLeadId,
+        leadReports: leadSavedReportsData,
+        projectReports: projectSavedReportsData,
+      });
 
       setSavedReports(nextSavedReports);
       setAnalysis(
@@ -649,7 +730,7 @@ const PropertyWorkspacePage = () => {
       setSavedReportsLoading(false);
       setIsBillingAccessLoading(false);
     }
-  }, [pipelineLeadId]);
+  }, [acquisitionWorkspaceId, pipelineLeadId]);
 
   useEffect(() => {
     loadLeadWorkspace();
@@ -1164,8 +1245,10 @@ const PropertyWorkspacePage = () => {
 
     try {
       const savedReport = await saveCompsReport({
-        contextType: "lead",
-        leadId: pipelineLeadId,
+        contextType: acquisitionWorkspaceId ? "project" : "lead",
+        ...(acquisitionWorkspaceId
+          ? { investmentId: acquisitionWorkspaceId }
+          : { leadId: pipelineLeadId }),
         subject,
         deal: reportDeal,
         filters: reportFilters,
@@ -1192,7 +1275,11 @@ const PropertyWorkspacePage = () => {
           : previous
       );
       navigate(buildPropertyWorkspacePath(propertyKey, "analysis"));
-      toast.success("Master Deal Report saved.");
+      toast.success(
+        acquisitionWorkspaceId
+          ? "Master Deal Report saved to the project."
+          : "Master Deal Report saved."
+      );
     } catch (saveError) {
       setLeadWorkspaceError(saveError.message || "Failed to save comps report.");
       toast.error(saveError.message || "Failed to save comps report.");
@@ -1247,17 +1334,19 @@ const PropertyWorkspacePage = () => {
   }, []);
 
   const handleBidsUpdated = useCallback(async () => {
-    if (!pipelineLeadId) {
+    if (!pipelineLeadId && !acquisitionWorkspaceId) {
       return;
     }
 
     try {
-      const nextBids = await getBidsForLead(pipelineLeadId);
+      const nextBids = acquisitionWorkspaceId
+        ? await getBidsForProject(acquisitionWorkspaceId)
+        : await getBidsForLead(pipelineLeadId);
       setBids(nextBids);
     } catch (bidsError) {
       toast.error(bidsError.message || "Failed to refresh bids.");
     }
-  }, [pipelineLeadId]);
+  }, [acquisitionWorkspaceId, pipelineLeadId]);
 
   const handleUpdatePropertyWorkspaceStatus = useCallback(
     async (nextValue) => {
@@ -2061,12 +2150,16 @@ const PropertyWorkspacePage = () => {
 
       <PropertyWorkspaceSection
         title="Vendor bids"
-        helper="Compare bids tied to the linked lead."
+        helper={
+          hasAcquisitionWorkspace
+            ? "Compare bids against the project scope."
+            : "Compare bids against the planned lead scope before execution starts."
+        }
       >
         {renderLeadWorkspaceState({
           missingLeadTitle: "Add a lead to manage bids",
           missingLeadDescription:
-            "Bids stay tied to the linked lead and renovation scope.",
+            "Bids start on the linked lead and carry into the project scope once financials are created.",
           inactiveTitle: "Activate analysis to manage bids here",
           inactiveDescription:
             "Turn on the linked lead inside this property to use bid tools here.",
@@ -2074,6 +2167,7 @@ const PropertyWorkspacePage = () => {
           renderContent: () => (
             <BidsTab
               leadId={pipelineLeadId}
+              investmentId={property?.workspaces?.acquisitions?.id || ""}
               bids={bids}
               renovationItems={renovationItems}
               onUpdate={handleBidsUpdated}
@@ -2158,7 +2252,7 @@ const PropertyWorkspacePage = () => {
 
       <PropertyWorkspaceSection
         title="Comps"
-        helper="Run comps and save reports."
+        helper="Run comps and save reports that carry into execution."
         sectionId={ANALYSIS_SECTION_IDS.comps}
         revealToken={sectionRevealTokens[ANALYSIS_SECTION_IDS.comps] || 0}
         action={
@@ -2180,7 +2274,7 @@ const PropertyWorkspacePage = () => {
         {renderLeadWorkspaceState({
           missingLeadTitle: "Add a lead to run comps",
           missingLeadDescription:
-            "Comps and saved reports live on the linked lead.",
+            "Comps start on the linked lead, then saved reports can carry into the project once financials exist.",
           inactiveTitle: "Activate analysis to run comps here",
           inactiveDescription:
             "Turn on the linked lead inside this property to use comps here.",
@@ -2203,7 +2297,9 @@ const PropertyWorkspacePage = () => {
               isStartingCheckout={isStartingCheckout}
               onSaveReport={handleSaveLeadReport}
               isSavingReport={isSavingReport}
-              saveButtonLabel="Save property report"
+              saveButtonLabel={
+                acquisitionWorkspaceId ? "Save to project history" : "Save property report"
+              }
               runButtonLabel="Run Property Master Report"
               showOneTimeCheckout
               reportNotice={compsNotice}
@@ -2260,7 +2356,7 @@ const PropertyWorkspacePage = () => {
 
       <PropertyWorkspaceSection
         title="Saved reports"
-        helper="Saved report history."
+        helper="Lead and project report history."
         sectionId={ANALYSIS_SECTION_IDS.reports}
         revealToken={sectionRevealTokens[ANALYSIS_SECTION_IDS.reports] || 0}
         action={<div className="flex flex-wrap gap-3">{renderWorkspaceButtons(reportActions)}</div>}
@@ -2268,7 +2364,7 @@ const PropertyWorkspacePage = () => {
         {renderLeadWorkspaceState({
           missingLeadTitle: "Add a lead to store reports",
           missingLeadDescription:
-            "Saved reports are attached to the linked lead.",
+            "Saved reports begin on the linked lead and continue on the project once financials exist.",
           inactiveTitle: "Activate analysis to use saved reports",
           inactiveDescription:
             "Turn on the linked lead inside this property to keep report history here.",
@@ -2277,10 +2373,22 @@ const PropertyWorkspacePage = () => {
             <SavedCompsReportsTab
               reports={savedReports}
               isLoading={savedReportsLoading}
-              title="Saved property reports"
-              description="Every saved Master Deal Report for this property lives here."
+              title={
+                acquisitionWorkspaceId
+                  ? "Saved project and lead reports"
+                  : "Saved property reports"
+              }
+              description={
+                acquisitionWorkspaceId
+                  ? "Lead-era analysis and project-era report updates live together here so execution never loses the underwriting thread."
+                  : "Every saved Master Deal Report for this property lives here."
+              }
               emptyTitle="No reports saved yet"
-              emptyMessage="Run the Master Deal Report, save it, and it will appear here."
+              emptyMessage={
+                acquisitionWorkspaceId
+                  ? "Run the Master Deal Report and save it. New reports will attach to the project while older lead analysis stays visible here."
+                  : "Run the Master Deal Report, save it, and it will appear here."
+              }
               actions={renderWorkspaceButtons(reportActions)}
             />
           ),

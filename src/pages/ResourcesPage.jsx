@@ -13,7 +13,7 @@ function ResourcesPage() {
     <MarketingLayout>
       <Seo
         title="Resources | Fliprop"
-        description="Editorial playbooks for acquisitions, rehab planning, and property operations from the Fliprop team."
+        description="Editorial playbooks for acquisitions, rehab planning, and property workspace workflows from the Fliprop team."
         path="/resources"
       />
 
@@ -23,8 +23,8 @@ function ResourcesPage() {
           Editorial playbooks for operators who want sharper decisions and calmer execution.
         </h1>
         <p className="mt-5 max-w-3xl text-sm leading-7 text-ink-600 sm:text-base">
-          These guides are built around the same acquisition, execution, and operations workflows
-          Fliprop is designed to manage inside the product.
+          These guides are built around the same acquisition, execution, and workspace workflows
+          Fliprop is designed to support inside the product.
         </p>
       </section>
 

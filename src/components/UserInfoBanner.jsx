@@ -33,7 +33,7 @@ const UserInfoBanner = () => {
   }
 
   const displayName = user.name || "Fliprop User";
-  const secondaryText = user.email || "Property operations";
+  const secondaryText = user.email || "Workspace member";
 
   const handleLogout = async () => {
     await logout();

@@ -15,8 +15,6 @@ export const pricingModel = {
   starterPackPrice: "$18",
   proTopUpCredits: 10,
   proTopUpPrice: "$9",
-  tenantScreeningPrice: "$45",
-  tenantScreeningSubscriberPrice: "$35",
 };
 
 export const heroSignals = [
@@ -32,8 +30,8 @@ export const heroSignals = [
   },
   {
     label: "Premium actions",
-    value: `${pricingModel.starterPackPrice}-${pricingModel.tenantScreeningPrice}`,
-    detail: `Buy ${pricingModel.starterPackCredits}-credit comps packs, discounted Pro top-ups, and screening only when needed.`,
+    value: `${pricingModel.proTopUpPrice}-${pricingModel.starterPackPrice}`,
+    detail: `Buy ${pricingModel.starterPackCredits}-credit comps packs or ${pricingModel.proTopUpCredits}-credit Pro top-ups only when needed.`,
   },
 ];
 
@@ -61,10 +59,10 @@ export const workflowPillars = [
   {
     title: "Operate",
     description:
-      "Run the property from a shared operating system instead of rebuilding context every week.",
+      "Keep the property organized from one shared workspace instead of rebuilding context every week.",
     bullets: [
       "Open a property workspace with overview, financials, work, documents, analysis, and settings",
-      "Monitor daily operations, recurring tasks, and portfolio-level work from one shell",
+      "Track recurring tasks, active work, and portfolio-level follow-up from one shell",
       "Manage billing, access, upgrades, and credits from the account center",
     ],
   },
@@ -166,7 +164,7 @@ export const featureCollections = [
     bullets: [
       "Starter for free",
       "Pro subscription with included credits",
-      "Top-ups and screening when needed",
+      "Comps packs and top-ups when needed",
     ],
   },
 ];
@@ -175,14 +173,14 @@ export const comparisonRows = [
   {
     label: "Lifecycle coverage",
     fliprop:
-      "Acquisitions, rehab execution, property operations, documents, and billing in one workspace.",
+      "Acquisitions, rehab execution, ongoing property work, documents, and billing in one workspace.",
     market:
       "Many house-flipping tools emphasize analysis and rehab project management first, with a denser software surface.",
   },
   {
-    label: "Buyer experience",
+    label: "Product experience",
     fliprop:
-      "A calmer, more editorial product story that helps buyers understand the platform quickly.",
+      "A clearer, easier-to-scan product experience that helps teams understand the platform quickly.",
     market:
       "Feature-heavy navigation can communicate depth, but it can also feel crowded during first evaluation.",
   },
@@ -219,7 +217,7 @@ export const operatorProfiles = [
   {
     title: "Owner-led portfolio team",
     summary:
-      "A strong fit for teams that want property operations and billing controls beside acquisitions and execution.",
+      "A strong fit for teams that want property visibility and billing controls beside acquisitions and execution.",
     bullets: [
       "Keep the asset record stable after the deal closes",
       "Manage credits, upgrades, and account access from the same system",
@@ -232,7 +230,7 @@ export const comparisonPageHighlights = [
   {
     title: "Why teams choose Fliprop",
     detail:
-      "Fliprop is a better fit when you want a calmer operating system that spans acquisitions, execution, property operations, and flexible premium usage.",
+      "Fliprop is a better fit when you want a calmer operating system that spans acquisitions, execution, ongoing property work, and flexible premium usage.",
   },
   {
     title: "Where Flipper Force is strong",
@@ -250,7 +248,7 @@ export const comparisonPageRows = [
   {
     label: "Best fit",
     fliprop:
-      "Owner-led teams that want acquisitions, execution, property operations, and billing in one calmer workspace.",
+      "Owner-led teams that want acquisitions, execution, ongoing property work, and billing in one calmer workspace.",
     flipperForce:
       "House flippers and rehabbers who want dense analysis, project management, mobile updates, and accounting features.",
   },
@@ -259,7 +257,7 @@ export const comparisonPageRows = [
     fliprop:
       `Free Starter plus a single Pro plan at ${pricingModel.proMonthlyPrice}/month with a ${pricingModel.proTrialDays}-day trial.`,
     flipperForce:
-      "Public pages show separate Rookie, Solo Analysis, Teams Analysis, Teams, and Business plan families.",
+      "Website pricing shows separate Rookie, Solo Analysis, Teams Analysis, Teams, and Business plan families.",
   },
   {
     label: "Paid solo starting point",
@@ -276,7 +274,7 @@ export const comparisonPageRows = [
   {
     label: "Premium usage model",
     fliprop:
-      `Includes ${pricingModel.proMonthlyCredits} comps credits per paid cycle, ${pricingModel.proTopUpPrice} top-ups, ${pricingModel.starterPackPrice} Starter packs, and one-off screening.`,
+      `Includes ${pricingModel.proMonthlyCredits} comps credits per paid cycle, ${pricingModel.proTopUpPrice} Pro top-ups, and ${pricingModel.starterPackPrice} Starter packs.`,
     flipperForce:
       "Feature access is packaged primarily through tiered subscriptions rather than a credits-plus-add-ons model.",
   },
@@ -288,7 +286,7 @@ export const comparisonPageRows = [
       "Public feature pages emphasize comps, flip and BRRRR analysis, rehab estimating, schedules, tasks, materials, expense tracking, photo logs, and a mobile app.",
   },
   {
-    label: "Buyer experience",
+    label: "Product experience",
     fliprop:
       "More editorial, more premium, and easier to understand quickly during evaluation.",
     flipperForce:
@@ -358,11 +356,6 @@ export const planComparisonRows = [
     starter: `${pricingModel.starterPackPrice} for ${pricingModel.starterPackCredits}`,
     pro: `${pricingModel.proTopUpPrice} for ${pricingModel.proTopUpCredits}`,
   },
-  {
-    label: "Tenant screening price",
-    starter: pricingModel.tenantScreeningPrice,
-    pro: pricingModel.tenantScreeningSubscriberPrice,
-  },
 ];
 
 export const pricingPlans = [
@@ -380,7 +373,7 @@ export const pricingPlans = [
       "Manage potential properties, property workspaces, tasks, calendar, vendors, documents, and account settings",
       "View saved reports that were previously purchased or generated",
       `Buy ${pricingModel.starterPackCredits}-credit comps packs for ${pricingModel.starterPackPrice}`,
-      `Buy tenant screening at ${pricingModel.tenantScreeningPrice} per run`,
+      "Keep billing details and workspace preferences in one account center",
     ],
   },
   {
@@ -390,7 +383,7 @@ export const pricingPlans = [
     cadence: "/month",
     badge: "Most popular",
     description:
-      "For operators who need recurring analysis, premium AI workflows, and lower-cost usage as the workspace becomes part of weekly operations.",
+      "For operators who need recurring analysis and premium AI workflows as the workspace becomes part of the weekly routine.",
     ctaLabel: "Choose Pro",
     ctaTo: "/signup",
     features: [
@@ -398,7 +391,6 @@ export const pricingPlans = [
       `${pricingModel.proMonthlyCredits} comps credits included every paid billing cycle`,
       "AI investment report generation and premium analysis workflows",
       `Buy unlimited ${pricingModel.proTopUpCredits}-credit top-ups for ${pricingModel.proTopUpPrice}`,
-      `Discounted tenant screening at ${pricingModel.tenantScreeningSubscriberPrice} per run`,
       "Billing portal access and subscription management",
     ],
   },
@@ -415,18 +407,13 @@ export const addOnProducts = [
     price: pricingModel.proTopUpPrice,
     detail: "Discounted additional credits available for active Pro subscriptions.",
   },
-  {
-    name: "Tenant Screening",
-    price: `${pricingModel.tenantScreeningPrice} or ${pricingModel.tenantScreeningSubscriberPrice} on Pro`,
-    detail: "One-off screening for an application, with a lower subscriber price on active Pro plans.",
-  },
 ];
 
 export const faqItems = [
   {
     question: "Who is Fliprop built for?",
     answer:
-      "Fliprop is built for owners, operators, flippers, and lean real estate teams that want one workspace for acquisitions, rehab execution, and property operations.",
+      "Fliprop is built for owners, operators, flippers, and lean real estate teams that want one workspace for acquisitions, rehab execution, and ongoing property work.",
   },
   {
     question: "How does the Pro trial work?",
@@ -436,7 +423,7 @@ export const faqItems = [
   {
     question: "What is included in Starter vs Pro?",
     answer:
-      "Starter gives you the core operating workspace. Pro adds included comps credits, AI investment reports, discounted screening, and lower-cost ongoing premium usage.",
+      "Starter gives you the core operating workspace. Pro adds included comps credits, AI investment reports, and lower-cost ongoing premium usage.",
   },
   {
     question: "Can I start without committing to a paid plan?",
@@ -446,7 +433,7 @@ export const faqItems = [
   {
     question: "Do I have to buy everything as a subscription?",
     answer:
-      `No. Starter can buy ${pricingModel.starterPackCredits}-credit comps packs for ${pricingModel.starterPackPrice}, and screening can be purchased one run at a time.`,
+      `No. Starter can buy ${pricingModel.starterPackCredits}-credit comps packs for ${pricingModel.starterPackPrice}, and active Pro plans can add ${pricingModel.proTopUpCredits}-credit top-ups for ${pricingModel.proTopUpPrice}.`,
   },
 ];
 
@@ -457,9 +444,9 @@ export const aboutPrinciples = [
       "Fliprop is designed around the way owner-led teams actually work: pipeline review, underwriting, rehab execution, daily operations, and billing decisions.",
   },
   {
-    title: "Clarity over software theater",
+    title: "Clarity over clutter",
     description:
-      "We want the product and the public site to feel decisive, useful, and calm instead of bloated with noise or vague promises.",
+      "We want the product and the public site to feel decisive, useful, and calm instead of crowded or vague.",
   },
   {
     title: "AI that earns its place",
@@ -469,9 +456,9 @@ export const aboutPrinciples = [
 ];
 
 export const resourcesIntro = [
-  "Actionable playbooks for acquisitions, rehab planning, and property operations.",
+  "Actionable playbooks for acquisitions, rehab planning, and property workspace workflows.",
   "Practical content that helps teams make better decisions before they ever log in.",
-  "Editorial that supports the same workflows the product is built to manage and monetize.",
+  "Editorial that supports the same workflows the product is built to handle.",
 ];
 
 export const resourceArticles = [
@@ -574,12 +561,12 @@ export const resourceArticles = [
     ],
   },
   {
-    slug: "property-operations-command-center",
-    category: "Operations",
+    slug: "property-workspace-command-center",
+    category: "Workspace",
     readTime: "5 min read",
-    title: "What a property operations command center should actually centralize",
+    title: "What a property workspace should actually centralize",
     summary:
-      "The right operating system keeps the asset, the team, and the follow-up connected so nothing important lives in memory alone.",
+      "The right workspace keeps the asset, the team, and the follow-up connected so nothing important lives in memory alone.",
     takeaways: [
       "Property context should live with the asset, not in scattered side channels",
       "Recurring tasks and one-off work need the same source of truth",
@@ -600,7 +587,7 @@ export const resourceArticles = [
       {
         title: "Bring calendar, tasks, and vendors into the same loop",
         paragraphs: [
-          "Daily operations become expensive when tasks, due dates, and vendor follow-up live in separate systems. A useful command center ties the work together so the team can see what matters this week and why.",
+          "Daily execution becomes expensive when tasks, due dates, and vendor follow-up live in separate systems. A useful command center ties the work together so the team can see what matters this week and why.",
         ],
         bullets: [
           "Track recurring work and one-time tasks in the same workflow",
@@ -611,7 +598,7 @@ export const resourceArticles = [
       {
         title: "Make the system useful for the next person too",
         paragraphs: [
-          "Professional operations are not just about speed today. They are about making the next handoff, review, and portfolio conversation easier because the context is already there.",
+          "Professional execution is not just about speed today. It is about making the next handoff, review, and portfolio conversation easier because the context is already there.",
         ],
         bullets: [
           "Document why decisions were made, not just what happened",

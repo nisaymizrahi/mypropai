@@ -48,6 +48,7 @@ const TaskItem = ({ task, onUpdate }) => {
         <span>Start {format(new Date(task.startDate), "MMM d")}</span>
         <span>Due {format(new Date(task.endDate), "MMM d")}</span>
         <span>{task.type === "owner" ? "Internal" : "Vendor task"}</span>
+        {task.budgetItem?.category ? <span>Scope {task.budgetItem.category}</span> : null}
         {task.phase ? <span>Phase {task.phase}</span> : null}
         {task.assignee?.name ? <span>Lead {task.assignee.name}</span> : null}
       </div>

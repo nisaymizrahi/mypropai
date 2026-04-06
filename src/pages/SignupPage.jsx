@@ -20,8 +20,8 @@ const workspaceUseCases = [
     description: "Coordinate tasks, vendors, and rehab work without tool sprawl.",
   },
   {
-    title: "Property operations",
-    description: "Keep documents, property context, and daily work tied together.",
+    title: "Property workspace",
+    description: "Keep documents, property context, and active work tied together.",
   },
 ];
 
@@ -118,7 +118,7 @@ const SignupPage = () => {
     <div className="public-shell min-h-screen text-ink-900">
       <Seo
         title="Create your workspace | Fliprop"
-        description="Start a Fliprop workspace for acquisitions, execution, and property operations."
+        description="Start a Fliprop workspace for acquisitions, execution, and ongoing property work."
         path="/signup"
         section="auth"
       />

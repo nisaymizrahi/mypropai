@@ -2,32 +2,41 @@ import React, { useEffect, useState } from "react";
 
 import { createProjectTask } from "../utils/api";
 
-const createInitialState = () => ({
+const createInitialState = (defaultBudgetItemId = "") => ({
   title: "",
   description: "",
   startDate: "",
   endDate: "",
   assignee: "",
+  budgetItemId: defaultBudgetItemId,
   status: "Not Started",
   type: "vendor",
   phase: "",
   reminderOn: "",
 });
 
-const AddTaskModal = ({ isOpen, onClose, onSuccess, investmentId, vendors = [] }) => {
-  const [formData, setFormData] = useState(createInitialState());
+const AddTaskModal = ({
+  isOpen,
+  onClose,
+  onSuccess,
+  investmentId,
+  vendors = [],
+  budgetItems = [],
+  defaultBudgetItemId = "",
+}) => {
+  const [formData, setFormData] = useState(createInitialState(defaultBudgetItemId));
   const [subtasks, setSubtasks] = useState([{ title: "", done: false }]);
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
-      setFormData(createInitialState());
+      setFormData(createInitialState(defaultBudgetItemId));
       setSubtasks([{ title: "", done: false }]);
       setError("");
       setIsSubmitting(false);
     }
-  }, [isOpen]);
+  }, [defaultBudgetItemId, isOpen]);
 
   const handleChange = (event) => {
     const { name, value } = event.target;
@@ -55,7 +64,7 @@ const AddTaskModal = ({ isOpen, onClose, onSuccess, investmentId, vendors = [] }
   };
 
   const handleClose = () => {
-    setFormData(createInitialState());
+    setFormData(createInitialState(defaultBudgetItemId));
     setSubtasks([{ title: "", done: false }]);
     setError("");
     setIsSubmitting(false);
@@ -91,6 +100,7 @@ const AddTaskModal = ({ isOpen, onClose, onSuccess, investmentId, vendors = [] }
         startDate: formData.startDate,
         endDate: formData.endDate,
         assignee: formData.type === "vendor" ? formData.assignee || undefined : undefined,
+        budgetItemId: formData.budgetItemId || undefined,
         status: formData.status,
         type: formData.type,
         phase: formData.phase.trim(),
@@ -227,6 +237,23 @@ const AddTaskModal = ({ isOpen, onClose, onSuccess, investmentId, vendors = [] }
                 className="auth-input"
                 placeholder="Demo, framing, lease-up"
               />
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-medium text-ink-700">Scope item</label>
+              <select
+                name="budgetItemId"
+                value={formData.budgetItemId}
+                onChange={handleChange}
+                className="auth-input"
+              >
+                <option value="">Project-wide task</option>
+                {budgetItems.map((item) => (
+                  <option key={item._id} value={item._id}>
+                    {item.category}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div>

@@ -10,6 +10,7 @@ import {
   ClipboardDocumentListIcon,
   BuildingOffice2Icon,
   Cog6ToothIcon,
+  MapIcon,
   PlusCircleIcon,
   ShieldCheckIcon,
   UsersIcon,
@@ -32,6 +33,7 @@ const visibleNavSections = [
     title: "Workspace",
     links: [
       { to: "/leads", label: "Potential Properties", icon: UsersIcon },
+      { to: "/market-search", label: "Market Search", icon: MapIcon },
       { to: "/properties", label: "Property Workspace", icon: BuildingOffice2Icon },
       { to: "/comps-report", label: "Comps Report", icon: ChartBarIcon },
       { to: "/master-calendar", label: "Master Calendar", icon: CalendarDaysIcon },
@@ -105,6 +107,15 @@ const resolvePageMeta = (pathname, user) => {
       kicker: "Pipeline",
       title: "Potential Properties",
       subtitle: "Review opportunities and keep attention on the deals worth deeper diligence.",
+    };
+  }
+
+  if (pathname === "/market-search") {
+    return {
+      kicker: "Pipeline",
+      title: "Market Search",
+      subtitle:
+        "Browse live for-sale inventory on the map, shortlist promising deals, and send them into Potential Properties.",
     };
   }
 
@@ -286,6 +297,7 @@ function DashboardLayout({ children }) {
   const { stopImpersonation, user } = useAuth();
 
   const isSidebarCollapsed = sidebarPreference === "collapsed";
+  const isMarketSearchPage = location.pathname === "/market-search";
 
   const pageMeta = useMemo(
     () => resolvePageMeta(location.pathname, user),
@@ -424,7 +436,11 @@ function DashboardLayout({ children }) {
           <main className="pb-8">
             <div
               className={`mx-auto w-full space-y-4 xl:transition-all xl:duration-200 ${
-                isSidebarCollapsed ? "max-w-[1280px]" : "max-w-[1180px]"
+                isMarketSearchPage
+                  ? "max-w-none"
+                  : isSidebarCollapsed
+                    ? "max-w-[1280px]"
+                    : "max-w-[1180px]"
               }`}
             >
               {user?.impersonation?.active ? (

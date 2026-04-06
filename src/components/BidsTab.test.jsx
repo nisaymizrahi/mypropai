@@ -5,8 +5,10 @@ import { vi } from "vitest";
 import BidsTab from "./BidsTab";
 
 vi.mock("../utils/api", () => ({
+  awardBidToBudgetItem: vi.fn(),
   createBid: vi.fn(),
   deleteBid: vi.fn(),
+  getBudgetItems: vi.fn(() => Promise.resolve([])),
   getVendors: vi.fn(() => Promise.resolve([])),
   importBid: vi.fn(),
   updateBid: vi.fn(),
@@ -24,7 +26,7 @@ describe("BidsTab", () => {
 
     await waitFor(() => {
       expect(screen.getByText("Bid management")).toBeInTheDocument();
-      expect(screen.getByText("No renovation items yet")).toBeInTheDocument();
+      expect(screen.getByText("No scope items yet")).toBeInTheDocument();
     });
   });
 

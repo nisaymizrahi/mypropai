@@ -30,6 +30,7 @@ const ResetPasswordPage = lazy(() => import("./pages/ResetPasswordPage"));
 const SignupPage = lazy(() => import("./pages/SignupPage"));
 const CompsReportPage = lazy(() => import("./pages/CompsReportPage"));
 const LeadsPage = lazy(() => import("./pages/LeadsPage"));
+const MarketSearchPage = lazy(() => import("./pages/MarketSearchPage"));
 const LeadDetailPage = lazy(() => import("./pages/LeadDetailPage"));
 const CreatePropertyPage = lazy(() => import("./pages/CreatePropertyPage"));
 const PropertiesPage = lazy(() => import("./pages/PropertiesPage"));
@@ -318,6 +319,15 @@ function App() {
               element={
                 <ProtectedLayoutRoute>
                   <LeadDetailPage />
+                </ProtectedLayoutRoute>
+              }
+            />
+
+            <Route
+              path="/market-search"
+              element={
+                <ProtectedLayoutRoute>
+                  <MarketSearchPage />
                 </ProtectedLayoutRoute>
               }
             />

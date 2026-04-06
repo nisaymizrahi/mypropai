@@ -86,6 +86,7 @@ const AddExpenseModal = ({
   );
   const [receipt, setReceipt] = useState(null);
   const [receiptAnalysis, setReceiptAnalysis] = useState(null);
+  const [receiptRecordId, setReceiptRecordId] = useState("");
   const [error, setError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -110,6 +111,7 @@ const AddExpenseModal = ({
     );
     setReceipt(null);
     setReceiptAnalysis(null);
+    setReceiptRecordId("");
     setError("");
     setIsSaving(false);
     setIsAnalyzing(false);
@@ -233,6 +235,7 @@ const AddExpenseModal = ({
         }) || null;
 
       setReceiptAnalysis(analysis);
+      setReceiptRecordId(analysis?.receiptRecordId || "");
       setFormData((current) => ({
         ...current,
         budgetItemId: suggestedBudgetItemId || current.budgetItemId,
@@ -290,6 +293,7 @@ const AddExpenseModal = ({
       payload.append("status", formData.status);
       payload.append("paymentMethod", formData.paymentMethod);
       payload.append("recurringCategory", formData.recurringCategory);
+      if (receiptRecordId) payload.append("projectReceiptId", receiptRecordId);
       if (receiptAnalysis) {
         payload.append(
           "receiptExtraction",
@@ -300,7 +304,7 @@ const AddExpenseModal = ({
           })
         );
       }
-      if (receipt) payload.append("receipt", receipt);
+      if (!receiptRecordId && receipt) payload.append("receipt", receipt);
 
       await createExpense(payload);
       await onSuccess?.();
@@ -375,7 +379,11 @@ const AddExpenseModal = ({
                 <input
                   type="file"
                   accept="image/png,image/jpeg,image/jpg"
-                  onChange={(event) => setReceipt(event.target.files?.[0] || null)}
+                  onChange={(event) => {
+                    setReceipt(event.target.files?.[0] || null);
+                    setReceiptRecordId("");
+                    setReceiptAnalysis(null);
+                  }}
                   className="mt-4 block w-full text-sm text-ink-600"
                 />
               </label>
@@ -383,6 +391,10 @@ const AddExpenseModal = ({
               {receiptAnalysis ? (
                 <div className="mt-5 rounded-[20px] border border-verdigris-200 bg-verdigris-50 px-4 py-4 text-sm text-verdigris-800">
                   <p className="font-semibold">Receipt suggestions ready</p>
+                  <p className="mt-2">
+                    This receipt is now saved to the project and will be linked when you confirm
+                    the expense below.
+                  </p>
                   <p className="mt-2">
                     Vendor:{" "}
                     {receiptAnalysis?.suggestedVendor?.name ||
@@ -664,10 +676,19 @@ const AddExpenseModal = ({
 
           <label className="block space-y-2">
             <span className="text-sm font-medium text-ink-700">Attach receipt</span>
+            {receiptRecordId ? (
+              <p className="text-xs leading-5 text-ink-500">
+                AI already saved the analyzed receipt to the project. Leave this empty unless you
+                want to attach a different file without re-running AI.
+              </p>
+            ) : null}
             <input
               type="file"
               accept="image/png,image/jpeg,image/jpg,application/pdf"
-              onChange={(event) => setReceipt(event.target.files?.[0] || null)}
+              onChange={(event) => {
+                setReceipt(event.target.files?.[0] || null);
+                setReceiptRecordId("");
+              }}
               className="auth-input file:mr-4 file:rounded-full file:border-0 file:bg-verdigris-50 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-verdigris-700"
             />
           </label>

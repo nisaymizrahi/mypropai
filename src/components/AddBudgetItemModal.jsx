@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { createBudgetItem } from '../utils/api';
+import { getProjectScopeLabel, PROJECT_SCOPE_OPTIONS } from '../utils/projectScopes';
 
 const AddBudgetItemModal = ({ isOpen, onClose, onSuccess, investmentId }) => {
   const [formData, setFormData] = useState({
+    scopeKey: 'kitchen',
     category: '',
     description: '',
     budgetedAmount: '',
@@ -12,14 +14,38 @@ const AddBudgetItemModal = ({ isOpen, onClose, onSuccess, investmentId }) => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+      ...(name === 'scopeKey' && (!prev.category || prev.category === getProjectScopeLabel(prev.scopeKey, 'Other'))
+        ? { category: getProjectScopeLabel(value, 'Other') }
+        : {}),
+    }));
   };
 
   const handleClose = () => {
-    setFormData({ category: '', description: '', budgetedAmount: '' });
+    setFormData({
+      scopeKey: 'kitchen',
+      category: getProjectScopeLabel('kitchen', 'Kitchen'),
+      description: '',
+      budgetedAmount: '',
+    });
     setError('');
     onClose();
   };
+
+  React.useEffect(() => {
+    if (isOpen) {
+      setFormData({
+        scopeKey: 'kitchen',
+        category: getProjectScopeLabel('kitchen', 'Kitchen'),
+        description: '',
+        budgetedAmount: '',
+      });
+      setError('');
+      setIsSubmitting(false);
+    }
+  }, [isOpen]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -54,6 +80,21 @@ const AddBudgetItemModal = ({ isOpen, onClose, onSuccess, investmentId }) => {
       <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-lg space-y-4">
         <h2 className="text-xl font-bold text-brand-gray-800">Add Budget Category</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+                <label className="block text-sm font-medium text-brand-gray-700">Scope Template</label>
+                <select
+                    name="scopeKey"
+                    value={formData.scopeKey}
+                    onChange={handleChange}
+                    className="mt-1 block w-full border border-brand-gray-300 rounded-md p-2"
+                >
+                    {PROJECT_SCOPE_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>
+                            {option.label}
+                        </option>
+                    ))}
+                </select>
+            </div>
             <div>
                 <label className="block text-sm font-medium text-brand-gray-700">Category Name</label>
                 <input 

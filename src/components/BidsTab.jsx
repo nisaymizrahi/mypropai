@@ -1,7 +1,15 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
 
-import { createBid, deleteBid, getVendors, importBid, updateBid } from "../utils/api";
+import {
+  awardBidToBudgetItem,
+  createBid,
+  deleteBid,
+  getBudgetItems,
+  getVendors,
+  importBid,
+  updateBid,
+} from "../utils/api";
 import AddVendorModal from "./AddVendorModal";
 import BidDetailModal from "./BidDetailModal";
 
@@ -117,6 +125,8 @@ const normalizeBidAssignments = (items) => {
     .map((item, index) => ({
       renovationItemId: normalizeText(item.renovationItemId, `assignment-${index}`),
       renovationItemName: normalizeText(item.renovationItemName, "Matched item"),
+      budgetItemId: normalizeText(item.budgetItemId, ""),
+      budgetItemLabel: normalizeText(item.budgetItemLabel, ""),
       amount: normalizeAmount(item.amount),
       confidence: normalizeAmount(item.confidence),
       scopeSummary: normalizeText(item.scopeSummary, ""),
@@ -156,6 +166,7 @@ const normalizeBids = (items) => {
       sourceDocumentUrl: normalizeText(item.sourceDocumentUrl, ""),
       sourceFileName: normalizeText(item.sourceFileName, ""),
       notes: normalizeText(item.notes, ""),
+      decisionStatus: normalizeText(item.decisionStatus, "open"),
       vendor:
         item.vendor && typeof item.vendor === "object" && !Array.isArray(item.vendor)
           ? normalizeVendor(item.vendor, index)
@@ -163,6 +174,25 @@ const normalizeBids = (items) => {
       vendorSnapshot: normalizeVendorSnapshot(item.vendorSnapshot || {}),
       items: normalizeBidItems(item.items),
       renovationAssignments: normalizeBidAssignments(item.renovationAssignments),
+    }));
+};
+
+const normalizeBudgetItems = (items) => {
+  if (!Array.isArray(items)) {
+    return [];
+  }
+
+  return items
+    .filter((item) => item && typeof item === "object" && !Array.isArray(item))
+    .map((item, index) => ({
+      itemId: normalizeText(item._id, `budget-item-${index}`),
+      name: normalizeText(item.category, "Untitled scope item"),
+      category: normalizeText(item.scopeKey || item.scopeGroup || item.category, "custom"),
+      budget: normalizeAmount(item.budgetedAmount),
+      status: normalizeText(item.status, "Not Started"),
+      scopeDescription: normalizeText(item.description, ""),
+      sourceRenovationItemId: normalizeText(item.sourceRenovationItemId, ""),
+      sourceType: "budget",
     }));
 };
 
@@ -230,7 +260,7 @@ const CustomQuoteModal = ({
             </h2>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-ink-500">
               Save a phone, text, or in-person contractor price and map it directly to your
-              renovation items.
+              scope items.
             </p>
           </div>
 
@@ -282,9 +312,9 @@ const CustomQuoteModal = ({
           <section className="rounded-[24px] border border-ink-100 bg-white/90 p-5">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <p className="text-sm font-semibold text-ink-900">Quoted renovation items</p>
+                <p className="text-sm font-semibold text-ink-900">Quoted scope items</p>
                 <p className="mt-1 text-sm text-ink-500">
-                  Add the renovation items this contractor priced and the amount for each one.
+                  Add the scope items this contractor priced and the amount for each one.
                 </p>
               </div>
               <button
@@ -306,7 +336,7 @@ const CustomQuoteModal = ({
                   <div className="grid gap-4 lg:grid-cols-[minmax(0,1.2fr)_180px]">
                     <label className="space-y-2">
                       <span className="text-sm font-medium text-ink-700">
-                        Renovation item
+                        Scope item
                       </span>
                       <select
                         value={assignment.renovationItemId}
@@ -375,8 +405,7 @@ const CustomQuoteModal = ({
 
             {!renovationItems.length ? (
               <p className="mt-4 text-sm text-ink-500">
-                Add renovation items in the renovation plan first, then custom quotes can be mapped
-                here.
+                Add scope items first, then custom quotes can be mapped here.
               </p>
             ) : null}
           </section>
@@ -402,7 +431,7 @@ const CustomQuoteModal = ({
                   {totalAmount ? formatCurrency(totalAmount) : "—"}
                 </p>
                 <p className="mt-2 text-sm leading-6 text-ink-500">
-                  Total is calculated from the renovation items you added above.
+                  Total is calculated from the scope items you added above.
                 </p>
               </div>
             </div>
@@ -458,7 +487,53 @@ class BidsTabErrorBoundary extends React.Component {
   }
 }
 
-const BidsTabContent = ({ leadId, bids = [], renovationItems = [], onUpdate }) => {
+const normalizeComparisonKey = (value = "") =>
+  normalizeText(value, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+
+const assignmentMatchesScopeItem = (assignment, item) => {
+  if (!assignment || !item) {
+    return false;
+  }
+
+  if (assignment.budgetItemId && assignment.budgetItemId === item.itemId) {
+    return true;
+  }
+
+  if (assignment.renovationItemId === item.itemId) {
+    return true;
+  }
+
+  if (item.sourceRenovationItemId && assignment.renovationItemId === item.sourceRenovationItemId) {
+    return true;
+  }
+
+  const itemName = normalizeComparisonKey(item.name);
+  const itemCategory = normalizeComparisonKey(item.category);
+  const assignmentName = normalizeComparisonKey(
+    assignment.budgetItemLabel || assignment.renovationItemName
+  );
+
+  return Boolean(
+    itemName &&
+      assignmentName &&
+      (assignmentName === itemName ||
+        assignmentName.includes(itemName) ||
+        itemName.includes(assignmentName) ||
+        (itemCategory && assignmentName.includes(itemCategory)))
+  );
+};
+
+const BidsTabContent = ({
+  leadId,
+  investmentId = "",
+  bids = [],
+  renovationItems = [],
+  budgetItems = [],
+  onUpdate,
+}) => {
   const fileInputRef = useRef(null);
 
   const [fileToUpload, setFileToUpload] = useState(null);
@@ -467,6 +542,8 @@ const BidsTabContent = ({ leadId, bids = [], renovationItems = [], onUpdate }) =
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [selectedBid, setSelectedBid] = useState(null);
   const [vendors, setVendors] = useState([]);
+  const [loadedBudgetItems, setLoadedBudgetItems] = useState([]);
+  const [awardingKey, setAwardingKey] = useState("");
   const [isCustomQuoteModalOpen, setIsCustomQuoteModalOpen] = useState(false);
   const [isSavingCustomQuote, setIsSavingCustomQuote] = useState(false);
   const [customQuoteForm, setCustomQuoteForm] = useState(() => buildInitialCustomQuoteForm());
@@ -484,9 +561,14 @@ const BidsTabContent = ({ leadId, bids = [], renovationItems = [], onUpdate }) =
     () => normalizeRenovationItems(renovationItems),
     [renovationItems]
   );
+  const safeBudgetItems = useMemo(
+    () => normalizeBudgetItems(loadedBudgetItems.length ? loadedBudgetItems : budgetItems),
+    [budgetItems, loadedBudgetItems]
+  );
+  const safeScopeItems = safeBudgetItems.length ? safeBudgetItems : safeRenovationItems;
   const renovationItemsById = useMemo(
-    () => new Map(safeRenovationItems.map((item) => [item.itemId, item])),
-    [safeRenovationItems]
+    () => new Map(safeScopeItems.map((item) => [item.itemId, item])),
+    [safeScopeItems]
   );
 
   useEffect(() => {
@@ -512,6 +594,36 @@ const BidsTabContent = ({ leadId, bids = [], renovationItems = [], onUpdate }) =
     };
   }, []);
 
+  useEffect(() => {
+    let isMounted = true;
+
+    if (!investmentId || budgetItems.length > 0) {
+      setLoadedBudgetItems([]);
+      return () => {
+        isMounted = false;
+      };
+    }
+
+    const loadBudgetItems = async () => {
+      try {
+        const data = await getBudgetItems(investmentId);
+        if (isMounted) {
+          setLoadedBudgetItems(Array.isArray(data) ? data : []);
+        }
+      } catch (error) {
+        if (isMounted) {
+          setLoadedBudgetItems([]);
+        }
+      }
+    };
+
+    loadBudgetItems();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [budgetItems.length, investmentId]);
+
   const getSuggestedTrade = (itemId) => {
     const item = renovationItemsById.get(itemId);
     if (!item) {
@@ -527,19 +639,22 @@ const BidsTabContent = ({ leadId, bids = [], renovationItems = [], onUpdate }) =
   };
 
   const itemComparisons = useMemo(() => {
-    return safeRenovationItems.map((item) => {
+    return safeScopeItems.map((item) => {
       const matchedQuotes = safeBids
         .flatMap((bid) =>
               (Array.isArray(bid.renovationAssignments) ? bid.renovationAssignments : [])
-            .filter((assignment) => assignment.renovationItemId === item.itemId)
+            .filter((assignment) => assignmentMatchesScopeItem(assignment, item))
             .map((assignment) => ({
               bidId: bid._id,
               contractorName: bid.contractorName || "Unknown contractor",
               amount: normalizeAmount(assignment.amount),
               confidence: normalizeAmount(assignment.confidence),
+              budgetItemId: normalizeText(assignment.budgetItemId, ""),
+              budgetItemLabel: normalizeText(assignment.budgetItemLabel, ""),
               scopeSummary: assignment.scopeSummary || "",
               matchedLineItems: assignment.matchedLineItems,
               bidDate: bid.bidDate,
+              decisionStatus: bid.decisionStatus || "open",
               totalAmount: bid.totalAmount,
               sourceDocumentUrl: bid.sourceDocumentUrl,
               sourceFileName: bid.sourceFileName,
@@ -562,7 +677,7 @@ const BidsTabContent = ({ leadId, bids = [], renovationItems = [], onUpdate }) =
         variance,
       };
     });
-  }, [safeBids, safeRenovationItems]);
+  }, [safeBids, safeScopeItems]);
 
   const bidsWithoutAssignments = useMemo(
     () =>
@@ -589,6 +704,7 @@ const BidsTabContent = ({ leadId, bids = [], renovationItems = [], onUpdate }) =
   );
 
   const itemsWithQuotesCount = itemComparisons.filter((item) => item.matchedQuotes.length > 0).length;
+  const awardedQuotesCount = safeBids.filter((bid) => bid.decisionStatus === "awarded").length;
 
   const handleChooseFile = () => {
     fileInputRef.current?.click();
@@ -615,7 +731,12 @@ const BidsTabContent = ({ leadId, bids = [], renovationItems = [], onUpdate }) =
 
     setIsImporting(true);
     const formData = new FormData();
-    formData.append("leadId", leadId);
+    if (investmentId) {
+      formData.append("investmentId", investmentId);
+    }
+    if (leadId) {
+      formData.append("leadId", leadId);
+    }
     formData.append("estimate", fileToUpload);
 
     const toastId = toast.loading("Uploading and matching the quote...");
@@ -627,7 +748,7 @@ const BidsTabContent = ({ leadId, bids = [], renovationItems = [], onUpdate }) =
           id: toastId,
         });
       } else {
-        toast.success("Quote imported and matched to renovation items.", { id: toastId });
+        toast.success("Quote imported and matched to scope items.", { id: toastId });
       }
       setFileToUpload(null);
       if (fileInputRef.current) {
@@ -796,7 +917,7 @@ const BidsTabContent = ({ leadId, bids = [], renovationItems = [], onUpdate }) =
       .filter((assignment) => assignment.renovationItemId && assignment.amount !== null);
 
     if (!assignments.length) {
-      toast.error("Add at least one renovation item amount.");
+      toast.error("Add at least one scope item amount.");
       return;
     }
 
@@ -804,6 +925,7 @@ const BidsTabContent = ({ leadId, bids = [], renovationItems = [], onUpdate }) =
     try {
       await createBid({
         leadId,
+        investmentId,
         vendorId: customQuoteForm.vendorId,
         notes: customQuoteForm.notes,
         renovationAssignments: assignments,
@@ -815,6 +937,29 @@ const BidsTabContent = ({ leadId, bids = [], renovationItems = [], onUpdate }) =
       toast.error(error.message || "Failed to save custom quote.");
     } finally {
       setIsSavingCustomQuote(false);
+    }
+  };
+
+  const handleAwardBid = async ({ bidId, budgetItemId, amount, scopeSummary }) => {
+    if (!investmentId || !budgetItemId) {
+      return;
+    }
+
+    const key = `${bidId}:${budgetItemId}`;
+    setAwardingKey(key);
+
+    try {
+      await awardBidToBudgetItem(bidId, {
+        budgetItemId,
+        amount,
+        description: scopeSummary,
+      });
+      toast.success("Quote moved into the project budget as a commitment.");
+      await onUpdate?.();
+    } catch (error) {
+      toast.error(error.message || "Failed to award quote.");
+    } finally {
+      setAwardingKey("");
     }
   };
 
@@ -836,7 +981,7 @@ const BidsTabContent = ({ leadId, bids = [], renovationItems = [], onUpdate }) =
         onSubmit={handleSaveCustomQuote}
         onOpenQuickAddVendor={openQuickAddVendorForCustomQuote}
         vendors={safeVendors}
-        renovationItems={safeRenovationItems}
+        renovationItems={safeScopeItems}
         form={customQuoteForm}
         isSubmitting={isSavingCustomQuote}
         onMetaChange={handleCustomQuoteMetaChange}
@@ -854,20 +999,20 @@ const BidsTabContent = ({ leadId, bids = [], renovationItems = [], onUpdate }) =
         <section className="section-card p-6 sm:p-7">
           <span className="eyebrow">Bid management</span>
           <h2 className="mt-4 text-2xl font-semibold text-ink-900">
-            Compare contractor quotes by renovation item
+            Compare contractor quotes by scope item
           </h2>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-ink-500">
-            Upload contractor bids here and the AI will try to map quote pricing to the renovation
-            items from your plan, so you can compare budget versus real bids and mix contractors
-            item by item.
+            Upload contractor bids here and the AI will try to map quote pricing to your plan or
+            project scope, so you can compare budget versus real bids and move accepted quotes
+            directly into execution.
           </p>
 
-          <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
             <div className="metric-tile p-5">
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-400">
-                Renovation Items
+                Scope Items
               </p>
-              <p className="mt-3 text-2xl font-semibold text-ink-900">{safeRenovationItems.length}</p>
+              <p className="mt-3 text-2xl font-semibold text-ink-900">{safeScopeItems.length}</p>
             </div>
             <div className="metric-tile p-5">
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-400">
@@ -882,6 +1027,12 @@ const BidsTabContent = ({ leadId, bids = [], renovationItems = [], onUpdate }) =
               <p className="mt-3 text-2xl font-semibold text-ink-900">
                 {totalBudget ? formatCurrency(totalBudget) : "—"}
               </p>
+            </div>
+            <div className="metric-tile p-5">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-400">
+                Awarded Quotes
+              </p>
+              <p className="mt-3 text-2xl font-semibold text-ink-900">{awardedQuotesCount}</p>
             </div>
             <div className="metric-tile p-5">
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-400">
@@ -905,19 +1056,19 @@ const BidsTabContent = ({ leadId, bids = [], renovationItems = [], onUpdate }) =
                   <h3 className="text-xl font-semibold text-ink-900">Import contractor quote</h3>
                   <p className="mt-1 text-sm leading-6 text-ink-500">
                     Upload a PDF or image. The AI will extract pricing and try to match it to your
-                    renovation items.
+                    scope items.
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-3">
-                  {!safeRenovationItems.length ? (
+                  {!safeScopeItems.length ? (
                     <span className="rounded-full bg-sand-100 px-3 py-1 text-xs font-semibold text-ink-600">
-                      Add renovation items first
+                      Add scope items first
                     </span>
                   ) : null}
                   <button
                     type="button"
                     onClick={openCustomQuoteModal}
-                    disabled={!safeRenovationItems.length}
+                    disabled={!safeScopeItems.length}
                     className="secondary-action disabled:cursor-not-allowed disabled:opacity-70"
                   >
                     Add custom quote
@@ -972,7 +1123,7 @@ const BidsTabContent = ({ leadId, bids = [], renovationItems = [], onUpdate }) =
             </section>
 
             <section className="space-y-4">
-              {safeRenovationItems.length ? (
+              {safeScopeItems.length ? (
                 itemComparisons.map((item) => (
                   <article key={item.itemId} className="section-card p-5">
                     <div className="flex flex-wrap items-start justify-between gap-4">
@@ -1083,6 +1234,30 @@ const BidsTabContent = ({ leadId, bids = [], renovationItems = [], onUpdate }) =
                             ) : null}
 
                             <div className="mt-4 flex flex-wrap justify-end gap-3">
+                              {investmentId && item.sourceType === "budget" ? (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    handleAwardBid({
+                                      bidId: quote.bidId,
+                                      budgetItemId: item.itemId,
+                                      amount: quote.amount,
+                                      scopeSummary: quote.scopeSummary || item.scopeDescription,
+                                    })
+                                  }
+                                  disabled={
+                                    awardingKey === `${quote.bidId}:${item.itemId}` ||
+                                    quote.decisionStatus === "awarded"
+                                  }
+                                  className="secondary-action disabled:cursor-not-allowed disabled:opacity-70"
+                                >
+                                  {quote.decisionStatus === "awarded"
+                                    ? "Awarded"
+                                    : awardingKey === `${quote.bidId}:${item.itemId}`
+                                      ? "Awarding..."
+                                      : "Award to budget"}
+                                </button>
+                              ) : null}
                               <button
                                 type="button"
                                 onClick={() => handleViewDetails(quote.bid)}
@@ -1103,10 +1278,10 @@ const BidsTabContent = ({ leadId, bids = [], renovationItems = [], onUpdate }) =
                 ))
               ) : (
                 <section className="section-card px-5 py-10 text-center">
-                  <h3 className="text-xl font-semibold text-ink-900">No renovation items yet</h3>
+                  <h3 className="text-xl font-semibold text-ink-900">No scope items yet</h3>
                   <p className="mt-2 text-sm leading-6 text-ink-500">
-                    Build the renovation plan first so quotes can be mapped to real scope items and
-                    compared against budgets.
+                    Build the project budget or renovation plan first so quotes can be mapped to
+                    real scope items and compared against budgets.
                   </p>
                 </section>
               )}
@@ -1122,7 +1297,7 @@ const BidsTabContent = ({ leadId, bids = [], renovationItems = [], onUpdate }) =
                 <div className="flex items-center justify-between gap-4">
                   <span className="text-ink-500">Items with quotes</span>
                   <span className="font-semibold text-ink-900">
-                    {itemsWithQuotesCount} / {safeRenovationItems.length}
+                    {itemsWithQuotesCount} / {safeScopeItems.length}
                   </span>
                 </div>
                 <div className="flex items-center justify-between gap-4">
@@ -1187,6 +1362,11 @@ const BidsTabContent = ({ leadId, bids = [], renovationItems = [], onUpdate }) =
                             <span className="rounded-full bg-sand-100 px-2.5 py-1 text-[11px] font-semibold text-ink-600">
                               {bid.sourceType === "manual" ? "Custom quote" : "Imported"}
                             </span>
+                            {bid.decisionStatus === "awarded" ? (
+                              <span className="rounded-full bg-verdigris-50 px-2.5 py-1 text-[11px] font-semibold text-verdigris-700">
+                                Awarded
+                              </span>
+                            ) : null}
                             {bid.vendor?.name ? (
                               <span className="rounded-full bg-verdigris-50 px-2.5 py-1 text-[11px] font-semibold text-verdigris-700">
                                 Vendor linked
@@ -1220,7 +1400,7 @@ const BidsTabContent = ({ leadId, bids = [], renovationItems = [], onUpdate }) =
                               key={`${bid._id}-${assignment.renovationItemId}`}
                               className="rounded-full bg-sand-100 px-3 py-1 text-xs font-semibold text-ink-600"
                             >
-                              {assignment.renovationItemName || "Matched item"}{" "}
+                              {assignment.budgetItemLabel || assignment.renovationItemName || "Matched item"}{" "}
                               {assignment.amount !== null && assignment.amount !== undefined
                                 ? `• ${formatCurrency(assignment.amount)}`
                                 : ""}

@@ -7,6 +7,7 @@ import {
   getFundingSourceLabel,
 } from "../utils/capitalStack";
 import { formatCurrency } from "../utils/investmentMetrics";
+import { getProjectScopeLabel } from "../utils/projectScopes";
 
 const formatDate = (value) => {
   if (!value) return "—";
@@ -25,9 +26,14 @@ const BudgetMetric = ({ label, value, tone = "text-ink-900" }) => (
 const BudgetLineItem = ({
   item,
   expenses = [],
+  tasks = [],
+  receipts = [],
+  relatedBids = [],
   fundingSources = [],
   drawRequests = [],
   onAddExpense,
+  onScanReceipt,
+  onAddTask,
   onAddAward,
   onEditAward,
   onDeleteAward,
@@ -43,16 +49,24 @@ const BudgetLineItem = ({
     () => expenses.reduce((sum, expense) => sum + Number(expense.amount || 0), 0),
     [expenses]
   );
+  const currentBudget = Number(item.budgetedAmount ?? item.originalBudgetAmount ?? 0);
   const originalBudget = Number(item.originalBudgetAmount ?? item.budgetedAmount ?? 0);
-  const remaining = originalBudget - spent;
-  const committedVariance = committed - originalBudget;
+  const remaining = currentBudget - spent;
+  const committedVariance = committed - currentBudget;
   const overBudget = remaining < 0;
 
   return (
     <div className="rounded-[24px] border border-ink-100 bg-white/90 p-5">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <p className="text-base font-semibold text-ink-900">{item.category}</p>
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-base font-semibold text-ink-900">{item.category}</p>
+            {item.scopeKey ? (
+              <span className="rounded-full bg-ink-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-500">
+                {getProjectScopeLabel(item.scopeKey, item.scopeKey)}
+              </span>
+            ) : null}
+          </div>
           {item.description ? (
             <p className="mt-2 max-w-2xl text-sm leading-6 text-ink-500">{item.description}</p>
           ) : (
@@ -61,16 +75,31 @@ const BudgetLineItem = ({
         </div>
 
         <div className="flex flex-wrap gap-3">
-          <button type="button" onClick={onAddAward} className="secondary-action">
-            Add vendor
-          </button>
-          <button type="button" onClick={onAddExpense} className="ghost-action">
-            Add expense
-          </button>
+          {onAddAward ? (
+            <button type="button" onClick={onAddAward} className="secondary-action">
+              Add vendor
+            </button>
+          ) : null}
+          {onScanReceipt ? (
+            <button type="button" onClick={onScanReceipt} className="secondary-action">
+              Scan receipt
+            </button>
+          ) : null}
+          {onAddTask ? (
+            <button type="button" onClick={onAddTask} className="secondary-action">
+              Add task
+            </button>
+          ) : null}
+          {onAddExpense ? (
+            <button type="button" onClick={onAddExpense} className="ghost-action">
+              Add expense
+            </button>
+          ) : null}
         </div>
       </div>
 
-      <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+      <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+        <BudgetMetric label="Current budget" value={formatCurrency(currentBudget)} />
         <BudgetMetric label="Original budget" value={formatCurrency(originalBudget)} />
         <BudgetMetric
           label="Committed"
@@ -85,13 +114,19 @@ const BudgetLineItem = ({
         />
       </div>
 
-      <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+      <div
+        className={`mt-6 grid gap-6 ${
+          tasks.length || receipts.length || relatedBids.length || onAddTask || onScanReceipt
+            ? "xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(280px,0.9fr)]"
+            : "xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]"
+        }`}
+      >
         <section className="rounded-[22px] border border-ink-100 bg-white/85 p-4">
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-sm font-semibold text-ink-900">Selected vendors</p>
               <p className="mt-1 text-sm text-ink-500">
-                Compare original budget against the vendors or suppliers you committed to.
+                Compare the working budget against the vendors or suppliers you committed to.
               </p>
             </div>
             <span className="rounded-full border border-sand-200 bg-sand-50 px-3 py-1 text-xs font-semibold text-sand-700">
@@ -115,6 +150,11 @@ const BudgetLineItem = ({
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                       <div>
                         <p className="text-sm font-semibold text-ink-900">{awardVendorName}</p>
+                        {award.sourceBid ? (
+                          <p className="mt-1 text-xs font-semibold uppercase tracking-[0.16em] text-verdigris-700">
+                            Awarded from quote
+                          </p>
+                        ) : null}
                         <p className="mt-1 text-sm text-ink-500">
                           {award.description || "No scope note added for this vendor."}
                         </p>
@@ -250,6 +290,76 @@ const BudgetLineItem = ({
             )}
           </div>
         </section>
+
+        {tasks.length || receipts.length || relatedBids.length || onAddTask || onScanReceipt ? (
+          <section className="rounded-[22px] border border-ink-100 bg-white/85 p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-ink-900">Execution context</p>
+                <p className="mt-1 text-sm text-ink-500">
+                  Keep related tasks, receipts, and live quote signals attached to this scope item.
+                </p>
+              </div>
+              <span className="rounded-full border border-ink-200 bg-ink-50 px-3 py-1 text-xs font-semibold text-ink-600">
+                {tasks.length + receipts.length + relatedBids.length} linked
+              </span>
+            </div>
+
+            <div className="mt-4 grid gap-3 sm:grid-cols-3">
+              <div className="rounded-[18px] bg-sky-50 px-4 py-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-400">Tasks</p>
+                <p className="mt-2 text-lg font-semibold text-ink-900">{tasks.length}</p>
+              </div>
+              <div className="rounded-[18px] bg-verdigris-50 px-4 py-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-400">Receipts</p>
+                <p className="mt-2 text-lg font-semibold text-ink-900">{receipts.length}</p>
+              </div>
+              <div className="rounded-[18px] bg-sand-50 px-4 py-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-400">Quotes</p>
+                <p className="mt-2 text-lg font-semibold text-ink-900">{relatedBids.length}</p>
+              </div>
+            </div>
+
+            <div className="mt-4 space-y-3">
+              {tasks.slice(0, 2).map((task) => (
+                <div key={task._id} className="rounded-[18px] border border-ink-100 bg-ink-50/50 p-4">
+                  <p className="text-sm font-semibold text-ink-900">{task.title}</p>
+                  <p className="mt-1 text-xs font-semibold uppercase tracking-[0.16em] text-ink-400">
+                    {task.status || "Not Started"} • Due {formatDate(task.endDate)}
+                  </p>
+                </div>
+              ))}
+              {receipts.slice(0, 2).map((receipt) => (
+                <div key={receipt._id} className="rounded-[18px] border border-ink-100 bg-ink-50/50 p-4">
+                  <p className="text-sm font-semibold text-ink-900">
+                    {receipt.title || receipt.payeeName || "Receipt"}
+                  </p>
+                  <p className="mt-1 text-xs font-semibold uppercase tracking-[0.16em] text-ink-400">
+                    {receipt.expense ? "Linked receipt" : "Awaiting expense"} • {formatDate(receipt.createdAt)}
+                  </p>
+                </div>
+              ))}
+              {relatedBids.slice(0, 2).map((quote) => (
+                <div
+                  key={`${quote.bidId}-${quote.renovationItemId || quote.budgetItemId || quote.amount}`}
+                  className="rounded-[18px] border border-ink-100 bg-ink-50/50 p-4"
+                >
+                  <p className="text-sm font-semibold text-ink-900">
+                    {quote.bid?.contractorName || "Quote"}
+                  </p>
+                  <p className="mt-1 text-xs font-semibold uppercase tracking-[0.16em] text-ink-400">
+                    {formatCurrency(quote.amount)} {quote.bid?.decisionStatus === "awarded" ? "• Awarded" : "• Quote"}
+                  </p>
+                </div>
+              ))}
+              {!tasks.length && !receipts.length && !relatedBids.length ? (
+                <div className="rounded-[18px] border border-dashed border-ink-200 bg-ink-50/40 p-4 text-sm leading-6 text-ink-500">
+                  No tasks, receipts, or related quotes are attached to this scope item yet.
+                </div>
+              ) : null}
+            </div>
+          </section>
+        ) : null}
       </div>
     </div>
   );

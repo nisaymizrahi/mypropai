@@ -16,7 +16,7 @@ import TimelineTab from "../components/TimelineTab";
 import {
   deleteInvestment,
   getBudgetItems,
-  getBidsForLead,
+  getBidsForProject,
   getExpenses,
   getInvestment,
   getProjectTasks,
@@ -112,7 +112,7 @@ const InvestmentDetail = () => {
         getExpenses(id),
         getProjectTasks(id),
         getVendors(),
-        sourceLeadId ? getBidsForLead(sourceLeadId) : Promise.resolve([]),
+        getBidsForProject(id),
       ]);
 
       setInvestment(investmentData);
@@ -376,7 +376,14 @@ const InvestmentDetail = () => {
             onUpdate={fetchData}
           />
         )}
-        {activeTab === "comps" && <ProjectCompsTab snapshot={sourceLeadSnapshot} />}
+        {activeTab === "comps" && (
+          <ProjectCompsTab
+            investmentId={investment._id}
+            sourceLeadId={sourceLeadId}
+            propertyWorkspaceId={propertyWorkspaceId}
+            snapshot={sourceLeadSnapshot}
+          />
+        )}
         {activeTab === "financials" && (
           <FinancialsTab
             investment={investment}
@@ -390,8 +397,10 @@ const InvestmentDetail = () => {
           sourceLeadId ? (
             <BidsTab
               leadId={sourceLeadId}
+              investmentId={investment._id}
               bids={bids}
               renovationItems={sourceLeadSnapshot?.renovationPlan?.items || []}
+              budgetItems={budgetItems}
               onUpdate={fetchData}
             />
           ) : (
@@ -406,7 +415,13 @@ const InvestmentDetail = () => {
           )
         )}
         {activeTab === "schedule" && (
-          <ScheduleTab investment={investment} tasks={tasks} vendors={vendors} onUpdate={fetchData} />
+          <ScheduleTab
+            investment={investment}
+            tasks={tasks}
+            vendors={vendors}
+            budgetItems={budgetItems}
+            onUpdate={fetchData}
+          />
         )}
         {activeTab === "documents" && <DocumentsTab investment={investment} />}
         {activeTab === "team" && <TeamTab vendors={vendors} onUpdate={fetchData} />}

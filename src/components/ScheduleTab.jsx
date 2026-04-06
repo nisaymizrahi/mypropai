@@ -38,7 +38,7 @@ const MetricTile = ({ label, value, hint }) => (
   </div>
 );
 
-const ScheduleTab = ({ investment, tasks = [], vendors = [], onUpdate }) => {
+const ScheduleTab = ({ investment, tasks = [], vendors = [], budgetItems = [], onUpdate }) => {
   const [view, setView] = useState(ViewMode.Week);
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
 
@@ -72,6 +72,7 @@ const ScheduleTab = ({ investment, tasks = [], vendors = [], onUpdate }) => {
         onSuccess={onUpdate}
         investmentId={investment._id}
         vendors={vendors}
+        budgetItems={budgetItems}
       />
 
       <div className="space-y-6">
