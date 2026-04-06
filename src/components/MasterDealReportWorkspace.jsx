@@ -1,22 +1,18 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo } from "react";
 import {
   AdjustmentsHorizontalIcon,
-  ArrowTrendingUpIcon,
   BanknotesIcon,
-  Cog6ToothIcon,
-  HomeModernIcon,
   SparklesIcon,
 } from "@heroicons/react/24/outline";
 
 import MasterDealReportSections from "./MasterDealReportSections";
+import { SubscriptionLegalNotice } from "./SubscriptionConsentDialog";
 import {
   buildDraftFinancialSnapshot,
   compsPropertyTypeOptions,
   dealStrategyOptions,
-  formatCompactCurrency,
   formatCurrency,
   formatDate,
-  formatPercent,
   getVerdictMeta,
 } from "../utils/compsReport";
 
@@ -28,54 +24,45 @@ const FormField = ({ label, hint, children, className = "" }) => (
   </label>
 );
 
-const StepButton = ({ isActive, step, onClick }) => {
-  const Icon = step.icon;
-
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`report-step-button ${isActive ? "report-step-button-active" : ""}`}
-    >
-      <span className={`report-step-icon ${isActive ? "report-step-icon-active" : ""}`}>
-        <Icon className="h-4 w-4" />
-      </span>
-      <span className="min-w-0 text-left">
-        <span className="block text-[10px] font-semibold uppercase tracking-[0.2em] text-ink-400">
-          {step.kicker}
+const ControlCard = ({ icon: Icon, eyebrow, title, description, children, className = "" }) => (
+  <section className={`report-control-card ${className}`.trim()}>
+    <div className="flex items-start gap-3">
+      {Icon ? (
+        <span className="report-step-icon report-step-icon-active">
+          <Icon className="h-4 w-4" />
         </span>
-        <span className="mt-1 block truncate text-sm font-semibold text-ink-900">{step.label}</span>
-        <span className="mt-1 block truncate text-xs text-ink-500">{step.summary}</span>
-      </span>
-    </button>
-  );
-};
-
-const StepPanel = ({ step, isActive, onActivate, children }) => (
-  <section
-    className={`report-step-panel ${isActive ? "report-step-panel-active" : ""}`}
-    data-step={step.id}
-  >
-    <button
-      type="button"
-      onClick={onActivate}
-      className="flex w-full items-start justify-between gap-4 text-left"
-    >
-      <div className="flex items-start gap-3">
-        <span className={`report-step-icon ${isActive ? "report-step-icon-active" : ""}`}>
-          <step.icon className="h-4 w-4" />
-        </span>
-        <div>
-          <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-ink-400">{step.kicker}</p>
-          <h3 className="mt-1 text-xl font-semibold text-ink-900">{step.label}</h3>
-          <p className="mt-1 text-sm text-ink-500">{step.summary}</p>
-        </div>
+      ) : null}
+      <div className="min-w-0">
+        {eyebrow ? (
+          <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-ink-400">
+            {eyebrow}
+          </p>
+        ) : null}
+        <h3 className="mt-1 text-lg font-semibold text-ink-900">{title}</h3>
+        {description ? <p className="mt-1 text-sm leading-6 text-ink-500">{description}</p> : null}
       </div>
-      <span className="glass-chip shrink-0">{isActive ? "Open" : "Edit"}</span>
-    </button>
-
-    {isActive ? <div className="mt-5">{children}</div> : null}
+    </div>
+    <div className="mt-4">{children}</div>
   </section>
+);
+
+const CollapsiblePanel = ({
+  title,
+  description,
+  badge = "Optional",
+  defaultOpen = false,
+  children,
+}) => (
+  <details className="report-collapsible" {...(defaultOpen ? { open: true } : {})}>
+    <summary className="report-collapsible-summary">
+      <div className="min-w-0">
+        <p className="text-sm font-semibold text-ink-900">{title}</p>
+        <p className="mt-1 text-xs leading-5 text-ink-500">{description}</p>
+      </div>
+      <span className="glass-chip shrink-0">{badge}</span>
+    </summary>
+    <div className="mt-4">{children}</div>
+  </details>
 );
 
 const PulseMetric = ({ label, value, hint, tone = "default" }) => (
@@ -123,34 +110,34 @@ const EmptyResultsState = ({ isAnalyzing }) => (
     <div className="flex flex-wrap items-start justify-between gap-4">
       <div>
         <span className="eyebrow">Report Preview</span>
-        <h3 className="mt-4 font-display text-[2.3rem] leading-[0.96] text-ink-900">
+        <h3 className="mt-4 font-display text-[2.1rem] leading-[0.96] text-ink-900">
           {isAnalyzing ? "Building the report..." : "Run once, review instantly"}
         </h3>
         <p className="mt-3 max-w-2xl text-sm leading-7 text-ink-600">
-          The finished Master Deal Report will package the property identity, verdict, value-versus-cost
-          visuals, comparable support, assumptions, and investor narrative into one polished file.
+          The finished report will drop below with the verdict, financials, comps, assumptions,
+          and AI write-up laid out in one investor-facing format.
         </p>
       </div>
       <div className="rounded-[22px] border border-ink-100 bg-white/80 px-4 py-4 text-sm text-ink-600">
-        {isAnalyzing ? "Pulling property, comps, valuation, and deal math now." : "No report has been generated yet."}
+        {isAnalyzing ? "Pulling comps, valuation, and deal math now." : "No report has been generated yet."}
       </div>
     </div>
 
     <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
       <PulseMetric
-        label="Verdict panel"
-        value="Strong / Moderate / Risky"
-        hint="A fast first read with score, comp support, and confidence."
+        label="Top controls"
+        value="Address + filters first"
+        hint="The key inputs stay at the top instead of getting buried."
       />
       <PulseMetric
         label="Financial snapshot"
         value="Value vs Cost"
-        hint="Headline economics organized for quick investor review."
+        hint="Headline economics organized for a quick first read."
       />
       <PulseMetric
         label="Comp support"
         value="Primary, recent, active"
-        hint="Clear hierarchy instead of a raw list of records."
+        hint="A cleaner hierarchy than a raw block of rows."
       />
       <PulseMetric
         label="PDF ready"
@@ -185,18 +172,11 @@ const MasterDealReportWorkspace = ({
   runButtonLabel = "Run Master Deal Report",
   saveButtonLabel = "Save Report",
 }) => {
-  const [activeStep, setActiveStep] = useState(renderSubjectPanel ? "property" : "deal");
-
-  useEffect(() => {
-    if (!renderSubjectPanel && activeStep === "property") {
-      setActiveStep("deal");
-    }
-  }, [activeStep, renderSubjectPanel]);
-
   const canRun = Boolean(billingAccess?.accessGranted) && !runDisabled;
   const trialCreditsRemaining = billingAccess?.trialCreditsRemaining || 0;
   const cycleCreditsRemaining = billingAccess?.monthlyIncludedRemainingCount || 0;
   const purchasedCreditsRemaining = billingAccess?.purchasedCreditsRemaining || 0;
+  const subscriptionOffer = billingAccess?.subscriptionOffer || null;
   const startSubscriptionLabel = billingAccess?.trialEligible ? "Start Free Trial" : "Upgrade to Pro";
   const primaryCount = report?.comps?.primary?.summary?.count || 0;
   const canSave = Boolean(onSaveReport) && Boolean(report) && primaryCount >= 3 && !isAnalyzing && !isSavingReport;
@@ -264,415 +244,7 @@ const MasterDealReportWorkspace = ({
       ]
         .filter(Boolean)
         .join(" • ")
-    : "Add the property basics first.";
-
-  const steps = useMemo(
-    () =>
-      [
-        renderSubjectPanel
-          ? {
-              id: "property",
-              label: "Property",
-              kicker: "Step 1",
-              summary: propertySummary,
-              icon: HomeModernIcon,
-              content: renderSubjectPanel(),
-            }
-          : null,
-        {
-          id: "deal",
-          label: "Deal Inputs",
-          kicker: renderSubjectPanel ? "Step 2" : "Step 1",
-          summary: `${formatCurrency(liveSnapshot.askingPrice)} ask • ${formatCurrency(
-            liveSnapshot.rehabEstimate
-          )} rehab`,
-          icon: BanknotesIcon,
-          content: (
-            <div className="grid gap-4 md:grid-cols-2">
-              <FormField label="Strategy">
-                <select
-                  name="strategy"
-                  value={deal.strategy}
-                  onChange={onDealChange}
-                  className="auth-input"
-                >
-                  {dealStrategyOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </FormField>
-
-              <FormField label="Hold period" hint="Used for carry assumptions.">
-                <input
-                  type="number"
-                  min="1"
-                  step="1"
-                  name="holdingPeriodMonths"
-                  value={deal.holdingPeriodMonths}
-                  onChange={onDealChange}
-                  className="auth-input"
-                />
-              </FormField>
-
-              <FormField label="Asking price">
-                <input
-                  type="number"
-                  min="0"
-                  step="1000"
-                  name="askingPrice"
-                  value={deal.askingPrice}
-                  onChange={onDealChange}
-                  data-testid="deal-asking-price-input"
-                  className="auth-input"
-                />
-              </FormField>
-
-              <FormField label="Renovation estimate">
-                <input
-                  type="number"
-                  min="0"
-                  step="1000"
-                  name="rehabEstimate"
-                  value={deal.rehabEstimate}
-                  onChange={onDealChange}
-                  data-testid="deal-rehab-input"
-                  className="auth-input"
-                />
-              </FormField>
-
-              <FormField label="Closing costs %" hint="Acquisition-side soft costs.">
-                <input
-                  type="number"
-                  min="0"
-                  step="0.25"
-                  name="acquisitionClosingCostPercent"
-                  value={deal.acquisitionClosingCostPercent}
-                  onChange={onDealChange}
-                  className="auth-input"
-                />
-              </FormField>
-
-              <FormField label="Selling costs %" hint="Only matters for exit assumptions.">
-                <input
-                  type="number"
-                  min="0"
-                  step="0.25"
-                  name="sellingCostPercent"
-                  value={deal.sellingCostPercent}
-                  onChange={onDealChange}
-                  className="auth-input"
-                />
-              </FormField>
-            </div>
-          ),
-        },
-        {
-          id: "comps",
-          label: "Comp Preferences",
-          kicker: renderSubjectPanel ? "Step 3" : "Step 2",
-          summary: `${filters.radius || 1} mi • ${filters.saleDateMonths || 6} months • ${
-            filters.maxComps || 8
-          } comps`,
-          icon: AdjustmentsHorizontalIcon,
-          content: (
-            <div className="space-y-4">
-              <div className="rounded-[18px] border border-ink-100 bg-sand-50/75 px-4 py-4">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-ink-400">
-                  Quick presets
-                </p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={() => applyCompPreset("tight")}
-                    className="report-mini-chip"
-                  >
-                    Tight search
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => applyCompPreset("balanced")}
-                    className="report-mini-chip"
-                  >
-                    Balanced
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => applyCompPreset("broad")}
-                    className="report-mini-chip"
-                  >
-                    Wider net
-                  </button>
-                </div>
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-3">
-                <FormField label="Radius (miles)">
-                  <input
-                    type="number"
-                    min="0.25"
-                    step="0.25"
-                    name="radius"
-                    value={filters.radius}
-                    onChange={onFilterChange}
-                    data-testid="master-radius-input"
-                    className="auth-input"
-                  />
-                </FormField>
-
-                <FormField label="Freshness (months)">
-                  <input
-                    type="number"
-                    min="1"
-                    step="1"
-                    name="saleDateMonths"
-                    value={filters.saleDateMonths}
-                    onChange={onFilterChange}
-                    className="auth-input"
-                  />
-                </FormField>
-
-                <FormField label="Max comps">
-                  <input
-                    type="number"
-                    min="5"
-                    max="12"
-                    step="1"
-                    name="maxComps"
-                    value={filters.maxComps}
-                    onChange={onFilterChange}
-                    className="auth-input"
-                  />
-                </FormField>
-              </div>
-
-              <FormField label="Property type">
-                <select
-                  name="propertyType"
-                  value={filters.propertyType}
-                  onChange={onFilterChange}
-                  className="auth-input"
-                >
-                  {compsPropertyTypeOptions.map((option) => (
-                    <option key={option.value || "any"} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </FormField>
-
-              <div className="grid gap-4 md:grid-cols-2">
-                <FormField label="Square footage range">
-                  <div className="grid grid-cols-2 gap-3">
-                    <input
-                      type="number"
-                      min="0"
-                      step="1"
-                      name="minSquareFootage"
-                      value={filters.minSquareFootage}
-                      onChange={onFilterChange}
-                      className="auth-input"
-                      placeholder="Min"
-                    />
-                    <input
-                      type="number"
-                      min="0"
-                      step="1"
-                      name="maxSquareFootage"
-                      value={filters.maxSquareFootage}
-                      onChange={onFilterChange}
-                      className="auth-input"
-                      placeholder="Max"
-                    />
-                  </div>
-                </FormField>
-
-                <FormField label="Beds / baths range">
-                  <div className="grid grid-cols-2 gap-3">
-                    <input
-                      type="number"
-                      min="0"
-                      step="1"
-                      name="minBedrooms"
-                      value={filters.minBedrooms}
-                      onChange={onFilterChange}
-                      className="auth-input"
-                      placeholder="Min beds"
-                    />
-                    <input
-                      type="number"
-                      min="0"
-                      step="1"
-                      name="maxBedrooms"
-                      value={filters.maxBedrooms}
-                      onChange={onFilterChange}
-                      className="auth-input"
-                      placeholder="Max beds"
-                    />
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.5"
-                      name="minBathrooms"
-                      value={filters.minBathrooms}
-                      onChange={onFilterChange}
-                      className="auth-input"
-                      placeholder="Min baths"
-                    />
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.5"
-                      name="maxBathrooms"
-                      value={filters.maxBathrooms}
-                      onChange={onFilterChange}
-                      className="auth-input"
-                      placeholder="Max baths"
-                    />
-                  </div>
-                </FormField>
-              </div>
-            </div>
-          ),
-        },
-        {
-          id: "advanced",
-          label: "Advanced Assumptions",
-          kicker: renderSubjectPanel ? "Step 4" : "Step 3",
-          summary: `${deal.loanToCostPercent || 85}% LTC • ${deal.interestRatePercent || 10}% rate • ${
-            deal.contingencyPercent || 7
-          }% contingency`,
-          icon: Cog6ToothIcon,
-          content: (
-            <div className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
-                <FormField label="Loan to cost %">
-                  <input
-                    type="number"
-                    min="0"
-                    max="100"
-                    step="1"
-                    name="loanToCostPercent"
-                    value={deal.loanToCostPercent}
-                    onChange={onDealChange}
-                    className="auth-input"
-                  />
-                </FormField>
-
-                <FormField label="Interest rate %">
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.25"
-                    name="interestRatePercent"
-                    value={deal.interestRatePercent}
-                    onChange={onDealChange}
-                    className="auth-input"
-                  />
-                </FormField>
-
-                <FormField label="Points / fees %">
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.25"
-                    name="financingPointsPercent"
-                    value={deal.financingPointsPercent}
-                    onChange={onDealChange}
-                    className="auth-input"
-                  />
-                </FormField>
-
-                <FormField label="Contingency %">
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.5"
-                    name="contingencyPercent"
-                    value={deal.contingencyPercent}
-                    onChange={onDealChange}
-                    className="auth-input"
-                  />
-                </FormField>
-
-                <FormField label="Annual taxes">
-                  <input
-                    type="number"
-                    min="0"
-                    step="100"
-                    name="annualTaxes"
-                    value={deal.annualTaxes}
-                    onChange={onDealChange}
-                    className="auth-input"
-                  />
-                </FormField>
-
-                <FormField label="Target margin %">
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.5"
-                    name="desiredProfitMarginPercent"
-                    value={deal.desiredProfitMarginPercent}
-                    onChange={onDealChange}
-                    className="auth-input"
-                  />
-                </FormField>
-
-                <FormField label="Insurance / mo">
-                  <input
-                    type="number"
-                    min="0"
-                    step="25"
-                    name="monthlyInsurance"
-                    value={deal.monthlyInsurance}
-                    onChange={onDealChange}
-                    className="auth-input"
-                  />
-                </FormField>
-
-                <FormField label="Utilities / mo">
-                  <input
-                    type="number"
-                    min="0"
-                    step="25"
-                    name="monthlyUtilities"
-                    value={deal.monthlyUtilities}
-                    onChange={onDealChange}
-                    className="auth-input"
-                  />
-                </FormField>
-
-                <FormField label="Maintenance / mo" className="md:col-span-2">
-                  <input
-                    type="number"
-                    min="0"
-                    step="25"
-                    name="monthlyMaintenance"
-                    value={deal.monthlyMaintenance}
-                    onChange={onDealChange}
-                    className="auth-input"
-                  />
-                </FormField>
-              </div>
-
-              <FormField label="Notes" hint="Optional assumptions, scope notes, or risk reminders.">
-                <textarea
-                  name="notes"
-                  value={deal.notes}
-                  onChange={onDealChange}
-                  rows={5}
-                  className="auth-input min-h-[140px]"
-                  placeholder="Optional notes about condition, scope, seller situation, or special underwriting assumptions."
-                />
-              </FormField>
-            </div>
-          ),
-        },
-      ].filter(Boolean),
-    [deal, filters, liveSnapshot.askingPrice, liveSnapshot.rehabEstimate, propertySummary, renderSubjectPanel, onDealChange, onFilterChange]
-  );
+    : "Start with the property address.";
 
   const handleSave = async () => {
     if (!onSaveReport || !report) return;
@@ -687,21 +259,475 @@ const MasterDealReportWorkspace = ({
   };
 
   return (
-    <div className="grid grid-cols-1 gap-6 xl:grid-cols-[400px_minmax(0,1fr)]">
-      <div className="space-y-5">
-        <section className="surface-panel-strong overflow-hidden px-6 py-6">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div>
-              <span className="eyebrow">Guided Input</span>
-              <h2 className="mt-4 font-display text-[2.1rem] leading-[0.96] text-ink-900">
-                Build the deal like a workflow, not a spreadsheet
-              </h2>
-              <p className="mt-3 max-w-2xl text-sm leading-7 text-ink-600">
-                Start with the property, set the economics, tighten the comp set, and run a presentation-ready
-                report once the assumptions look right.
-              </p>
+    <div className="space-y-6">
+      <section className="surface-panel-strong overflow-hidden px-5 py-5 sm:px-6">
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_360px]">
+          <div className="space-y-4">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <span className="eyebrow">Comps + AI Report</span>
+                <h2 className="mt-4 font-display text-[2rem] leading-[0.96] text-ink-900 sm:text-[2.2rem]">
+                  Everything you need to run the report is right here
+                </h2>
+                <p className="mt-3 max-w-3xl text-sm leading-7 text-ink-600">
+                  Start with the address, add the few numbers you know, tighten the search, and run
+                  the investor-ready report without digging through the page.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <span className="report-mini-chip">Address first</span>
+                <span className="report-mini-chip">Filters up top</span>
+                <span className="report-mini-chip">AI report below</span>
+              </div>
             </div>
-            <div className={`report-verdict-card ${toneClasses[verdictDisplay.tone] || "report-verdict-pending"}`}>
+
+            {renderSubjectPanel ? renderSubjectPanel() : null}
+
+            <div className="grid gap-4 lg:grid-cols-2">
+              <ControlCard
+                icon={BanknotesIcon}
+                eyebrow="Deal Inputs"
+                title="Core economics"
+                description="These are the main numbers most deals need to get started."
+              >
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <FormField label="Strategy">
+                    <select
+                      name="strategy"
+                      value={deal.strategy}
+                      onChange={onDealChange}
+                      className="auth-input"
+                    >
+                      {dealStrategyOptions.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </FormField>
+
+                  <FormField label="Hold period" hint="Used for carry assumptions.">
+                    <input
+                      type="number"
+                      min="1"
+                      step="1"
+                      name="holdingPeriodMonths"
+                      value={deal.holdingPeriodMonths}
+                      onChange={onDealChange}
+                      className="auth-input"
+                    />
+                  </FormField>
+
+                  <FormField label="Asking price">
+                    <input
+                      type="number"
+                      min="0"
+                      step="1000"
+                      name="askingPrice"
+                      value={deal.askingPrice}
+                      onChange={onDealChange}
+                      data-testid="deal-asking-price-input"
+                      className="auth-input"
+                    />
+                  </FormField>
+
+                  <FormField label="Renovation estimate">
+                    <input
+                      type="number"
+                      min="0"
+                      step="1000"
+                      name="rehabEstimate"
+                      value={deal.rehabEstimate}
+                      onChange={onDealChange}
+                      data-testid="deal-rehab-input"
+                      className="auth-input"
+                    />
+                  </FormField>
+
+                  <FormField label="Closing costs %" hint="Acquisition-side soft costs.">
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.25"
+                      name="acquisitionClosingCostPercent"
+                      value={deal.acquisitionClosingCostPercent}
+                      onChange={onDealChange}
+                      className="auth-input"
+                    />
+                  </FormField>
+
+                  <FormField label="Selling costs %" hint="Only matters for exit assumptions.">
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.25"
+                      name="sellingCostPercent"
+                      value={deal.sellingCostPercent}
+                      onChange={onDealChange}
+                      className="auth-input"
+                    />
+                  </FormField>
+                </div>
+              </ControlCard>
+
+              <ControlCard
+                icon={AdjustmentsHorizontalIcon}
+                eyebrow="Comp Filters"
+                title="Search settings"
+                description="The main filters stay visible so you can adjust them without scrolling around."
+              >
+                <div className="rounded-[18px] border border-ink-100 bg-sand-50/75 px-4 py-4">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-ink-400">
+                    Quick presets
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => applyCompPreset("tight")}
+                      className="report-mini-chip"
+                    >
+                      Tight search
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => applyCompPreset("balanced")}
+                      className="report-mini-chip"
+                    >
+                      Balanced
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => applyCompPreset("broad")}
+                      className="report-mini-chip"
+                    >
+                      Wider net
+                    </button>
+                  </div>
+                </div>
+
+                <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                  <FormField label="Radius (miles)">
+                    <input
+                      type="number"
+                      min="0.25"
+                      step="0.25"
+                      name="radius"
+                      value={filters.radius}
+                      onChange={onFilterChange}
+                      data-testid="master-radius-input"
+                      className="auth-input"
+                    />
+                  </FormField>
+
+                  <FormField label="Freshness (months)">
+                    <input
+                      type="number"
+                      min="1"
+                      step="1"
+                      name="saleDateMonths"
+                      value={filters.saleDateMonths}
+                      onChange={onFilterChange}
+                      className="auth-input"
+                    />
+                  </FormField>
+
+                  <FormField label="Max comps">
+                    <input
+                      type="number"
+                      min="5"
+                      max="12"
+                      step="1"
+                      name="maxComps"
+                      value={filters.maxComps}
+                      onChange={onFilterChange}
+                      className="auth-input"
+                    />
+                  </FormField>
+
+                  <FormField label="Property type">
+                    <select
+                      name="propertyType"
+                      value={filters.propertyType}
+                      onChange={onFilterChange}
+                      className="auth-input"
+                    >
+                      {compsPropertyTypeOptions.map((option) => (
+                        <option key={option.value || "any"} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </FormField>
+                </div>
+              </ControlCard>
+            </div>
+
+            <div className="grid gap-4 lg:grid-cols-2">
+              <CollapsiblePanel
+                title="More comp filters"
+                description="Optional bounds if you want a tighter or more specific comp set."
+              >
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <FormField label="Square footage range">
+                    <div className="grid grid-cols-2 gap-3">
+                      <input
+                        type="number"
+                        min="0"
+                        step="1"
+                        name="minSquareFootage"
+                        value={filters.minSquareFootage}
+                        onChange={onFilterChange}
+                        className="auth-input"
+                        placeholder="Min"
+                      />
+                      <input
+                        type="number"
+                        min="0"
+                        step="1"
+                        name="maxSquareFootage"
+                        value={filters.maxSquareFootage}
+                        onChange={onFilterChange}
+                        className="auth-input"
+                        placeholder="Max"
+                      />
+                    </div>
+                  </FormField>
+
+                  <FormField label="Lot size range">
+                    <div className="grid grid-cols-2 gap-3">
+                      <input
+                        type="number"
+                        min="0"
+                        step="1"
+                        name="minLotSize"
+                        value={filters.minLotSize}
+                        onChange={onFilterChange}
+                        className="auth-input"
+                        placeholder="Min"
+                      />
+                      <input
+                        type="number"
+                        min="0"
+                        step="1"
+                        name="maxLotSize"
+                        value={filters.maxLotSize}
+                        onChange={onFilterChange}
+                        className="auth-input"
+                        placeholder="Max"
+                      />
+                    </div>
+                  </FormField>
+
+                  <FormField label="Beds range">
+                    <div className="grid grid-cols-2 gap-3">
+                      <input
+                        type="number"
+                        min="0"
+                        step="1"
+                        name="minBedrooms"
+                        value={filters.minBedrooms}
+                        onChange={onFilterChange}
+                        className="auth-input"
+                        placeholder="Min"
+                      />
+                      <input
+                        type="number"
+                        min="0"
+                        step="1"
+                        name="maxBedrooms"
+                        value={filters.maxBedrooms}
+                        onChange={onFilterChange}
+                        className="auth-input"
+                        placeholder="Max"
+                      />
+                    </div>
+                  </FormField>
+
+                  <FormField label="Baths range">
+                    <div className="grid grid-cols-2 gap-3">
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.5"
+                        name="minBathrooms"
+                        value={filters.minBathrooms}
+                        onChange={onFilterChange}
+                        className="auth-input"
+                        placeholder="Min"
+                      />
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.5"
+                        name="maxBathrooms"
+                        value={filters.maxBathrooms}
+                        onChange={onFilterChange}
+                        className="auth-input"
+                        placeholder="Max"
+                      />
+                    </div>
+                  </FormField>
+
+                  <FormField label="Year built range" className="sm:col-span-2">
+                    <div className="grid grid-cols-2 gap-3">
+                      <input
+                        type="number"
+                        min="0"
+                        step="1"
+                        name="minYearBuilt"
+                        value={filters.minYearBuilt}
+                        onChange={onFilterChange}
+                        className="auth-input"
+                        placeholder="Min"
+                      />
+                      <input
+                        type="number"
+                        min="0"
+                        step="1"
+                        name="maxYearBuilt"
+                        value={filters.maxYearBuilt}
+                        onChange={onFilterChange}
+                        className="auth-input"
+                        placeholder="Max"
+                      />
+                    </div>
+                  </FormField>
+                </div>
+              </CollapsiblePanel>
+
+              <CollapsiblePanel
+                title="Advanced assumptions"
+                description="Carry, financing, and underwriting details that sharpen the deal math."
+              >
+                <div className="space-y-4">
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <FormField label="Loan to cost %">
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="1"
+                        name="loanToCostPercent"
+                        value={deal.loanToCostPercent}
+                        onChange={onDealChange}
+                        className="auth-input"
+                      />
+                    </FormField>
+
+                    <FormField label="Interest rate %">
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.25"
+                        name="interestRatePercent"
+                        value={deal.interestRatePercent}
+                        onChange={onDealChange}
+                        className="auth-input"
+                      />
+                    </FormField>
+
+                    <FormField label="Points / fees %">
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.25"
+                        name="financingPointsPercent"
+                        value={deal.financingPointsPercent}
+                        onChange={onDealChange}
+                        className="auth-input"
+                      />
+                    </FormField>
+
+                    <FormField label="Contingency %">
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.5"
+                        name="contingencyPercent"
+                        value={deal.contingencyPercent}
+                        onChange={onDealChange}
+                        className="auth-input"
+                      />
+                    </FormField>
+
+                    <FormField label="Annual taxes">
+                      <input
+                        type="number"
+                        min="0"
+                        step="100"
+                        name="annualTaxes"
+                        value={deal.annualTaxes}
+                        onChange={onDealChange}
+                        className="auth-input"
+                      />
+                    </FormField>
+
+                    <FormField label="Target margin %">
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.5"
+                        name="desiredProfitMarginPercent"
+                        value={deal.desiredProfitMarginPercent}
+                        onChange={onDealChange}
+                        className="auth-input"
+                      />
+                    </FormField>
+
+                    <FormField label="Insurance / mo">
+                      <input
+                        type="number"
+                        min="0"
+                        step="25"
+                        name="monthlyInsurance"
+                        value={deal.monthlyInsurance}
+                        onChange={onDealChange}
+                        className="auth-input"
+                      />
+                    </FormField>
+
+                    <FormField label="Utilities / mo">
+                      <input
+                        type="number"
+                        min="0"
+                        step="25"
+                        name="monthlyUtilities"
+                        value={deal.monthlyUtilities}
+                        onChange={onDealChange}
+                        className="auth-input"
+                      />
+                    </FormField>
+
+                    <FormField label="Maintenance / mo" className="sm:col-span-2">
+                      <input
+                        type="number"
+                        min="0"
+                        step="25"
+                        name="monthlyMaintenance"
+                        value={deal.monthlyMaintenance}
+                        onChange={onDealChange}
+                        className="auth-input"
+                      />
+                    </FormField>
+                  </div>
+
+                  <FormField label="Notes" hint="Optional assumptions, scope notes, or risk reminders.">
+                    <textarea
+                      name="notes"
+                      value={deal.notes}
+                      onChange={onDealChange}
+                      rows={5}
+                      className="auth-input min-h-[140px]"
+                      placeholder="Optional notes about condition, scope, seller situation, or special underwriting assumptions."
+                    />
+                  </FormField>
+                </div>
+              </CollapsiblePanel>
+            </div>
+          </div>
+
+          <aside className="space-y-4 xl:sticky xl:top-24 self-start">
+            <div className={`report-verdict-card report-verdict-card-large ${toneClasses[verdictDisplay.tone] || "report-verdict-pending"}`}>
               <p className="text-[10px] font-semibold uppercase tracking-[0.22em]">Deal score</p>
               <p className="mt-2 text-3xl font-semibold">{verdictDisplay.score}</p>
               <p className="mt-1 text-sm font-semibold">{verdictDisplay.label}</p>
@@ -709,9 +735,7 @@ const MasterDealReportWorkspace = ({
                 {verdictDisplay.compSupport} comp support • {verdictDisplay.confidence} confidence
               </p>
             </div>
-          </div>
 
-          <div className="mt-6 grid gap-4">
             <div className="report-pulse-shell">
               <div className="flex items-start justify-between gap-4">
                 <div>
@@ -721,16 +745,14 @@ const MasterDealReportWorkspace = ({
                   <h3 className="mt-2 text-xl font-semibold text-ink-900">
                     {liveSnapshot.address || "No property selected yet"}
                   </h3>
-                  <p className="mt-1 text-sm text-ink-500">
-                    {propertySummary}
-                  </p>
+                  <p className="mt-1 text-sm text-ink-500">{propertySummary}</p>
                 </div>
                 <div className="rounded-full border border-white/70 bg-white/80 px-3 py-1.5 text-xs font-semibold text-ink-700">
                   {String(liveSnapshot.strategy || "flip").toUpperCase()} strategy
                 </div>
               </div>
 
-              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
                 <PulseMetric
                   label="Total cost preview"
                   value={formatCurrency(liveSnapshot.totalProjectCost)}
@@ -750,7 +772,13 @@ const MasterDealReportWorkspace = ({
                       ? `${formatCurrency(liveSnapshot.estimatedProfit)} projected spread`
                       : "Run the report or add ARV to unlock a spread preview"
                   }
-                  tone={liveSnapshot.estimatedProfit > 0 ? "positive" : liveSnapshot.estimatedProfit < 0 ? "negative" : "default"}
+                  tone={
+                    liveSnapshot.estimatedProfit > 0
+                      ? "positive"
+                      : liveSnapshot.estimatedProfit < 0
+                        ? "negative"
+                        : "default"
+                  }
                 />
                 <PulseMetric
                   label="Comp search"
@@ -829,8 +857,8 @@ const MasterDealReportWorkspace = ({
                       <p className="text-ink-700">
                         {showOneTimeCheckout
                           ? billingAccess?.hasActiveSubscription
-                            ? "You’re out of report credits. Top up credits to keep underwriting."
-                            : "Start the Pro trial or buy credits to unlock the full report workflow."
+                            ? "You’re out of report credits. Top up to keep underwriting."
+                            : "Start the Pro trial or buy credits to unlock the full report."
                           : "This report flow is part of the Pro workspace."}
                       </p>
                       <div className="flex flex-col gap-3">
@@ -856,6 +884,14 @@ const MasterDealReportWorkspace = ({
                             {isStartingCheckout ? "Redirecting..." : "Buy 10 Credits"}
                           </button>
                         ) : null}
+                        {!billingAccess?.hasActiveSubscription ? (
+                          <SubscriptionLegalNotice
+                            trialEligible={Boolean(billingAccess?.trialEligible)}
+                            trialPeriodDays={subscriptionOffer?.trialPeriodDays || 0}
+                            monthlyPriceCents={subscriptionOffer?.monthlyPriceCents ?? null}
+                            className="bg-white/90"
+                          />
+                        ) : null}
                       </div>
                     </div>
                   )}
@@ -863,53 +899,24 @@ const MasterDealReportWorkspace = ({
               </div>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2">
-              {steps.map((step) => (
-                <StepButton
-                  key={step.id}
-                  step={step}
-                  isActive={activeStep === step.id}
-                  onClick={() => setActiveStep(step.id)}
-                />
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {steps.map((step) => (
-          <StepPanel
-            key={step.id}
-            step={step}
-            isActive={activeStep === step.id}
-            onActivate={() => setActiveStep(step.id)}
-          >
-            {step.content}
-          </StepPanel>
-        ))}
-
-        <section className="surface-panel px-5 py-5">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-ink-400">
-                Generate report
-              </p>
-              <h3 className="mt-2 text-xl font-semibold text-ink-900">Run the investor-facing output</h3>
-              <p className="mt-1 text-sm text-ink-500">
-                The report will package the current inputs, comps, value range, and conclusion into one clean presentation.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={onRunAnalysis}
-              disabled={isAnalyzing || isBillingAccessLoading || !canRun}
-              data-testid="run-master-report"
-              className="primary-action justify-center disabled:opacity-50"
+            <ControlCard
+              eyebrow="Generate"
+              title="Run the investor-facing output"
+              description="The current inputs, comp filters, and assumptions will be packaged into the AI report below."
             >
-              {isAnalyzing ? "Building Report..." : runButtonLabel}
-            </button>
-          </div>
-        </section>
-      </div>
+              <button
+                type="button"
+                onClick={onRunAnalysis}
+                disabled={isAnalyzing || isBillingAccessLoading || !canRun}
+                data-testid="run-master-report"
+                className="primary-action w-full justify-center disabled:opacity-50"
+              >
+                {isAnalyzing ? "Building Report..." : runButtonLabel}
+              </button>
+            </ControlCard>
+          </aside>
+        </div>
+      </section>
 
       <div className="space-y-6" data-testid="master-report-results">
         {reportNotice ? (

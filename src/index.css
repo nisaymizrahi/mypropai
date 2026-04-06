@@ -275,6 +275,43 @@
       0 14px 30px rgba(28, 23, 19, 0.04);
   }
 
+  .report-control-card {
+    border: 1px solid rgba(67, 52, 41, 0.08);
+    border-radius: 24px;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.94) 0%, rgba(250, 246, 241, 0.9) 100%),
+      rgba(255, 255, 255, 0.9);
+    box-shadow:
+      0 1px 2px rgba(28, 23, 19, 0.04),
+      0 14px 30px rgba(28, 23, 19, 0.04);
+    padding: 1.1rem;
+  }
+
+  .report-control-card-featured {
+    background:
+      radial-gradient(circle at top right, rgba(67, 95, 89, 0.08), transparent 28%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(245, 249, 248, 0.92) 100%);
+  }
+
+  .report-collapsible {
+    border: 1px solid rgba(67, 52, 41, 0.08);
+    border-radius: 22px;
+    background: rgba(255, 255, 255, 0.78);
+    padding: 1rem;
+  }
+
+  .report-collapsible[open] {
+    background: rgba(255, 255, 255, 0.92);
+  }
+
+  .report-collapsible-summary {
+    @apply flex cursor-pointer items-start justify-between gap-3 list-none;
+  }
+
+  .report-collapsible-summary::-webkit-details-marker {
+    display: none;
+  }
+
   .report-pulse-shell {
     border: 1px solid rgba(67, 52, 41, 0.08);
     border-radius: 24px;
