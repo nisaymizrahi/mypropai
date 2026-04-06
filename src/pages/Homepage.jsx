@@ -7,6 +7,9 @@ import {
   CreditCardIcon,
 } from "@heroicons/react/24/outline";
 
+import AISummaryCard from "../components/AISummaryCard";
+import DashboardStatCard from "../components/DashboardStatCard";
+import DealScoreCard from "../components/DealScoreCard";
 import MarketingLayout from "../components/MarketingLayout";
 import Seo from "../components/Seo";
 import {
@@ -20,6 +23,12 @@ import {
   resourceArticles,
   workflowPillars,
 } from "../content/marketingContent";
+import {
+  DEAL_ASSET_PATHS,
+  formatDealCompactCurrency,
+  formatDealPercent,
+  marketingDealShowcase,
+} from "../utils/dealIntelligence";
 
 const painPoints = [
   "The deal starts in a spreadsheet, the rehab lives in another tool, and operations end up trapped in shared folders.",
@@ -75,6 +84,47 @@ const workflowSequence = [
   },
 ];
 
+const visualSystemAssets = [
+  {
+    title: "Analyze Deal button",
+    detail: "High-contrast primary action for instant underwriting.",
+    path: DEAL_ASSET_PATHS.ui.analyze,
+  },
+  {
+    title: "Run Comps button",
+    detail: "Secondary action for refreshing price support.",
+    path: DEAL_ASSET_PATHS.ui.comps,
+  },
+  {
+    title: "AI Insight card",
+    detail: "Summary surface for the investor-facing recommendation.",
+    path: DEAL_ASSET_PATHS.ui.insight,
+  },
+  {
+    title: "Add Investment panel",
+    detail: "Premium entry flow for pipeline creation.",
+    path: DEAL_ASSET_PATHS.ui.investment,
+  },
+];
+
+const chartAssets = [
+  {
+    title: "ROI chart style",
+    detail: "Return comparisons that clarify strong, workable, and risky deals.",
+    path: DEAL_ASSET_PATHS.charts.roi,
+  },
+  {
+    title: "Profit breakdown pie",
+    detail: "Acquisition, carry, rehab, and margin in one glance.",
+    path: DEAL_ASSET_PATHS.charts.profit,
+  },
+  {
+    title: "Rehab cost breakdown",
+    detail: "Scope concentration and contingency exposure surfaced visually.",
+    path: DEAL_ASSET_PATHS.charts.rehab,
+  },
+];
+
 const WindowFrame = ({ eyebrow, icon: Icon, title, children, className = "" }) => (
   <div className={`marketing-window ${className}`}>
     <div className="marketing-window-toolbar">
@@ -102,24 +152,28 @@ const WindowFrame = ({ eyebrow, icon: Icon, title, children, className = "" }) =
 
 const Homepage = () => {
   const featuredResources = resourceArticles.slice(0, 3);
+  const heroDeal = marketingDealShowcase[0];
+  const watchDeal = marketingDealShowcase[1];
+  const riskyDeal = marketingDealShowcase[2];
 
   return (
     <MarketingLayout>
       <Seo
         title="Fliprop | Real Estate Workspace for Acquisitions and Operations"
-        description="Fliprop helps real estate operators manage deals, comps, execution, documents, vendors, and property workflows from one workspace."
+        description="Fliprop helps real estate operators manage deals, comps, execution, documents, vendors, and ongoing property work from one workspace."
         path="/"
       />
 
-      <section className="grid gap-6 xl:grid-cols-[minmax(0,1.08fr)_390px]">
+      <section className="grid gap-6 xl:grid-cols-[minmax(0,1.02fr)_420px]">
         <div className="marketing-hero px-6 py-8 sm:px-8 sm:py-10 reveal-up">
-          <span className="eyebrow">Real estate operating system</span>
+          <span className="eyebrow">AI deal intelligence</span>
           <h1 className="mt-5 max-w-5xl font-display text-[3rem] leading-[0.95] text-balance text-ink-900 sm:text-[3.8rem] xl:text-[4.5rem]">
-            Manage the whole property lifecycle without switching systems.
+            Analyze deals in seconds with a premium operator view.
           </h1>
           <p className="mt-5 max-w-3xl text-sm leading-7 text-ink-600 sm:text-base">
-            Fliprop gives owners, operators, and lean real estate teams one calmer workspace for
-            acquisitions, rehab execution, property operations, premium analysis, and billing.
+            Fliprop turns numbers and tables into visual underwriting: live deal scores, AI
+            recommendation cards, profit snapshots, and chart-ready investor context in one clean
+            real estate workspace.
           </p>
 
           <div className="mt-7 flex flex-wrap items-center gap-3">
@@ -166,59 +220,195 @@ const Homepage = () => {
           </div>
 
           <div className="mt-8 grid gap-3 sm:grid-cols-3">
-            {heroSignals.map((signal) => (
-              <div key={signal.label} className="metric-tile p-4">
-                <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-ink-400">
-                  {signal.label}
-                </p>
-                <p className="mt-3 text-lg font-semibold text-ink-900">{signal.value}</p>
-                <p className="mt-2 text-sm leading-6 text-ink-600">{signal.detail}</p>
+            <div className="metric-tile p-4">
+              <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-ink-400">
+                Featured deal
+              </p>
+              <p className="mt-3 text-lg font-semibold text-ink-900">{heroDeal.score}/100 score</p>
+              <p className="mt-2 text-sm leading-6 text-ink-600">
+                {formatDealPercent(heroDeal.roi)} ROI and {formatDealCompactCurrency(heroDeal.profit)} upside.
+              </p>
+            </div>
+            <div className="metric-tile p-4">
+              <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-ink-400">
+                AI verdicts
+              </p>
+              <p className="mt-3 text-lg font-semibold text-ink-900">Good, watch, or stop</p>
+              <p className="mt-2 text-sm leading-6 text-ink-600">
+                Users instantly see whether a deal deserves deeper diligence.
+              </p>
+            </div>
+            <div className="metric-tile p-4">
+              <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-ink-400">
+                Visual reporting
+              </p>
+              <p className="mt-3 text-lg font-semibold text-ink-900">Charts built for investors</p>
+              <p className="mt-2 text-sm leading-6 text-ink-600">
+                ROI, profit, and rehab cost visuals replace spreadsheet scanning.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <aside className="marketing-spotlight p-4 reveal-up" style={{ animationDelay: "90ms" }}>
+          <img
+            src={DEAL_ASSET_PATHS.marketing.hero}
+            alt="Fliprop hero dashboard"
+            className="w-full rounded-[28px] border border-white/70 object-cover shadow-soft"
+          />
+          <div className="mt-4 grid gap-3">
+            <div className="marketing-mini-card">
+              <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-ink-400">
+                Instant readout
+              </p>
+              <p className="mt-3 text-lg font-semibold text-ink-900">
+                {heroDeal.aiSummary.headline}
+              </p>
+              <p className="mt-2 text-sm leading-6 text-ink-600">
+                {heroDeal.aiSummary.recommendation}
+              </p>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <DashboardStatCard
+                title="Deal score"
+                value={`${heroDeal.score}/100`}
+                detail={heroDeal.tone.label}
+                tone="success"
+                progress={heroDeal.score}
+              />
+              <DashboardStatCard
+                title="Modeled ROI"
+                value={formatDealPercent(heroDeal.roi)}
+                detail="Fast investor-facing signal"
+                tone="neutral"
+                progress={Math.min(Math.max(heroDeal.roi, 0), 100)}
+              />
+            </div>
+          </div>
+        </aside>
+      </section>
+
+      <section className="grid gap-4 xl:grid-cols-[minmax(0,1.08fr)_390px]">
+        <div className="grid gap-4">
+          <DealScoreCard
+            score={heroDeal.score}
+            verdict={heroDeal.verdict}
+            title="Deal analysis visual"
+            label={heroDeal.address}
+            detail={`${heroDeal.tone.label} with ${formatDealPercent(heroDeal.roi)} ROI and ${formatDealCompactCurrency(
+              heroDeal.profit
+            )} upside.`}
+            assetPath={heroDeal.assetPaths.score}
+          />
+          <AISummaryCard
+            verdict={heroDeal.verdict}
+            headline={heroDeal.aiSummary.headline}
+            detail={heroDeal.aiSummary.detail}
+            recommendation={heroDeal.aiSummary.recommendation}
+            confidenceLabel={heroDeal.aiSummary.confidenceLabel}
+            bullets={heroDeal.aiSummary.bullets}
+            assetPath={heroDeal.assetPaths.verdict}
+          />
+        </div>
+
+        <div className="grid gap-4">
+          <DashboardStatCard
+            title="Strong opportunities"
+            value={heroDeal.score}
+            detail={`${heroDeal.address} is the cleanest buy-box example in the showcase.`}
+            eyebrow="Good deal"
+            tone="success"
+            progress={heroDeal.score}
+          />
+          <DashboardStatCard
+            title="Moderate risk"
+            value={`${watchDeal.score}/100`}
+            detail={watchDeal.aiSummary.recommendation}
+            eyebrow="Watch deal"
+            tone="warning"
+            progress={watchDeal.score}
+          />
+          <DashboardStatCard
+            title="Not profitable"
+            value={`${riskyDeal.score}/100`}
+            detail={riskyDeal.aiSummary.recommendation}
+            eyebrow="Bad deal"
+            tone="danger"
+            progress={riskyDeal.score}
+          />
+        </div>
+      </section>
+
+      <section className="surface-panel mt-6 px-6 py-7 sm:px-8">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <span className="eyebrow">Visual system</span>
+            <h2 className="mt-4 font-display text-[2.2rem] leading-none text-ink-900">
+              Premium UI components around the deal workflow
+            </h2>
+          </div>
+          <p className="max-w-xl text-sm leading-6 text-ink-600">
+            The asset library now covers button states, AI summary surfaces, add-investment flows,
+            and dashboard cards instead of generic placeholders.
+          </p>
+        </div>
+
+        <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          {visualSystemAssets.map((asset) => (
+            <div key={asset.title} className="section-card overflow-hidden p-4">
+              <img src={asset.path} alt={asset.title} className="h-40 w-full rounded-[22px] object-cover" />
+              <h3 className="mt-4 text-base font-semibold text-ink-900">{asset.title}</h3>
+              <p className="mt-2 text-sm leading-6 text-ink-600">{asset.detail}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="grid gap-4 xl:grid-cols-[1.08fr_0.92fr]">
+        <div className="surface-panel px-6 py-7 sm:px-8">
+          <span className="eyebrow">Charts</span>
+          <h2 className="mt-4 font-display text-[2.2rem] leading-none text-ink-900">
+            Visualize the economics, not just the inputs
+          </h2>
+          <div className="mt-6 grid gap-4 md:grid-cols-3">
+            {chartAssets.map((asset) => (
+              <div key={asset.title} className="section-card overflow-hidden p-4">
+                <img src={asset.path} alt={asset.title} className="h-40 w-full rounded-[22px] object-cover" />
+                <h3 className="mt-4 text-base font-semibold text-ink-900">{asset.title}</h3>
+                <p className="mt-2 text-sm leading-6 text-ink-600">{asset.detail}</p>
               </div>
             ))}
           </div>
         </div>
 
-        <aside className="marketing-spotlight p-6 reveal-up" style={{ animationDelay: "90ms" }}>
-          <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-ink-400">
-            Built to convert better
-          </p>
-          <h2 className="mt-4 font-display text-[2rem] leading-none text-ink-900">
-            All-in-one platform breadth, with a cleaner buyer experience.
-          </h2>
-
-          <div className="mt-5 grid gap-3">
-            {workflowSequence.map((step, index) => (
-              <div key={step.title} className="marketing-mini-card">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <h3 className="text-base font-semibold text-ink-900">{step.title}</h3>
-                    <p className="mt-2 text-sm leading-6 text-ink-600">{step.detail}</p>
-                  </div>
-                  <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-400">
-                    0{index + 1}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="section-card mt-5 p-5">
-            <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-ink-400">
-              Pricing at a glance
-            </p>
-            <div className="soft-list mt-4">
-              {pricingFacts.slice(0, 2).map((fact) => (
-                <div key={fact.label} className="py-3 first:pt-0 last:pb-0">
-                  <div className="flex items-center justify-between gap-4">
-                    <p className="text-sm font-medium text-ink-900">{fact.label}</p>
-                    <p className="text-sm font-semibold text-verdigris-700">{fact.value}</p>
-                  </div>
-                  <p className="mt-2 text-sm leading-6 text-ink-600">{fact.detail}</p>
-                </div>
-              ))}
+        <div className="grid gap-4">
+          <div className="marketing-spotlight overflow-hidden p-4">
+            <img
+              src={DEAL_ASSET_PATHS.marketing.beforeAfter}
+              alt="Before and after renovation concept"
+              className="w-full rounded-[28px] object-cover"
+            />
+            <div className="px-2 pb-2 pt-4">
+              <p className="text-base font-semibold text-ink-900">Before / after renovation concept</p>
+              <p className="mt-2 text-sm leading-6 text-ink-600">
+                Show the value creation story alongside the underwriting, not in a separate deck.
+              </p>
             </div>
           </div>
-        </aside>
+          <div className="surface-panel overflow-hidden p-4">
+            <img
+              src={DEAL_ASSET_PATHS.marketing.listings}
+              alt="Property listing cards"
+              className="w-full rounded-[28px] object-cover"
+            />
+            <div className="px-2 pb-2 pt-4">
+              <p className="text-base font-semibold text-ink-900">Property listing cards</p>
+              <p className="mt-2 text-sm leading-6 text-ink-600">
+                Good, medium, and bad deals are visibly distinct the moment the page loads.
+              </p>
+            </div>
+          </div>
+        </div>
       </section>
 
       <section className="surface-panel mt-6 px-6 py-7 sm:px-8">
@@ -226,12 +416,11 @@ const Homepage = () => {
           <div>
             <span className="eyebrow">Product previews</span>
             <h2 className="mt-4 font-display text-[2.2rem] leading-none text-ink-900">
-              Show the product like a serious SaaS company
+              See the workspace in action
             </h2>
           </div>
           <p className="max-w-xl text-sm leading-6 text-ink-600">
-            Instead of abstract claims, the homepage now shows what buyers actually want to see:
-            the pipeline, the property workspace, and the billing model in action.
+            Preview the pipeline, property workspace, and billing model in one clear view.
           </p>
         </div>
 
@@ -328,7 +517,7 @@ const Homepage = () => {
             </div>
 
             <div className="mt-4 space-y-3">
-              {["Buy 10-credit top-up", "Open billing portal", "Run tenant screening"].map((item) => (
+              {["Buy 10-credit top-up", "Open billing portal", "Buy 10-credit pack"].map((item) => (
                 <div key={item} className="marketing-window-row">
                   <p className="text-sm font-medium text-ink-700">{item}</p>
                 </div>
@@ -347,8 +536,8 @@ const Homepage = () => {
             </h2>
           </div>
           <p className="max-w-xl text-sm leading-6 text-ink-600">
-            This is the honest trust layer for now: not fake testimonials, but clear signals about
-            who Fliprop is built for and why the platform clicks for them.
+            Fliprop works best for teams that want deal context, execution, and billing in one
+            place.
           </p>
         </div>
 
@@ -386,7 +575,7 @@ const Homepage = () => {
             <div>
               <span className="eyebrow">Fliprop vs Flipper Force</span>
               <h2 className="mt-4 font-display text-[2.2rem] leading-none text-ink-900">
-                Stronger than a feature dump, broader than a flip tracker
+                Clearer than a dense tool stack
               </h2>
             </div>
             <Link
@@ -443,12 +632,11 @@ const Homepage = () => {
           <div>
             <span className="eyebrow">Platform coverage</span>
             <h2 className="mt-4 font-display text-[2.2rem] leading-none text-ink-900">
-              Everything the product already supports, presented with more clarity
+              One workspace across the work that matters
             </h2>
           </div>
           <p className="max-w-xl text-sm leading-6 text-ink-600">
-            Buyers should be able to understand the full surface area quickly: the deal, the work,
-            the asset record, and the pricing model all belong in the same story.
+            Leads, execution, property context, and billing all stay connected in the same system.
           </p>
         </div>
 
@@ -474,12 +662,12 @@ const Homepage = () => {
           <div>
             <span className="eyebrow">Pricing preview</span>
             <h2 className="mt-4 font-display text-[2.2rem] leading-none text-ink-900">
-              Pricing now matches the live billing model
+              Simple plans, flexible premium usage
             </h2>
           </div>
           <p className="max-w-xl text-sm leading-6 text-ink-600">
             Fliprop is easier to adopt because the plan structure is simple: start free, move to Pro
-            when recurring analysis makes sense, and buy premium actions when needed.
+            when recurring analysis makes sense, and add credits when needed.
           </p>
         </div>
 
@@ -531,7 +719,7 @@ const Homepage = () => {
           <div>
             <span className="eyebrow">Editorial</span>
             <h2 className="mt-4 font-display text-[2.2rem] leading-none text-ink-900">
-              Publish the playbooks your buyers are already searching for
+              Practical guides for the work behind every deal
             </h2>
           </div>
           <Link

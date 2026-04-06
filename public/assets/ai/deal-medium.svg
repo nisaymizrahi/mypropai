@@ -1,0 +1,32 @@
+<svg width="960" height="720" viewBox="0 0 960 720" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="960" height="720" rx="44" fill="#FFFBF3"/>
+  <rect x="40" y="40" width="880" height="640" rx="34" fill="url(#bg)"/>
+  <rect x="88" y="90" width="188" height="42" rx="21" fill="#FFF6DD"/>
+  <text x="116" y="117" fill="#B96A00" font-size="20" font-family="Source Sans 3, sans-serif" font-weight="700">Moderate Risk</text>
+  <text x="88" y="184" fill="#FFF9EC" font-size="58" font-family="Fraunces, serif" font-weight="700">$34k projected profit</text>
+  <text x="88" y="228" fill="#FFF0CC" font-size="24" font-family="Source Sans 3, sans-serif">The spread works, but the deal needs tighter pricing and rehab discipline.</text>
+  <rect x="88" y="278" width="336" height="172" rx="28" fill="#FFFDF7" fill-opacity="0.12"/>
+  <text x="118" y="326" fill="#FFF2CF" font-size="18" font-family="Source Sans 3, sans-serif">Deal score</text>
+  <circle cx="188" cy="390" r="60" stroke="#F6D69B" stroke-width="16"/>
+  <path d="M188 330 A60 60 0 1 1 153 439" stroke="#FBBF24" stroke-width="16" stroke-linecap="round"/>
+  <text x="159" y="402" fill="white" font-size="42" font-family="Fraunces, serif" font-weight="700">61</text>
+  <rect x="280" y="344" width="86" height="20" rx="10" fill="#F8C041"/>
+  <rect x="280" y="380" width="76" height="20" rx="10" fill="#FBD976"/>
+  <rect x="280" y="416" width="78" height="20" rx="10" fill="#FDE7A7"/>
+  <text x="280" y="333" fill="#FFF2CF" font-size="15" font-family="Source Sans 3, sans-serif">Pricing cushion</text>
+  <text x="280" y="369" fill="#FFF2CF" font-size="15" font-family="Source Sans 3, sans-serif">Comp support</text>
+  <text x="280" y="405" fill="#FFF2CF" font-size="15" font-family="Source Sans 3, sans-serif">Risk load</text>
+  <rect x="470" y="278" width="402" height="268" rx="28" fill="#FFFDF7" fill-opacity="0.14"/>
+  <text x="504" y="326" fill="#FFF2CF" font-size="18" font-family="Source Sans 3, sans-serif">Watch list</text>
+  <rect x="504" y="356" width="300" height="18" rx="9" fill="#D98B14" fill-opacity="0.65"/>
+  <rect x="504" y="396" width="270" height="18" rx="9" fill="#FBBF24"/>
+  <rect x="504" y="436" width="216" height="18" rx="9" fill="#FDE68A"/>
+  <text x="504" y="620" fill="#FFF2CF" font-size="18" font-family="Source Sans 3, sans-serif">Pricing sensitive • Medium confidence • Scope validation required</text>
+  <defs>
+    <linearGradient id="bg" x1="88" y1="82" x2="854" y2="604" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#8F4E00"/>
+      <stop offset="0.55" stop-color="#D28A13"/>
+      <stop offset="1" stop-color="#FBBF24"/>
+    </linearGradient>
+  </defs>
+</svg>

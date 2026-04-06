@@ -1,0 +1,32 @@
+<svg width="960" height="720" viewBox="0 0 960 720" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="960" height="720" rx="44" fill="#F6FBF8"/>
+  <rect x="40" y="40" width="880" height="640" rx="34" fill="url(#bg)"/>
+  <rect x="88" y="90" width="232" height="42" rx="21" fill="#ECFDF3"/>
+  <text x="118" y="117" fill="#0F9F6E" font-size="20" font-family="Source Sans 3, sans-serif" font-weight="700">Strong Flip Opportunity</text>
+  <text x="88" y="184" fill="#F7FFFB" font-size="58" font-family="Fraunces, serif" font-weight="700">$91k projected profit</text>
+  <text x="88" y="228" fill="#D4FBE6" font-size="24" font-family="Source Sans 3, sans-serif">Healthy spread, high comp support, and room for contingency.</text>
+  <rect x="88" y="278" width="336" height="172" rx="28" fill="#F8FFFB" fill-opacity="0.12"/>
+  <text x="118" y="326" fill="#D7FFF0" font-size="18" font-family="Source Sans 3, sans-serif">Deal score</text>
+  <circle cx="188" cy="390" r="60" stroke="#B6F2D5" stroke-width="16"/>
+  <path d="M188 330 A60 60 0 1 1 138 423" stroke="#7AF0B6" stroke-width="16" stroke-linecap="round"/>
+  <text x="160" y="402" fill="white" font-size="42" font-family="Fraunces, serif" font-weight="700">86</text>
+  <rect x="280" y="344" width="104" height="20" rx="10" fill="#7AF0B6"/>
+  <rect x="280" y="380" width="82" height="20" rx="10" fill="#B6F2D5"/>
+  <rect x="280" y="416" width="62" height="20" rx="10" fill="#DFFBEA"/>
+  <text x="280" y="333" fill="#C9FAE1" font-size="15" font-family="Source Sans 3, sans-serif">Profitability</text>
+  <text x="280" y="369" fill="#C9FAE1" font-size="15" font-family="Source Sans 3, sans-serif">Comp support</text>
+  <text x="280" y="405" fill="#C9FAE1" font-size="15" font-family="Source Sans 3, sans-serif">Risk load</text>
+  <rect x="470" y="278" width="402" height="268" rx="28" fill="#F8FFFB" fill-opacity="0.14"/>
+  <text x="504" y="326" fill="#D7FFF0" font-size="18" font-family="Source Sans 3, sans-serif">Investor view</text>
+  <rect x="504" y="356" width="334" height="18" rx="9" fill="#1D7D59" fill-opacity="0.65"/>
+  <rect x="504" y="396" width="284" height="18" rx="9" fill="#34D399"/>
+  <rect x="504" y="436" width="246" height="18" rx="9" fill="#9AE6B4"/>
+  <text x="504" y="620" fill="#D7FFF0" font-size="18" font-family="Source Sans 3, sans-serif">Low risk • High confidence • Clean buy box</text>
+  <defs>
+    <linearGradient id="bg" x1="88" y1="82" x2="854" y2="604" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0B5F42"/>
+      <stop offset="0.55" stop-color="#0E8A5D"/>
+      <stop offset="1" stop-color="#10B981"/>
+    </linearGradient>
+  </defs>
+</svg>

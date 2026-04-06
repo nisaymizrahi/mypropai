@@ -1,0 +1,21 @@
+<svg width="900" height="600" viewBox="0 0 900 600" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="900" height="600" rx="36" fill="#F7FAF8"/>
+  <rect x="52" y="56" width="796" height="488" rx="32" fill="#102320"/>
+  <text x="94" y="118" fill="#DBFFF0" font-size="24" font-family="Source Sans 3, sans-serif" font-weight="700">Profit meter</text>
+  <text x="94" y="176" fill="white" font-size="60" font-family="Fraunces, serif" font-weight="700">$91,400 upside</text>
+  <path d="M158 408 A240 240 0 0 1 742 408" stroke="#274740" stroke-width="30" stroke-linecap="round"/>
+  <path d="M158 408 A240 240 0 0 1 654 274" stroke="url(#meter)" stroke-width="30" stroke-linecap="round"/>
+  <circle cx="654" cy="274" r="24" fill="#99F6E4" stroke="#F4FFFB" stroke-width="10"/>
+  <text x="136" y="462" fill="#9ED4C0" font-size="18" font-family="Source Sans 3, sans-serif">Loss</text>
+  <text x="396" y="518" fill="#9ED4C0" font-size="18" font-family="Source Sans 3, sans-serif">Break-even</text>
+  <text x="690" y="462" fill="#9ED4C0" font-size="18" font-family="Source Sans 3, sans-serif">Strong</text>
+  <rect x="94" y="232" width="182" height="72" rx="24" fill="#18332D"/>
+  <text x="120" y="275" fill="#D7FFF0" font-size="26" font-family="Source Sans 3, sans-serif">ROI 22.8%</text>
+  <defs>
+    <linearGradient id="meter" x1="158" y1="408" x2="742" y2="408" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#EF4444"/>
+      <stop offset="0.45" stop-color="#FBBF24"/>
+      <stop offset="1" stop-color="#10B981"/>
+    </linearGradient>
+  </defs>
+</svg>

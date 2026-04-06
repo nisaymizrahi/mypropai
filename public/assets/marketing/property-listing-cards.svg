@@ -1,0 +1,21 @@
+<svg width="1080" height="720" viewBox="0 0 1080 720" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1080" height="720" rx="40" fill="#F8F4EE"/>
+  <rect x="64" y="88" width="284" height="544" rx="32" fill="#FFFFFF" stroke="#E7DDD2" stroke-width="4"/>
+  <rect x="398" y="88" width="284" height="544" rx="32" fill="#FFFFFF" stroke="#E7DDD2" stroke-width="4"/>
+  <rect x="732" y="88" width="284" height="544" rx="32" fill="#FFFFFF" stroke="#E7DDD2" stroke-width="4"/>
+  <rect x="92" y="116" width="228" height="172" rx="24" fill="#B9E5D1"/>
+  <rect x="426" y="116" width="228" height="172" rx="24" fill="#F3DCA8"/>
+  <rect x="760" y="116" width="228" height="172" rx="24" fill="#F4BEC7"/>
+  <text x="92" y="342" fill="#17120E" font-size="24" font-family="Fraunces, serif" font-weight="700">Good deal</text>
+  <text x="426" y="342" fill="#17120E" font-size="24" font-family="Fraunces, serif" font-weight="700">Watchlist</text>
+  <text x="760" y="342" fill="#17120E" font-size="24" font-family="Fraunces, serif" font-weight="700">At risk</text>
+  <text x="92" y="390" fill="#6B625A" font-size="20" font-family="Source Sans 3, sans-serif">$91k profit • 22.8% ROI</text>
+  <text x="426" y="390" fill="#6B625A" font-size="20" font-family="Source Sans 3, sans-serif">$34k profit • 11.6% ROI</text>
+  <text x="760" y="390" fill="#6B625A" font-size="20" font-family="Source Sans 3, sans-serif">- $12k spread • High risk</text>
+  <rect x="92" y="446" width="132" height="42" rx="21" fill="#EEFDF4"/>
+  <rect x="426" y="446" width="144" height="42" rx="21" fill="#FFF6DD"/>
+  <rect x="760" y="446" width="142" height="42" rx="21" fill="#FFE8EA"/>
+  <text x="116" y="473" fill="#0F9F6E" font-size="18" font-family="Source Sans 3, sans-serif" font-weight="700">Score 86</text>
+  <text x="456" y="473" fill="#B96A00" font-size="18" font-family="Source Sans 3, sans-serif" font-weight="700">Score 61</text>
+  <text x="790" y="473" fill="#C62E43" font-size="18" font-family="Source Sans 3, sans-serif" font-weight="700">Score 34</text>
+</svg>

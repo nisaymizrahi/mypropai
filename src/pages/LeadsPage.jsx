@@ -1,11 +1,28 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { PlusIcon, Squares2X2Icon, TableCellsIcon } from '@heroicons/react/24/outline';
+import {
+  ArrowTrendingUpIcon,
+  BanknotesIcon,
+  ExclamationTriangleIcon,
+  MagnifyingGlassIcon,
+  PlusIcon,
+  QueueListIcon,
+  SparklesIcon,
+  Squares2X2Icon,
+} from '@heroicons/react/24/outline';
 import { DragDropContext, Draggable, Droppable } from '@hello-pangea/dnd';
 import toast from 'react-hot-toast';
 
-import WorkspaceDataTable from '../components/WorkspaceDataTable';
-import { getLeadSummary, getLeads, updateLead } from '../utils/api';
+import AISummaryCard from '../components/AISummaryCard';
+import DashboardStatCard from '../components/DashboardStatCard';
+import DealCard from '../components/DealCard';
+import DealScoreCard from '../components/DealScoreCard';
+import { getLeads, updateLead } from '../utils/api';
+import {
+  formatDealCompactCurrency,
+  formatDealPercent,
+  summarizeLeadPortfolio,
+} from '../utils/dealIntelligence';
 
 const columnOrder = ['Potential', 'Analyzing', 'Offer Made', 'Under Contract', 'Closed - Won', 'Closed - Lost'];
 
@@ -19,8 +36,8 @@ const statusStyles = {
 };
 
 const leadViewModes = [
-  { value: 'list', label: 'List view', icon: TableCellsIcon },
-  { value: 'board', label: 'Board view', icon: Squares2X2Icon },
+  { value: 'grid', label: 'Deal grid', icon: Squares2X2Icon },
+  { value: 'board', label: 'Pipeline board', icon: QueueListIcon },
 ];
 
 const buildLeadColumns = (leadsData = []) => {
@@ -82,13 +99,6 @@ const buildLeadSearchText = (lead) =>
     .join(' ')
     .toLowerCase();
 
-const StatCard = ({ title, value }) => (
-  <div className="metric-tile p-4">
-    <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-ink-400">{title}</p>
-    <p className="mt-3 text-lg font-medium text-ink-900">{value}</p>
-  </div>
-);
-
 const LeadCard = ({ lead, onClick, dragHandleProps }) => (
   <div
     {...dragHandleProps}
@@ -136,11 +146,10 @@ const LeadCard = ({ lead, onClick, dragHandleProps }) => (
 const LeadsPage = () => {
   const navigate = useNavigate();
   const [columns, setColumns] = useState(() => buildLeadColumns());
-  const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
   const [searchValue, setSearchValue] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [viewMode, setViewMode] = useState('board');
+  const [viewMode, setViewMode] = useState('grid');
   const [isUpdatingLeadId, setIsUpdatingLeadId] = useState('');
 
   const openUnifiedLeadCreator = () => {
@@ -150,8 +159,7 @@ const LeadsPage = () => {
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
-      const [leadsData, summaryData] = await Promise.all([getLeads(), getLeadSummary()]);
-      setSummary(summaryData);
+      const leadsData = await getLeads();
       setColumns(buildLeadColumns(leadsData));
     } catch (error) {
       console.error('Failed to fetch leads data', error);
@@ -195,15 +203,6 @@ const LeadsPage = () => {
     return nextColumns;
   }, []);
 
-  const refreshSummary = useCallback(async () => {
-    try {
-      const summaryData = await getLeadSummary();
-      setSummary(summaryData);
-    } catch (error) {
-      console.error('Failed to refresh lead summary', error);
-    }
-  }, []);
-
   const allLeads = useMemo(
     () => columnOrder.flatMap((columnId) => columns[columnId]?.leads || []),
     [columns]
@@ -223,7 +222,6 @@ const LeadsPage = () => {
 
       try {
         await updateLead(leadId, { status: nextStatus });
-        await refreshSummary();
         toast.success(`Lead moved to ${nextStatus}.`);
       } catch (error) {
         console.error('Failed to update lead status', error);
@@ -233,7 +231,7 @@ const LeadsPage = () => {
         setIsUpdatingLeadId('');
       }
     },
-    [allLeads, columns, moveLeadInColumns, refreshSummary]
+    [allLeads, columns, moveLeadInColumns]
   );
 
   const handleOnDragEnd = async (result) => {
@@ -270,7 +268,6 @@ const LeadsPage = () => {
         await updateLead(draggableId, { status: destination.droppableId });
         toast.success(`Lead moved to ${destination.droppableId}.`);
       }
-      await refreshSummary();
     } catch (error) {
       console.error('Failed to update lead status', error);
       toast.error('Failed to update lead status.');
@@ -308,114 +305,37 @@ const LeadsPage = () => {
     [allLeads.length, columns]
   );
 
-  const leadColumns = useMemo(
-    () => [
-      {
-        id: 'lead',
-        label: 'Lead',
-        sortValue: (lead) => lead.address || '',
-        render: (lead) => (
-          <div>
-            <button
-              type="button"
-              onClick={() => navigate(`/leads/${lead._id}`)}
-              className="font-semibold text-ink-900 transition hover:text-verdigris-700"
-            >
-              {lead.address || 'Untitled lead'}
-            </button>
-            <p className="mt-1 text-sm text-ink-500">
-              {[lead.propertyType, lead.squareFootage ? `${lead.squareFootage} sqft` : null]
-                .filter(Boolean)
-                .join(' • ') || 'Property details pending'}
-            </p>
-          </div>
-        ),
-      },
-      {
-        id: 'status',
-        label: 'Status',
-        sortValue: (lead) => lead.status || '',
-        render: (lead) => (
-          <div className="flex items-center justify-between gap-3">
-            <span
-              className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${statusStyles[lead.status] || 'bg-sand-100 text-ink-700'}`}
-            >
-              {lead.status || 'Potential'}
-            </span>
-            <select
-              value={lead.status || 'Potential'}
-              onChange={(event) => handleLeadStatusChange(lead._id, event.target.value)}
-              disabled={isUpdatingLeadId === lead._id}
-              className="rounded-full border border-ink-100 bg-white px-3 py-1.5 text-xs font-semibold text-ink-700 outline-none transition focus:border-ink-300"
-            >
-              {columnOrder.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </select>
-          </div>
-        ),
-      },
-      {
-        id: 'seller',
-        label: 'Seller',
-        sortValue: (lead) => lead.sellerName || lead.sellerEmail || lead.sellerPhone || '',
-        render: (lead) => (
-          <div>
-            <p className="font-medium text-ink-800">{lead.sellerName || 'Seller contact pending'}</p>
-            <p className="mt-1 text-sm text-ink-500">
-              {[lead.sellerPhone, lead.sellerEmail].filter(Boolean).join(' • ') || 'Phone or email not added'}
-            </p>
-          </div>
-        ),
-      },
-      {
-        id: 'opportunity',
-        label: 'Opportunity',
-        sortValue: (lead) => Number(lead.sellerAskingPrice || lead.targetOffer || lead.arv || 0),
-        render: (lead) => (
-          <div>
-            <p className="font-medium text-ink-800">Ask {formatCurrency(lead.sellerAskingPrice)}</p>
-            <p className="mt-1 text-sm text-ink-500">
-              {[
-                lead.targetOffer ? `Target ${formatCurrency(lead.targetOffer)}` : null,
-                lead.arv ? `ARV ${formatCurrency(lead.arv)}` : null,
-              ]
-                .filter(Boolean)
-                .join(' • ') || 'Deal plan still forming'}
-            </p>
-          </div>
-        ),
-      },
-      {
-        id: 'followup',
-        label: 'Follow-up',
-        sortValue: (lead) =>
-          lead.followUpDate ? new Date(lead.followUpDate).getTime() : Number.MAX_SAFE_INTEGER,
-        render: (lead) => (
-          <div>
-            <p className="font-medium text-ink-800">{lead.nextAction || 'No next action yet'}</p>
-            <p className="mt-1 text-sm text-ink-500">{formatFollowUpDate(lead.followUpDate)}</p>
-          </div>
-        ),
-      },
-      {
-        id: 'actions',
-        label: 'Open',
-        align: 'right',
-        render: (lead) => (
-          <button
-            type="button"
-            onClick={() => navigate(`/leads/${lead._id}`)}
-            className="inline-flex items-center rounded-full bg-ink-900 px-3.5 py-2 text-xs font-semibold text-white transition hover:bg-ink-800"
-          >
-            Open lead
-          </button>
-        ),
-      },
-    ],
-    [handleLeadStatusChange, isUpdatingLeadId, navigate]
+  const portfolioSummary = useMemo(() => summarizeLeadPortfolio(allLeads), [allLeads]);
+
+  const visibleAnalyses = useMemo(
+    () =>
+      visibleLeads
+        .map((lead) => {
+          const analysis = portfolioSummary.analyses.find((item) => item.id === lead._id);
+          return { lead, analysis };
+        })
+        .filter((entry) => entry.analysis)
+        .sort((left, right) => right.analysis.score - left.analysis.score),
+    [portfolioSummary.analyses, visibleLeads]
+  );
+
+  const featuredAnalysis = visibleAnalyses[0]?.analysis || portfolioSummary.featured;
+
+  const visibleLeadIdSet = useMemo(
+    () => new Set(visibleLeads.map((lead) => lead._id)),
+    [visibleLeads]
+  );
+
+  const filteredBoardColumns = useMemo(
+    () =>
+      columnOrder.reduce((accumulator, columnId) => {
+        accumulator[columnId] = {
+          ...columns[columnId],
+          leads: (columns[columnId]?.leads || []).filter((lead) => visibleLeadIdSet.has(lead._id)),
+        };
+        return accumulator;
+      }, {}),
+    [columns, visibleLeadIdSet]
   );
 
   if (loading) {
@@ -429,14 +349,15 @@ const LeadsPage = () => {
   return (
     <div className="space-y-4">
       <section className="surface-panel px-6 py-6">
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_420px]">
           <div>
             <span className="eyebrow">Lead pipeline</span>
             <h2 className="mt-4 font-display text-[2.4rem] leading-[0.96] text-ink-900">
-              Keep potential properties organized with less noise.
+              Turn every lead into an instant go or no-go decision.
             </h2>
             <p className="mt-4 max-w-2xl text-sm leading-7 text-ink-500 sm:text-base">
-              Review opportunities, drag them through the pipeline, or change stages directly from the lead without a bulky workflow getting in the way.
+              Fliprop now surfaces profit, ROI, risk, and AI judgment at a glance so your team can
+              scan the pipeline like a premium acquisitions desk instead of a spreadsheet backlog.
             </p>
 
             <div className="mt-6 flex flex-wrap gap-3">
@@ -446,56 +367,90 @@ const LeadsPage = () => {
               </button>
               <button
                 type="button"
-                onClick={() => setViewMode((current) => (current === 'list' ? 'board' : 'list'))}
+                onClick={() => navigate('/market-search')}
                 className="secondary-action"
               >
-                {viewMode === 'list' ? 'Open drag board' : 'Open list view'}
+                <MagnifyingGlassIcon className="mr-2 h-4 w-4" />
+                Browse market
               </button>
             </div>
           </div>
 
-          <div className="section-card p-5">
-            <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-ink-400">
-              Snapshot
-            </p>
-            <div className="mt-4 space-y-2.5">
-              <div className="flex items-center justify-between rounded-[14px] bg-white px-4 py-3 ring-1 ring-ink-100">
-                <span className="text-sm font-medium text-ink-600">Total active leads</span>
-                <span className="text-sm font-semibold text-ink-900">{summary?.totalLeads || 0}</span>
-              </div>
-              <div className="flex items-center justify-between rounded-[14px] bg-sand-50 px-4 py-3">
-                <span className="text-sm font-medium text-ink-600">Analyzing</span>
-                <span className="text-sm font-semibold text-ink-900">{summary?.analyzingCount || 0}</span>
-              </div>
-              <div className="flex items-center justify-between rounded-[14px] bg-clay-50 px-4 py-3">
-                <span className="text-sm font-medium text-ink-600">Under contract</span>
-                <span className="text-sm font-semibold text-ink-900">{summary?.underContractCount || 0}</span>
-              </div>
-              <div className="flex items-center justify-between rounded-[14px] bg-verdigris-50 px-4 py-3">
-                <span className="text-sm font-medium text-ink-600">Closing ratio</span>
-                <span className="text-sm font-semibold text-ink-900">
-                  {summary ? `${summary.closingRatio.toFixed(1)}%` : '0.0%'}
-                </span>
-              </div>
+          {featuredAnalysis ? (
+            <div className="grid gap-4">
+              <DealScoreCard
+                score={featuredAnalysis.score}
+                verdict={featuredAnalysis.verdict}
+                title="Best live signal"
+                label={featuredAnalysis.address}
+                detail={`${featuredAnalysis.tone.label} with ${formatDealPercent(
+                  featuredAnalysis.roi
+                )} ROI and ${formatDealCompactCurrency(featuredAnalysis.profit)} upside.`}
+                assetPath={featuredAnalysis.assetPaths.score}
+                compact
+              />
+              <AISummaryCard
+                verdict={featuredAnalysis.verdict}
+                headline={featuredAnalysis.aiSummary.headline}
+                detail={featuredAnalysis.aiSummary.detail}
+                recommendation={featuredAnalysis.aiSummary.recommendation}
+                confidenceLabel={featuredAnalysis.aiSummary.confidenceLabel}
+                bullets={featuredAnalysis.aiSummary.bullets}
+                assetPath={featuredAnalysis.assetPaths.verdict}
+                compact
+              />
             </div>
-          </div>
+          ) : (
+            <div className="section-card p-5">
+              <p className="text-sm text-ink-500">Add a few deals to unlock the live AI summary view.</p>
+            </div>
+          )}
         </div>
       </section>
 
-      {summary ? (
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-          <StatCard title="Total Active Leads" value={summary.totalLeads} />
-          <StatCard title="Analyzing" value={summary.analyzingCount} />
-          <StatCard title="Under Contract" value={summary.underContractCount} />
-          <StatCard title="Closing Ratio" value={`${summary.closingRatio.toFixed(1)}%`} />
-        </div>
-      ) : null}
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <DashboardStatCard
+          title="Average deal score"
+          value={`${Math.round(portfolioSummary.averageScore || 0)}/100`}
+          detail="A blended signal across spread, comp support, and underwriting risk."
+          eyebrow="Signal"
+          icon={SparklesIcon}
+          tone="success"
+          progress={portfolioSummary.averageScore || 0}
+        />
+        <DashboardStatCard
+          title="Modeled ROI"
+          value={formatDealPercent(portfolioSummary.averageROI || 0)}
+          detail="Average projected return across the active lead set."
+          eyebrow="Returns"
+          icon={ArrowTrendingUpIcon}
+          tone="neutral"
+          progress={Math.min(Math.max(portfolioSummary.averageROI || 0, 0), 100)}
+        />
+        <DashboardStatCard
+          title="Profit pool"
+          value={formatDealCompactCurrency(portfolioSummary.profitPool || 0)}
+          detail="Total modeled upside across the pipeline under current assumptions."
+          eyebrow="Upside"
+          icon={BanknotesIcon}
+          tone="success"
+        />
+        <DashboardStatCard
+          title="Deals at risk"
+          value={portfolioSummary.riskCounts.high || 0}
+          detail="High-risk opportunities that need repricing, scope cuts, or a pause."
+          eyebrow="Risk"
+          icon={ExclamationTriangleIcon}
+          tone={portfolioSummary.riskCounts.high ? 'danger' : 'neutral'}
+        />
+      </div>
 
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <h3 className="font-display text-[2rem] leading-none text-ink-900">Potential properties</h3>
           <p className="mt-2 text-sm leading-6 text-ink-500">
-            Board view is best for dragging deals between stages. List view also lets you change the stage directly from the status column.
+            Deal grid is tuned for scan speed. Pipeline board is still available when the team needs
+            drag-and-drop stage management.
           </p>
         </div>
 
@@ -521,56 +476,75 @@ const LeadsPage = () => {
         </div>
       </div>
 
-      {viewMode === 'list' ? (
-        <WorkspaceDataTable
-          title="Leads"
-          description="Search by address or seller, sort by status or follow-up date, and open the right deal without scanning large cards."
-          columns={leadColumns}
-          rows={visibleLeads}
-          rowKey={(lead) => lead._id}
-          defaultSort={{ columnId: 'followup', direction: 'asc' }}
-          searchValue={searchValue}
-          onSearchValueChange={setSearchValue}
-          searchPlaceholder="Search address, seller, source, status, or next action"
-          toolbarContent={
-            <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-              <div className="flex flex-wrap gap-2">
-                {statusFilters.map((filterOption) => (
-                  <button
-                    key={filterOption.value}
-                    type="button"
-                    onClick={() => setStatusFilter(filterOption.value)}
-                    className={`rounded-full px-4 py-2 text-sm font-medium transition ${
-                      statusFilter === filterOption.value
-                        ? 'bg-ink-900 text-white'
-                        : 'bg-white text-ink-600 hover:bg-sand-50'
-                    }`}
-                  >
-                    {filterOption.label} ({filterOption.count})
-                  </button>
-                ))}
-              </div>
+      <section className="section-card p-5 sm:p-6">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+          <div className="relative w-full xl:max-w-md">
+            <MagnifyingGlassIcon className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-400" />
+            <input
+              type="search"
+              value={searchValue}
+              onChange={(event) => setSearchValue(event.target.value)}
+              placeholder="Search address, seller, source, status, or next action"
+              className="w-full rounded-full border border-ink-100 bg-white py-3 pl-11 pr-4 text-sm text-ink-900 outline-none transition focus:border-verdigris-300 focus:ring-4 focus:ring-verdigris-100/60"
+            />
+          </div>
+          <div className="rounded-full border border-ink-100 bg-white px-4 py-2 text-sm font-medium text-ink-600">
+            Showing {visibleAnalyses.length} of {allLeads.length}
+          </div>
+        </div>
 
-              <div className="rounded-full border border-ink-100 bg-white px-4 py-2 text-sm font-medium text-ink-600">
-                Showing {visibleLeads.length} of {allLeads.length}
-              </div>
-            </div>
-          }
-          emptyTitle={allLeads.length === 0 ? 'No leads yet' : 'No leads match this view'}
-          emptyDescription={
-            allLeads.length === 0
-              ? 'Add your first property to start building the pipeline.'
-              : 'Try a different search term or status filter to surface the right opportunities.'
-          }
-          emptyActions={
-            allLeads.length === 0 ? (
+        <div className="mt-4 flex flex-wrap gap-2">
+          {statusFilters.map((filterOption) => (
+            <button
+              key={filterOption.value}
+              type="button"
+              onClick={() => setStatusFilter(filterOption.value)}
+              className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+                statusFilter === filterOption.value
+                  ? 'bg-ink-900 text-white'
+                  : 'bg-white text-ink-600 hover:bg-sand-50'
+              }`}
+            >
+              {filterOption.label} ({filterOption.count})
+            </button>
+          ))}
+        </div>
+      </section>
+
+      {viewMode === 'grid' ? (
+        visibleAnalyses.length > 0 ? (
+          <div className="grid gap-5 xl:grid-cols-2">
+            {visibleAnalyses.map(({ lead, analysis }) => (
+              <DealCard
+                key={lead._id}
+                lead={lead}
+                analysis={analysis}
+                onOpen={() => navigate(`/leads/${lead._id}`)}
+                onRunComps={() => navigate(`/leads/${lead._id}`)}
+                onStatusChange={handleLeadStatusChange}
+                statusOptions={columnOrder}
+                isUpdating={isUpdatingLeadId === lead._id}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="section-card px-6 py-12 text-center">
+            <p className="text-lg font-semibold text-ink-900">
+              {allLeads.length === 0 ? 'No leads in the pipeline yet' : 'No leads match this view'}
+            </p>
+            <p className="mt-2 text-sm leading-6 text-ink-500">
+              {allLeads.length === 0
+                ? 'Add your first property to unlock AI deal scoring, risk flags, and premium scanning cards.'
+                : 'Try a different search or stage filter to bring the right opportunities back into view.'}
+            </p>
+            <div className="mt-5 flex justify-center">
               <button type="button" onClick={openUnifiedLeadCreator} className="primary-action">
                 <PlusIcon className="h-4 w-4" />
                 Add first property
               </button>
-            ) : null
-          }
-        />
+            </div>
+          </div>
+        )
       ) : (
         <div className="section-card p-5 sm:p-6">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
@@ -581,15 +555,15 @@ const LeadsPage = () => {
               </p>
             </div>
             <div className="rounded-full border border-ink-100 bg-white px-4 py-2 text-sm font-medium text-ink-600">
-              {allLeads.length} active lead{allLeads.length === 1 ? '' : 's'}
+              {visibleLeads.length} visible lead{visibleLeads.length === 1 ? '' : 's'}
             </div>
           </div>
 
-          {allLeads.length > 0 ? (
+          {visibleLeads.length > 0 ? (
             <DragDropContext onDragEnd={handleOnDragEnd}>
               <div className="mt-6 flex gap-4 overflow-x-auto pb-2">
                 {columnOrder.map((columnId) => {
-                  const column = columns[columnId];
+                  const column = filteredBoardColumns[columnId];
                   return (
                     <Droppable key={column.id} droppableId={column.id}>
                       {(provided) => (
@@ -653,9 +627,13 @@ const LeadsPage = () => {
             </DragDropContext>
           ) : (
             <div className="mt-6 rounded-[16px] border border-dashed border-ink-200 bg-sand-50 px-6 py-12 text-center">
-              <p className="text-lg font-semibold text-ink-900">No leads in the pipeline yet</p>
+              <p className="text-lg font-semibold text-ink-900">
+                {allLeads.length === 0 ? 'No leads in the pipeline yet' : 'No leads match this board view'}
+              </p>
               <p className="mt-2 text-sm leading-6 text-ink-500">
-                Add your first property to start tracking pricing, notes, and deal progress in one place.
+                {allLeads.length === 0
+                  ? 'Add your first property to start tracking pricing, notes, and deal progress in one place.'
+                  : 'Try a different search term or stage filter to bring deals back into the board.'}
               </p>
               <div className="mt-5 flex justify-center">
                 <button type="button" onClick={openUnifiedLeadCreator} className="primary-action">

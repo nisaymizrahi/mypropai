@@ -1,16 +1,30 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
+  ArrowTrendingUpIcon,
   BuildingOffice2Icon,
   ClockIcon,
   CurrencyDollarIcon,
+  ExclamationTriangleIcon,
   HomeModernIcon,
   RectangleStackIcon,
   SparklesIcon,
 } from "@heroicons/react/24/outline";
 
+import AISummaryCard from "../components/AISummaryCard";
+import DashboardStatCard from "../components/DashboardStatCard";
+import DealScoreCard from "../components/DealScoreCard";
+import ProfitSnapshot from "../components/ProfitSnapshot";
+import RiskIndicator from "../components/RiskIndicator";
 import { useAuth } from "../context/AuthContext";
-import { getDashboardSummary } from "../utils/api";
+import { getDashboardSummary, getLeads } from "../utils/api";
+import {
+  DEAL_ASSET_PATHS,
+  formatDealCompactCurrency,
+  formatDealPercent,
+  marketingDealShowcase,
+  summarizeLeadPortfolio,
+} from "../utils/dealIntelligence";
 
 const currencyFormatter = new Intl.NumberFormat("en-US", {
   style: "currency",
@@ -24,38 +38,10 @@ const LoadingSpinner = () => (
   </div>
 );
 
-const MetricCard = ({ title, value, detail, accent = "verdigris", icon: Icon, linkTo }) => {
-  const accentClasses = {
-    verdigris: "bg-verdigris-50 text-verdigris-700",
-    clay: "bg-clay-50 text-clay-700",
-    sand: "bg-sand-100 text-sand-700",
-    ink: "bg-ink-100 text-ink-700",
-  };
-
-  return (
-    <Link
-      to={linkTo}
-      className="metric-tile block p-4 sm:p-5 transition hover:-translate-y-0.5 hover:shadow-soft"
-    >
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-400">
-            {title}
-          </p>
-          <p className="mt-3 text-[1.8rem] font-semibold text-ink-900 sm:text-[2rem]">{value}</p>
-          <p className="mt-2 text-sm leading-5 text-ink-500">{detail}</p>
-        </div>
-        <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${accentClasses[accent]}`}>
-          <Icon className="h-6 w-6" />
-        </div>
-      </div>
-    </Link>
-  );
-};
-
 const DashboardPage = () => {
   const { user } = useAuth();
   const [summary, setSummary] = useState(null);
+  const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -63,8 +49,20 @@ const DashboardPage = () => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const summaryData = await getDashboardSummary();
-        setSummary(summaryData);
+        const [summaryResult, leadsResult] = await Promise.allSettled([
+          getDashboardSummary(),
+          getLeads(),
+        ]);
+
+        if (summaryResult.status === "fulfilled") {
+          setSummary(summaryResult.value);
+        } else {
+          throw summaryResult.reason;
+        }
+
+        if (leadsResult.status === "fulfilled") {
+          setLeads(Array.isArray(leadsResult.value) ? leadsResult.value : []);
+        }
       } catch (err) {
         setError(err.message || "Could not load dashboard data.");
       } finally {
@@ -90,6 +88,13 @@ const DashboardPage = () => {
       </div>
     );
   }
+
+  const showcasePortfolio = summarizeLeadPortfolio(
+    marketingDealShowcase.map((analysis) => analysis.lead)
+  );
+  const livePortfolio = summarizeLeadPortfolio(leads);
+  const portfolioSignals = livePortfolio.count ? livePortfolio : showcasePortfolio;
+  const featuredDeal = portfolioSignals.featured;
 
   const { kpis = {}, recentActivity = {}, actionItems = {}, propertyHub = {} } = summary;
   const tasks = actionItems.tasks || [];
@@ -119,42 +124,25 @@ const DashboardPage = () => {
   return (
     <div className="space-y-5">
       <section className="surface-panel-strong relative overflow-hidden px-5 py-6 sm:px-7">
-        <div className="absolute inset-y-0 right-0 hidden w-1/3 bg-[radial-gradient(circle_at_center,rgba(59,143,129,0.18),transparent_62%)] lg:block" />
-        <div className="relative grid gap-8 lg:grid-cols-[minmax(0,1.15fr)_minmax(300px,0.85fr)]">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(59,143,129,0.16),transparent_28%),radial-gradient(circle_at_bottom_right,rgba(56,189,248,0.12),transparent_32%)]" />
+        <div className="relative grid gap-8 xl:grid-cols-[minmax(0,1.06fr)_420px]">
           <div>
-            <span className="eyebrow">Executive snapshot</span>
+            <span className="eyebrow">Executive AI snapshot</span>
             <h2 className="page-hero-title">
               Good afternoon{user?.name ? `, ${user.name.split(" ")[0]}` : ""}.
             </h2>
             <p className="page-hero-copy">
-              You currently have{" "}
+              Your workspace spans{" "}
+              <span className="font-semibold text-ink-900">{totalProperties}</span> property
+              record{totalProperties === 1 ? "" : "s"} and{" "}
+              <span className="font-semibold text-ink-900">{portfolioSignals.count}</span>{" "}
+              modeled deal{portfolioSignals.count === 1 ? "" : "s"} worth reviewing.{" "}
               <span className="font-semibold text-ink-900">
-                {totalProperties}
+                {workspaceCoverageRate.toFixed(0)}%
               </span>{" "}
-              property record{totalProperties === 1 ? "" : "s"} spanning{" "}
-              <span className="font-semibold text-ink-900">
-                {workspaceCounts.pipeline}
-              </span>{" "}
-              pipeline,{" "}
-              <span className="font-semibold text-ink-900">{acquisitionWorkspaces}</span>{" "}
-              project management, and{" "}
-              <span className="font-semibold text-ink-900">
-                {workspaceCounts.management}
-              </span>{" "}
-              management workspace{workspaceCounts.management === 1 ? "" : "s"}.{" "}
-              {standaloneProperties > 0 ? (
-                <>
-                  <span className="font-semibold text-ink-900">{standaloneProperties}</span>{" "}
-                  still need placement into an active workflow.
-                </>
-              ) : (
-                <>
-                  <span className="font-semibold text-ink-900">
-                    {workspaceCoverageRate.toFixed(0)}%
-                  </span>{" "}
-                  of the portfolio is already placed into a working operating context.
-                </>
-              )}
+              of the portfolio is already placed into an active workflow, while{" "}
+              <span className="font-semibold text-ink-900">{standaloneProperties}</span> still need
+              placement.
             </p>
 
             <div className="mt-8 grid gap-4 sm:grid-cols-3">
@@ -168,10 +156,10 @@ const DashboardPage = () => {
               </div>
               <div className="rounded-[20px] border border-ink-100 bg-white px-4 py-4">
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-400">
-                  Needs placement
+                  Average deal score
                 </p>
                 <p className="mt-3 text-[1.85rem] font-semibold text-ink-900">
-                  {standaloneProperties}
+                  {Math.round(portfolioSignals.averageScore || 0)}/100
                 </p>
               </div>
               <div className="rounded-[20px] border border-ink-100 bg-sand-50 px-4 py-4">
@@ -183,102 +171,98 @@ const DashboardPage = () => {
             </div>
           </div>
 
-          <div className="section-card p-5">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-400">
-                  Workspace coverage
-                </p>
-                <h3 className="mt-2 text-xl font-semibold text-ink-900">
-                  Property placement
-                </h3>
-              </div>
-              <div className="rounded-full bg-verdigris-50 px-4 py-2 text-sm font-semibold text-verdigris-700">
-                {workspaceCoverageRate.toFixed(0)}% placed
-              </div>
-            </div>
-
-            <div className="mt-6">
-              <div className="h-3 w-full overflow-hidden rounded-full bg-sand-100">
-                <div
-                  className="h-full rounded-full bg-[linear-gradient(90deg,#1f6f63_0%,#3b8f81_100%)]"
-                  style={{ width: `${Math.max(workspaceCoverageRate, totalProperties > 0 ? 6 : 0)}%` }}
-                />
-              </div>
-              <div className="mt-3 flex items-center justify-between text-sm text-ink-500">
-                <span>Properties in a workspace</span>
-                <span>{propertiesWithWorkspace}</span>
-              </div>
-            </div>
-
-            <div className="mt-6 space-y-3">
-              <div className="flex items-center justify-between rounded-[18px] bg-sand-50 px-4 py-3">
-                <span className="text-sm font-medium text-ink-600">Pipeline</span>
-                <span className="text-sm font-semibold text-ink-900">
-                  {workspaceCounts.pipeline}
-                </span>
-              </div>
-              <div className="flex items-center justify-between rounded-[18px] bg-white px-4 py-3 ring-1 ring-ink-100">
-                <span className="text-sm font-medium text-ink-600">Project management</span>
-                <span className="text-sm font-semibold text-ink-900">{acquisitionWorkspaces}</span>
-              </div>
-              <div className="flex items-center justify-between rounded-[18px] bg-clay-50 px-4 py-3">
-                <span className="text-sm font-medium text-ink-600">Management</span>
-                <span className="text-sm font-semibold text-ink-900">
-                  {workspaceCounts.management}
-                </span>
-              </div>
-              <div className="flex items-center justify-between rounded-[18px] bg-white px-4 py-3 ring-1 ring-ink-100">
-                <span className="text-sm font-medium text-ink-600">Standalone</span>
-                <span className="text-sm font-semibold text-ink-900">
-                  {standaloneProperties}
-                </span>
-              </div>
-            </div>
-
-            <div className="mt-5">
-              <Link to="/properties" className="secondary-action w-full justify-center">
-                <SparklesIcon className="mr-2 h-5 w-5" />
-                Open property hub
-              </Link>
-            </div>
+          <div className="overflow-hidden rounded-[30px] border border-white/70 bg-white/75 p-4 shadow-soft backdrop-blur-sm">
+            <img
+              src={DEAL_ASSET_PATHS.marketing.preview}
+              alt="Fliprop dashboard preview"
+              className="h-full w-full rounded-[24px] object-cover"
+            />
           </div>
         </div>
+
+        {featuredDeal ? (
+          <div className="relative mt-6 grid gap-4 xl:grid-cols-2">
+            <DealScoreCard
+              score={featuredDeal.score}
+              verdict={featuredDeal.verdict}
+              title="Featured live deal"
+              label={featuredDeal.address}
+              detail={`${featuredDeal.tone.label} with ${formatDealPercent(
+                featuredDeal.roi
+              )} ROI and ${formatDealCompactCurrency(featuredDeal.profit)} upside.`}
+              assetPath={featuredDeal.assetPaths.score}
+            />
+            <AISummaryCard
+              verdict={featuredDeal.verdict}
+              headline={featuredDeal.aiSummary.headline}
+              detail={featuredDeal.aiSummary.detail}
+              recommendation={featuredDeal.aiSummary.recommendation}
+              confidenceLabel={featuredDeal.aiSummary.confidenceLabel}
+              bullets={featuredDeal.aiSummary.bullets}
+              assetPath={featuredDeal.assetPaths.verdict}
+            />
+            <ProfitSnapshot
+              purchasePrice={featuredDeal.purchasePrice}
+              rehabCost={featuredDeal.rehabEstimate}
+              arv={featuredDeal.arv}
+              profit={featuredDeal.profit}
+              roi={featuredDeal.roi}
+              costBreakdown={featuredDeal.costBreakdown}
+              assetPath={featuredDeal.assetPaths.profit}
+            />
+            <RiskIndicator
+              risk={featuredDeal.riskLevel}
+              flags={featuredDeal.riskFlags}
+              assetPath={featuredDeal.assetPaths.risk}
+            />
+          </div>
+        ) : null}
       </section>
 
       <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
-        <MetricCard
+        <Link to="/properties" className="block">
+          <DashboardStatCard
           title="Total properties"
           value={totalProperties}
           detail="Canonical property records currently visible in the shared workspace."
-          accent="ink"
+          tone="neutral"
+          eyebrow="Portfolio"
           icon={HomeModernIcon}
-          linkTo="/properties"
+          progress={Math.min(totalProperties * 8, 100)}
         />
-        <MetricCard
+        </Link>
+        <Link to="/properties" className="block">
+          <DashboardStatCard
           title="Active workspaces"
           value={activeWorkspaces}
           detail="Combined pipeline, project management, and management placements across the portfolio."
-          accent="clay"
+          tone="warning"
+          eyebrow="Coverage"
           icon={RectangleStackIcon}
-          linkTo="/properties"
+          progress={workspaceCoverageRate}
         />
-        <MetricCard
+        </Link>
+        <Link to="/management" className="block">
+          <DashboardStatCard
           title="Gross monthly rent"
           value={currencyFormatter.format(monthlyRent)}
           detail="Expected monthly rental income currently under management."
-          accent="verdigris"
+          tone="success"
+          eyebrow="Cashflow"
           icon={CurrencyDollarIcon}
-          linkTo="/management"
         />
-        <MetricCard
+        </Link>
+        <Link to="/management" className="block">
+          <DashboardStatCard
           title="Occupancy rate"
           value={`${occupancyRate.toFixed(0)}%`}
           detail="Leased unit share across your current management portfolio."
-          accent="sand"
+          tone={occupancyRate >= 90 ? "success" : occupancyRate >= 75 ? "warning" : "danger"}
+          eyebrow="Leasing"
           icon={BuildingOffice2Icon}
-          linkTo="/management"
+          progress={occupancyRate}
         />
+        </Link>
       </section>
 
       <section className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(320px,0.8fr)]">

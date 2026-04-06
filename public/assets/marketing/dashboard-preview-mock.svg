@@ -1,0 +1,25 @@
+<svg width="1200" height="860" viewBox="0 0 1200 860" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="860" rx="48" fill="#F8F4EE"/>
+  <rect x="72" y="72" width="1056" height="716" rx="40" fill="#FFFFFF" stroke="#E7DDD2" stroke-width="4"/>
+  <rect x="112" y="116" width="220" height="600" rx="28" fill="#131714"/>
+  <text x="152" y="174" fill="white" font-size="32" font-family="Fraunces, serif" font-weight="700">Fliprop</text>
+  <rect x="152" y="232" width="140" height="16" rx="8" fill="#2D3A34"/>
+  <rect x="152" y="276" width="104" height="16" rx="8" fill="#10B981"/>
+  <rect x="152" y="320" width="126" height="16" rx="8" fill="#2D3A34"/>
+  <rect x="364" y="116" width="704" height="180" rx="30" fill="#F7F4EF"/>
+  <rect x="398" y="152" width="224" height="34" rx="17" fill="#EEFDF4"/>
+  <text x="424" y="174" fill="#0F9F6E" font-size="16" font-family="Source Sans 3, sans-serif" font-weight="700">Portfolio signal</text>
+  <text x="398" y="244" fill="#17120E" font-size="52" font-family="Fraunces, serif" font-weight="700">12 good deals worth reviewing today</text>
+  <rect x="364" y="324" width="338" height="174" rx="28" fill="#121714"/>
+  <rect x="730" y="324" width="338" height="174" rx="28" fill="#F7F4EF"/>
+  <rect x="364" y="530" width="338" height="174" rx="28" fill="#F7F4EF"/>
+  <rect x="730" y="530" width="338" height="174" rx="28" fill="#F7F4EF"/>
+  <text x="398" y="384" fill="#A7F3D0" font-size="20" font-family="Source Sans 3, sans-serif">Best live deal</text>
+  <text x="398" y="448" fill="white" font-size="54" font-family="Fraunces, serif" font-weight="700">86 / 100</text>
+  <text x="764" y="384" fill="#17120E" font-size="20" font-family="Source Sans 3, sans-serif">Modeled ROI</text>
+  <text x="764" y="448" fill="#17120E" font-size="54" font-family="Fraunces, serif" font-weight="700">22.8%</text>
+  <text x="398" y="590" fill="#17120E" font-size="20" font-family="Source Sans 3, sans-serif">Risk queue</text>
+  <text x="398" y="654" fill="#17120E" font-size="54" font-family="Fraunces, serif" font-weight="700">3 deals</text>
+  <text x="764" y="590" fill="#17120E" font-size="20" font-family="Source Sans 3, sans-serif">Profit pool</text>
+  <text x="764" y="654" fill="#17120E" font-size="54" font-family="Fraunces, serif" font-weight="700">$382k</text>
+</svg>

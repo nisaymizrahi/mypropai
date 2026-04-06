@@ -1,0 +1,16 @@
+<svg width="900" height="560" viewBox="0 0 900 560" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="900" height="560" rx="36" fill="#F9F6F3"/>
+  <rect x="48" y="48" width="804" height="464" rx="32" fill="#131C1A"/>
+  <text x="90" y="116" fill="#DCEDE8" font-size="24" font-family="Source Sans 3, sans-serif" font-weight="700">Risk indicator</text>
+  <text x="90" y="174" fill="white" font-size="56" font-family="Fraunces, serif" font-weight="700">Low execution risk</text>
+  <rect x="90" y="244" width="210" height="112" rx="26" fill="#113C2E"/>
+  <rect x="324" y="244" width="210" height="112" rx="26" fill="#3D2E14"/>
+  <rect x="558" y="244" width="210" height="112" rx="26" fill="#3E1D23"/>
+  <text x="170" y="307" fill="#B9F8D7" font-size="26" font-family="Source Sans 3, sans-serif" font-weight="700">Low</text>
+  <text x="384" y="307" fill="#FEE8A5" font-size="26" font-family="Source Sans 3, sans-serif" font-weight="700">Medium</text>
+  <text x="626" y="307" fill="#FEB4C0" font-size="26" font-family="Source Sans 3, sans-serif" font-weight="700">High</text>
+  <rect x="90" y="392" width="678" height="20" rx="10" fill="#23312E"/>
+  <rect x="90" y="392" width="192" height="20" rx="10" fill="#10B981"/>
+  <circle cx="282" cy="402" r="20" fill="#A7F3D0" stroke="#F7FFFB" stroke-width="10"/>
+  <text x="90" y="464" fill="#DCEDE8" font-size="18" font-family="Source Sans 3, sans-serif">Comp support strong • Rehab buffered • Price inside comfort range</text>
+</svg>

@@ -1,0 +1,17 @@
+<svg width="1080" height="720" viewBox="0 0 1080 720" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1080" height="720" rx="40" fill="#F8F4EE"/>
+  <rect x="58" y="58" width="450" height="604" rx="32" fill="#D8D4CD"/>
+  <rect x="572" y="58" width="450" height="604" rx="32" fill="#DDF6E8"/>
+  <rect x="124" y="250" width="316" height="252" rx="28" fill="#B1AEA6"/>
+  <rect x="174" y="306" width="88" height="88" rx="18" fill="#E8E3DA"/>
+  <rect x="304" y="306" width="88" height="88" rx="18" fill="#E8E3DA"/>
+  <rect x="196" y="418" width="176" height="84" rx="18" fill="#918C84"/>
+  <rect x="638" y="250" width="316" height="252" rx="28" fill="#6BC69A"/>
+  <rect x="688" y="306" width="88" height="88" rx="18" fill="#F7FFFB"/>
+  <rect x="818" y="306" width="88" height="88" rx="18" fill="#F7FFFB"/>
+  <rect x="710" y="418" width="176" height="84" rx="18" fill="#1B7E59"/>
+  <text x="90" y="136" fill="#17120E" font-size="28" font-family="Fraunces, serif" font-weight="700">Before</text>
+  <text x="604" y="136" fill="#17120E" font-size="28" font-family="Fraunces, serif" font-weight="700">After</text>
+  <text x="90" y="606" fill="#6B625A" font-size="22" font-family="Source Sans 3, sans-serif">Needs pricing discipline and rehab clarity</text>
+  <text x="604" y="606" fill="#1B7E59" font-size="22" font-family="Source Sans 3, sans-serif">Premium finish, clean curb appeal, higher exit confidence</text>
+</svg>

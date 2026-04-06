@@ -1,0 +1,32 @@
+<svg width="960" height="720" viewBox="0 0 960 720" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="960" height="720" rx="44" fill="#FFF7F7"/>
+  <rect x="40" y="40" width="880" height="640" rx="34" fill="url(#bg)"/>
+  <rect x="88" y="90" width="188" height="42" rx="21" fill="#FFE8EA"/>
+  <text x="121" y="117" fill="#C62E43" font-size="20" font-family="Source Sans 3, sans-serif" font-weight="700">Not Profitable</text>
+  <text x="88" y="184" fill="#FFF4F4" font-size="58" font-family="Fraunces, serif" font-weight="700">-$12k modeled spread</text>
+  <text x="88" y="228" fill="#FFD9DF" font-size="24" font-family="Source Sans 3, sans-serif">Current pricing and rehab assumptions leave the deal underwater.</text>
+  <rect x="88" y="278" width="336" height="172" rx="28" fill="#FFF9FA" fill-opacity="0.12"/>
+  <text x="118" y="326" fill="#FFDDE3" font-size="18" font-family="Source Sans 3, sans-serif">Deal score</text>
+  <circle cx="188" cy="390" r="60" stroke="#FDB5C1" stroke-width="16"/>
+  <path d="M188 330 A60 60 0 0 1 248 390" stroke="#FB7185" stroke-width="16" stroke-linecap="round"/>
+  <text x="159" y="402" fill="white" font-size="42" font-family="Fraunces, serif" font-weight="700">34</text>
+  <rect x="280" y="344" width="48" height="20" rx="10" fill="#FB7185"/>
+  <rect x="280" y="380" width="56" height="20" rx="10" fill="#FDA4AF"/>
+  <rect x="280" y="416" width="110" height="20" rx="10" fill="#FFD2D9"/>
+  <text x="280" y="333" fill="#FFDDE3" font-size="15" font-family="Source Sans 3, sans-serif">Profitability</text>
+  <text x="280" y="369" fill="#FFDDE3" font-size="15" font-family="Source Sans 3, sans-serif">Comp support</text>
+  <text x="280" y="405" fill="#FFDDE3" font-size="15" font-family="Source Sans 3, sans-serif">Risk load</text>
+  <rect x="470" y="278" width="402" height="268" rx="28" fill="#FFF9FA" fill-opacity="0.14"/>
+  <text x="504" y="326" fill="#FFDDE3" font-size="18" font-family="Source Sans 3, sans-serif">No-go signal</text>
+  <rect x="504" y="356" width="192" height="18" rx="9" fill="#C62E43" fill-opacity="0.68"/>
+  <rect x="504" y="396" width="154" height="18" rx="9" fill="#FB7185"/>
+  <rect x="504" y="436" width="312" height="18" rx="9" fill="#FFD1D7"/>
+  <text x="504" y="620" fill="#FFDDE3" font-size="18" font-family="Source Sans 3, sans-serif">High risk • Thin comps • Reprice before moving forward</text>
+  <defs>
+    <linearGradient id="bg" x1="88" y1="82" x2="854" y2="604" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#7A1223"/>
+      <stop offset="0.55" stop-color="#C32843"/>
+      <stop offset="1" stop-color="#FB7185"/>
+    </linearGradient>
+  </defs>
+</svg>

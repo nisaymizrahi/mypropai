@@ -1,0 +1,16 @@
+<svg width="900" height="620" viewBox="0 0 900 620" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="900" height="620" rx="36" fill="#F8F4EE"/>
+  <rect x="54" y="54" width="792" height="512" rx="32" fill="url(#bg)"/>
+  <circle cx="242" cy="310" r="84" fill="#F7FFF9"/>
+  <path d="M242 246 L304 310 L242 374 L180 310 Z" fill="#10B981"/>
+  <path d="M242 278 L274 310 L242 342 L210 310 Z" fill="#0B5F42"/>
+  <text x="382" y="286" fill="#E7FFF3" font-size="26" font-family="Source Sans 3, sans-serif" font-weight="700">Fliprop visual system</text>
+  <text x="382" y="364" fill="white" font-size="64" font-family="Fraunces, serif" font-weight="700">Clear deal signals for real estate teams</text>
+  <defs>
+    <linearGradient id="bg" x1="88" y1="88" x2="812" y2="534" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0B5F42"/>
+      <stop offset="0.56" stop-color="#0E8A5D"/>
+      <stop offset="1" stop-color="#38BDF8"/>
+    </linearGradient>
+  </defs>
+</svg>

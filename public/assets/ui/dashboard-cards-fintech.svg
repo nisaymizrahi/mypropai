@@ -1,0 +1,19 @@
+<svg width="960" height="640" viewBox="0 0 960 640" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="960" height="640" rx="36" fill="#F8F4EE"/>
+  <rect x="64" y="60" width="380" height="220" rx="28" fill="#121714"/>
+  <rect x="468" y="60" width="428" height="220" rx="28" fill="#FFFFFF" stroke="#E7DDD2" stroke-width="4"/>
+  <rect x="64" y="304" width="260" height="220" rx="28" fill="#FFFFFF" stroke="#E7DDD2" stroke-width="4"/>
+  <rect x="348" y="304" width="260" height="220" rx="28" fill="#FFFFFF" stroke="#E7DDD2" stroke-width="4"/>
+  <rect x="632" y="304" width="264" height="220" rx="28" fill="#FFFFFF" stroke="#E7DDD2" stroke-width="4"/>
+  <text x="104" y="126" fill="#A7F3D0" font-size="18" font-family="Source Sans 3, sans-serif">Deal health</text>
+  <text x="104" y="198" fill="white" font-size="56" font-family="Fraunces, serif" font-weight="700">74 avg score</text>
+  <text x="510" y="128" fill="#17120E" font-size="20" font-family="Source Sans 3, sans-serif" font-weight="700">Modeled ROI</text>
+  <rect x="510" y="158" width="326" height="18" rx="9" fill="#ECFDF3"/>
+  <rect x="510" y="158" width="228" height="18" rx="9" fill="#10B981"/>
+  <text x="110" y="360" fill="#17120E" font-size="20" font-family="Source Sans 3, sans-serif" font-weight="700">Good deals</text>
+  <text x="396" y="360" fill="#17120E" font-size="20" font-family="Source Sans 3, sans-serif" font-weight="700">Watchlist</text>
+  <text x="678" y="360" fill="#17120E" font-size="20" font-family="Source Sans 3, sans-serif" font-weight="700">At risk</text>
+  <text x="110" y="446" fill="#17120E" font-size="56" font-family="Fraunces, serif" font-weight="700">12</text>
+  <text x="396" y="446" fill="#17120E" font-size="56" font-family="Fraunces, serif" font-weight="700">5</text>
+  <text x="678" y="446" fill="#17120E" font-size="56" font-family="Fraunces, serif" font-weight="700">3</text>
+</svg>

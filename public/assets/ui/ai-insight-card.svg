@@ -1,0 +1,16 @@
+<svg width="880" height="560" viewBox="0 0 880 560" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="880" height="560" rx="36" fill="#F8F4EE"/>
+  <rect x="60" y="60" width="760" height="440" rx="32" fill="#FFFFFF" stroke="#E7DDD2" stroke-width="4"/>
+  <rect x="104" y="104" width="166" height="40" rx="20" fill="#EEFDF4"/>
+  <text x="130" y="130" fill="#0F9F6E" font-size="18" font-family="Source Sans 3, sans-serif" font-weight="700">AI Insight</text>
+  <text x="104" y="200" fill="#17120E" font-size="52" font-family="Fraunces, serif" font-weight="700">This deal is investable</text>
+  <text x="104" y="246" fill="#6F6259" font-size="23" font-family="Source Sans 3, sans-serif">Spread is healthy, comps are aligned, and the rehab load remains manageable.</text>
+  <rect x="104" y="298" width="670" height="64" rx="24" fill="#F7FAF8"/>
+  <text x="132" y="338" fill="#1F6F63" font-size="22" font-family="Source Sans 3, sans-serif">Recommendation: move into contractor validation and lock the offer band.</text>
+  <rect x="104" y="392" width="206" height="62" rx="22" fill="#F7F4EF"/>
+  <rect x="334" y="392" width="206" height="62" rx="22" fill="#F7F4EF"/>
+  <rect x="564" y="392" width="210" height="62" rx="22" fill="#F7F4EF"/>
+  <text x="132" y="430" fill="#17120E" font-size="18" font-family="Source Sans 3, sans-serif" font-weight="700">High confidence</text>
+  <text x="364" y="430" fill="#17120E" font-size="18" font-family="Source Sans 3, sans-serif" font-weight="700">ROI 22.8%</text>
+  <text x="594" y="430" fill="#17120E" font-size="18" font-family="Source Sans 3, sans-serif" font-weight="700">Low risk flags</text>
+</svg>

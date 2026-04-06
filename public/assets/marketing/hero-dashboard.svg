@@ -1,0 +1,31 @@
+<svg width="1280" height="920" viewBox="0 0 1280 920" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1280" height="920" rx="48" fill="#F8F4EE"/>
+  <rect x="72" y="78" width="1136" height="764" rx="42" fill="url(#bg)"/>
+  <rect x="128" y="134" width="196" height="42" rx="21" fill="#E6FFF2"/>
+  <text x="156" y="161" fill="#0F9F6E" font-size="20" font-family="Source Sans 3, sans-serif" font-weight="700">Analyze deals in seconds</text>
+  <text x="128" y="252" fill="white" font-size="74" font-family="Fraunces, serif" font-weight="700">AI underwriting with a premium operator view</text>
+  <text x="128" y="320" fill="#D6FBEA" font-size="28" font-family="Source Sans 3, sans-serif">Score, risk, ROI, and summary cards built for faster decisions.</text>
+  <rect x="128" y="396" width="450" height="320" rx="30" fill="#FFFFFF" fill-opacity="0.12"/>
+  <text x="164" y="446" fill="#E7FFF3" font-size="22" font-family="Source Sans 3, sans-serif" font-weight="700">Live deal card</text>
+  <text x="164" y="520" fill="white" font-size="52" font-family="Fraunces, serif" font-weight="700">86 / 100</text>
+  <text x="164" y="566" fill="#CFF9E4" font-size="24" font-family="Source Sans 3, sans-serif">Strong flip opportunity</text>
+  <rect x="648" y="176" width="472" height="560" rx="34" fill="#FAFBFA"/>
+  <rect x="690" y="220" width="188" height="34" rx="17" fill="#EEFDF4"/>
+  <text x="724" y="242" fill="#0F9F6E" font-size="16" font-family="Source Sans 3, sans-serif" font-weight="700">Executive deal view</text>
+  <rect x="690" y="286" width="398" height="132" rx="28" fill="#121714"/>
+  <text x="724" y="334" fill="#A7F3D0" font-size="18" font-family="Source Sans 3, sans-serif">Profit snapshot</text>
+  <text x="724" y="396" fill="white" font-size="54" font-family="Fraunces, serif" font-weight="700">$91k upside</text>
+  <rect x="690" y="450" width="188" height="112" rx="24" fill="#F7F4EF"/>
+  <rect x="900" y="450" width="188" height="112" rx="24" fill="#F7F4EF"/>
+  <rect x="690" y="584" width="398" height="96" rx="24" fill="#F7F4EF"/>
+  <text x="730" y="515" fill="#17120E" font-size="22" font-family="Source Sans 3, sans-serif" font-weight="700">ROI 22.8%</text>
+  <text x="938" y="515" fill="#17120E" font-size="22" font-family="Source Sans 3, sans-serif" font-weight="700">Low risk</text>
+  <text x="730" y="642" fill="#17120E" font-size="24" font-family="Source Sans 3, sans-serif" font-weight="700">AI summary: spread is healthy and comps support the buy box.</text>
+  <defs>
+    <linearGradient id="bg" x1="128" y1="118" x2="1130" y2="770" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0B5F42"/>
+      <stop offset="0.56" stop-color="#0E8A5D"/>
+      <stop offset="1" stop-color="#38BDF8"/>
+    </linearGradient>
+  </defs>
+</svg>

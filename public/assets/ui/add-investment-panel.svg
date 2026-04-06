@@ -1,0 +1,12 @@
+<svg width="880" height="560" viewBox="0 0 880 560" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="880" height="560" rx="36" fill="#F8F4EE"/>
+  <rect x="64" y="60" width="752" height="440" rx="32" fill="#FFFFFF" stroke="#E7DDD2" stroke-width="4"/>
+  <text x="108" y="128" fill="#17120E" font-size="42" font-family="Fraunces, serif" font-weight="700">Add investment</text>
+  <rect x="108" y="168" width="292" height="74" rx="22" fill="#F7F4EF"/>
+  <rect x="428" y="168" width="280" height="74" rx="22" fill="#F7F4EF"/>
+  <rect x="108" y="270" width="600" height="74" rx="22" fill="#F7F4EF"/>
+  <rect x="108" y="370" width="200" height="68" rx="34" fill="#121714"/>
+  <text x="156" y="413" fill="white" font-size="24" font-family="Source Sans 3, sans-serif" font-weight="700">Save deal</text>
+  <rect x="332" y="370" width="204" height="68" rx="34" fill="#FFFFFF" stroke="#E7DDD2" stroke-width="4"/>
+  <text x="381" y="413" fill="#17120E" font-size="24" font-family="Source Sans 3, sans-serif" font-weight="700">Cancel</text>
+</svg>
