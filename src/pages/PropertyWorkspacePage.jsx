@@ -2,22 +2,25 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   BanknotesIcon,
-  CalendarDaysIcon,
+  ChartBarIcon,
+  ClipboardDocumentListIcon,
   Cog6ToothIcon,
   DocumentTextIcon,
   HomeModernIcon,
-  UsersIcon,
 } from "@heroicons/react/24/outline";
 import toast from "react-hot-toast";
 
 import {
   analyzeLeadComps,
+  createOneTimeCheckout,
+  createPropertyWorkspace,
   createSubscriptionCheckout,
   getBidsForLead,
   getBillingAccess,
   getLeadDetails,
   getPropertyReports,
   getPropertyWorkspace,
+  getTaskList,
   previewLeadProperty,
   saveCompsReport,
   updateLead,
@@ -25,25 +28,32 @@ import {
 } from "../utils/api";
 import {
   buildAnalysisFromSavedReport,
+  buildCompsFilterPayload,
   buildCompsFilters,
+  buildDealForm,
+  buildDealPayload,
   buildSavedReportFromLegacySnapshot,
   countSavableComparables,
+  normalizeMasterReport,
 } from "../utils/compsReport";
 import { getLocationProviderName, searchAddressSuggestions } from "../utils/locationSearch";
 import {
   buildPropertyWorkspacePath,
-  getPropertyWorkspaceRailGroup,
-  getPropertyWorkspaceRailGroups,
+  PROPERTY_WORKSPACE_TABS,
   resolvePropertyWorkspaceRoute,
 } from "../utils/propertyWorkspaceNavigation";
+import { isTaskComplete, isTaskOverdue, sortTasks } from "../utils/tasks";
 import BidsTab from "../components/BidsTab";
-import CompsReportWorkspace from "../components/CompsReportWorkspace";
 import LeadRenovationTab, { buildRenovationForm } from "../components/LeadRenovationTab";
+import MasterDealReportWorkspace from "../components/MasterDealReportWorkspace";
 import PropertyCostsPanel from "../components/PropertyCostsPanel";
+import PropertyCopilotPanel from "../components/PropertyCopilotPanel";
 import PropertyDocumentsPanel from "../components/PropertyDocumentsPanel";
-import PropertyFinancePanel from "../components/PropertyFinancePanel";
+import PropertyFinancePanel, { EmptyAcquisitionState } from "../components/PropertyFinancePanel";
 import PropertyOperationsPanel from "../components/PropertyOperationsPanel";
 import PropertySummaryPanel from "../components/PropertySummaryPanel";
+import PropertyWorkspaceSection from "../components/PropertyWorkspaceSection";
+import PropertyWorkspaceSettingsPanel from "../components/PropertyWorkspaceSettingsPanel";
 import SavedCompsReportsTab from "../components/SavedCompsReportsTab";
 import TasksPanel from "../components/TasksPanel";
 
@@ -59,6 +69,15 @@ const propertyTypeOptions = [
   { value: "other", label: "Other" },
 ];
 
+const workspaceTabIcons = {
+  overview: HomeModernIcon,
+  financials: BanknotesIcon,
+  work: ClipboardDocumentListIcon,
+  documents: DocumentTextIcon,
+  analysis: ChartBarIcon,
+  settings: Cog6ToothIcon,
+};
+
 const toOptionalNumber = (value) => {
   if (value === "" || value === null || value === undefined) {
     return undefined;
@@ -70,12 +89,43 @@ const toOptionalNumber = (value) => {
 
 const formatCurrency = (value) => {
   const parsed = Number(value);
-  if (!Number.isFinite(parsed)) return "";
+  if (!Number.isFinite(parsed)) return "Not set";
 
   return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "USD",
     maximumFractionDigits: 0,
+  }).format(parsed);
+};
+
+const formatCompactDate = (value, fallback = "No date") => {
+  if (!value) return fallback;
+
+  const parsed = new Date(value);
+  if (!Number.isFinite(parsed.valueOf())) {
+    return fallback;
+  }
+
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  }).format(parsed);
+};
+
+const formatDateTime = (value, fallback = "Recently") => {
+  if (!value) return fallback;
+
+  const parsed = new Date(value);
+  if (!Number.isFinite(parsed.valueOf())) {
+    return fallback;
+  }
+
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
   }).format(parsed);
 };
 
@@ -153,352 +203,6 @@ const buildFormState = (property) => ({
   sellerAskingPrice: property?.sharedProfile.sellerAskingPrice ?? "",
 });
 
-const workspaceRailGroupIcons = {
-  overview: HomeModernIcon,
-  money: BanknotesIcon,
-  execution: CalendarDaysIcon,
-  documents: DocumentTextIcon,
-  settings: Cog6ToothIcon,
-};
-
-const workspaceRailGroupTones = {
-  overview: "bg-verdigris-50 text-verdigris-700",
-  money: "bg-sky-50 text-sky-700",
-  execution: "bg-amber-50 text-amber-700",
-  documents: "bg-sand-50 text-sand-700",
-  settings: "bg-ink-100 text-ink-700",
-};
-
-const leadWorkspaceContentKeys = new Set([
-  "comps",
-  "saved-reports",
-  "renovation",
-  "bids",
-  "settings",
-]);
-
-const placeholderSectionCopy = {
-  "acquisition-summary": {
-    eyebrow: "Property > Acquisition Summary",
-    title: "Close summary will live here",
-    description:
-      "This section will turn the lead-to-close story into one clear property summary: original target, actual purchase, closing costs, and the deal context that came into the workspace.",
-    highlights: [
-      "Target offer versus actual close price",
-      "Closing and acquisition cost rollup",
-      "Source lead and saved comps context",
-    ],
-  },
-  "original-assumptions": {
-    eyebrow: "Property > Original Assumptions",
-    title: "Original underwriting snapshot is next",
-    description:
-      "This page will preserve the original assumptions behind the property so the team can compare today’s reality against the plan that got the deal approved.",
-    highlights: [
-      "Original budget and timeline assumptions",
-      "Original ARV or rent assumptions",
-      "Original financing and hold assumptions",
-    ],
-  },
-  "finance-health": {
-    eyebrow: "Finance",
-    title: "Financial health is being shaped into the main control tower",
-    description:
-      "Phase 2 will pull the existing project financial tooling into this property shell so purchase price, expected costs, actual spend, carry, and return metrics live together.",
-    highlights: [
-      "All-in basis and projected profit",
-      "Budget health and burn tracking",
-      "Variance from original underwriting",
-    ],
-  },
-  "finance-sources-uses": {
-    eyebrow: "Finance",
-    title: "Sources and uses will connect the whole capital picture",
-    description:
-      "This section will show where funds came from and exactly how they were deployed across purchase, closing, rehab, carry, and fees.",
-    highlights: [
-      "Owner cash and outside capital sources",
-      "Purchase, close, rehab, and carry uses",
-      "Capital flow tied back to the property record",
-    ],
-  },
-  "finance-budget-vs-actual": {
-    eyebrow: "Finance",
-    title: "Budget versus actual is queued for the next financial pass",
-    description:
-      "The budget will become the expected-cost plan, then update continuously with committed and actual amounts as the project evolves.",
-    highlights: [
-      "Original budget versus approved changes",
-      "Committed versus actual versus forecast",
-      "Editable expected cost plan",
-    ],
-  },
-  "finance-capital-stack": {
-    eyebrow: "Finance",
-    title: "Capital stack and multi-loan tracking is planned here",
-    description:
-      "This is where business loans, personal loans, cards, hard money, and construction debt will be tracked together instead of relying on one simple loan field.",
-    highlights: [
-      "Multiple funding sources per property",
-      "Interest, points, maturity, and payment draft",
-      "Hard money and draw-aware structure",
-    ],
-  },
-  "finance-draw-operations": {
-    eyebrow: "Finance",
-    title: "Draw operations will coordinate lenders and packets here",
-    description:
-      "This section will operationalize the draw tracker so request status, support files, linked expenses, and packet readiness can be managed from one lender-facing workspace.",
-    highlights: [
-      "Draw packet readiness and support coverage",
-      "Linked expenses and lender support files",
-      "Status flow from planned through funded",
-    ],
-  },
-  "finance-payment-schedule": {
-    eyebrow: "Finance",
-    title: "Payment scheduling will turn debt into a real calendar here",
-    description:
-      "This section will translate the modeled capital stack into upcoming payment dates, balloon timing, and event-based obligations across all funding sources.",
-    highlights: [
-      "Upcoming debt payment calendar",
-      "Balloon and event-based obligation tracking",
-      "Source-by-source timing and monthly draft visibility",
-    ],
-  },
-  "finance-reports": {
-    eyebrow: "Finance",
-    title: "Printable reports will be generated here",
-    description:
-      "This section is reserved for polished PDF exports like project financial reports, lender packages, and investor updates.",
-    highlights: [
-      "Project financial report PDFs",
-      "Lender draw and capital summary packages",
-      "Investor-ready reporting exports",
-    ],
-  },
-  "costs-budget": {
-    eyebrow: "Costs",
-    title: "Budget control will move into the property shell next",
-    description:
-      "The existing scope budget system will be mounted here so budget lines, expected cost, and variance all live under Property Workspace.",
-    highlights: [
-      "Line-item cost planning",
-      "Expected versus actual cost tracking",
-      "Cost phases and scope visibility",
-    ],
-  },
-  "costs-expenses": {
-    eyebrow: "Costs",
-    title: "Expense capture will become a dedicated property section",
-    description:
-      "Manual expenses and AI receipt capture already exist in the project system. Phase 2 will bring them here and connect them directly to property-level cost controls.",
-    highlights: [
-      "Manual and AI receipt-driven entry",
-      "Category matching and budget matching",
-      "Property-wide expense ledger",
-    ],
-  },
-  "costs-commitments": {
-    eyebrow: "Costs",
-    title: "Commitments and vendor obligations are queued here",
-    description:
-      "This section will show awarded amounts, unpaid approved costs, and vendor obligations before they become actual spend.",
-    highlights: [
-      "Awarded vendor amounts",
-      "Committed but unpaid cost",
-      "Links from awards to actual payments",
-    ],
-  },
-  "documents-overview": {
-    eyebrow: "Documents",
-    title: "Property documents are being reorganized into one structure",
-    description:
-      "This area will separate closing files, lender files, receipts, invoices, contracts, permits, and reports instead of relying on a single generic documents view.",
-    highlights: [
-      "Closing and lender document buckets",
-      "Receipts and invoice storage",
-      "Report and contract organization",
-    ],
-  },
-  "operations-schedule": {
-    eyebrow: "Operations",
-    title: "A richer visual schedule is planned for this section",
-    description:
-      "This page is reserved for a colorful vendor-aware execution schedule with phases, milestones, and a stronger sense of project momentum.",
-    highlights: [
-      "Vendor swimlanes and milestone grouping",
-      "Upcoming work by phase",
-      "Visual schedule controls instead of plain lists",
-    ],
-  },
-  "operations-timeline": {
-    eyebrow: "Operations",
-    title: "The property timeline will live here",
-    description:
-      "This section is reserved for a colorful timeline of milestones, vendor activity, lender events, payments, and key property changes.",
-    highlights: [
-      "Vendor and lender event lanes",
-      "Milestones and key date history",
-      "Print-friendly timeline exports",
-    ],
-  },
-  "operations-vendors": {
-    eyebrow: "Operations",
-    title: "Property-level vendor coordination is planned here",
-    description:
-      "This future section will gather the vendors touching this property and connect their bids, compliance files, and work status.",
-    highlights: [
-      "Property vendor roster",
-      "Bid and compliance rollup",
-      "Work status across active vendors",
-    ],
-  },
-  "operations-activity": {
-    eyebrow: "Operations",
-    title: "A shared activity feed is planned for this workspace",
-    description:
-      "This will become the running event log for changes, uploads, costs, milestones, and approvals tied to the property.",
-    highlights: [
-      "Recent property events",
-      "Financial and document activity",
-      "Milestone and decision log",
-    ],
-  },
-};
-
-const getWorkspaceSectionSupportLabel = (
-  section,
-  { pipelineLeadId, propertyWorkspaceActive }
-) => {
-  if (!leadWorkspaceContentKeys.has(section?.contentKey)) {
-    return "";
-  }
-
-  if (!pipelineLeadId) {
-    return "Lead required";
-  }
-
-  if (!propertyWorkspaceActive && section?.contentKey !== "settings") {
-    return "Activate workspace";
-  }
-
-  return "";
-};
-
-const WorkspaceSectionLink = ({
-  section,
-  isActive,
-  showCategoryBadge,
-  onSelect,
-  pipelineLeadId,
-  propertyWorkspaceActive,
-}) => {
-  const supportLabel = getWorkspaceSectionSupportLabel(section, {
-    pipelineLeadId,
-    propertyWorkspaceActive,
-  });
-
-  return (
-    <button
-      type="button"
-      onClick={() => onSelect(section)}
-      className={`w-full rounded-[16px] border px-3 py-3 text-left transition ${
-        isActive
-          ? "border-ink-900 bg-ink-900 text-white shadow-[0_16px_30px_rgba(26,35,48,0.12)]"
-          : "border-transparent bg-white/85 text-ink-700 hover:border-ink-100 hover:bg-white"
-      }`}
-    >
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-sm font-semibold">{section.label}</span>
-            {showCategoryBadge ? (
-              <span
-                className={`rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] ${
-                  isActive ? "bg-white/15 text-white/80" : "bg-ink-100 text-ink-500"
-                }`}
-              >
-                {section.categoryLabel}
-              </span>
-            ) : null}
-          </div>
-          {isActive ? (
-            <p className="mt-2 text-xs leading-5 text-white/72">{section.description}</p>
-          ) : null}
-        </div>
-        {supportLabel ? (
-          <span
-            className={`rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] ${
-              isActive ? "bg-white/15 text-white/80" : "bg-clay-50 text-clay-700"
-            }`}
-          >
-            {supportLabel}
-          </span>
-        ) : null}
-      </div>
-    </button>
-  );
-};
-
-const WorkspaceRailGroup = ({
-  group,
-  activeCategoryId,
-  activeSectionId,
-  onSelectGroup,
-  onSelectSection,
-  pipelineLeadId,
-  propertyWorkspaceActive,
-}) => {
-  const Icon = workspaceRailGroupIcons[group.id] || HomeModernIcon;
-  const toneClasses = workspaceRailGroupTones[group.id] || "bg-ink-100 text-ink-700";
-  const isActiveGroup = group.categories.includes(activeCategoryId);
-  const showCategoryBadge = group.categories.length > 1;
-
-  return (
-    <div
-      className={`rounded-[24px] border px-4 py-4 transition ${
-        isActiveGroup ? "border-ink-900 bg-white shadow-[0_20px_40px_rgba(26,35,48,0.08)]" : "border-ink-100 bg-ink-50/45"
-      }`}
-    >
-      <button
-        type="button"
-        onClick={() => onSelectGroup(group)}
-        className="flex w-full items-start gap-3 text-left"
-      >
-        <div
-          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-[16px] ${toneClasses}`}
-        >
-          <Icon className="h-5 w-5" />
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-sm font-semibold text-ink-900">{group.label}</p>
-            <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-500 ring-1 ring-ink-100">
-              {group.sections.length}
-            </span>
-          </div>
-          <p className="mt-1 text-xs leading-5 text-ink-500">{group.description}</p>
-        </div>
-      </button>
-
-      <div className="mt-4 space-y-2">
-        {group.sections.map((section) => (
-          <WorkspaceSectionLink
-            key={`${section.categoryId}-${section.id}`}
-            section={section}
-            isActive={section.categoryId === activeCategoryId && section.id === activeSectionId}
-            showCategoryBadge={showCategoryBadge}
-            onSelect={onSelectSection}
-            pipelineLeadId={pipelineLeadId}
-            propertyWorkspaceActive={propertyWorkspaceActive}
-          />
-        ))}
-      </div>
-    </div>
-  );
-};
-
 const isSavedReportsBackendUnavailable = (error) =>
   String(error?.message || "").includes("Saved reports are not available on the server yet");
 
@@ -507,35 +211,106 @@ const buildLeadCompsAnalysisSnapshotFromReport = (report) => {
 
   return {
     generatedAt: report.generatedAt,
-    filters: report.filters || null,
+    filters: report.compFilters || report.filters || null,
     valuationContext: report.valuationContext || null,
-    estimatedValue: report.estimatedValue ?? null,
-    estimatedValueLow: report.estimatedValueLow ?? null,
-    estimatedValueHigh: report.estimatedValueHigh ?? null,
-    averageSoldPrice: report.averageSoldPrice ?? null,
-    medianSoldPrice: report.medianSoldPrice ?? null,
+    estimatedValue: report.valuation?.blendedEstimate ?? report.estimatedValue ?? null,
+    estimatedValueLow: report.valuation?.blendedLow ?? report.estimatedValueLow ?? null,
+    estimatedValueHigh: report.valuation?.blendedHigh ?? report.estimatedValueHigh ?? null,
+    averageSoldPrice: report.averageSoldPrice ?? report.comps?.primary?.summary?.averagePrice ?? null,
+    medianSoldPrice: report.valuation?.primaryCompMedian ?? report.medianSoldPrice ?? null,
     lowSoldPrice: report.lowSoldPrice ?? null,
     highSoldPrice: report.highSoldPrice ?? null,
-    averagePricePerSqft: report.averagePricePerSqft ?? null,
-    medianPricePerSqft: report.medianPricePerSqft ?? null,
+    averagePricePerSqft:
+      report.averagePricePerSqft ?? report.comps?.primary?.summary?.averagePricePerSqft ?? null,
+    medianPricePerSqft:
+      report.medianPricePerSqft ?? report.comps?.primary?.summary?.medianPricePerSqft ?? null,
     lowPricePerSqft: report.lowPricePerSqft ?? null,
     highPricePerSqft: report.highPricePerSqft ?? null,
     averageDaysOnMarket: report.averageDaysOnMarket ?? null,
     medianDaysOnMarket: report.medianDaysOnMarket ?? null,
     lowDaysOnMarket: report.lowDaysOnMarket ?? null,
     highDaysOnMarket: report.highDaysOnMarket ?? null,
-    saleCompCount: report.saleCompCount ?? null,
+    saleCompCount: report.comps?.primary?.summary?.count ?? report.saleCompCount ?? null,
     askingPriceDelta: report.askingPriceDelta ?? null,
     recommendedOfferLow: report.recommendedOfferLow ?? null,
     recommendedOfferHigh: report.recommendedOfferHigh ?? null,
-    report: report.report || null,
+    report: report.aiVerdict || report.report || null,
     recentComps: Array.isArray(report.recentComps) ? report.recentComps : [],
   };
 };
 
+const TabButton = ({ tab, isActive, onSelect }) => {
+  const Icon = workspaceTabIcons[tab.id] || HomeModernIcon;
+
+  return (
+    <button
+      type="button"
+      onClick={() => onSelect(tab.id)}
+      className={`flex min-w-[132px] shrink-0 items-center gap-3 rounded-[20px] px-4 py-3 text-left transition ${
+        isActive
+          ? "bg-ink-900 text-white shadow-[0_16px_30px_rgba(26,35,48,0.14)]"
+          : "bg-white text-ink-600 ring-1 ring-ink-100 hover:bg-ink-50"
+      }`}
+    >
+      <div
+        className={`flex h-10 w-10 items-center justify-center rounded-[14px] ${
+          isActive ? "bg-white/12 text-white" : "bg-sand-50 text-ink-700"
+        }`}
+      >
+        <Icon className="h-5 w-5" />
+      </div>
+      <p className="min-w-0 text-sm font-semibold">{tab.label}</p>
+    </button>
+  );
+};
+
+const HeaderBadge = ({ label, tone = "bg-white/80 text-ink-700 ring-1 ring-white/60" }) => (
+  <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${tone}`}>{label}</span>
+);
+
+const StatCard = ({ label, value, helper = "", tone = "bg-white/86" }) => (
+  <div className={`rounded-[22px] p-4 ring-1 ring-white/70 ${tone}`}>
+    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-400">{label}</p>
+    <p className="mt-3 text-2xl font-semibold text-ink-900">{value}</p>
+    {helper ? <p className="mt-2 text-sm text-ink-500">{helper}</p> : null}
+  </div>
+);
+
+const SetupStateCard = ({
+  eyebrow = "Setup",
+  title,
+  description,
+  primaryAction = null,
+  secondaryAction = null,
+}) => (
+  <section className="section-card p-6 sm:p-7">
+    <span className="eyebrow">{eyebrow}</span>
+    <h3 className="mt-4 text-2xl font-semibold text-ink-900">{title}</h3>
+    <p className="mt-2 max-w-2xl text-sm text-ink-500">{description}</p>
+    {primaryAction || secondaryAction ? (
+      <div className="mt-5 flex flex-wrap gap-3">
+        {primaryAction}
+        {secondaryAction}
+      </div>
+    ) : null}
+  </section>
+);
+
+const LoadingStateCard = ({ label }) => (
+  <div className="section-card px-6 py-10 text-center text-ink-500">{label}</div>
+);
+
+const ProfileField = ({ label, children, className = "" }) => (
+  <label className={`space-y-2 ${className}`}>
+    <span className="text-sm font-medium text-ink-700">{label}</span>
+    {children}
+  </label>
+);
+
 const PropertyWorkspacePage = () => {
-  const { propertyKey, category: categoryParam, section: sectionParam } = useParams();
+  const { propertyKey, tab: tabParam, category: categoryParam, section: sectionParam } = useParams();
   const navigate = useNavigate();
+  const profileSectionRef = useRef(null);
   const selectedSuggestionRef = useRef("");
   const suppressSuggestionsRef = useRef(false);
 
@@ -552,6 +327,7 @@ const PropertyWorkspacePage = () => {
   const [leadWorkspaceError, setLeadWorkspaceError] = useState("");
   const [analysis, setAnalysis] = useState(null);
   const [filters, setFilters] = useState(() => buildCompsFilters());
+  const [dealOverrides, setDealOverrides] = useState({});
   const [compsNotice, setCompsNotice] = useState("");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [savedReports, setSavedReports] = useState([]);
@@ -561,44 +337,43 @@ const PropertyWorkspacePage = () => {
   const [billingAccess, setBillingAccess] = useState(null);
   const [isBillingAccessLoading, setIsBillingAccessLoading] = useState(false);
   const [isStartingSubscription, setIsStartingSubscription] = useState(false);
+  const [isStartingCheckout, setIsStartingCheckout] = useState(false);
   const [isUpdatingWorkspaceStatus, setIsUpdatingWorkspaceStatus] = useState(false);
+  const [propertyTasks, setPropertyTasks] = useState([]);
+  const [propertyTasksLoading, setPropertyTasksLoading] = useState(false);
+  const [propertyTasksError, setPropertyTasksError] = useState("");
+  const [isCreatingPipelineWorkspace, setIsCreatingPipelineWorkspace] = useState(false);
+  const [isCreatingAcquisitionWorkspace, setIsCreatingAcquisitionWorkspace] = useState(false);
+  const [isCreatingManagementWorkspace, setIsCreatingManagementWorkspace] = useState(false);
+  const [acquisitionStrategy, setAcquisitionStrategy] = useState("flip");
+  const [managementStrategy, setManagementStrategy] = useState("rental");
 
   const activeWorkspaceRoute = useMemo(
-    () => resolvePropertyWorkspaceRoute(categoryParam, sectionParam),
-    [categoryParam, sectionParam]
+    () =>
+      resolvePropertyWorkspaceRoute({
+        tabId: tabParam,
+        categoryId: categoryParam,
+        sectionId: sectionParam,
+      }),
+    [categoryParam, sectionParam, tabParam]
   );
-  const activeCategory = activeWorkspaceRoute.category;
-  const activeSection = activeWorkspaceRoute.section;
-  const activeContentKey = activeSection?.contentKey || "details";
-  const railGroups = useMemo(() => getPropertyWorkspaceRailGroups(), []);
-  const activeRailGroup = useMemo(
-    () => getPropertyWorkspaceRailGroup(activeCategory?.id),
-    [activeCategory?.id]
-  );
-  const activeRailSections = activeRailGroup?.sections || [];
-  const ActiveRailGroupIcon =
-    workspaceRailGroupIcons[activeRailGroup?.id] || HomeModernIcon;
-  const isLeadWorkspaceSection = leadWorkspaceContentKeys.has(activeContentKey);
+  const activeTab = activeWorkspaceRoute.tab;
 
   const pipelineLeadId = property?.workspaces?.pipeline?.id || "";
   const pipelineLeadPath = property?.workspaces?.pipeline?.path || "";
+  const pipelineLeadStatus = property?.workspaces?.pipeline?.status || "";
   const propertyWorkspaceActive = Boolean(property?.workspaces?.pipeline?.inPropertyWorkspace);
+  const hasPipelineWorkspace = Boolean(property?.workspaces?.pipeline);
+  const hasAcquisitionWorkspace = Boolean(property?.workspaces?.acquisitions);
+  const hasManagementWorkspace = Boolean(property?.workspaces?.management);
 
   useEffect(() => {
     if (!propertyKey || activeWorkspaceRoute.isCanonical) {
       return;
     }
 
-    navigate(buildPropertyWorkspacePath(propertyKey, activeCategory.id, activeSection.id), {
-      replace: true,
-    });
-  }, [
-    activeCategory,
-    activeSection,
-    activeWorkspaceRoute.isCanonical,
-    navigate,
-    propertyKey,
-  ]);
+    navigate(buildPropertyWorkspacePath(propertyKey, activeTab.id), { replace: true });
+  }, [activeTab.id, activeWorkspaceRoute.isCanonical, navigate, propertyKey]);
 
   const syncPropertyState = useCallback(
     (nextProperty) => {
@@ -610,19 +385,16 @@ const PropertyWorkspacePage = () => {
       setFormData(buildFormState(nextProperty));
       setPreviewMetadata(null);
       selectedSuggestionRef.current = "";
+      setAcquisitionStrategy(nextProperty?.workspaces?.acquisitions?.strategy || "flip");
+      setManagementStrategy(nextProperty?.workspaces?.management?.strategy || "rental");
 
       if (nextProperty.propertyKey !== propertyKey) {
-        navigate(
-          buildPropertyWorkspacePath(
-            nextProperty.propertyKey,
-            activeCategory.id,
-            activeSection.id
-          ),
-          { replace: true }
-        );
+        navigate(buildPropertyWorkspacePath(nextProperty.propertyKey, activeTab.id), {
+          replace: true,
+        });
       }
     },
-    [activeCategory, activeSection, navigate, propertyKey]
+    [activeTab.id, navigate, propertyKey]
   );
 
   useEffect(() => {
@@ -655,6 +427,31 @@ const PropertyWorkspacePage = () => {
     };
   }, [propertyKey, syncPropertyState]);
 
+  const loadPropertyTasks = useCallback(async (nextPropertyKey) => {
+    if (!nextPropertyKey) {
+      setPropertyTasks([]);
+      setPropertyTasksError("");
+      setPropertyTasksLoading(false);
+      return;
+    }
+
+    try {
+      setPropertyTasksLoading(true);
+      setPropertyTasksError("");
+      const taskData = await getTaskList({ propertyKey: nextPropertyKey });
+      setPropertyTasks(Array.isArray(taskData) ? taskData : []);
+    } catch (taskError) {
+      setPropertyTasks([]);
+      setPropertyTasksError(taskError.message || "Failed to load property tasks.");
+    } finally {
+      setPropertyTasksLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadPropertyTasks(property?.propertyKey || "");
+  }, [loadPropertyTasks, property?.propertyKey]);
+
   const loadLeadBillingAccess = useCallback(async () => {
     if (!pipelineLeadId) {
       setBillingAccess(null);
@@ -678,6 +475,7 @@ const PropertyWorkspacePage = () => {
       setLeadWorkspaceError("");
       setAnalysis(null);
       setFilters(buildCompsFilters());
+      setDealOverrides({});
       setCompsNotice("");
       setSavedReports([]);
       setSavedReportsLoading(false);
@@ -724,9 +522,9 @@ const PropertyWorkspacePage = () => {
 
       const nextSavedReports =
         savedReportsData.length > 0
-          ? savedReportsData
+          ? savedReportsData.map((report) => normalizeMasterReport(report, leadData))
           : legacySavedReport
-            ? [legacySavedReport]
+            ? [normalizeMasterReport(legacySavedReport, leadData)]
             : [];
 
       setSavedReports(nextSavedReports);
@@ -738,9 +536,13 @@ const PropertyWorkspacePage = () => {
       setFilters(
         buildCompsFilters(
           leadData,
-          nextSavedReports[0]?.filters || leadData.compsAnalysis?.filters || {}
+          nextSavedReports[0]?.compFilters ||
+            nextSavedReports[0]?.filters ||
+            leadData.compsAnalysis?.filters ||
+            {}
         )
       );
+      setDealOverrides({});
       setCompsNotice("");
     } catch (leadError) {
       setLeadWorkspace(null);
@@ -767,6 +569,7 @@ const PropertyWorkspacePage = () => {
       state: formData.state,
       zipCode: formData.zipCode,
     }).trim();
+
     if (suppressSuggestionsRef.current || query.length < 4 || query === selectedSuggestionRef.current) {
       setSuggestions([]);
       return undefined;
@@ -807,7 +610,7 @@ const PropertyWorkspacePage = () => {
         : null,
     ].filter(Boolean);
 
-    return bits.join(" • ") || "Shared property profile is still lightweight.";
+    return bits.join(" • ") || "Core property details are ready to fill in.";
   }, [property]);
 
   const showsUnitCount = useMemo(() => formData.propertyType === "multi-family", [formData.propertyType]);
@@ -847,6 +650,136 @@ const PropertyWorkspacePage = () => {
       targetOffer: leadWorkspace.targetOffer ?? null,
     };
   }, [leadWorkspace]);
+  const dealForm = useMemo(
+    () => ({
+      ...buildDealForm(analysis?.dealInputs || savedReports[0]?.dealSnapshot || {}, leadWorkspace || {}),
+      ...dealOverrides,
+    }),
+    [analysis?.dealInputs, dealOverrides, leadWorkspace, savedReports]
+  );
+
+  const sortedPropertyTasks = useMemo(() => sortTasks(propertyTasks, "due-asc"), [propertyTasks]);
+  const openPropertyTasks = useMemo(
+    () => propertyTasks.filter((task) => !isTaskComplete(task)).length,
+    [propertyTasks]
+  );
+  const overduePropertyTasks = useMemo(
+    () => propertyTasks.filter((task) => isTaskOverdue(task)).length,
+    [propertyTasks]
+  );
+  const nextPropertyTasks = useMemo(
+    () => sortedPropertyTasks.filter((task) => !isTaskComplete(task)).slice(0, 4),
+    [sortedPropertyTasks]
+  );
+
+  const workspaceCount = useMemo(
+    () =>
+      [
+        property?.workspaces?.pipeline,
+        property?.workspaces?.acquisitions,
+        property?.workspaces?.management,
+      ].filter(Boolean).length,
+    [property]
+  );
+
+  const recentActivity = useMemo(() => {
+    const items = [];
+
+    if (savedReports[0]?.generatedAt) {
+      items.push({
+        id: `report-${savedReports[0]._id}`,
+        title: "Comps report saved",
+        detail: savedReports[0].estimatedValue
+          ? `Estimated value ${formatCurrency(savedReports[0].estimatedValue)}`
+          : "Latest report is ready in Analysis.",
+        timestamp: savedReports[0].generatedAt,
+      });
+    }
+
+    if (sortedPropertyTasks[0]?.updatedAt || sortedPropertyTasks[0]?.createdAt) {
+      items.push({
+        id: `task-${sortedPropertyTasks[0]._id}`,
+        title: "Tasks updated",
+        detail: `${openPropertyTasks} open task${openPropertyTasks === 1 ? "" : "s"} on this property`,
+        timestamp: sortedPropertyTasks[0].updatedAt || sortedPropertyTasks[0].createdAt,
+      });
+    }
+
+    if (property?.updatedAt) {
+      items.push({
+        id: "property-updated",
+        title: "Property profile updated",
+        detail: "Shared property details were edited recently.",
+        timestamp: property.updatedAt,
+      });
+    }
+
+    if (property?.createdAt) {
+      items.push({
+        id: "property-created",
+        title: "Property record created",
+        detail: "This shared record is now part of the workspace.",
+        timestamp: property.createdAt,
+      });
+    }
+
+    return items
+      .filter((item) => item.timestamp)
+      .sort((left, right) => new Date(right.timestamp) - new Date(left.timestamp))
+      .slice(0, 4);
+  }, [openPropertyTasks, property?.createdAt, property?.updatedAt, savedReports, sortedPropertyTasks]);
+
+  const nextStepCard = useMemo(() => {
+    if (!hasPipelineWorkspace) {
+      return {
+        value: "Add lead",
+        helper: "Unlock comps, reports, scope, and bids.",
+      };
+    }
+
+    if (!propertyWorkspaceActive) {
+      return {
+        value: "Activate analysis",
+        helper: "Use the linked lead inside this property workspace.",
+      };
+    }
+
+    if (!hasAcquisitionWorkspace) {
+      return {
+        value: "Add financials",
+        helper: "Unlock budgets, expenses, schedule, and documents.",
+      };
+    }
+
+    return {
+      value: "Fully set up",
+      helper: `${workspaceCount} linked workspace${workspaceCount === 1 ? "" : "s"} ready.`,
+    };
+  }, [
+    hasAcquisitionWorkspace,
+    hasPipelineWorkspace,
+    propertyWorkspaceActive,
+    workspaceCount,
+  ]);
+
+  const handleTabSelect = useCallback(
+    (tabId) => {
+      navigate(buildPropertyWorkspacePath(property?.propertyKey || propertyKey, tabId));
+    },
+    [navigate, property?.propertyKey, propertyKey]
+  );
+
+  const handleOpenProfile = useCallback(() => {
+    if (activeTab.id !== "overview") {
+      navigate(buildPropertyWorkspacePath(property?.propertyKey || propertyKey, "overview"));
+      return;
+    }
+
+    profileSectionRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+  }, [activeTab.id, navigate, property?.propertyKey, propertyKey]);
 
   const handleChange = (event) => {
     const { name, value } = event.target;
@@ -949,7 +882,9 @@ const PropertyWorkspacePage = () => {
         yearBuilt: toOptionalNumber(formData.yearBuilt),
         unitCount: showsUnitCount ? toOptionalNumber(formData.unitCount) : undefined,
         listingStatus:
-          formData.listingStatus || formData.sellerAskingPrice ? formData.listingStatus || "For Sale" : undefined,
+          formData.listingStatus || formData.sellerAskingPrice
+            ? formData.listingStatus || "For Sale"
+            : undefined,
         sellerAskingPrice:
           formData.listingStatus || formData.sellerAskingPrice
             ? toOptionalNumber(formData.sellerAskingPrice)
@@ -957,7 +892,7 @@ const PropertyWorkspacePage = () => {
       });
 
       syncPropertyState(updatedProperty);
-      toast.success("Shared property profile updated.");
+      toast.success("Property profile updated.");
     } catch (saveError) {
       toast.error(saveError.message || "Failed to update the property.");
     } finally {
@@ -970,9 +905,14 @@ const PropertyWorkspacePage = () => {
     setFilters((previous) => ({ ...previous, [name]: value }));
   };
 
+  const handleLeadDealChange = (event) => {
+    const { name, value } = event.target;
+    setDealOverrides((previous) => ({ ...previous, [name]: value }));
+  };
+
   const handleRunLeadAnalysis = async () => {
     if (!pipelineLeadId) {
-      toast.error("Add this property to leads first.");
+      toast.error("Create a linked lead first.");
       return;
     }
 
@@ -981,12 +921,15 @@ const PropertyWorkspacePage = () => {
     setCompsNotice("");
 
     try {
-      const result = await analyzeLeadComps(pipelineLeadId, filters);
+      const result = await analyzeLeadComps(pipelineLeadId, {
+        filters: buildCompsFilterPayload(filters),
+        deal: buildDealPayload(dealForm),
+      });
       if (result?.noResults) {
         setAnalysis(null);
         setCompsNotice(
           result.msg ||
-            "No comparable properties matched the selected filters. Try widening the radius or relaxing the size filters."
+            "No comparable properties matched these filters. Try widening the radius or relaxing the size filters."
         );
         setLeadWorkspace((previous) =>
           previous
@@ -996,17 +939,18 @@ const PropertyWorkspacePage = () => {
               }
             : previous
         );
-        toast(result.msg || "No comparable properties matched the selected filters.");
+        toast(result.msg || "No comparable properties matched these filters.");
         return;
       }
 
-      setAnalysis(result);
+      const normalized = normalizeMasterReport(result, leadWorkspace);
+      setAnalysis(normalized);
       setCompsNotice("");
       setLeadWorkspace((previous) =>
         previous
           ? {
               ...previous,
-              ...(result.subject || {}),
+              ...normalized.subject,
             }
           : previous
       );
@@ -1022,11 +966,13 @@ const PropertyWorkspacePage = () => {
   const handleSaveLeadReport = async ({
     subject,
     filters: reportFilters,
+    deal: reportDeal,
     valuationContext,
     selectedComps,
+    reportData,
   }) => {
     if (!pipelineLeadId) {
-      toast.error("Add this property to leads first.");
+      toast.error("Create a linked lead first.");
       return;
     }
 
@@ -1045,29 +991,32 @@ const PropertyWorkspacePage = () => {
         contextType: "lead",
         leadId: pipelineLeadId,
         subject,
+        deal: reportDeal,
         filters: reportFilters,
         valuationContext,
         selectedComps,
+        reportData,
       });
+      const normalized = normalizeMasterReport(savedReport, subject);
 
       setSavedReports((previous) => [
-        savedReport,
+        normalized,
         ...previous.filter(
           (report) =>
-            report._id !== savedReport._id && !String(report._id || "").startsWith("legacy-")
+            report._id !== normalized._id && !String(report._id || "").startsWith("legacy-")
         ),
       ]);
-      setAnalysis(buildAnalysisFromSavedReport(savedReport, subject));
+      setAnalysis(normalized);
       setLeadWorkspace((previous) =>
         previous
           ? {
               ...previous,
-              compsAnalysis: buildLeadCompsAnalysisSnapshotFromReport(savedReport),
+              compsAnalysis: buildLeadCompsAnalysisSnapshotFromReport(normalized),
             }
           : previous
       );
-      navigate(buildPropertyWorkspacePath(propertyKey, "property", "saved-reports"));
-      toast.success("Comps report saved.");
+      navigate(buildPropertyWorkspacePath(propertyKey, "analysis"));
+      toast.success("Master Deal Report saved.");
     } catch (saveError) {
       setLeadWorkspaceError(saveError.message || "Failed to save comps report.");
       toast.error(saveError.message || "Failed to save comps report.");
@@ -1084,6 +1033,21 @@ const PropertyWorkspacePage = () => {
     } catch (subscriptionError) {
       setLeadWorkspaceError(subscriptionError.message || "Could not start the Pro checkout.");
       setIsStartingSubscription(false);
+    }
+  };
+
+  const handleBuyCredits = async () => {
+    setIsStartingCheckout(true);
+    try {
+      const kind = billingAccess?.hasActiveSubscription ? "pro_comps_topup_10" : "comps_pack_10";
+      const { url } = await createOneTimeCheckout({
+        kind,
+        returnPath: window.location.pathname,
+      });
+      window.location.href = url;
+    } catch (checkoutError) {
+      setLeadWorkspaceError(checkoutError.message || "Could not start the credits checkout.");
+      setIsStartingCheckout(false);
     }
   };
 
@@ -1135,12 +1099,7 @@ const PropertyWorkspacePage = () => {
       handleLeadUpdated(updatedLead);
       await loadLeadWorkspace();
 
-      if (nextValue) {
-        toast.success("Moved to Property Workspace.");
-      } else {
-        toast.success("Removed from Property Workspace. The lead stays in Closed - Won.");
-        navigate(`/leads/${pipelineLeadId}`);
-      }
+      toast.success(nextValue ? "Moved to Property Workspace." : "Removed from Property Workspace.");
     } catch (workspaceStatusError) {
       toast.error(workspaceStatusError.message || "Failed to update Property Workspace.");
     } finally {
@@ -1148,765 +1107,883 @@ const PropertyWorkspacePage = () => {
     }
   };
 
-  const navigateToWorkspaceSection = useCallback(
-    (categoryId, sectionId) => {
-      navigate(buildPropertyWorkspacePath(propertyKey, categoryId, sectionId));
-    },
-    [navigate, propertyKey]
-  );
-
-  const handleRailGroupSelect = useCallback(
-    (group) => {
-      const nextSection = group?.sections?.[0];
-      if (!nextSection) {
-        return;
+  const handleCreatePipelineWorkspace = async () => {
+    try {
+      setIsCreatingPipelineWorkspace(true);
+      const result = await createPropertyWorkspace(propertyKey, "pipeline");
+      if (result?.property) {
+        syncPropertyState(result.property);
       }
-
-      navigateToWorkspaceSection(nextSection.categoryId, nextSection.id);
-    },
-    [navigateToWorkspaceSection]
-  );
-
-  const handleRailSectionSelect = useCallback(
-    (section) => {
-      if (!section) {
-        return;
-      }
-
-      navigateToWorkspaceSection(section.categoryId, section.id);
-    },
-    [navigateToWorkspaceSection]
-  );
-
-  if (loading) {
-    return (
-      <div className="section-card px-6 py-10 text-center text-ink-500">
-        Loading property workspace...
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="section-card px-6 py-10 text-center text-clay-700">
-        {error}
-      </div>
-    );
-  }
-
-  if (!property) {
-    return (
-      <div className="section-card px-6 py-10 text-center text-ink-500">
-        Property not found.
-      </div>
-    );
-  }
-
-  const renderLeadWorkspaceRequiredState = ({
-    eyebrow = "Linked lead workspace",
-    title = "This property is not active in Property Workspace",
-    description = "Property Workspace is only for deals you explicitly move over from Closed - Won in the lead pipeline.",
-  } = {}) => (
-    <section className="section-card p-6 sm:p-7">
-      <span className="eyebrow">{eyebrow}</span>
-      <h3 className="mt-4 text-3xl font-semibold text-ink-900">{title}</h3>
-      <p className="mt-3 max-w-2xl text-sm leading-6 text-ink-500">{description}</p>
-      {pipelineLeadPath ? (
-        <div className="mt-6 flex flex-wrap gap-3">
-          <Link to={pipelineLeadPath} className="primary-action">
-            Open source lead
-          </Link>
-        </div>
-      ) : null}
-    </section>
-  );
-
-  const renderLeadWorkspaceLoadingState = (label = "Loading linked lead workspace...") => (
-    <div className="section-card px-6 py-10 text-center text-ink-500">{label}</div>
-  );
-
-  const renderLeadWorkspaceErrorState = () => (
-    <section className="section-card p-6 sm:p-7">
-      <span className="eyebrow">Linked lead workspace</span>
-      <h3 className="mt-4 text-3xl font-semibold text-ink-900">We could not load the lead data</h3>
-      <p className="mt-3 max-w-2xl text-sm leading-6 text-ink-500">
-        {leadWorkspaceError || "The linked lead workspace could not be loaded right now."}
-      </p>
-      <div className="mt-6 flex flex-wrap gap-3">
-        <button type="button" onClick={loadLeadWorkspace} className="primary-action">
-          Try again
-        </button>
-        {pipelineLeadPath ? (
-          <Link to={pipelineLeadPath} className="secondary-action">
-            Open lead
-          </Link>
-        ) : null}
-      </div>
-    </section>
-  );
-
-  const renderLeadSectionContent = (renderContent, loadingLabel) => {
-    if (!pipelineLeadId) {
-      return renderLeadWorkspaceRequiredState();
+      await loadLeadWorkspace();
+      toast.success("Lead record created.");
+    } catch (createError) {
+      toast.error(createError.message || "Failed to create the lead record.");
+    } finally {
+      setIsCreatingPipelineWorkspace(false);
     }
+  };
 
-    if (!propertyWorkspaceActive && activeContentKey !== "settings") {
-      return renderLeadWorkspaceRequiredState({
-        title: "Move this deal into Property Workspace first",
-        description:
-          "The lead stays in Closed - Won, but it has to be explicitly moved into Property Workspace before these sections are active.",
+  const handleCreateAcquisitionWorkspace = async () => {
+    try {
+      setIsCreatingAcquisitionWorkspace(true);
+      const result = await createPropertyWorkspace(propertyKey, "acquisitions", {
+        strategy: acquisitionStrategy,
+      });
+      if (result?.property) {
+        syncPropertyState(result.property);
+      }
+      toast.success("Acquisitions workspace created.");
+    } catch (createError) {
+      toast.error(createError.message || "Failed to create the acquisitions workspace.");
+    } finally {
+      setIsCreatingAcquisitionWorkspace(false);
+    }
+  };
+
+  const handleCreateManagementWorkspace = async () => {
+    try {
+      setIsCreatingManagementWorkspace(true);
+      const result = await createPropertyWorkspace(propertyKey, "management", {
+        strategy: managementStrategy,
+      });
+      if (result?.property) {
+        syncPropertyState(result.property);
+      }
+      toast.success("Management workspace created.");
+    } catch (createError) {
+      toast.error(createError.message || "Failed to create the management workspace.");
+    } finally {
+      setIsCreatingManagementWorkspace(false);
+    }
+  };
+
+  const renderLeadWorkspaceState = useCallback(
+    ({
+      missingLeadTitle,
+      missingLeadDescription,
+      inactiveTitle,
+      inactiveDescription,
+      loadingLabel,
+      renderContent,
+    }) => {
+      if (!pipelineLeadId) {
+        return (
+          <SetupStateCard
+            eyebrow="Lead setup"
+            title={missingLeadTitle}
+            description={missingLeadDescription}
+            primaryAction={
+              <button
+                type="button"
+                onClick={handleCreatePipelineWorkspace}
+                disabled={isCreatingPipelineWorkspace}
+                className="primary-action disabled:cursor-not-allowed disabled:opacity-70"
+              >
+                {isCreatingPipelineWorkspace ? "Creating..." : "Create lead record"}
+              </button>
+            }
+          />
+        );
+      }
+
+      if (!propertyWorkspaceActive) {
+        return (
+          <SetupStateCard
+            eyebrow="Activation"
+            title={inactiveTitle}
+            description={inactiveDescription}
+            primaryAction={
+              <button
+                type="button"
+                onClick={() => handleUpdatePropertyWorkspaceStatus(true)}
+                disabled={isUpdatingWorkspaceStatus}
+                className="primary-action disabled:cursor-not-allowed disabled:opacity-70"
+              >
+                {isUpdatingWorkspaceStatus ? "Updating..." : "Move to Property Workspace"}
+              </button>
+            }
+            secondaryAction={
+              pipelineLeadPath ? (
+                <Link to={pipelineLeadPath} className="secondary-action">
+                  Open lead
+                </Link>
+              ) : null
+            }
+          />
+        );
+      }
+
+      if (leadWorkspaceLoading && !leadWorkspace) {
+        return <LoadingStateCard label={loadingLabel} />;
+      }
+
+      if (!leadWorkspace) {
+        return (
+          <SetupStateCard
+            eyebrow="Linked lead"
+            title="We could not load the linked lead"
+            description={leadWorkspaceError || "Try again or open the source lead directly."}
+            primaryAction={
+              <button type="button" onClick={loadLeadWorkspace} className="primary-action">
+                Try again
+              </button>
+            }
+            secondaryAction={
+              pipelineLeadPath ? (
+                <Link to={pipelineLeadPath} className="secondary-action">
+                  Open lead
+                </Link>
+              ) : null
+            }
+          />
+        );
+      }
+
+      return renderContent();
+    },
+    [
+      handleCreatePipelineWorkspace,
+      handleUpdatePropertyWorkspaceStatus,
+      isCreatingPipelineWorkspace,
+      isUpdatingWorkspaceStatus,
+      leadWorkspace,
+      leadWorkspaceError,
+      leadWorkspaceLoading,
+      loadLeadWorkspace,
+      pipelineLeadId,
+      pipelineLeadPath,
+      propertyWorkspaceActive,
+    ]
+  );
+
+  const renderAcquisitionSetup = useCallback(
+    ({ title, description, buttonLabel = "Create acquisitions workspace" }) => (
+      <EmptyAcquisitionState
+        compact
+        property={property}
+        selectedStrategy={acquisitionStrategy}
+        onStrategyChange={(event) => setAcquisitionStrategy(event.target.value)}
+        onCreate={handleCreateAcquisitionWorkspace}
+        isCreating={isCreatingAcquisitionWorkspace}
+        eyebrow="Setup"
+        title={title}
+        description={description}
+        buttonLabel={buttonLabel}
+      />
+    ),
+    [acquisitionStrategy, handleCreateAcquisitionWorkspace, isCreatingAcquisitionWorkspace, property]
+  );
+
+  const overviewActions = useMemo(() => {
+    const actions = [];
+
+    if (!hasPipelineWorkspace) {
+      actions.push({
+        id: "lead",
+        title: "Add lead",
+        detail: "Unlock comps, reports, renovation, and bids.",
+        label: isCreatingPipelineWorkspace ? "Creating..." : "Create lead",
+        disabled: isCreatingPipelineWorkspace,
+        onClick: handleCreatePipelineWorkspace,
+      });
+    } else if (!propertyWorkspaceActive) {
+      actions.push({
+        id: "activate",
+        title: "Activate analysis",
+        detail: "Use the linked lead inside this property.",
+        label: isUpdatingWorkspaceStatus ? "Updating..." : "Activate",
+        disabled: isUpdatingWorkspaceStatus,
+        onClick: () => handleUpdatePropertyWorkspaceStatus(true),
       });
     }
 
-    if (leadWorkspaceLoading && !leadWorkspace) {
-      return renderLeadWorkspaceLoadingState(loadingLabel);
+    if (!hasAcquisitionWorkspace) {
+      actions.push({
+        id: "financials",
+        title: "Add financials",
+        detail: "Budget, expenses, documents, and schedule all start here.",
+        label: isCreatingAcquisitionWorkspace ? "Creating..." : "Create financials",
+        disabled: isCreatingAcquisitionWorkspace,
+        onClick: handleCreateAcquisitionWorkspace,
+      });
     }
 
-    if (!leadWorkspace) {
-      return renderLeadWorkspaceErrorState();
-    }
+    actions.push({
+      id: "tasks",
+      title: openPropertyTasks > 0 ? "Review work" : "Add first task",
+      detail:
+        openPropertyTasks > 0
+          ? overduePropertyTasks > 0
+            ? `${overduePropertyTasks} overdue task${overduePropertyTasks === 1 ? "" : "s"} need attention.`
+            : `${openPropertyTasks} open task${openPropertyTasks === 1 ? "" : "s"} in progress.`
+          : "Keep the next step visible from day one.",
+      label: "Open work",
+      onClick: () => handleTabSelect("work"),
+    });
 
-    return renderContent();
-  };
-
-  const renderPlaceholderSection = (contentKey) => {
-    const copy = placeholderSectionCopy[contentKey] || {
-      eyebrow: activeCategory.label,
-      title: `${activeSection.label} is scaffolded and ready for phase 2`,
-      description:
-        "This section now has its place in the new property workspace shell so we can build it properly without overloading the old tab layout.",
-      highlights: [
-        "Navigation structure is live",
-        "Existing property tools remain intact",
-        "This section is ready for implementation",
-      ],
-    };
-
-    return (
-      <section className="surface-panel px-6 py-7 sm:px-7">
-        <span className="eyebrow">{copy.eyebrow}</span>
-        <div className="mt-4 grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
-          <div>
-            <h3 className="font-display text-[2.15rem] leading-[0.96] text-ink-900">
-              {copy.title}
-            </h3>
-            <p className="mt-4 max-w-3xl text-sm leading-7 text-ink-500 sm:text-base">
-              {copy.description}
-            </p>
-
-            <div className="mt-6 grid gap-3 md:grid-cols-3">
-              {copy.highlights.map((item) => (
-                <div
-                  key={item}
-                  className="rounded-[18px] border border-ink-100 bg-white/90 px-4 py-4"
-                >
-                  <p className="text-sm font-medium leading-6 text-ink-700">{item}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="section-card p-5">
-            <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-ink-400">
-              Phase 1 status
-            </p>
-            <h4 className="mt-4 text-xl font-semibold text-ink-900">Shell is now in place</h4>
-            <p className="mt-3 text-sm leading-6 text-ink-500">
-              We can build this section next without disturbing the live property details, comps,
-              bids, tasks, and settings areas that already work today.
-            </p>
-            <div className="mt-5 rounded-[18px] bg-sand-50 px-4 py-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-400">
-                Current section
-              </p>
-              <p className="mt-2 text-sm font-semibold text-ink-900">{activeSection.label}</p>
-              <p className="mt-2 text-sm leading-6 text-ink-500">{activeSection.description}</p>
-            </div>
-          </div>
-        </div>
-      </section>
-    );
-  };
-
-  const activeSectionSupportLabel = getWorkspaceSectionSupportLabel(activeSection, {
-    pipelineLeadId,
+    return actions.slice(0, 3);
+  }, [
+    handleCreateAcquisitionWorkspace,
+    handleCreatePipelineWorkspace,
+    handleTabSelect,
+    handleUpdatePropertyWorkspaceStatus,
+    hasAcquisitionWorkspace,
+    hasPipelineWorkspace,
+    isCreatingAcquisitionWorkspace,
+    isCreatingPipelineWorkspace,
+    isUpdatingWorkspaceStatus,
+    openPropertyTasks,
+    overduePropertyTasks,
     propertyWorkspaceActive,
-  });
-  const navigationInsightCards = [
-    {
-      label: "Current area",
-      value: activeCategory.label,
-      description: `Grouped under ${activeRailGroup.label} in the new workspace map.`,
-    },
-    {
-      label: "Sections here",
-      value: String(activeRailSections.length),
-      description: "All visible in the rail so you can jump without opening dropdowns.",
-    },
-    {
-      label: "Access",
-      value: activeSectionSupportLabel || "Ready",
-      description: activeSectionSupportLabel
-        ? "This section still follows the linked-lead and workspace enrollment rules."
-        : "This section is available directly from the property workspace.",
-    },
-  ];
+  ]);
 
-  return (
+  if (loading) {
+    return <LoadingStateCard label="Loading property workspace..." />;
+  }
+
+  if (error) {
+    return <div className="section-card px-6 py-10 text-center text-clay-700">{error}</div>;
+  }
+
+  if (!property) {
+    return <div className="section-card px-6 py-10 text-center text-ink-500">Property not found.</div>;
+  }
+
+  const renderOverviewTab = () => (
     <div className="space-y-4">
-      <section className="surface-panel px-6 py-6 sm:px-7">
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
-          <div>
-            <span className="eyebrow">Shared property workspace</span>
-            <h2 className="mt-4 font-display text-[2.5rem] leading-[0.96] text-ink-900">
-              {property.title}
-            </h2>
-            <p className="mt-4 max-w-2xl text-sm leading-7 text-ink-500 sm:text-base">{detailLine}</p>
-            {listingSummary ? (
-              <div className="mt-5 flex flex-wrap items-center gap-3">
-                <span className="inline-flex rounded-full bg-verdigris-50 px-3 py-1 text-[11px] font-medium text-verdigris-700">
-                  For sale
-                </span>
-                {listingSummary.price ? (
-                  <span className="text-sm font-medium text-ink-700">{listingSummary.price}</span>
-                ) : null}
-              </div>
-            ) : null}
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <StatCard
+          label="Next step"
+          value={nextStepCard.value}
+          helper={nextStepCard.helper}
+        />
+        <StatCard
+          label="List"
+          value={listingSummary?.label || "Not listed"}
+          helper={listingSummary?.price || "No active listing price saved."}
+        />
+        <StatCard
+          label="Tasks"
+          value={String(openPropertyTasks)}
+          helper={
+            overduePropertyTasks > 0
+              ? `${overduePropertyTasks} overdue`
+              : "Nothing overdue"
+          }
+        />
+        <StatCard
+          label="Workspaces"
+          value={String(workspaceCount)}
+          helper={`${savedReports.length} saved report${savedReports.length === 1 ? "" : "s"}`}
+        />
+      </div>
 
-            <div className="mt-6 flex flex-wrap gap-3">
-              <Link to="/properties" className="secondary-action">
-                Back to Property Workspace
-              </Link>
-              {property.workspaces.pipeline ? (
-                <Link to={property.workspaces.pipeline.path} className="secondary-action">
-                  Open lead
-                </Link>
-              ) : null}
-            </div>
-          </div>
-
-          <div className="section-card p-5">
-            <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-ink-400">
-              Property workspace status
-            </p>
-            {listingSummary ? (
-              <div className="mt-4 rounded-[14px] bg-verdigris-50 px-4 py-3">
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-sm font-medium text-ink-600">Market status</span>
-                  <span className="text-sm font-semibold text-ink-900">{listingSummary.label}</span>
-                </div>
-                {listingSummary.price ? (
-                  <p className="mt-2 text-sm font-medium text-verdigris-700">
-                    Asking {listingSummary.price}
-                  </p>
-                ) : null}
-              </div>
-            ) : null}
-            <div className="mt-4 space-y-2.5">
-              <div className="flex items-center justify-between rounded-[14px] bg-verdigris-50 px-4 py-3">
-                <span className="text-sm font-medium text-ink-600">In Property Workspace</span>
-                <span className="text-sm font-semibold text-ink-900">
-                  {propertyWorkspaceActive ? "Yes" : "No"}
-                </span>
-              </div>
-              <div className="flex items-center justify-between rounded-[14px] bg-white px-4 py-3 ring-1 ring-ink-100">
-                <span className="text-sm font-medium text-ink-600">Source lead stage</span>
-                <span className="text-sm font-semibold text-ink-900">
-                  {property.workspaces.pipeline ? property.workspaces.pipeline.status : "Missing"}
-                </span>
-              </div>
-              <div className="flex items-center justify-between rounded-[14px] bg-sand-50 px-4 py-3">
-                <span className="text-sm font-medium text-ink-600">Saved reports</span>
-                <span className="text-sm font-semibold text-ink-900">{savedReports.length}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="surface-panel px-5 py-5 xl:hidden">
-        <span className="eyebrow">Workspace map</span>
-        <p className="mt-4 text-sm leading-6 text-ink-500">
-          Jump across the property from a visible section list instead of switching dropdowns.
-        </p>
-
-        <div className="mt-5 flex gap-2 overflow-x-auto pb-2">
-          {railGroups.map((group) => {
-            const isActive = group.id === activeRailGroup.id;
-
-            return (
-              <button
-                key={group.id}
-                type="button"
-                onClick={() => handleRailGroupSelect(group)}
-                className={`shrink-0 rounded-full px-4 py-2 text-sm font-semibold transition ${
-                  isActive
-                    ? "bg-ink-900 text-white"
-                    : "bg-white text-ink-600 ring-1 ring-ink-100 hover:bg-ink-50"
-                }`}
-              >
-                {group.label}
-              </button>
-            );
-          })}
-        </div>
-
-        <div className="mt-4 flex gap-2 overflow-x-auto pb-2">
-          {activeRailSections.map((section) => (
-            <button
-              key={`${section.categoryId}-${section.id}`}
-              type="button"
-              onClick={() => handleRailSectionSelect(section)}
-              className={`shrink-0 rounded-full px-4 py-2 text-sm font-semibold transition ${
-                section.categoryId === activeCategory.id && section.id === activeSection.id
-                  ? "bg-verdigris-600 text-white"
-                  : "bg-sand-50 text-ink-700 hover:bg-sand-100"
-              }`}
-            >
-              {section.label}
-            </button>
-          ))}
-        </div>
-      </section>
-
-      <div className="xl:grid xl:grid-cols-[320px_minmax(0,1fr)] xl:gap-4">
-        <aside className="hidden xl:block">
-          <div className="surface-panel sticky top-24 max-h-[calc(100vh-7rem)] overflow-y-auto px-4 py-4">
-            <span className="eyebrow">Workspace map</span>
-            <h3 className="mt-4 text-xl font-semibold text-ink-900">Navigate every property section</h3>
-            <p className="mt-3 text-sm leading-6 text-ink-500">
-              Everything stays one click away from here, even when you move between money,
-              execution, and documents.
-            </p>
-
-            <div className="mt-6 space-y-4">
-              {railGroups.map((group) => (
-                <WorkspaceRailGroup
-                  key={group.id}
-                  group={group}
-                  activeCategoryId={activeCategory.id}
-                  activeSectionId={activeSection.id}
-                  onSelectGroup={handleRailGroupSelect}
-                  onSelectSection={handleRailSectionSelect}
-                  pipelineLeadId={pipelineLeadId}
-                  propertyWorkspaceActive={propertyWorkspaceActive}
-                />
-              ))}
-            </div>
-
-            <div className="mt-6 space-y-3 border-t border-ink-100 pt-5">
-              <Link to="/properties" className="secondary-action w-full justify-center">
-                Back to Property Workspace
-              </Link>
-              {property.workspaces.pipeline ? (
-                <Link to={property.workspaces.pipeline.path} className="secondary-action w-full justify-center">
-                  Open lead
-                </Link>
-              ) : null}
-            </div>
-          </div>
-        </aside>
-
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.05fr)_360px]">
         <div className="space-y-4">
-          <section className="surface-panel px-6 py-6 sm:px-7">
-            <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-              <div className="flex items-start gap-4">
+          <section className="section-card p-6 sm:p-7">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <span className="eyebrow">Next actions</span>
+                <h3 className="mt-3 text-xl font-semibold text-ink-900">Keep moving</h3>
+              </div>
+              <div className="flex flex-wrap gap-3">
+                <button type="button" onClick={handleOpenProfile} className="secondary-action">
+                  Edit profile
+                </button>
+                <button type="button" onClick={() => handleTabSelect("settings")} className="ghost-action">
+                  Open settings
+                </button>
+              </div>
+            </div>
+
+            <div className="mt-5 space-y-3">
+              {overviewActions.map((action) => (
                 <div
-                  className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-[18px] ${
-                    workspaceRailGroupTones[activeRailGroup.id] || "bg-ink-100 text-ink-700"
-                  }`}
+                  key={action.id}
+                  className="flex flex-col gap-3 rounded-[18px] border border-ink-100 bg-white px-4 py-4 sm:flex-row sm:items-center sm:justify-between"
                 >
-                  <ActiveRailGroupIcon className="h-6 w-6" />
-                </div>
-                <div>
-                  <span className="eyebrow">Property workspace</span>
-                  <h3 className="mt-3 text-2xl font-semibold text-ink-900">
-                    {activeRailGroup.label} · {activeSection.label}
-                  </h3>
-                  <p className="mt-2 max-w-3xl text-sm leading-6 text-ink-500">
-                    {activeSection.description}
-                  </p>
-                  {activeRailGroup.categories.length > 1 ? (
-                    <p className="mt-3 text-xs font-semibold uppercase tracking-[0.16em] text-ink-400">
-                      Currently inside the {activeCategory.label} section of {activeRailGroup.label}
-                    </p>
-                  ) : null}
-                </div>
-              </div>
-
-              <div className="rounded-[20px] bg-white px-4 py-4 ring-1 ring-ink-100 lg:max-w-[290px]">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-400">
-                  Current section access
-                </p>
-                <p className="mt-2 text-sm font-semibold text-ink-900">
-                  {activeSectionSupportLabel || "Ready from this workspace"}
-                </p>
-                <p className="mt-2 text-sm leading-6 text-ink-500">
-                  {activeSectionSupportLabel
-                    ? "This section still respects the linked-lead and workspace enrollment rules."
-                    : "This section is directly available from the property workspace shell."}
-                </p>
-              </div>
-            </div>
-
-            <div className="mt-6 flex flex-wrap gap-2">
-              {activeRailSections.map((section) => {
-                const isActive =
-                  section.categoryId === activeCategory.id && section.id === activeSection.id;
-
-                return (
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-ink-900">{action.title}</p>
+                    <p className="mt-1 text-sm text-ink-500">{action.detail}</p>
+                  </div>
                   <button
-                    key={`${section.categoryId}-${section.id}`}
                     type="button"
-                    onClick={() => handleRailSectionSelect(section)}
-                    className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
-                      isActive
-                        ? "bg-ink-900 text-white"
-                        : "bg-white text-ink-600 ring-1 ring-ink-100 hover:bg-ink-50"
-                    }`}
+                    onClick={action.onClick}
+                    disabled={action.disabled}
+                    className="secondary-action shrink-0 disabled:cursor-not-allowed disabled:opacity-70"
                   >
-                    {section.label}
-                    {activeRailGroup.categories.length > 1 ? ` · ${section.categoryLabel}` : ""}
+                    {action.label}
                   </button>
-                );
-              })}
-            </div>
-
-            <div className="mt-6 grid gap-3 md:grid-cols-3">
-              {navigationInsightCards.map((card) => (
-                <div key={card.label} className="rounded-[18px] bg-white px-4 py-4 ring-1 ring-ink-100">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-400">
-                    {card.label}
-                  </p>
-                  <p className="mt-2 text-sm font-semibold text-ink-900">{card.value}</p>
-                  <p className="mt-2 text-sm leading-6 text-ink-500">{card.description}</p>
                 </div>
               ))}
             </div>
           </section>
 
-          {isLeadWorkspaceSection && leadWorkspace && leadWorkspaceError ? (
-        <div className="rounded-[16px] border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
-          {leadWorkspaceError}
-        </div>
-          ) : null}
-
-          {activeContentKey === "details" ? (
-        <section className="grid gap-4 xl:grid-cols-[minmax(0,1.16fr)_minmax(320px,0.84fr)]">
-        <form onSubmit={handleSave} className="section-card p-6 sm:p-7">
-          <span className="eyebrow">Shared profile</span>
-          <h3 className="mt-4 font-display text-[2rem] leading-none text-ink-900">
-            Edit the core property details once
-          </h3>
-          <p className="mt-2 text-sm leading-6 text-ink-500">
-            The address lookup here feeds the shared property profile, so every lead and connected
-            property tool stays anchored to the same property data.
-          </p>
-
-          <div className="mt-6 grid gap-5 md:grid-cols-2">
-            <div className="relative md:col-span-2">
-              <label className="space-y-2">
-                <span className="text-sm font-medium text-ink-700">Address line</span>
-                <input
-                  name="addressLine1"
-                  value={formData.addressLine1}
-                  onChange={handleChange}
-                  className="auth-input"
-                  placeholder="Start typing the property address..."
-                  required
-                />
-              </label>
-
-              {suggestions.length > 0 ? (
-                <div className="absolute z-20 mt-2 max-h-64 w-full overflow-y-auto rounded-[16px] border border-ink-100 bg-white shadow-soft">
-                  {suggestions.map((suggestion) => (
-                    <button
-                      key={suggestion.id}
-                      type="button"
-                      onClick={() => handleSelectSuggestion(suggestion)}
-                      className="w-full border-b border-ink-100 px-4 py-3 text-left text-sm text-ink-700 transition hover:bg-sand-50 last:border-b-0"
-                    >
-                      {suggestion.place_name}
-                    </button>
-                  ))}
-                </div>
-              ) : null}
+          <section className="section-card p-6">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <span className="eyebrow">Upcoming</span>
+                <h3 className="mt-3 text-xl font-semibold text-ink-900">Next tasks</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleTabSelect("work")}
+                className="ghost-action"
+              >
+                See all
+              </button>
             </div>
 
-            <div className="md:col-span-2">
-              <div className="flex flex-wrap items-center gap-3">
+            {propertyTasksError ? (
+              <p className="mt-4 text-sm text-clay-700">{propertyTasksError}</p>
+            ) : propertyTasksLoading ? (
+              <p className="mt-4 text-sm text-ink-500">Loading tasks...</p>
+            ) : nextPropertyTasks.length > 0 ? (
+              <div className="mt-5 space-y-3">
+                {nextPropertyTasks.map((task) => (
+                  <div key={task._id} className="rounded-[18px] border border-ink-100 bg-white px-4 py-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-ink-900">{task.title || "Untitled task"}</p>
+                        <p className="mt-1 text-sm text-ink-500">
+                          {task.endDate ? `Due ${formatCompactDate(task.endDate)}` : "No due date"}
+                        </p>
+                      </div>
+                      <span
+                        className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                          isTaskOverdue(task)
+                            ? "bg-clay-50 text-clay-700"
+                            : "bg-sand-50 text-ink-700"
+                        }`}
+                      >
+                        {task.status || "Open"}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="mt-4 text-sm text-ink-500">No upcoming tasks yet.</p>
+            )}
+          </section>
+        </div>
+
+        <section className="section-card p-6">
+          <span className="eyebrow">Recent activity</span>
+          <h3 className="mt-3 text-xl font-semibold text-ink-900">Latest updates</h3>
+          {recentActivity.length > 0 ? (
+            <div className="mt-5 space-y-3">
+              {recentActivity.map((item) => (
+                <div key={item.id} className="rounded-[18px] bg-ink-50/60 px-4 py-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold text-ink-900">{item.title}</p>
+                      <p className="mt-1 text-sm text-ink-500">{item.detail}</p>
+                    </div>
+                    <span className="shrink-0 text-xs font-medium text-ink-400">
+                      {formatDateTime(item.timestamp)}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="mt-4 text-sm text-ink-500">No recent activity yet.</p>
+          )}
+        </section>
+      </div>
+
+      <div ref={profileSectionRef}>
+        <PropertyWorkspaceSection
+          title="Property profile"
+          helper="Edit address, facts, and listing details."
+          defaultOpen
+        >
+          <form onSubmit={handleSave} className="space-y-6">
+            <div className="grid gap-5 md:grid-cols-2">
+              <div className="relative md:col-span-2">
+                <ProfileField label="Address">
+                  <input
+                    name="addressLine1"
+                    value={formData.addressLine1}
+                    onChange={handleChange}
+                    className="auth-input"
+                    placeholder="Start typing the property address..."
+                    required
+                  />
+                </ProfileField>
+
+                {suggestions.length > 0 ? (
+                  <div className="absolute z-20 mt-2 max-h-64 w-full overflow-y-auto rounded-[16px] border border-ink-100 bg-white shadow-soft">
+                    {suggestions.map((suggestion) => (
+                      <button
+                        key={suggestion.id}
+                        type="button"
+                        onClick={() => handleSelectSuggestion(suggestion)}
+                        className="w-full border-b border-ink-100 px-4 py-3 text-left text-sm text-ink-700 transition hover:bg-sand-50 last:border-b-0"
+                      >
+                        {suggestion.place_name}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+
+              <div className="md:col-span-2 flex flex-wrap items-center gap-3">
                 <button
                   type="button"
                   onClick={() => handlePreviewLookup()}
                   disabled={isPreviewLoading || !composeAddress(formData).trim()}
                   className="secondary-action disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {isPreviewLoading ? "Loading property details..." : "Auto-fill property details"}
+                  {isPreviewLoading ? "Loading details..." : "Auto-fill details"}
                 </button>
-                <p className="text-sm text-ink-500">
-                  Suggestions come from {getLocationProviderName()}.
-                </p>
+                <p className="text-sm text-ink-500">Suggestions from {getLocationProviderName()}.</p>
+                {previewMetadata ? (
+                  <span className="text-sm text-ink-500">
+                    {previewMetadata.propertyFound ? "Facts found." : "No facts found."}{" "}
+                    {previewMetadata.activeListingFound ? "Listing found." : "No listing found."}
+                  </span>
+                ) : null}
               </div>
-              {previewMetadata ? (
-                <p className="mt-3 text-sm text-ink-500">
-                  {previewMetadata.propertyFound ? "Property facts found." : "No property facts found."}{" "}
-                  {previewMetadata.activeListingFound ? "Active sale listing found." : "No active sale listing found."}
-                </p>
-              ) : null}
-            </div>
 
-            <label className="space-y-2">
-              <span className="text-sm font-medium text-ink-700">City</span>
-              <input
-                name="city"
-                value={formData.city}
-                onChange={handleChange}
-                className="auth-input"
-              />
-            </label>
-            <label className="space-y-2">
-              <span className="text-sm font-medium text-ink-700">State</span>
-              <input
-                name="state"
-                value={formData.state}
-                onChange={handleChange}
-                className="auth-input"
-              />
-            </label>
-            <label className="space-y-2">
-              <span className="text-sm font-medium text-ink-700">Zip code</span>
-              <input
-                name="zipCode"
-                value={formData.zipCode}
-                onChange={handleChange}
-                className="auth-input"
-              />
-            </label>
-            <label className="space-y-2">
-              <span className="text-sm font-medium text-ink-700">Property type</span>
-              <select
-                name="propertyType"
-                value={formData.propertyType}
-                onChange={handleChange}
-                className="auth-input appearance-none"
-              >
-                {propertyTypeOptions.map((option) => (
-                  <option key={option.value || "empty"} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            {showsUnitCount ? (
-              <label className="space-y-2">
-                <span className="text-sm font-medium text-ink-700">Unit count</span>
+              <ProfileField label="City">
+                <input name="city" value={formData.city} onChange={handleChange} className="auth-input" />
+              </ProfileField>
+              <ProfileField label="State">
+                <input name="state" value={formData.state} onChange={handleChange} className="auth-input" />
+              </ProfileField>
+              <ProfileField label="Zip code">
+                <input name="zipCode" value={formData.zipCode} onChange={handleChange} className="auth-input" />
+              </ProfileField>
+              <ProfileField label="Property type">
+                <select
+                  name="propertyType"
+                  value={formData.propertyType}
+                  onChange={handleChange}
+                  className="auth-input appearance-none"
+                >
+                  {propertyTypeOptions.map((option) => (
+                    <option key={option.value || "empty"} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </ProfileField>
+              {showsUnitCount ? (
+                <ProfileField label="Unit count">
+                  <input
+                    name="unitCount"
+                    type="number"
+                    value={formData.unitCount}
+                    onChange={handleChange}
+                    className="auth-input"
+                  />
+                </ProfileField>
+              ) : (
+                <div className="hidden md:block" />
+              )}
+              <ProfileField label="Bedrooms">
                 <input
-                  name="unitCount"
+                  name="bedrooms"
                   type="number"
-                  value={formData.unitCount}
+                  value={formData.bedrooms}
                   onChange={handleChange}
                   className="auth-input"
                 />
-              </label>
-            ) : (
-              <div className="hidden md:block" />
-            )}
-            <label className="space-y-2">
-              <span className="text-sm font-medium text-ink-700">Bedrooms</span>
-              <input
-                name="bedrooms"
-                type="number"
-                value={formData.bedrooms}
-                onChange={handleChange}
-                className="auth-input"
-              />
-            </label>
-            <label className="space-y-2">
-              <span className="text-sm font-medium text-ink-700">Bathrooms</span>
-              <input
-                name="bathrooms"
-                type="number"
-                step="0.5"
-                value={formData.bathrooms}
-                onChange={handleChange}
-                className="auth-input"
-              />
-            </label>
-            <label className="space-y-2">
-              <span className="text-sm font-medium text-ink-700">Square footage</span>
-              <input
-                name="squareFootage"
-                type="number"
-                value={formData.squareFootage}
-                onChange={handleChange}
-                className="auth-input"
-              />
-            </label>
-            <label className="space-y-2">
-              <span className="text-sm font-medium text-ink-700">Lot size</span>
-              <input
-                name="lotSize"
-                type="number"
-                value={formData.lotSize}
-                onChange={handleChange}
-                className="auth-input"
-              />
-            </label>
-            <label className="space-y-2">
-              <span className="text-sm font-medium text-ink-700">Year built</span>
-              <input
-                name="yearBuilt"
-                type="number"
-                value={formData.yearBuilt}
-                onChange={handleChange}
-                className="auth-input"
-              />
-            </label>
+              </ProfileField>
+              <ProfileField label="Bathrooms">
+                <input
+                  name="bathrooms"
+                  type="number"
+                  step="0.5"
+                  value={formData.bathrooms}
+                  onChange={handleChange}
+                  className="auth-input"
+                />
+              </ProfileField>
+              <ProfileField label="Square footage">
+                <input
+                  name="squareFootage"
+                  type="number"
+                  value={formData.squareFootage}
+                  onChange={handleChange}
+                  className="auth-input"
+                />
+              </ProfileField>
+              <ProfileField label="Lot size">
+                <input
+                  name="lotSize"
+                  type="number"
+                  value={formData.lotSize}
+                  onChange={handleChange}
+                  className="auth-input"
+                />
+              </ProfileField>
+              <ProfileField label="Year built">
+                <input
+                  name="yearBuilt"
+                  type="number"
+                  value={formData.yearBuilt}
+                  onChange={handleChange}
+                  className="auth-input"
+                />
+              </ProfileField>
 
-            <div className="md:col-span-2 rounded-[16px] border border-ink-100 bg-sand-50/70 p-5">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <p className="text-sm font-medium text-ink-900">Sale status</p>
-                  <p className="mt-1 text-sm text-ink-500">
-                    If the property has an active listing, we keep that visible here.
+              <div className="md:col-span-2 grid gap-5 rounded-[20px] border border-ink-100 bg-sand-50/60 p-5 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(220px,0.9fr)]">
+                <ProfileField label="Listing status">
+                  <input
+                    name="listingStatus"
+                    value={formData.listingStatus}
+                    onChange={handleChange}
+                    className="auth-input"
+                    placeholder="For Sale"
+                  />
+                </ProfileField>
+                <ProfileField label="Asking price">
+                  <input
+                    name="sellerAskingPrice"
+                    type="number"
+                    value={formData.sellerAskingPrice}
+                    onChange={handleChange}
+                    className="auth-input"
+                    placeholder="0"
+                  />
+                </ProfileField>
+                <div className="rounded-[18px] border border-ink-100 bg-white/90 p-4">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-400">
+                    Snapshot
+                  </p>
+                  <p className="mt-2 text-sm font-semibold text-ink-900">
+                    {formData.listingStatus || formData.sellerAskingPrice ? formData.listingStatus || "For Sale" : "Not listed"}
+                  </p>
+                  <p className="mt-2 text-sm leading-6 text-ink-500">
+                    {formData.sellerAskingPrice
+                      ? formatCurrency(formData.sellerAskingPrice)
+                      : "No asking price saved."}
                   </p>
                 </div>
-                <span
-                  className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
-                    formData.listingStatus || formData.sellerAskingPrice
-                      ? "bg-verdigris-50 text-verdigris-700"
-                      : "bg-white text-ink-600 ring-1 ring-ink-100"
-                  }`}
-                >
-                  {formData.listingStatus || formData.sellerAskingPrice ? "For sale" : "Not listed"}
-                </span>
-              </div>
-
-              {formData.listingStatus || formData.sellerAskingPrice ? (
-                <div className="mt-4 grid gap-5 md:grid-cols-[minmax(0,280px)_minmax(0,1fr)]">
-                  <label className="space-y-2">
-                    <span className="text-sm font-medium text-ink-700">Sale price</span>
-                    <input
-                      name="sellerAskingPrice"
-                      type="number"
-                      value={formData.sellerAskingPrice}
-                      onChange={handleChange}
-                      className="auth-input"
-                      placeholder="0"
-                    />
-                  </label>
-
-                  <div className="rounded-[16px] border border-ink-100 bg-white/90 p-4">
-                    <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-ink-400">
-                      Listing snapshot
-                    </p>
-                    <p className="mt-2 text-sm font-medium text-ink-800">
-                      {formData.listingStatus || "For Sale"}
-                    </p>
-                    <p className="mt-2 text-sm leading-6 text-ink-500">
-                      {formData.sellerAskingPrice
-                        ? `Current sale price: ${formatCurrency(formData.sellerAskingPrice)}`
-                        : "The property is listed for sale, but the asking price was not available from the lookup."}
-                    </p>
-                  </div>
-                </div>
-              ) : (
-                <p className="mt-4 text-sm leading-6 text-ink-500">
-                  No active sale listing was found for this address yet.
-                </p>
-              )}
-            </div>
-          </div>
-
-          <div className="mt-6 flex justify-end">
-            <button
-              type="submit"
-              disabled={isSaving}
-              className="primary-action disabled:cursor-not-allowed disabled:opacity-70"
-            >
-              {isSaving ? "Saving..." : "Save shared profile"}
-            </button>
-          </div>
-        </form>
-
-        <div className="space-y-4">
-          <div className="section-card p-5">
-            <span className="eyebrow">Source lead</span>
-            <h4 className="mt-4 text-xl font-semibold text-ink-900">Lead-linked workspace</h4>
-            <p className="mt-2 text-sm leading-6 text-ink-500">
-              This property keeps using the same lead data for comps, saved reports, renovation, bids,
-              and tasks.
-            </p>
-            <div className="mt-5 flex flex-wrap gap-3">
-              {pipelineLeadPath ? (
-                <Link to={pipelineLeadPath} className="secondary-action">
-                  <UsersIcon className="mr-2 h-5 w-5" />
-                  Open lead
-                </Link>
-              ) : null}
-            </div>
-          </div>
-
-          <div className="section-card p-4">
-            <div className="flex items-center gap-3">
-              <div className="flex h-9 w-9 items-center justify-center rounded-[14px] bg-ink-100 text-ink-700">
-                <HomeModernIcon className="h-5 w-5" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-ink-900">Property identity</p>
-                <code className="text-sm text-ink-500">{property.propertyKey}</code>
               </div>
             </div>
-          </div>
 
-          <div className="section-card p-5">
-            <span className="eyebrow">Workspace state</span>
-            <h4 className="mt-4 text-xl font-semibold text-ink-900">Current placement</h4>
-            <p className="mt-2 text-sm leading-6 text-ink-500">
-              {propertyWorkspaceActive
-                ? "This deal is active in Property Workspace and still remains in Closed - Won in the lead pipeline."
-                : "This deal is not currently active in Property Workspace."}
-            </p>
-          </div>
-        </div>
-      </section>
-          ) : activeContentKey === "acquisition-summary" ||
-        activeContentKey === "original-assumptions" ? (
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-ink-100 pt-5">
+              <p className="text-sm text-ink-500">
+                Property key <span className="font-semibold text-ink-900">{property.propertyKey}</span>
+              </p>
+              <button
+                type="submit"
+                disabled={isSaving}
+                className="primary-action disabled:cursor-not-allowed disabled:opacity-70"
+              >
+                {isSaving ? "Saving..." : "Save changes"}
+              </button>
+            </div>
+          </form>
+        </PropertyWorkspaceSection>
+      </div>
+    </div>
+  );
+
+  const renderFinancialsTab = () => (
+    <div className="space-y-4">
+      {!hasAcquisitionWorkspace
+        ? renderAcquisitionSetup({
+            title: "Add financials to this property",
+            description:
+              "Budget, debt, expenses, draws, payments, and reports all start here.",
+          })
+        : null}
+
+      {hasAcquisitionWorkspace ? (
+        <>
+          <PropertyWorkspaceSection
+            title="Snapshot & profitability"
+            helper="Basis, holding costs, and returns."
+            defaultOpen
+          >
+            <PropertyFinancePanel
+              property={property}
+              propertyKey={propertyKey}
+              activeContentKey="finance-health"
+              onPropertyUpdated={syncPropertyState}
+              embedded
+            />
+          </PropertyWorkspaceSection>
+
+          <PropertyWorkspaceSection
+            title="Capital & lenders"
+            helper="Funding sources, lender terms, and draw structure."
+          >
+            <PropertyFinancePanel
+              property={property}
+              propertyKey={propertyKey}
+              activeContentKey="finance-capital-stack"
+              onPropertyUpdated={syncPropertyState}
+              embedded
+            />
+          </PropertyWorkspaceSection>
+
+          <PropertyWorkspaceSection
+            title="Budget & actuals"
+            helper="Budget, commitments, and real spend."
+          >
+            <PropertyFinancePanel
+              property={property}
+              propertyKey={propertyKey}
+              activeContentKey="finance-budget-vs-actual"
+              onPropertyUpdated={syncPropertyState}
+              embedded
+            />
+          </PropertyWorkspaceSection>
+
+          <PropertyWorkspaceSection
+            title="Expenses"
+            helper="Expense ledger and receipts."
+          >
+            <PropertyCostsPanel
+              property={property}
+              propertyKey={propertyKey}
+              activeContentKey="costs-expenses"
+              onPropertyUpdated={syncPropertyState}
+              embedded
+            />
+          </PropertyWorkspaceSection>
+
+          <PropertyWorkspaceSection
+            title="Draws & payments"
+            helper="Draw requests and servicing."
+          >
+            <div className="space-y-5">
+              <PropertyFinancePanel
+                property={property}
+                propertyKey={propertyKey}
+                activeContentKey="finance-draw-operations"
+                onPropertyUpdated={syncPropertyState}
+                embedded
+              />
+              <PropertyFinancePanel
+                property={property}
+                propertyKey={propertyKey}
+                activeContentKey="finance-payment-schedule"
+                onPropertyUpdated={syncPropertyState}
+                embedded
+              />
+            </div>
+          </PropertyWorkspaceSection>
+
+          <PropertyWorkspaceSection
+            title="Reports"
+            helper="Export finance views."
+          >
+            <PropertyFinancePanel
+              property={property}
+              propertyKey={propertyKey}
+              activeContentKey="finance-reports"
+              onPropertyUpdated={syncPropertyState}
+              embedded
+            />
+          </PropertyWorkspaceSection>
+        </>
+      ) : null}
+    </div>
+  );
+
+  const renderWorkTab = () => (
+    <div className="space-y-4">
+      <PropertyWorkspaceSection
+        title="Tasks"
+        helper="Property-level action items."
+        defaultOpen
+      >
+        <TasksPanel
+          title="Property tasks"
+          description="Track follow-ups, next steps, and operational work for this property."
+          query={{
+            propertyKey: property.propertyKey,
+          }}
+          defaults={{
+            sourceType: "property",
+            sourceId: property.propertyKey,
+            sourceLabel: property.title || "Property",
+            propertyKey: property.propertyKey,
+          }}
+          emptyTitle="No tasks yet"
+          emptyDescription="Add the first task and it will also show up in the main task center."
+          embedded
+          onTasksChanged={() => loadPropertyTasks(property.propertyKey)}
+        />
+      </PropertyWorkspaceSection>
+
+      {!hasAcquisitionWorkspace
+        ? renderAcquisitionSetup({
+            title: "Add financials to unlock execution tools",
+            description:
+              "Schedule, vendors, commitments, and timeline run from the financial workspace.",
+            buttonLabel: "Create financials",
+          })
+        : null}
+
+      {hasAcquisitionWorkspace ? (
+        <>
+          <PropertyWorkspaceSection
+            title="Schedule"
+            helper="Calendar, gantt, and milestones."
+            defaultOpen
+          >
+            <PropertyOperationsPanel
+              property={property}
+              propertyKey={propertyKey}
+              activeContentKey="operations-schedule"
+              onPropertyUpdated={syncPropertyState}
+              embedded
+            />
+          </PropertyWorkspaceSection>
+
+          <PropertyWorkspaceSection
+            title="Vendors"
+            helper="Vendor roster and readiness."
+          >
+            <PropertyOperationsPanel
+              property={property}
+              propertyKey={propertyKey}
+              activeContentKey="operations-vendors"
+              onPropertyUpdated={syncPropertyState}
+              embedded
+            />
+          </PropertyWorkspaceSection>
+
+          <PropertyWorkspaceSection
+            title="Commitments"
+            helper="Awarded amounts and unpaid work."
+          >
+            <PropertyCostsPanel
+              property={property}
+              propertyKey={propertyKey}
+              activeContentKey="costs-commitments"
+              onPropertyUpdated={syncPropertyState}
+              embedded
+            />
+          </PropertyWorkspaceSection>
+
+          <PropertyWorkspaceSection
+            title="Timeline"
+            helper="Work, cost, and document history."
+          >
+            <PropertyOperationsPanel
+              property={property}
+              propertyKey={propertyKey}
+              activeContentKey="operations-timeline"
+              onPropertyUpdated={syncPropertyState}
+              embedded
+            />
+          </PropertyWorkspaceSection>
+        </>
+      ) : null}
+
+      <PropertyWorkspaceSection
+        title="Vendor bids"
+        helper="Compare bids tied to the linked lead."
+      >
+        {renderLeadWorkspaceState({
+          missingLeadTitle: "Add a lead to manage bids",
+          missingLeadDescription:
+            "Bids stay tied to the linked lead and renovation scope.",
+          inactiveTitle: "Activate analysis to manage bids here",
+          inactiveDescription:
+            "Turn on the linked lead inside this property to use bid tools here.",
+          loadingLabel: "Loading bid management...",
+          renderContent: () => (
+            <BidsTab
+              leadId={pipelineLeadId}
+              bids={bids}
+              renovationItems={renovationItems}
+              onUpdate={handleBidsUpdated}
+            />
+          ),
+        })}
+      </PropertyWorkspaceSection>
+    </div>
+  );
+
+  const renderDocumentsTab = () => (
+    <div className="space-y-4">
+      {!hasAcquisitionWorkspace
+        ? renderAcquisitionSetup({
+            title: "Add financials to unlock documents",
+            description:
+              "Uploads, draw support files, and document links are stored there.",
+            buttonLabel: "Create financials",
+          })
+        : (
+          <PropertyDocumentsPanel
+            property={property}
+            propertyKey={propertyKey}
+            onPropertyUpdated={syncPropertyState}
+            embedded
+          />
+        )}
+    </div>
+  );
+
+  const renderAnalysisTab = () => (
+    <div className="space-y-4">
+      <PropertyWorkspaceSection
+        title="Deal summary"
+        helper="Property story from assumptions through current numbers."
+        defaultOpen
+      >
         <PropertySummaryPanel
           property={property}
           propertyKey={propertyKey}
-          activeContentKey={activeContentKey}
+          activeContentKey="acquisition-summary"
           leadWorkspace={leadWorkspace}
           savedReports={savedReports}
           pipelineLeadPath={pipelineLeadPath}
+          embedded
         />
-          ) : activeContentKey === "comps" ? (
-        renderLeadSectionContent(
-          () => (
-            <CompsReportWorkspace
+      </PropertyWorkspaceSection>
+
+      <PropertyWorkspaceSection
+        title="Comps"
+        helper="Run comps and save reports."
+      >
+        {renderLeadWorkspaceState({
+          missingLeadTitle: "Add a lead to run comps",
+          missingLeadDescription:
+            "Comps and saved reports live on the linked lead.",
+          inactiveTitle: "Activate analysis to run comps here",
+          inactiveDescription:
+            "Turn on the linked lead inside this property to use comps here.",
+          loadingLabel: "Loading comps analysis...",
+          renderContent: () => (
+            <MasterDealReportWorkspace
               subject={leadWorkspace}
-              analysis={analysis}
+              report={analysis}
               filters={filters}
+              deal={dealForm}
               onFilterChange={handleLeadFilterChange}
+              onDealChange={handleLeadDealChange}
               isAnalyzing={isAnalyzing}
               onRunAnalysis={handleRunLeadAnalysis}
               billingAccess={billingAccess}
               isBillingAccessLoading={isBillingAccessLoading}
               onStartSubscription={handleStartSubscription}
               isStartingSubscription={isStartingSubscription}
+              onBuyReport={handleBuyCredits}
+              isStartingCheckout={isStartingCheckout}
               onSaveReport={handleSaveLeadReport}
               isSavingReport={isSavingReport}
-              saveButtonLabel="Save Property Report"
-              showOneTimeCheckout={false}
-              compsNotice={compsNotice}
+              saveButtonLabel="Save property report"
+              runButtonLabel="Run Property Master Report"
+              showOneTimeCheckout
+              reportNotice={compsNotice}
               renderSubjectPanel={() => (
                 <div className="section-card p-6">
                   <div className="flex items-start justify-between gap-4">
                     <div>
-                      <h3 className="text-xl font-semibold text-ink-900">Lead-linked deal snapshot</h3>
+                      <h3 className="text-xl font-semibold text-ink-900">Deal snapshot</h3>
                       <p className="mt-1 text-sm text-ink-500">
-                        This pulls from the connected lead so the property workspace stays aligned with
-                        saved comps reports and deal assumptions.
+                        Subject facts and pricing come from the linked lead.
                       </p>
                     </div>
                     {pipelineLeadPath ? (
@@ -1948,155 +2025,212 @@ const PropertyWorkspacePage = () => {
               )}
             />
           ),
-          "Loading AI comps analysis..."
-        )
-          ) : activeContentKey === "saved-reports" ? (
-        renderLeadSectionContent(
-          () => (
+        })}
+      </PropertyWorkspaceSection>
+
+      <PropertyWorkspaceSection
+        title="Saved reports"
+        helper="Saved report history."
+      >
+        {renderLeadWorkspaceState({
+          missingLeadTitle: "Add a lead to store reports",
+          missingLeadDescription:
+            "Saved reports are attached to the linked lead.",
+          inactiveTitle: "Activate analysis to use saved reports",
+          inactiveDescription:
+            "Turn on the linked lead inside this property to keep report history here.",
+          loadingLabel: "Loading saved reports...",
+          renderContent: () => (
             <SavedCompsReportsTab
               reports={savedReports}
               isLoading={savedReportsLoading}
               title="Saved property reports"
-              description="Every saved comps snapshot for this property's linked lead lives here so you can compare different comp sets over time."
-              emptyTitle="No property reports saved yet"
-              emptyMessage="Run the AI comps analysis, choose the comps you want to keep, and save the report to build the property's comps history."
+              description="Every saved Master Deal Report for this property lives here."
+              emptyTitle="No reports saved yet"
+              emptyMessage="Run the Master Deal Report, save it, and it will appear here."
             />
           ),
-          "Loading saved reports..."
-        )
-          ) : activeContentKey === "renovation" ? (
-        renderLeadSectionContent(
-          () => (
+        })}
+      </PropertyWorkspaceSection>
+
+      <PropertyWorkspaceSection
+        title="Scope & renovation"
+        helper="Renovation assumptions and scope."
+      >
+        {renderLeadWorkspaceState({
+          missingLeadTitle: "Add a lead to manage scope",
+          missingLeadDescription:
+            "Renovation scope starts on the linked lead.",
+          inactiveTitle: "Activate analysis to edit scope here",
+          inactiveDescription:
+            "Turn on the linked lead inside this property to edit scope here.",
+          loadingLabel: "Loading renovation plan...",
+          renderContent: () => (
             <LeadRenovationTab
               lead={leadWorkspace}
               leadId={pipelineLeadId}
               onLeadUpdated={handleLeadUpdated}
             />
           ),
-          "Loading renovation plan..."
-        )
-          ) : activeContentKey === "bids" ? (
-        renderLeadSectionContent(
-          () => (
-            <BidsTab
-              leadId={pipelineLeadId}
-              bids={bids}
-              renovationItems={renovationItems}
-              onUpdate={handleBidsUpdated}
+        })}
+      </PropertyWorkspaceSection>
+
+      <PropertyWorkspaceSection
+        title="Original assumptions"
+        helper="Original deal thesis."
+      >
+        <PropertySummaryPanel
+          property={property}
+          propertyKey={propertyKey}
+          activeContentKey="original-assumptions"
+          leadWorkspace={leadWorkspace}
+          savedReports={savedReports}
+          pipelineLeadPath={pipelineLeadPath}
+          embedded
+        />
+      </PropertyWorkspaceSection>
+    </div>
+  );
+
+  const renderSettingsTab = () => (
+    <PropertyWorkspaceSettingsPanel
+      property={property}
+      propertyWorkspaceActive={propertyWorkspaceActive}
+      pipelineLeadPath={pipelineLeadPath}
+      pipelineLeadStatus={pipelineLeadStatus}
+      onActivateWorkspace={() => handleUpdatePropertyWorkspaceStatus(true)}
+      onDeactivateWorkspace={() => handleUpdatePropertyWorkspaceStatus(false)}
+      isUpdatingWorkspaceStatus={isUpdatingWorkspaceStatus}
+      onCreatePipelineWorkspace={handleCreatePipelineWorkspace}
+      onCreateAcquisitionWorkspace={handleCreateAcquisitionWorkspace}
+      onCreateManagementWorkspace={handleCreateManagementWorkspace}
+      isCreatingPipelineWorkspace={isCreatingPipelineWorkspace}
+      isCreatingAcquisitionWorkspace={isCreatingAcquisitionWorkspace}
+      isCreatingManagementWorkspace={isCreatingManagementWorkspace}
+      acquisitionStrategy={acquisitionStrategy}
+      managementStrategy={managementStrategy}
+      onAcquisitionStrategyChange={(event) => setAcquisitionStrategy(event.target.value)}
+      onManagementStrategyChange={(event) => setManagementStrategy(event.target.value)}
+    />
+  );
+
+  const renderActiveTab = () => {
+    if (activeTab.id === "overview") return renderOverviewTab();
+    if (activeTab.id === "financials") return renderFinancialsTab();
+    if (activeTab.id === "work") return renderWorkTab();
+    if (activeTab.id === "documents") return renderDocumentsTab();
+    if (activeTab.id === "analysis") return renderAnalysisTab();
+    return renderSettingsTab();
+  };
+
+  return (
+    <div className="space-y-4">
+      <section className="surface-panel relative overflow-hidden px-6 py-6 sm:px-7">
+        <div className="absolute inset-y-0 right-0 w-[44%] bg-[radial-gradient(circle_at_top_right,rgba(73,169,184,0.18),transparent_58%)]" />
+        <div className="absolute inset-x-0 bottom-0 h-24 bg-[linear-gradient(180deg,rgba(255,255,255,0)_0%,rgba(255,255,255,0.85)_100%)]" />
+
+        <div className="relative grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+          <div>
+            <span className="eyebrow">Property workspace</span>
+            <h1 className="mt-4 font-display text-[2.65rem] leading-[0.94] text-ink-900">
+              {property.title}
+            </h1>
+            <p className="mt-3 max-w-3xl text-sm leading-6 text-ink-500 sm:text-base">{detailLine}</p>
+
+            <div className="mt-5 flex flex-wrap gap-2">
+              <HeaderBadge
+                label={propertyWorkspaceActive ? "Workspace active" : hasPipelineWorkspace ? "Lead linked" : "Standalone property"}
+              />
+              {listingSummary ? (
+                <HeaderBadge
+                  label={`${listingSummary.label}${listingSummary.price ? ` • ${listingSummary.price}` : ""}`}
+                  tone="bg-verdigris-50 text-verdigris-700"
+                />
+              ) : (
+                <HeaderBadge label="Not listed" tone="bg-sand-50 text-ink-700" />
+              )}
+              <HeaderBadge
+                label={hasAcquisitionWorkspace ? "Financials ready" : "Needs acquisitions"}
+                tone={hasAcquisitionWorkspace ? "bg-sky-50 text-sky-700" : "bg-clay-50 text-clay-700"}
+              />
+              <HeaderBadge
+                label={hasManagementWorkspace ? "Management linked" : "Management optional"}
+                tone={hasManagementWorkspace ? "bg-verdigris-50 text-verdigris-700" : "bg-white/80 text-ink-700 ring-1 ring-white/60"}
+              />
+            </div>
+
+            <div className="mt-6 flex flex-wrap gap-3">
+              <Link to="/properties" className="secondary-action">
+                Back to properties
+              </Link>
+              <button type="button" onClick={handleOpenProfile} className="secondary-action">
+                Edit profile
+              </button>
+              <button type="button" onClick={() => handleTabSelect("settings")} className="secondary-action">
+                Settings
+              </button>
+              {pipelineLeadPath ? (
+                <Link to={pipelineLeadPath} className="secondary-action">
+                  Open lead
+                </Link>
+              ) : null}
+            </div>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
+            <StatCard
+              label="Next step"
+              value={nextStepCard.value}
+              helper={nextStepCard.helper}
+              tone="bg-white/88"
             />
-          ),
-          "Loading bid management..."
-        )
-          ) : activeContentKey === "settings" ? (
-        renderLeadSectionContent(
-          () => (
-            <section className="section-card p-6 sm:p-7">
-              <span className="eyebrow">Workspace settings</span>
-              <h3 className="mt-4 text-3xl font-semibold text-ink-900">Control where this deal lives</h3>
-              <p className="mt-3 max-w-2xl text-sm leading-6 text-ink-500">
-                Property Workspace is separate from the lead pipeline list. Removing it from here
-                does not delete the deal and does not remove it from Closed - Won.
-              </p>
-
-              <div className="mt-8 grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(320px,0.9fr)]">
-                <div className="rounded-[24px] border border-ink-100 bg-sand-50/70 p-5">
-                  <p className="text-sm font-semibold text-ink-900">Current status</p>
-                  <p className="mt-2 text-sm leading-6 text-ink-500">
-                    {propertyWorkspaceActive
-                      ? "This lead is active in Property Workspace."
-                      : "This lead is not currently active in Property Workspace."}
-                  </p>
-                  <div className="mt-5 flex flex-wrap gap-3">
-                    {propertyWorkspaceActive ? (
-                      <button
-                        type="button"
-                        onClick={() => handleUpdatePropertyWorkspaceStatus(false)}
-                        disabled={isUpdatingWorkspaceStatus}
-                        className="primary-action disabled:cursor-not-allowed disabled:opacity-70"
-                      >
-                        {isUpdatingWorkspaceStatus ? "Updating..." : "Move Back to Potential Properties"}
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => handleUpdatePropertyWorkspaceStatus(true)}
-                        disabled={isUpdatingWorkspaceStatus}
-                        className="primary-action disabled:cursor-not-allowed disabled:opacity-70"
-                      >
-                        {isUpdatingWorkspaceStatus ? "Updating..." : "Move to Property Workspace"}
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                <div className="rounded-[24px] border border-ink-100 bg-white p-5">
-                  <p className="text-sm font-semibold text-ink-900">Source lead</p>
-                  <p className="mt-2 text-sm leading-6 text-ink-500">
-                    The lead remains in the pipeline under <span className="font-semibold text-ink-900">Closed - Won</span>.
-                    Use that record whenever you want to review or change the original lead details.
-                  </p>
-                  {pipelineLeadPath ? (
-                    <div className="mt-5">
-                      <Link to={pipelineLeadPath} className="secondary-action">
-                        Open source lead
-                      </Link>
-                    </div>
-                  ) : null}
-                </div>
-              </div>
-            </section>
-          ),
-          "Loading workspace settings..."
-        )
-          ) : activeContentKey.startsWith("finance-") ? (
-        <PropertyFinancePanel
-          property={property}
-          propertyKey={propertyKey}
-          activeContentKey={activeContentKey}
-          onPropertyUpdated={syncPropertyState}
-        />
-          ) : activeContentKey.startsWith("costs-") ? (
-        <PropertyCostsPanel
-          property={property}
-          propertyKey={propertyKey}
-          activeContentKey={activeContentKey}
-          onPropertyUpdated={syncPropertyState}
-        />
-          ) : activeContentKey === "documents-overview" ? (
-        <PropertyDocumentsPanel
-          property={property}
-          propertyKey={propertyKey}
-          onPropertyUpdated={syncPropertyState}
-        />
-          ) : activeContentKey.startsWith("operations-") ? (
-        <PropertyOperationsPanel
-          property={property}
-          propertyKey={propertyKey}
-          activeContentKey={activeContentKey}
-          onPropertyUpdated={syncPropertyState}
-        />
-          ) : activeContentKey === "tasks" ? (
-        <TasksPanel
-          eyebrow="Property tasks"
-          title="Tasks for this property"
-          description="Use this tab for property-wide action items, vendor follow-ups, and general work that should stay attached to this shared property record."
-          query={{
-            propertyKey: property.propertyKey,
-          }}
-          defaults={{
-            sourceType: "property",
-            sourceId: property.propertyKey,
-            sourceLabel: property.title || "Property",
-            propertyKey: property.propertyKey,
-          }}
-          emptyTitle="No property tasks yet"
-          emptyDescription="Add the first task for this property and it will also show up in the main task center."
-        />
-          ) : (
-        renderPlaceholderSection(activeContentKey)
-          )}
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-2">
+              <StatCard
+                label="Linked workspaces"
+                value={String(workspaceCount)}
+                helper="Lead, financials, management"
+                tone="bg-white/82"
+              />
+              <StatCard
+                label="Open tasks"
+                value={String(openPropertyTasks)}
+                helper={overduePropertyTasks > 0 ? `${overduePropertyTasks} overdue` : "Nothing overdue"}
+                tone="bg-white/82"
+              />
+            </div>
+          </div>
         </div>
-      </div>
+      </section>
+
+      <section className="section-card sticky top-24 z-10 overflow-hidden bg-white/92 px-2 py-2 backdrop-blur">
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          {PROPERTY_WORKSPACE_TABS.map((tab) => (
+            <TabButton
+              key={tab.id}
+              tab={tab}
+              isActive={tab.id === activeTab.id}
+              onSelect={handleTabSelect}
+            />
+          ))}
+        </div>
+      </section>
+
+      {activeTab.id === "analysis" && leadWorkspaceError && leadWorkspace ? (
+        <div className="rounded-[16px] border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
+          {leadWorkspaceError}
+        </div>
+      ) : null}
+
+      {renderActiveTab()}
+
+      {property ? (
+        <PropertyCopilotPanel
+          propertyKey={property.propertyKey}
+          propertyTitle={property.title}
+          activeTab={activeTab}
+          onTasksChanged={() => loadPropertyTasks(property.propertyKey)}
+        />
+      ) : null}
     </div>
   );
 };

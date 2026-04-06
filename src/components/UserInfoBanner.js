@@ -116,6 +116,13 @@ const UserInfoBanner = () => {
               </Link>
             ) : null}
             <Link
+              to="/help"
+              onClick={() => setIsMenuOpen(false)}
+              className="flex w-full items-center rounded-2xl px-4 py-3 text-sm font-medium text-ink-700 transition hover:bg-sand-50"
+            >
+              Help & Support
+            </Link>
+            <Link
               to="/account"
               onClick={() => setIsMenuOpen(false)}
               className="flex w-full items-center rounded-2xl px-4 py-3 text-sm font-medium text-ink-700 transition hover:bg-sand-50"

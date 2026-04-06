@@ -1,0 +1,87 @@
+{
+  "generatedAt": "2026-04-06T00:49:19.405Z",
+  "runId": "local-smoke",
+  "environment": {
+    "baseUrl": "http://127.0.0.1:4173",
+    "resultsDir": "/Users/nisaymizrahi/Desktop/full project front and backend/mypropai/output/qa/local-smoke",
+    "nodeVersion": "v20.20.1"
+  },
+  "pagesAndFlowsTested": {
+    "functional": [
+      "home_landing",
+      "property_intake",
+      "master_report",
+      "map_and_comps",
+      "saved_report_export",
+      "mobile_sanity"
+    ],
+    "lighthouse": [],
+    "accessibility": [],
+    "ux": []
+  },
+  "sections": {
+    "functionality": {
+      "score": 0,
+      "pass": false,
+      "details": {
+        "score": 0,
+        "flows": {},
+        "pass": false
+      }
+    },
+    "accessibility": {
+      "score": 0,
+      "pass": true,
+      "details": {
+        "score": 0,
+        "pages": [],
+        "pass": true
+      }
+    },
+    "performance": {
+      "score": 0,
+      "pass": false,
+      "details": {
+        "score": 0,
+        "pages": [],
+        "pass": false
+      }
+    },
+    "usability": {
+      "score": null,
+      "pass": null,
+      "details": {
+        "score": null,
+        "polishScore": null,
+        "screens": [],
+        "pass": null,
+        "polishPass": null
+      }
+    },
+    "polish": {
+      "score": null,
+      "pass": null,
+      "details": {
+        "score": null,
+        "polishScore": null,
+        "screens": [],
+        "pass": null,
+        "polishPass": null
+      }
+    }
+  },
+  "overall": {
+    "score": 0,
+    "normalizedWeight": 70,
+    "skipped": [
+      "usability",
+      "polish"
+    ],
+    "band": {
+      "min": 0,
+      "label": "Not Ready",
+      "readiness": "Do not release without focused remediation"
+    }
+  },
+  "topIssues": []
+}

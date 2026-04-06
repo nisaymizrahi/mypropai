@@ -4,6 +4,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
 import { createProperty, previewLeadProperty } from "../utils/api";
 import { getLocationProviderName, searchAddressSuggestions } from "../utils/locationSearch";
+import { buildPropertyWorkspacePath } from "../utils/propertyWorkspaceNavigation";
 
 const propertyTypeOptions = [
   { value: "", label: "Select property type" },
@@ -16,6 +17,125 @@ const propertyTypeOptions = [
   { value: "land", label: "Land" },
   { value: "other", label: "Other" },
 ];
+
+const workspaceModeOptions = [
+  {
+    value: "property_only",
+    label: "Property only",
+    helper: "Start with the property.",
+  },
+  {
+    value: "pipeline",
+    label: "Lead + property",
+    helper: "Add analysis now.",
+  },
+  {
+    value: "acquisitions",
+    label: "Property + financials",
+    helper: "Add budgets and execution now.",
+  },
+  {
+    value: "management",
+    label: "Management-ready",
+    helper: "Add management now.",
+  },
+];
+
+const workspaceModeMeta = {
+  property_only: {
+    eyebrow: "New property",
+    title: "Create the shared property first",
+    description:
+      "Start with one clean property record. Add other workspaces later if you need them.",
+    backTo: "/properties",
+    backLabel: "Back to properties",
+    submitLabel: "Create property",
+    successMessage: "Property created.",
+    outcomes: [
+      "Property record",
+      "Editable profile",
+      "Setup later",
+    ],
+  },
+  pipeline: {
+    eyebrow: "New property + lead",
+    title: "Create the property and linked lead together",
+    description:
+      "Create the property and lead together so analysis is ready right away.",
+    backTo: "/leads",
+    backLabel: "Back to leads",
+    submitLabel: "Create property + lead",
+    successMessage: "Property and lead created.",
+    outcomes: [
+      "Property record",
+      "Linked lead",
+      "Analysis ready",
+    ],
+  },
+  acquisitions: {
+    eyebrow: "New property + financials",
+    title: "Create the property with financials ready",
+    description:
+      "Create the property and financial workspace together.",
+    backTo: "/properties",
+    backLabel: "Back to properties",
+    submitLabel: "Create financial workspace",
+    successMessage: "Property and acquisitions workspace created.",
+    outcomes: [
+      "Property record",
+      "Financials ready",
+      "Work + docs ready",
+    ],
+  },
+  management: {
+    eyebrow: "New property + management",
+    title: "Create the property ready for management",
+    description:
+      "Create the property with management ready to link in.",
+    backTo: "/properties",
+    backLabel: "Back to properties",
+    submitLabel: "Create management-ready property",
+    successMessage: "Property and management workspace created.",
+    outcomes: [
+      "Property record",
+      "Management ready",
+      "Financials later",
+    ],
+  },
+};
+
+const ModeCard = ({ option, isActive, onSelect }) => (
+  <button
+    type="button"
+    onClick={() => onSelect(option.value)}
+    className={`rounded-[22px] border p-4 text-left transition ${
+      isActive
+        ? "border-ink-900 bg-ink-900 text-white shadow-[0_16px_30px_rgba(26,35,48,0.12)]"
+        : "border-ink-100 bg-white text-ink-700 hover:border-ink-200 hover:bg-ink-50"
+    }`}
+  >
+    <div className="flex items-start justify-between gap-3">
+      <div>
+        <p className="text-sm font-semibold">{option.label}</p>
+        <p className={`mt-2 text-sm leading-6 ${isActive ? "text-white/75" : "text-ink-500"}`}>
+          {option.helper}
+        </p>
+      </div>
+      <span
+        className={`mt-0.5 h-4 w-4 rounded-full border ${
+          isActive ? "border-white bg-white" : "border-ink-300 bg-transparent"
+        }`}
+      />
+    </div>
+  </button>
+);
+
+const Field = ({ label, children, className = "" }) => (
+  <label className={`space-y-2 ${className}`}>
+    <span className="text-sm font-medium text-ink-700">{label}</span>
+    {children}
+  </label>
+);
 
 const normalizeWorkspaceKey = (value) => {
   if (["property_only", "pipeline", "acquisitions", "management"].includes(value)) {
@@ -132,6 +252,14 @@ const CreatePropertyPage = () => {
   const [previewMetadata, setPreviewMetadata] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [showAdvancedModes, setShowAdvancedModes] = useState(
+    ["acquisitions", "management"].includes(initialWorkspace)
+  );
+
+  const currentMode = workspaceModeMeta[formData.workspaceKey] || workspaceModeMeta.property_only;
+  const visibleModeOptions = showAdvancedModes
+    ? workspaceModeOptions
+    : workspaceModeOptions.filter((option) => ["property_only", "pipeline"].includes(option.value));
 
   const addressQuery = useMemo(
     () =>
@@ -145,7 +273,6 @@ const CreatePropertyPage = () => {
   );
 
   const showsUnitCount = formData.propertyType === "multi-family";
-  const isPipelineCreation = formData.workspaceKey === "pipeline";
   const isForSale = Boolean(
     previewMetadata?.activeListingFound || formData.listingStatus || formData.sellerAskingPrice
   );
@@ -196,6 +323,13 @@ const CreatePropertyPage = () => {
       selectedSuggestionRef.current = "";
       setPreviewMetadata(null);
     }
+  };
+
+  const handleModeSelect = (workspaceKey) => {
+    setFormData((current) => ({
+      ...current,
+      workspaceKey,
+    }));
   };
 
   const handlePreviewLookup = async (addressOverride, fieldOverrides = {}) => {
@@ -286,28 +420,20 @@ const CreatePropertyPage = () => {
 
       const result = await createProperty(payload);
 
-      if (result.leadId && isPipelineCreation) {
-        toast.success("Property created and added to Potential leads.");
-        navigate("/leads");
-        return;
-      }
-
       if (result.property?.propertyKey) {
-        toast.success(
-          result.leadId ? "Property created and added to leads." : "Property created."
-        );
-        navigate(`/properties/${encodeURIComponent(result.property.propertyKey)}`);
+        toast.success(currentMode.successMessage);
+        navigate(buildPropertyWorkspacePath(result.property.propertyKey));
         return;
       }
 
       if (result.leadId) {
-        toast.success("Property created and added to leads.");
+        toast.success("Property created and linked lead added.");
         navigate(`/leads/${result.leadId}`);
         return;
       }
 
-      toast.success("Property created.");
-      navigate("/leads");
+      toast.success(currentMode.successMessage);
+      navigate(currentMode.backTo);
     } catch (submitError) {
       setError(submitError.message || "Failed to create property.");
     } finally {
@@ -320,58 +446,96 @@ const CreatePropertyPage = () => {
       <section className="surface-panel px-6 py-6 sm:px-7">
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
           <div>
-            <span className="eyebrow">Add property</span>
+            <span className="eyebrow">{currentMode.eyebrow}</span>
             <h2 className="mt-4 font-display text-[2.5rem] leading-[0.96] text-ink-900">
-              Start with the address, then fill in only the details you need.
+              {currentMode.title}
             </h2>
-            <p className="mt-4 max-w-2xl text-sm leading-7 text-ink-500 sm:text-base">
-              Add a potential property to the pipeline with one clean form. Address lookup can fill the basics, and sale status appears automatically when the property is actively listed.
+            <p className="mt-4 max-w-2xl text-sm leading-6 text-ink-500 sm:text-base">
+              {currentMode.description}
             </p>
 
             <div className="mt-6 flex flex-wrap gap-3">
-              <Link to="/leads" className="secondary-action">
-                Back to leads
+              <Link to={currentMode.backTo} className="secondary-action">
+                {currentMode.backLabel}
               </Link>
             </div>
           </div>
 
           <div className="section-card p-5">
             <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-ink-400">
-              Autofill
+              Starts with
             </p>
-            <h3 className="mt-3 font-display text-[1.9rem] leading-none text-ink-900">
-              Address first, details second
-            </h3>
-            <p className="mt-3 text-sm leading-6 text-ink-500">
-              Start typing an address, choose the right result, and let the lookup prefill any property facts and sale information it can find.
-            </p>
-
-            <div className="mt-5 rounded-[16px] border border-ink-100 bg-white/90 p-4">
-              <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-ink-400">
-                Autofill source
-              </p>
-              <p className="mt-2 text-sm leading-6 text-ink-600">
-                Address suggestions come from {getLocationProviderName()}, and the property detail
-                lookup checks for sale activity plus available property facts.
+            <div className="mt-5 space-y-3">
+              {currentMode.outcomes.map((item) => (
+                <div key={item} className="rounded-[16px] border border-ink-100 bg-white/90 px-4 py-4">
+                  <p className="text-sm font-medium text-ink-700">{item}</p>
+                </div>
+              ))}
+            </div>
+            <div className="mt-5 rounded-[16px] border border-ink-100 bg-sand-50/70 p-4">
+              <p className="text-sm text-ink-600">
+                Autofill uses {getLocationProviderName()} for address suggestions plus any available
+                property facts.
               </p>
             </div>
           </div>
         </div>
       </section>
 
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit} className="space-y-4">
         <section className="section-card p-6 sm:p-7">
-          <span className="eyebrow">Property details</span>
-          <h3 className="mt-4 font-display text-[2rem] leading-none text-ink-900">Keep the first form simple</h3>
-          <p className="mt-2 text-sm leading-6 text-ink-500">
-            Select an address, auto-fill the basics, and only enter unit count when the property is
-            multi-family.
-          </p>
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <span className="eyebrow">Starting mode</span>
+              <h3 className="mt-4 text-2xl font-semibold text-ink-900">Start simple</h3>
+              <p className="mt-2 text-sm text-ink-500">You can add more later from Settings.</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                if (showAdvancedModes && ["acquisitions", "management"].includes(formData.workspaceKey)) {
+                  handleModeSelect("property_only");
+                }
+                setShowAdvancedModes((current) => !current);
+              }}
+              className="ghost-action"
+            >
+              {showAdvancedModes ? "Hide extra setup" : "Show financials + management"}
+            </button>
+          </div>
+
+          <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            {visibleModeOptions.map((option) => (
+              <ModeCard
+                key={option.value}
+                option={option}
+                isActive={formData.workspaceKey === option.value}
+                onSelect={handleModeSelect}
+              />
+            ))}
+          </div>
+        </section>
+
+        <section className="section-card p-6 sm:p-7">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <span className="eyebrow">Property details</span>
+              <h3 className="mt-4 text-2xl font-semibold text-ink-900">Address first</h3>
+              <p className="mt-2 text-sm text-ink-500">Fill the basics once, then refine.</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => handlePreviewLookup()}
+              disabled={isPreviewLoading || !addressQuery.trim()}
+              className="secondary-action disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isPreviewLoading ? "Loading details..." : "Auto-fill details"}
+            </button>
+          </div>
 
           <div className="mt-6 grid gap-5 md:grid-cols-2">
             <div className="relative md:col-span-2">
-              <label className="space-y-2">
-                <span className="text-sm font-medium text-ink-700">Address line</span>
+              <Field label="Address">
                 <input
                   name="addressLine1"
                   value={formData.addressLine1}
@@ -380,7 +544,7 @@ const CreatePropertyPage = () => {
                   placeholder="Start typing the property address..."
                   required
                 />
-              </label>
+              </Field>
 
               {suggestions.length > 0 ? (
                 <div className="absolute z-20 mt-2 max-h-64 w-full overflow-y-auto rounded-[16px] border border-ink-100 bg-white shadow-soft">
@@ -398,8 +562,7 @@ const CreatePropertyPage = () => {
               ) : null}
             </div>
 
-            <label className="space-y-2">
-              <span className="text-sm font-medium text-ink-700">City</span>
+            <Field label="City">
               <input
                 name="city"
                 value={formData.city}
@@ -408,10 +571,9 @@ const CreatePropertyPage = () => {
                 placeholder="City"
                 required
               />
-            </label>
+            </Field>
 
-            <label className="space-y-2">
-              <span className="text-sm font-medium text-ink-700">State</span>
+            <Field label="State">
               <input
                 name="state"
                 value={formData.state}
@@ -420,10 +582,9 @@ const CreatePropertyPage = () => {
                 placeholder="State"
                 required
               />
-            </label>
+            </Field>
 
-            <label className="space-y-2">
-              <span className="text-sm font-medium text-ink-700">Zip code</span>
+            <Field label="Zip code">
               <input
                 name="zipCode"
                 value={formData.zipCode}
@@ -432,38 +593,22 @@ const CreatePropertyPage = () => {
                 placeholder="Zip code"
                 required
               />
-            </label>
+            </Field>
 
-            <div className="md:col-span-2">
-              <div className="flex flex-wrap items-center gap-3">
-                <button
-                  type="button"
-                  onClick={() => handlePreviewLookup()}
-                  disabled={isPreviewLoading || !addressQuery.trim()}
-                  className="secondary-action disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {isPreviewLoading ? "Loading property details..." : "Auto-fill property details"}
-                </button>
+            <div className="md:col-span-2 rounded-[18px] border border-ink-100 bg-sand-50/60 px-4 py-4">
+              <p className="text-sm text-ink-600">
                 {previewMetadata ? (
-                  <p className="text-sm text-ink-500">
-                    {previewMetadata.propertyFound
-                      ? "Property facts found."
-                      : "No property facts found."}{" "}
-                    {previewMetadata.activeListingFound
-                      ? "Active sale listing found."
-                      : "No active sale listing found."}
-                  </p>
+                  <>
+                    {previewMetadata.propertyFound ? "Facts found." : "No facts found."}{" "}
+                    {previewMetadata.activeListingFound ? "Listing found." : "No active listing found."}
+                  </>
                 ) : (
-                  <p className="text-sm text-ink-500">
-                    Use the lookup after selecting an address to fill the property facts and sale
-                    status.
-                  </p>
+                  "Use autofill to pull in property facts and listing details."
                 )}
-              </div>
+              </p>
             </div>
 
-            <label className="space-y-2">
-              <span className="text-sm font-medium text-ink-700">Property type</span>
+            <Field label="Property type">
               <select
                 name="propertyType"
                 value={formData.propertyType}
@@ -476,10 +621,9 @@ const CreatePropertyPage = () => {
                   </option>
                 ))}
               </select>
-            </label>
+            </Field>
 
-            <label className="space-y-2">
-              <span className="text-sm font-medium text-ink-700">Bedrooms</span>
+            <Field label="Bedrooms">
               <input
                 name="bedrooms"
                 type="number"
@@ -488,10 +632,9 @@ const CreatePropertyPage = () => {
                 className="auth-input"
                 placeholder="0"
               />
-            </label>
+            </Field>
 
-            <label className="space-y-2">
-              <span className="text-sm font-medium text-ink-700">Bathrooms</span>
+            <Field label="Bathrooms">
               <input
                 name="bathrooms"
                 type="number"
@@ -501,10 +644,9 @@ const CreatePropertyPage = () => {
                 className="auth-input"
                 placeholder="0"
               />
-            </label>
+            </Field>
 
-            <label className="space-y-2">
-              <span className="text-sm font-medium text-ink-700">Square footage</span>
+            <Field label="Square footage">
               <input
                 name="squareFootage"
                 type="number"
@@ -513,10 +655,9 @@ const CreatePropertyPage = () => {
                 className="auth-input"
                 placeholder="0"
               />
-            </label>
+            </Field>
 
-            <label className="space-y-2">
-              <span className="text-sm font-medium text-ink-700">Lot size</span>
+            <Field label="Lot size">
               <input
                 name="lotSize"
                 type="number"
@@ -525,10 +666,9 @@ const CreatePropertyPage = () => {
                 className="auth-input"
                 placeholder="0"
               />
-            </label>
+            </Field>
 
-            <label className="space-y-2">
-              <span className="text-sm font-medium text-ink-700">Year built</span>
+            <Field label="Year built">
               <input
                 name="yearBuilt"
                 type="number"
@@ -537,11 +677,10 @@ const CreatePropertyPage = () => {
                 className="auth-input"
                 placeholder="0"
               />
-            </label>
+            </Field>
 
             {showsUnitCount ? (
-              <label className="space-y-2">
-                <span className="text-sm font-medium text-ink-700">Unit count</span>
+              <Field label="Unit count">
                 <input
                   name="unitCount"
                   type="number"
@@ -550,16 +689,14 @@ const CreatePropertyPage = () => {
                   className="auth-input"
                   placeholder="0"
                 />
-              </label>
+              </Field>
             ) : null}
 
-            <div className="md:col-span-2 rounded-[16px] border border-ink-100 bg-sand-50/70 p-5">
+            <div className="md:col-span-2 rounded-[20px] border border-ink-100 bg-sand-50/70 p-5">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <p className="text-sm font-medium text-ink-900">Sale status</p>
-                  <p className="mt-1 text-sm text-ink-500">
-                    If the property has an active listing, we show that here automatically.
-                  </p>
+                  <p className="mt-1 text-sm text-ink-500">Keep current listing info here.</p>
                 </div>
                 <span
                   className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
@@ -574,8 +711,7 @@ const CreatePropertyPage = () => {
 
               {isForSale ? (
                 <div className="mt-4 grid gap-5 md:grid-cols-[minmax(0,280px)_minmax(0,1fr)]">
-                  <label className="space-y-2">
-                    <span className="text-sm font-medium text-ink-700">Sale price</span>
+                  <Field label="Sale price">
                     <input
                       name="sellerAskingPrice"
                       type="number"
@@ -584,7 +720,7 @@ const CreatePropertyPage = () => {
                       className="auth-input"
                       placeholder="0"
                     />
-                  </label>
+                  </Field>
 
                   <div className="rounded-[16px] border border-ink-100 bg-white/90 p-4">
                     <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-ink-400">
@@ -596,14 +732,12 @@ const CreatePropertyPage = () => {
                     <p className="mt-2 text-sm leading-6 text-ink-500">
                       {formData.sellerAskingPrice
                         ? `Current sale price: ${formatCurrency(formData.sellerAskingPrice)}`
-                        : "The property is listed for sale, but the asking price was not available from the lookup."}
+                        : "Listed for sale, but no asking price was found."}
                     </p>
                   </div>
                 </div>
               ) : (
-                <p className="mt-4 text-sm leading-6 text-ink-500">
-                  No active sale listing was found for this address yet.
-                </p>
+                <p className="mt-4 text-sm text-ink-500">No active sale listing found.</p>
               )}
             </div>
           </div>
@@ -615,7 +749,7 @@ const CreatePropertyPage = () => {
           ) : null}
 
           <div className="mt-6 flex flex-wrap justify-end gap-3">
-            <Link to="/leads" className="ghost-action">
+            <Link to={currentMode.backTo} className="ghost-action">
               Cancel
             </Link>
             <button
@@ -623,7 +757,7 @@ const CreatePropertyPage = () => {
               disabled={isSubmitting}
               className="primary-action disabled:cursor-not-allowed disabled:opacity-70"
             >
-              {isSubmitting ? "Creating..." : "Add property"}
+              {isSubmitting ? "Creating..." : currentMode.submitLabel}
             </button>
           </div>
         </section>

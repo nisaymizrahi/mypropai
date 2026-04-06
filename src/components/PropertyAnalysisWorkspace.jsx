@@ -152,9 +152,15 @@ const PropertyAnalysisWorkspace = ({
   isBillingAccessLoading,
   onStartSubscription,
   isStartingSubscription,
+  onBuyReport,
+  isStartingCheckout = false,
   runDisabled = false,
 }) => {
   const canRun = Boolean(billingAccess?.accessGranted) && !runDisabled;
+  const trialCreditsRemaining = billingAccess?.trialCreditsRemaining || 0;
+  const cycleCreditsRemaining = billingAccess?.monthlyIncludedRemainingCount || 0;
+  const purchasedCreditsRemaining = billingAccess?.purchasedCreditsRemaining || 0;
+  const startSubscriptionLabel = billingAccess?.trialEligible ? "Start Free Trial" : "Upgrade to Pro";
   const assessmentHistory = report?.taxes?.history || [];
   const compHighlights = report?.compsSummary?.comps?.slice(0, 5) || [];
   const rentComparables = report?.rent?.comparables?.slice(0, 5) || [];
@@ -176,47 +182,75 @@ const PropertyAnalysisWorkspace = ({
               <p className="text-ink-500">Checking report access...</p>
             ) : billingAccess?.accessGranted ? (
               <div className="space-y-2 text-ink-700">
-                {billingAccess.accessSource === "subscription_included" ? (
+                {trialCreditsRemaining > 0 ? (
                   <>
                     <p>
-                      Pro includes 10 comps reports per month. You have{" "}
-                      <span className="font-semibold">
-                        {billingAccess.monthlyIncludedRemainingCount}
-                      </span>{" "}
-                      included report
-                      {billingAccess.monthlyIncludedRemainingCount === 1 ? "" : "s"} left this
-                      month.
+                      Your free trial includes 2 comps credits. You have{" "}
+                      <span className="font-semibold">{trialCreditsRemaining}</span> trial credit
+                      {trialCreditsRemaining === 1 ? "" : "s"} left.
                     </p>
                     <p className="text-xs text-ink-500">
-                      Used {billingAccess.monthlyIncludedUsedCount} of{" "}
-                      {billingAccess.monthlyIncludedLimit}
-                      {billingAccess.monthlyIncludedResetsAt
-                        ? `, resets on ${formatDate(billingAccess.monthlyIncludedResetsAt)}`
-                        : ""}
-                      .
+                      {billingAccess?.trialCreditsExpiresAt
+                        ? `Trial credits expire on ${formatDate(billingAccess.trialCreditsExpiresAt)}.`
+                        : "Use your trial credits before the trial ends."}
                     </p>
                   </>
-                ) : (
+                ) : null}
+                {cycleCreditsRemaining > 0 ? (
+                  <>
+                    <p>
+                      Pro includes 50 credits per billing cycle. You have{" "}
+                      <span className="font-semibold">{cycleCreditsRemaining}</span> cycle credit
+                      {cycleCreditsRemaining === 1 ? "" : "s"} left.
+                    </p>
+                    <p className="text-xs text-ink-500">
+                      {billingAccess?.monthlyIncludedResetsAt
+                        ? `Your next 50-credit refresh is on ${formatDate(
+                            billingAccess.monthlyIncludedResetsAt
+                          )}.`
+                        : "Your cycle credits refresh on your next billing date."}
+                    </p>
+                  </>
+                ) : null}
+                {purchasedCreditsRemaining > 0 ? (
+                  <p className="text-xs text-ink-500">
+                    You also have {purchasedCreditsRemaining} permanent purchased credit
+                    {purchasedCreditsRemaining === 1 ? "" : "s"} available.
+                  </p>
+                ) : null}
+                {trialCreditsRemaining === 0 && cycleCreditsRemaining === 0 ? (
                   <p>Pro access is active for this account. Run the analysis whenever you're ready.</p>
-                )}
+                ) : null}
               </div>
             ) : (
               <div className="space-y-3">
                 <p className="text-ink-700">
                   {billingAccess?.hasActiveSubscription
-                    ? `You have used all ${billingAccess.monthlyIncludedLimit || 10} included Pro comps reports for this month.`
-                    : "This property analysis is a Pro workflow. Upgrade to Pro to unlock it from the menu."}
+                    ? "You are out of comps credits. Buy 10 more credits to keep going."
+                    : "Start the 30-day Pro trial with 2 free comps credits or buy 10 permanent credits for this account."}
                 </p>
-                {!billingAccess?.hasActiveSubscription ? (
-                  <button
-                    type="button"
-                    onClick={onStartSubscription}
-                    disabled={isStartingSubscription}
-                    className="secondary-action w-full justify-center disabled:opacity-50"
-                  >
-                    {isStartingSubscription ? "Redirecting..." : "Upgrade to Pro"}
-                  </button>
-                ) : null}
+                <div className="flex flex-col gap-3">
+                  {!billingAccess?.hasActiveSubscription ? (
+                    <button
+                      type="button"
+                      onClick={onStartSubscription}
+                      disabled={isStartingSubscription}
+                      className="secondary-action w-full justify-center disabled:opacity-50"
+                    >
+                      {isStartingSubscription ? "Redirecting..." : startSubscriptionLabel}
+                    </button>
+                  ) : null}
+                  {onBuyReport ? (
+                    <button
+                      type="button"
+                      onClick={onBuyReport}
+                      disabled={isStartingCheckout}
+                      className="primary-action w-full justify-center disabled:opacity-50"
+                    >
+                      {isStartingCheckout ? "Redirecting..." : "Buy 10 Credits"}
+                    </button>
+                  ) : null}
+                </div>
               </div>
             )}
           </div>

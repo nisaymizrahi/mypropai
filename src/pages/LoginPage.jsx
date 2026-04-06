@@ -5,28 +5,29 @@ import { ArrowRightIcon } from "@heroicons/react/24/outline";
 import { API_BASE_URL } from "../config";
 import BrandLogo from "../components/BrandLogo";
 import PublicLegalLinks from "../components/PublicLegalLinks";
+import Seo from "../components/Seo";
 import { useAuth } from "../context/AuthContext";
 import { loginUser } from "../utils/api";
 
 const workspaceNotes = [
   {
-    title: "Deal review",
-    description: "A cleaner shell for acquisitions, underwriting, and next actions.",
+    title: "Deals",
+    description: "Jump back into pricing, comps, and decisions fast.",
   },
   {
-    title: "Portfolio operations",
-    description: "Less chrome around the day-to-day work of leasing and management.",
+    title: "Work",
+    description: "Open tasks, vendors, documents, and property work in one place.",
   },
   {
     title: "Reporting",
-    description: "A simpler visual layer for summaries, updates, and internal handoff.",
+    description: "Pick up saved analysis and reports without hunting for context.",
   },
 ];
 
 const accessPrinciples = [
-  "Google and email sign in stay visible without competing blocks around them.",
-  "Password recovery is one click away if you need to reset access.",
-  "Legal links stay close to the form so consent language is easy to revisit.",
+  "Google and email sign in stay on one screen.",
+  "Password recovery is one click away.",
+  "Legal links stay close to the form.",
 ];
 
 const oauthMessages = {
@@ -80,6 +81,11 @@ const LoginPage = () => {
 
   return (
     <div className="public-shell min-h-screen text-ink-900">
+      <Seo
+        title="Workspace login | Fliprop"
+        description="Sign in to your Fliprop workspace for acquisitions, execution, and property operations."
+        path="/login"
+      />
       <div className="mx-auto flex min-h-screen max-w-[1240px] flex-col px-4 py-4 sm:px-6 lg:px-8">
         <header className="surface-panel flex items-center justify-between gap-4 px-5 py-4">
           <Link to="/" className="flex items-center gap-3">
@@ -98,15 +104,15 @@ const LoginPage = () => {
             <section className="flex flex-col justify-center reveal-up">
               <span className="eyebrow">Workspace login</span>
               <h1 className="mt-5 max-w-3xl font-display text-[2.9rem] leading-[0.96] text-balance text-ink-900 sm:text-[3.6rem]">
-                Sign in to the lighter version of the Fliprop workspace.
+                Sign in to your Fliprop workspace.
               </h1>
               <p className="mt-5 max-w-2xl text-sm leading-7 text-ink-600 sm:text-base">
-                Use this access if you manage acquisitions, operations, reporting, or portfolio decisions.
+                Access deals, financials, tasks, documents, and property workflows in one place.
               </p>
 
               <div className="surface-panel mt-7 p-5">
                 <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-ink-400">
-                  What changed
+                  Built for
                 </p>
                 <div className="soft-list mt-4">
                   {workspaceNotes.map((note) => (
@@ -135,7 +141,7 @@ const LoginPage = () => {
                 Welcome back
               </h2>
               <p className="mt-3 text-sm leading-6 text-ink-500">
-                Continue with Google or use your workspace email and password.
+                Continue with Google or use your email and password.
               </p>
 
               {oauthMessage ? (

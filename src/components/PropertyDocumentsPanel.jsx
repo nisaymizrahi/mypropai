@@ -11,10 +11,13 @@ import { EmptyAcquisitionState } from "./PropertyFinancePanel";
 import {
   createPropertyWorkspace,
   deleteProjectDocument,
+  getDocumentAssetAccessUrl,
+  getDocumentStorageOverview,
   getProjectDocuments,
   getInvestment,
   uploadProjectDocument,
 } from "../utils/api";
+import { DOCUMENT_FILE_ACCEPT, formatStorageBytes } from "../utils/documentStorage";
 import {
   getDrawRequestById,
   getDrawRequestLabel,
@@ -76,6 +79,7 @@ const PropertyDocumentsPanel = ({
   property,
   propertyKey,
   onPropertyUpdated,
+  embedded = false,
 }) => {
   const investmentId = property?.workspaces?.acquisitions?.id || "";
   const [selectedStrategy, setSelectedStrategy] = useState(
@@ -89,6 +93,7 @@ const PropertyDocumentsPanel = ({
   const [drawRequestId, setDrawRequestId] = useState("");
   const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [storageOverview, setStorageOverview] = useState(null);
   const [error, setError] = useState("");
   const [isCreatingWorkspace, setIsCreatingWorkspace] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -128,6 +133,29 @@ const PropertyDocumentsPanel = ({
   useEffect(() => {
     loadDocumentsWorkspace();
   }, [loadDocumentsWorkspace]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadStorageOverview = async () => {
+      try {
+        const overview = await getDocumentStorageOverview();
+        if (isMounted) {
+          setStorageOverview(overview);
+        }
+      } catch (loadError) {
+        if (isMounted) {
+          setError((current) => current || loadError.message || "Failed to load storage details.");
+        }
+      }
+    };
+
+    loadStorageOverview();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const groupedDocuments = useMemo(() => {
     const groups = documentCategories.reduce((accumulator, key) => {
@@ -201,6 +229,11 @@ const PropertyDocumentsPanel = ({
     setDocuments(Array.isArray(nextDocuments) ? nextDocuments : []);
   };
 
+  const refreshStorageOverview = async () => {
+    const overview = await getDocumentStorageOverview();
+    setStorageOverview(overview);
+  };
+
   const handleFundingSourceChange = (event) => {
     const nextFundingSourceId = event.target.value;
     setFundingSourceId(nextFundingSourceId);
@@ -248,6 +281,7 @@ const PropertyDocumentsPanel = ({
 
       await uploadProjectDocument(formData);
       await refreshDocuments();
+      await refreshStorageOverview().catch(() => null);
       setDisplayName("");
       setCategory("General");
       setFundingSourceId("");
@@ -273,9 +307,41 @@ const PropertyDocumentsPanel = ({
       setError("");
       await deleteProjectDocument(documentId);
       await refreshDocuments();
+      await refreshStorageOverview().catch(() => null);
       toast.success("Document removed.");
     } catch (deleteError) {
       setError(deleteError.message || "Failed to delete document.");
+    }
+  };
+
+  const handleOpenDocument = async (document) => {
+    const previewWindow = window.open("", "_blank", "noopener,noreferrer");
+
+    try {
+      setError("");
+
+      if (document.documentAsset) {
+        const payload = await getDocumentAssetAccessUrl(document.documentAsset);
+        if (previewWindow) {
+          previewWindow.location.replace(payload.url);
+        } else {
+          window.open(payload.url, "_blank", "noopener,noreferrer");
+        }
+        return;
+      }
+
+      if (document.fileUrl) {
+        if (previewWindow) {
+          previewWindow.location.replace(document.fileUrl);
+        } else {
+          window.open(document.fileUrl, "_blank", "noopener,noreferrer");
+        }
+      }
+    } catch (openError) {
+      if (previewWindow) {
+        previewWindow.close();
+      }
+      setError(openError.message || "Failed to open document.");
     }
   };
 
@@ -309,16 +375,18 @@ const PropertyDocumentsPanel = ({
 
   return (
     <div className="space-y-6">
-      <section className="surface-panel px-6 py-7 sm:px-7">
-        <span className="eyebrow">Documents</span>
-        <h3 className="mt-4 font-display text-[2.15rem] leading-[0.96] text-ink-900">
-          Keep every project file in a structured property library
-        </h3>
-        <p className="mt-4 max-w-3xl text-sm leading-7 text-ink-500 sm:text-base">
-          Store closing files, lender records, receipts, contracts, permits, and reports in one
-          place so the property stays organized as execution gets busier.
-        </p>
-      </section>
+      {!embedded ? (
+        <section className="surface-panel px-6 py-7 sm:px-7">
+          <span className="eyebrow">Documents</span>
+          <h3 className="mt-4 font-display text-[2.15rem] leading-[0.96] text-ink-900">
+            Keep every project file in a structured property library
+          </h3>
+          <p className="mt-4 max-w-3xl text-sm leading-7 text-ink-500 sm:text-base">
+            Store closing files, lender records, receipts, contracts, permits, and reports in one
+            place so the property stays organized as execution gets busier.
+          </p>
+        </section>
+      ) : null}
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetricTile
@@ -362,6 +430,20 @@ const PropertyDocumentsPanel = ({
               The upload form below already lets you place files into the document buckets we want
               for the long-term property workspace.
             </p>
+
+            {storageOverview ? (
+              <div className="mt-6 rounded-[20px] border border-ink-100 bg-white/85 px-5 py-4 text-sm text-ink-600">
+                <p className="font-semibold text-ink-900">
+                  {formatStorageBytes(storageOverview.bytesUsed)} of{" "}
+                  {formatStorageBytes(storageOverview.totalStorageQuotaBytes)} used
+                </p>
+                <p className="mt-2">
+                  {formatStorageBytes(storageOverview.bytesRemaining)} remaining. Max file size:{" "}
+                  {formatStorageBytes(storageOverview.maxFileSizeBytes)} on your{" "}
+                  {storageOverview.tierLabel} plan.
+                </p>
+              </div>
+            ) : null}
 
             <div className="mt-6 grid gap-3 md:grid-cols-2">
               {documentCategories.map((bucket) => (
@@ -461,6 +543,7 @@ const PropertyDocumentsPanel = ({
                 <input
                   ref={fileInputRef}
                   type="file"
+                  accept={DOCUMENT_FILE_ACCEPT}
                   onChange={(event) => setFile(event.target.files?.[0] || null)}
                   className="block w-full text-sm text-ink-500"
                 />
@@ -541,14 +624,13 @@ const PropertyDocumentsPanel = ({
                     Uploaded {formatDate(document.updatedAt || document.createdAt)}
                   </p>
                   <div className="mt-5 flex flex-wrap gap-3">
-                    <a
-                      href={document.fileUrl}
-                      target="_blank"
-                      rel="noreferrer"
+                    <button
+                      type="button"
+                      onClick={() => handleOpenDocument(document)}
                       className="secondary-action"
                     >
                       Open file
-                    </a>
+                    </button>
                     <button
                       type="button"
                       onClick={() => handleDelete(document._id)}
@@ -648,14 +730,13 @@ const PropertyDocumentsPanel = ({
                             </div>
 
                             <div className="flex flex-wrap gap-3">
-                              <a
-                                href={document.fileUrl}
-                                target="_blank"
-                                rel="noreferrer"
+                              <button
+                                type="button"
+                                onClick={() => handleOpenDocument(document)}
                                 className="secondary-action"
                               >
                                 Open file
-                              </a>
+                              </button>
                               <button
                                 type="button"
                                 onClick={() => handleDelete(document._id)}

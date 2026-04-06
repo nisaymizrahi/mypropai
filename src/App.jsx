@@ -13,10 +13,16 @@ import { buildPropertyWorkspacePath } from "./utils/propertyWorkspaceNavigation"
 
 const DashboardLayout = lazy(() => import("./components/DashboardLayout"));
 const Homepage = lazy(() => import("./pages/Homepage"));
+const ProductPage = lazy(() => import("./pages/ProductPage"));
+const PricingPage = lazy(() => import("./pages/PricingPage"));
+const AboutPage = lazy(() => import("./pages/AboutPage"));
+const ResourcesPage = lazy(() => import("./pages/ResourcesPage"));
+const ResourceArticlePage = lazy(() => import("./pages/ResourceArticlePage"));
 const LoginPage = lazy(() => import("./pages/LoginPage"));
 const LoginContinuePage = lazy(() => import("./pages/LoginContinuePage"));
 const CompleteProfilePage = lazy(() => import("./pages/CompleteProfilePage"));
 const ForgotPasswordPage = lazy(() => import("./pages/ForgotPasswordPage"));
+const HelpPage = lazy(() => import("./pages/HelpPage"));
 const LegalDocumentPage = lazy(() => import("./pages/LegalDocumentPage"));
 const ResetPasswordPage = lazy(() => import("./pages/ResetPasswordPage"));
 const SignupPage = lazy(() => import("./pages/SignupPage"));
@@ -168,6 +174,46 @@ function App() {
               }
             />
             <Route
+              path="/product"
+              element={
+                <PublicRoute>
+                  <ProductPage />
+                </PublicRoute>
+              }
+            />
+            <Route
+              path="/pricing"
+              element={
+                <PublicRoute>
+                  <PricingPage />
+                </PublicRoute>
+              }
+            />
+            <Route
+              path="/resources"
+              element={
+                <PublicRoute>
+                  <ResourcesPage />
+                </PublicRoute>
+              }
+            />
+            <Route
+              path="/resources/:slug"
+              element={
+                <PublicRoute>
+                  <ResourceArticlePage />
+                </PublicRoute>
+              }
+            />
+            <Route
+              path="/about"
+              element={
+                <PublicRoute>
+                  <AboutPage />
+                </PublicRoute>
+              }
+            />
+            <Route
               path="/login-continue"
               element={
                 <PublicRoute>
@@ -196,6 +242,14 @@ function App() {
               element={
                 <PublicRoute>
                   <SignupPage />
+                </PublicRoute>
+              }
+            />
+            <Route
+              path="/help"
+              element={
+                <PublicRoute>
+                  <HelpPage />
                 </PublicRoute>
               }
             />
@@ -357,6 +411,15 @@ function App() {
 
             <Route
               path="/properties/:propertyKey"
+              element={
+                <ProtectedLayoutRoute>
+                  <PropertyWorkspacePage />
+                </ProtectedLayoutRoute>
+              }
+            />
+
+            <Route
+              path="/properties/:propertyKey/:tab"
               element={
                 <ProtectedLayoutRoute>
                   <PropertyWorkspacePage />

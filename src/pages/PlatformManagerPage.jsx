@@ -3,10 +3,14 @@ import { useNavigate } from "react-router-dom";
 import {
   ArrowDownTrayIcon,
   ArrowPathIcon,
+  ArrowUturnLeftIcon,
+  CheckCircleIcon,
   ClockIcon,
   DocumentTextIcon,
+  EnvelopeIcon,
   ExclamationTriangleIcon,
   EyeIcon,
+  InboxStackIcon,
   MagnifyingGlassIcon,
   ShieldCheckIcon,
   ShieldExclamationIcon,
@@ -24,6 +28,7 @@ import {
   deletePlatformManagerSupportNote,
   deletePlatformManagerUser,
   exportPlatformManagerUsers,
+  getPlatformManagerSupportRequests,
   getPlatformManagerUserDetail,
   getPlatformManagerUsers,
   revokePlatformManagerUserSessions,
@@ -32,8 +37,10 @@ import {
   setPlatformManagerSubscriptionOverride,
   startPlatformManagerImpersonation,
   syncPlatformManagerUserBilling,
+  updatePlatformManagerSupportRequest,
   updatePlatformManagerUserEmail,
 } from "../utils/api";
+import { formatStorageBytes } from "../utils/documentStorage";
 
 const FILTERS = [
   { value: "all", label: "All users" },
@@ -54,6 +61,21 @@ const FILTERS = [
   { value: "inactive", label: "Inactive 30d" },
 ];
 
+const SUPPORT_REQUEST_FILTERS = [
+  { value: "all", label: "All requests" },
+  { value: "new", label: "New" },
+  { value: "in_progress", label: "In progress" },
+  { value: "resolved", label: "Resolved" },
+];
+
+const supportRequestTypeLabels = {
+  general_question: "General question",
+  report_issue: "Issue report",
+  account_help: "Account help",
+  billing_help: "Billing help",
+  feature_request: "Feature request",
+};
+
 const statusStyles = {
   active: "bg-verdigris-50 text-verdigris-700",
   suspended: "bg-clay-50 text-clay-700",
@@ -68,6 +90,12 @@ const sessionStatusStyles = {
   active: "bg-verdigris-50 text-verdigris-700",
   expired: "bg-sand-100 text-ink-700",
   revoked: "bg-clay-50 text-clay-700",
+};
+
+const supportRequestStatusStyles = {
+  new: "bg-clay-50 text-clay-700",
+  in_progress: "bg-sand-100 text-ink-700",
+  resolved: "bg-verdigris-50 text-verdigris-700",
 };
 
 const summaryCards = (stats) => [
@@ -130,6 +158,18 @@ const formatDate = (value, fallback = "Unknown") =>
         year: "numeric",
       }).format(new Date(value))
     : fallback;
+
+const formatSupportRequestStatus = (status) =>
+  status === "in_progress" ? "In progress" : status === "resolved" ? "Resolved" : "New";
+
+const truncateText = (value, maxLength = 280) => {
+  const normalized = String(value || "").trim();
+  if (normalized.length <= maxLength) {
+    return normalized;
+  }
+
+  return `${normalized.slice(0, maxLength - 1).trimEnd()}...`;
+};
 
 const toDateInputValue = (value) => {
   if (!value) {
@@ -257,6 +297,18 @@ const PlatformManagerPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [busyKey, setBusyKey] = useState("");
+  const [supportQuery, setSupportQuery] = useState("");
+  const [supportStatus, setSupportStatus] = useState("all");
+  const [supportRequests, setSupportRequests] = useState([]);
+  const [supportStats, setSupportStats] = useState({
+    total: 0,
+    new: 0,
+    inProgress: 0,
+    resolved: 0,
+  });
+  const [supportLoading, setSupportLoading] = useState(true);
+  const [supportError, setSupportError] = useState("");
+  const [supportBusyKey, setSupportBusyKey] = useState("");
 
   const [selectedUserId, setSelectedUserId] = useState("");
   const [detail, setDetail] = useState(null);
@@ -285,6 +337,30 @@ const PlatformManagerPage = () => {
       setError(loadError.message || "Failed to load platform users.");
     } finally {
       setLoading(false);
+    }
+  }, []);
+
+  const loadSupportRequests = useCallback(async (activeQuery = "", activeStatus = "all") => {
+    try {
+      setSupportLoading(true);
+      setSupportError("");
+      const data = await getPlatformManagerSupportRequests({
+        query: activeQuery,
+        status: activeStatus,
+      });
+      setSupportRequests(data.requests || []);
+      setSupportStats(
+        data.stats || {
+          total: 0,
+          new: 0,
+          inProgress: 0,
+          resolved: 0,
+        }
+      );
+    } catch (loadError) {
+      setSupportError(loadError.message || "Failed to load support requests.");
+    } finally {
+      setSupportLoading(false);
     }
   }, []);
 
@@ -326,6 +402,14 @@ const PlatformManagerPage = () => {
   }, [loadUsers, query]);
 
   useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      loadSupportRequests(supportQuery, supportStatus);
+    }, 250);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [loadSupportRequests, supportQuery, supportStatus]);
+
+  useEffect(() => {
     if (selectedUserId) {
       loadDetail(selectedUserId);
     }
@@ -342,9 +426,9 @@ const PlatformManagerPage = () => {
   }, [loadDetail, selectedUserId]);
 
   const refreshAll = useCallback(async () => {
-    await loadUsers(query);
+    await Promise.all([loadUsers(query), loadSupportRequests(supportQuery, supportStatus)]);
     await refreshSelectedUser();
-  }, [loadUsers, query, refreshSelectedUser]);
+  }, [loadSupportRequests, loadUsers, query, refreshSelectedUser, supportQuery, supportStatus]);
 
   const runListAction = async (key, action, successMessage, options = {}) => {
     try {
@@ -386,6 +470,22 @@ const PlatformManagerPage = () => {
       toast.error(actionError.message || "Action failed.");
     } finally {
       setDetailBusyKey("");
+    }
+  };
+
+  const runSupportAction = async (key, action, successMessage) => {
+    try {
+      setSupportBusyKey(key);
+      await action();
+      await loadSupportRequests(supportQuery, supportStatus);
+
+      if (successMessage) {
+        toast.success(successMessage);
+      }
+    } catch (actionError) {
+      toast.error(actionError.message || "Action failed.");
+    } finally {
+      setSupportBusyKey("");
     }
   };
 
@@ -599,6 +699,260 @@ const PlatformManagerPage = () => {
         {summaryCards(stats).map((card) => (
           <SummaryCard key={card.label} {...card} />
         ))}
+      </section>
+
+      <section className="section-card p-6 sm:p-7">
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <span className="eyebrow">Support inbox</span>
+            <h3 className="mt-4 text-2xl font-semibold text-ink-900">Website help requests</h3>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-ink-500">
+              Review questions and issue reports submitted through the public Help page, then triage
+              them without leaving the platform manager.
+            </p>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div className="rounded-[18px] bg-clay-50 px-4 py-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.15em] text-ink-400">New</p>
+              <p className="mt-2 text-2xl font-semibold text-ink-900">{supportStats.new}</p>
+            </div>
+            <div className="rounded-[18px] bg-sand-50 px-4 py-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.15em] text-ink-400">
+                In progress
+              </p>
+              <p className="mt-2 text-2xl font-semibold text-ink-900">{supportStats.inProgress}</p>
+            </div>
+            <div className="rounded-[18px] bg-verdigris-50 px-4 py-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.15em] text-ink-400">
+                Resolved
+              </p>
+              <p className="mt-2 text-2xl font-semibold text-ink-900">{supportStats.resolved}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-6 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <label className="relative block w-full lg:max-w-[520px]">
+            <MagnifyingGlassIcon className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-ink-400" />
+            <input
+              type="search"
+              value={supportQuery}
+              onChange={(event) => setSupportQuery(event.target.value)}
+              placeholder="Search support requests by name, email, subject, or message"
+              className="auth-input pl-11"
+            />
+          </label>
+
+          <div className="flex flex-wrap gap-2">
+            {SUPPORT_REQUEST_FILTERS.map((filterOption) => (
+              <button
+                key={filterOption.value}
+                type="button"
+                onClick={() => setSupportStatus(filterOption.value)}
+                className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+                  supportStatus === filterOption.value
+                    ? "bg-ink-900 text-white"
+                    : "bg-sand-50 text-ink-600 hover:bg-sand-100"
+                }`}
+              >
+                {filterOption.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {supportLoading ? (
+          <div className="mt-8 flex items-center justify-center px-6 py-16">
+            <div className="h-12 w-12 animate-spin rounded-full border-4 border-verdigris-100 border-t-verdigris-500" />
+          </div>
+        ) : null}
+
+        {!supportLoading && supportError ? (
+          <div className="mt-6 rounded-[24px] border border-clay-200 bg-clay-50 px-6 py-10 text-center text-clay-700">
+            {supportError}
+          </div>
+        ) : null}
+
+        {!supportLoading && !supportError && supportRequests.length === 0 ? (
+          <div className="mt-6 rounded-[24px] border border-dashed border-ink-200 bg-sand-50 px-6 py-12 text-center">
+            <p className="text-lg font-semibold text-ink-900">No support requests in this view</p>
+            <p className="mt-2 text-sm leading-6 text-ink-500">
+              New Help Center submissions will appear here as users send them in.
+            </p>
+          </div>
+        ) : null}
+
+        {!supportLoading && !supportError && supportRequests.length > 0 ? (
+          <div className="mt-6 grid gap-4">
+            {supportRequests.map((request) => {
+              const requestBusy = supportBusyKey === `support-${request.id}`;
+
+              return (
+                <article
+                  key={request.id}
+                  className="rounded-[26px] border border-ink-100 bg-white px-5 py-5"
+                >
+                  <div className="flex flex-col gap-5">
+                    <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+                      <div className="flex items-start gap-4">
+                        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-ink-900 via-ink-700 to-verdigris-600 text-white">
+                          <InboxStackIcon className="h-7 w-7" />
+                        </div>
+                        <div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <h4 className="text-xl font-semibold text-ink-900">{request.subject}</h4>
+                            <span
+                              className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                                supportRequestStatusStyles[request.status] ||
+                                supportRequestStatusStyles.new
+                              }`}
+                            >
+                              {formatSupportRequestStatus(request.status)}
+                            </span>
+                            <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-ink-700 ring-1 ring-ink-100">
+                              {supportRequestTypeLabels[request.requestType] || "Support request"}
+                            </span>
+                            <span className="rounded-full bg-sand-50 px-3 py-1 text-xs font-semibold text-ink-700">
+                              {request.referenceCode}
+                            </span>
+                          </div>
+
+                          <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-ink-500">
+                            <span className="font-medium text-ink-800">{request.name}</span>
+                            <a
+                              href={`mailto:${request.email}`}
+                              className="inline-flex items-center gap-1 text-verdigris-700"
+                            >
+                              <EnvelopeIcon className="h-4 w-4" />
+                              {request.email}
+                            </a>
+                            {request.companyName ? <span>{request.companyName}</span> : null}
+                          </div>
+
+                          <p className="mt-2 text-xs font-medium uppercase tracking-[0.16em] text-ink-400">
+                            Submitted {formatDateTime(request.createdAt)}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap gap-2 xl:justify-end">
+                        {request.matchedUser ? (
+                          <button
+                            type="button"
+                            onClick={() => setSelectedUserId(request.matchedUser.id)}
+                            className="secondary-action"
+                          >
+                            <DocumentTextIcon className="mr-2 h-5 w-5" />
+                            Open matched user
+                          </button>
+                        ) : null}
+
+                        {request.status !== "in_progress" ? (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              runSupportAction(
+                                `support-${request.id}`,
+                                () =>
+                                  updatePlatformManagerSupportRequest(request.id, {
+                                    status: "in_progress",
+                                  }),
+                                "Support request marked in progress."
+                              )
+                            }
+                            disabled={requestBusy}
+                            className="secondary-action"
+                          >
+                            <ArrowPathIcon className="mr-2 h-5 w-5" />
+                            {requestBusy ? "Saving..." : "Mark in progress"}
+                          </button>
+                        ) : null}
+
+                        {request.status !== "resolved" ? (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              runSupportAction(
+                                `support-${request.id}`,
+                                () =>
+                                  updatePlatformManagerSupportRequest(request.id, {
+                                    status: "resolved",
+                                  }),
+                                "Support request marked resolved."
+                              )
+                            }
+                            disabled={requestBusy}
+                            className="primary-action"
+                          >
+                            <CheckCircleIcon className="mr-2 h-5 w-5" />
+                            {requestBusy ? "Saving..." : "Resolve"}
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              runSupportAction(
+                                `support-${request.id}`,
+                                () =>
+                                  updatePlatformManagerSupportRequest(request.id, {
+                                    status: "new",
+                                  }),
+                                "Support request reopened."
+                              )
+                            }
+                            disabled={requestBusy}
+                            className="secondary-action"
+                          >
+                            <ArrowUturnLeftIcon className="mr-2 h-5 w-5" />
+                            {requestBusy ? "Saving..." : "Reopen"}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="rounded-[20px] border border-ink-100 bg-white px-4 py-4">
+                      <p className="text-sm leading-7 text-ink-600">
+                        {truncateText(request.message, 420)}
+                      </p>
+                    </div>
+
+                    <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)]">
+                      <div className="rounded-[18px] bg-sand-50 px-4 py-3">
+                        <p className="text-xs font-semibold uppercase tracking-[0.15em] text-ink-400">
+                          Source
+                        </p>
+                        <p className="mt-2 text-sm font-semibold text-ink-900">
+                          {request.source || "website_help_center"}
+                        </p>
+                      </div>
+
+                      <div className="rounded-[18px] bg-white px-4 py-3 ring-1 ring-ink-100">
+                        <p className="text-xs font-semibold uppercase tracking-[0.15em] text-ink-400">
+                          Page or feature
+                        </p>
+                        <p className="mt-2 break-all text-sm font-semibold text-ink-900">
+                          {request.pageUrl || "Not provided"}
+                        </p>
+                      </div>
+
+                      <div className="rounded-[18px] bg-white px-4 py-3 ring-1 ring-ink-100">
+                        <p className="text-xs font-semibold uppercase tracking-[0.15em] text-ink-400">
+                          Matched account
+                        </p>
+                        <p className="mt-2 text-sm font-semibold text-ink-900">
+                          {request.matchedUser
+                            ? `${request.matchedUser.name} • ${request.matchedUser.subscriptionPlan}`
+                            : "No matching account"}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        ) : null}
       </section>
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.05fr)_420px]">
@@ -1470,6 +1824,96 @@ const PlatformManagerPage = () => {
                     ) : (
                       <p className="text-sm text-ink-500">No tracked premium usage yet.</p>
                     )}
+                  </div>
+                </DetailBlock>
+
+                <DetailBlock
+                  title="Document storage"
+                  subtitle="Quota status, largest files, and the most recent document uploads for this account."
+                >
+                  <div className="space-y-5">
+                    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                      <div className="rounded-[18px] bg-white px-4 py-3 ring-1 ring-ink-100">
+                        <p className="text-xs font-semibold uppercase tracking-[0.15em] text-ink-400">
+                          Storage used
+                        </p>
+                        <p className="mt-2 text-sm font-semibold text-ink-900">
+                          {detail?.documentStorage
+                            ? formatStorageBytes(detail.documentStorage.bytesUsed)
+                            : "0 B"}
+                        </p>
+                      </div>
+                      <div className="rounded-[18px] bg-white px-4 py-3 ring-1 ring-ink-100">
+                        <p className="text-xs font-semibold uppercase tracking-[0.15em] text-ink-400">
+                          Quota
+                        </p>
+                        <p className="mt-2 text-sm font-semibold text-ink-900">
+                          {detail?.documentStorage
+                            ? formatStorageBytes(detail.documentStorage.totalStorageQuotaBytes)
+                            : "0 B"}
+                        </p>
+                      </div>
+                      <div className="rounded-[18px] bg-white px-4 py-3 ring-1 ring-ink-100">
+                        <p className="text-xs font-semibold uppercase tracking-[0.15em] text-ink-400">
+                          Files
+                        </p>
+                        <p className="mt-2 text-sm font-semibold text-ink-900">
+                          {detail?.documentStorage?.fileCount || 0}
+                        </p>
+                      </div>
+                      <div className="rounded-[18px] bg-white px-4 py-3 ring-1 ring-ink-100">
+                        <p className="text-xs font-semibold uppercase tracking-[0.15em] text-ink-400">
+                          Max file size
+                        </p>
+                        <p className="mt-2 text-sm font-semibold text-ink-900">
+                          {detail?.documentStorage
+                            ? formatStorageBytes(detail.documentStorage.maxFileSizeBytes)
+                            : "0 B"}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="grid gap-4 xl:grid-cols-2">
+                      <div className="rounded-[18px] border border-ink-100 bg-white px-4 py-4">
+                        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-ink-400">
+                          Largest files
+                        </p>
+                        <div className="mt-3 space-y-3">
+                          {detail?.documentStorage?.largestFiles?.length ? (
+                            detail.documentStorage.largestFiles.map((file) => (
+                              <div key={file.id} className="rounded-[16px] bg-ink-50/50 px-3 py-3">
+                                <p className="text-sm font-semibold text-ink-900">{file.displayName}</p>
+                                <p className="mt-1 text-sm text-ink-500">
+                                  {file.bytesLabel} • {file.source.replace(/_/g, " ")}
+                                </p>
+                              </div>
+                            ))
+                          ) : (
+                            <p className="text-sm text-ink-500">No stored documents yet.</p>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="rounded-[18px] border border-ink-100 bg-white px-4 py-4">
+                        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-ink-400">
+                          Recent uploads
+                        </p>
+                        <div className="mt-3 space-y-3">
+                          {detail?.documentStorage?.recentUploads?.length ? (
+                            detail.documentStorage.recentUploads.map((file) => (
+                              <div key={file.id} className="rounded-[16px] bg-ink-50/50 px-3 py-3">
+                                <p className="text-sm font-semibold text-ink-900">{file.displayName}</p>
+                                <p className="mt-1 text-sm text-ink-500">
+                                  {file.bytesLabel} • {formatDateTime(file.createdAt)}
+                                </p>
+                              </div>
+                            ))
+                          ) : (
+                            <p className="text-sm text-ink-500">No uploads recorded yet.</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </DetailBlock>
 

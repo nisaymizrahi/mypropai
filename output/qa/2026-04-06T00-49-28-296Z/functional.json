@@ -1,0 +1,195 @@
+{
+  "config": {
+    "configFile": "/Users/nisaymizrahi/Desktop/full project front and backend/mypropai/playwright.config.mjs",
+    "rootDir": "/Users/nisaymizrahi/Desktop/full project front and backend/mypropai/qa/tests",
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {},
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "/Users/nisaymizrahi/Desktop/full project front and backend/mypropai/output/qa/2026-04-06T00-49-28-296Z/playwright",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {},
+        "id": "",
+        "name": "",
+        "testDir": "/Users/nisaymizrahi/Desktop/full project front and backend/mypropai/qa/tests",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 90000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "list",
+        null
+      ],
+      [
+        "json",
+        {
+          "outputFile": "/Users/nisaymizrahi/Desktop/full project front and backend/mypropai/output/qa/2026-04-06T00-49-28-296Z/functional.json"
+        }
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.59.1",
+    "workers": 1,
+    "webServer": null
+  },
+  "suites": [
+    {
+      "title": "functional.spec.mjs",
+      "file": "functional.spec.mjs",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "home landing works",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "030c45a8da3ad1f99bb2-4fac6e006808edb95e76",
+          "file": "functional.spec.mjs",
+          "line": 27,
+          "column": 1
+        },
+        {
+          "title": "property intake refreshes facts",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "030c45a8da3ad1f99bb2-24d83e32e030fbadd622",
+          "file": "functional.spec.mjs",
+          "line": 42,
+          "column": 1
+        },
+        {
+          "title": "master report renders core sections",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "030c45a8da3ad1f99bb2-47a4cef455ed5a188eca",
+          "file": "functional.spec.mjs",
+          "line": 57,
+          "column": 1
+        },
+        {
+          "title": "map markers track the visible comp set",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "030c45a8da3ad1f99bb2-de80fd20e1fed94c36cf",
+          "file": "functional.spec.mjs",
+          "line": 72,
+          "column": 1
+        },
+        {
+          "title": "saved report export produces a non-empty pdf",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "030c45a8da3ad1f99bb2-5c1850562ac97270ad3f",
+          "file": "functional.spec.mjs",
+          "line": 94,
+          "column": 1
+        },
+        {
+          "title": "mobile viewport keeps the primary flow usable",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "030c45a8da3ad1f99bb2-44ee32a2659d38d56691",
+          "file": "functional.spec.mjs",
+          "line": 116,
+          "column": 1
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-04-06T00:49:28.300Z",
+    "duration": 37.51099999999997,
+    "expected": 0,
+    "skipped": 6,
+    "unexpected": 0,
+    "flaky": 0
+  }
+}

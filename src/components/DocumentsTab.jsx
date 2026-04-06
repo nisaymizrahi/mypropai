@@ -2,9 +2,12 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 
 import {
   deleteProjectDocument,
+  getDocumentAssetAccessUrl,
+  getDocumentStorageOverview,
   getProjectDocuments,
   uploadProjectDocument,
 } from "../utils/api";
+import { DOCUMENT_FILE_ACCEPT, formatStorageBytes } from "../utils/documentStorage";
 
 const categoryOptions = [
   "General",
@@ -44,6 +47,7 @@ const DocumentsTab = ({ investment, property }) => {
   const [file, setFile] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
+  const [storageOverview, setStorageOverview] = useState(null);
   const [error, setError] = useState("");
   const fileInputRef = useRef(null);
 
@@ -93,6 +97,29 @@ const DocumentsTab = ({ investment, property }) => {
     };
   }, [projectId]);
 
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadStorageOverview = async () => {
+      try {
+        const overview = await getDocumentStorageOverview();
+        if (isMounted) {
+          setStorageOverview(overview);
+        }
+      } catch (overviewError) {
+        if (isMounted) {
+          setError((current) => current || overviewError.message || "Failed to load storage details.");
+        }
+      }
+    };
+
+    loadStorageOverview();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   const refreshDocuments = async () => {
     if (!projectId) {
       return;
@@ -100,6 +127,11 @@ const DocumentsTab = ({ investment, property }) => {
 
     const response = await getProjectDocuments(projectId);
     setDocuments(Array.isArray(response) ? response : []);
+  };
+
+  const refreshStorageOverview = async () => {
+    const overview = await getDocumentStorageOverview();
+    setStorageOverview(overview);
   };
 
   const handleUpload = async (event) => {
@@ -122,6 +154,7 @@ const DocumentsTab = ({ investment, property }) => {
 
       await uploadProjectDocument(formData);
       await refreshDocuments();
+      await refreshStorageOverview().catch(() => null);
 
       setDisplayName("");
       setCategory("General");
@@ -146,8 +179,40 @@ const DocumentsTab = ({ investment, property }) => {
       setError("");
       await deleteProjectDocument(documentId);
       await refreshDocuments();
+      await refreshStorageOverview().catch(() => null);
     } catch (err) {
       setError(err.message || "Failed to delete document.");
+    }
+  };
+
+  const handleOpenDocument = async (document) => {
+    const previewWindow = window.open("", "_blank", "noopener,noreferrer");
+
+    try {
+      setError("");
+
+      if (document.documentAsset) {
+        const payload = await getDocumentAssetAccessUrl(document.documentAsset);
+        if (previewWindow) {
+          previewWindow.location.replace(payload.url);
+        } else {
+          window.open(payload.url, "_blank", "noopener,noreferrer");
+        }
+        return;
+      }
+
+      if (document.fileUrl) {
+        if (previewWindow) {
+          previewWindow.location.replace(document.fileUrl);
+        } else {
+          window.open(document.fileUrl, "_blank", "noopener,noreferrer");
+        }
+      }
+    } catch (err) {
+      if (previewWindow) {
+        previewWindow.close();
+      }
+      setError(err.message || "Failed to open document.");
     }
   };
 
@@ -197,6 +262,20 @@ const DocumentsTab = ({ investment, property }) => {
               grouped by category automatically after upload.
             </p>
 
+            {storageOverview ? (
+              <div className="mt-6 rounded-[24px] border border-ink-100 bg-white/85 px-5 py-4 text-sm text-ink-600">
+                <p className="font-semibold text-ink-900">
+                  {formatStorageBytes(storageOverview.bytesUsed)} of{" "}
+                  {formatStorageBytes(storageOverview.totalStorageQuotaBytes)} used
+                </p>
+                <p className="mt-2">
+                  {formatStorageBytes(storageOverview.bytesRemaining)} remaining. Max file size:{" "}
+                  {formatStorageBytes(storageOverview.maxFileSizeBytes)} on your{" "}
+                  {storageOverview.tierLabel} plan.
+                </p>
+              </div>
+            ) : null}
+
             {error ? (
               <div className="mt-6 rounded-[24px] border border-clay-200 bg-clay-50 px-5 py-4 text-sm text-clay-700">
                 {error}
@@ -241,6 +320,7 @@ const DocumentsTab = ({ investment, property }) => {
                 <input
                   ref={fileInputRef}
                   type="file"
+                  accept={DOCUMENT_FILE_ACCEPT}
                   onChange={(event) => setFile(event.target.files?.[0] || null)}
                   className="block w-full text-sm text-ink-500"
                 />
@@ -301,14 +381,13 @@ const DocumentsTab = ({ investment, property }) => {
                       </div>
 
                       <div className="flex flex-wrap gap-3">
-                        <a
-                          href={item.fileUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
+                        <button
+                          type="button"
+                          onClick={() => handleOpenDocument(item)}
                           className="secondary-action"
                         >
                           Open file
-                        </a>
+                        </button>
                         <button
                           type="button"
                           onClick={() => handleDelete(item._id)}

@@ -1,63 +1,33 @@
-import React, { useMemo, useRef, useState } from "react";
+import React, { useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { ArrowDownTrayIcon } from "@heroicons/react/24/outline";
 
 import CompsReportPdfTemplate from "./CompsReportPdfTemplate";
+import MasterDealReportSections from "./MasterDealReportSections";
 import { formatCurrency, formatDate } from "../utils/compsReport";
 import { exportElementToPdf, sanitizePdfFilename } from "../utils/pdfExport";
 
-const formatNumber = (value, suffix = "") => {
+const formatPercent = (value) => {
   if (value === null || value === undefined || value === "") return "—";
-  return `${Number(value).toLocaleString()}${suffix}`;
+  return `${Number(value).toFixed(1)}%`;
 };
 
-const MetricTile = ({ label, value, hint }) => (
-  <div className="metric-tile p-5">
-    <p className="text-sm font-semibold uppercase tracking-[0.18em] text-ink-400">{label}</p>
-    <p className="mt-2 text-3xl font-semibold text-ink-900">{value}</p>
-    {hint ? <p className="mt-2 text-sm text-ink-500">{hint}</p> : null}
-  </div>
-);
-
-const BandCard = ({ label, low, median, high, suffix = "" }) => (
-  <div className="rounded-[24px] border border-ink-100 bg-white/85 p-5">
-    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-400">{label}</p>
-    <div className="mt-4 grid gap-3 sm:grid-cols-3">
-      <div>
-        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-400">Low</p>
-        <p className="mt-1 text-sm font-semibold text-ink-900">
-          {suffix ? formatNumber(low, suffix) : formatCurrency(low)}
-        </p>
-      </div>
-      <div>
-        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-400">Median</p>
-        <p className="mt-1 text-sm font-semibold text-ink-900">
-          {suffix ? formatNumber(median, suffix) : formatCurrency(median)}
-        </p>
-      </div>
-      <div>
-        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-400">High</p>
-        <p className="mt-1 text-sm font-semibold text-ink-900">
-          {suffix ? formatNumber(high, suffix) : formatCurrency(high)}
-        </p>
-      </div>
-    </div>
+const MetricPill = ({ label, value, hint }) => (
+  <div className="rounded-[22px] border border-ink-100 bg-white/80 px-4 py-4">
+    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-400">{label}</p>
+    <p className="mt-2 text-lg font-semibold text-ink-900">{value}</p>
+    {hint ? <p className="mt-2 text-xs text-ink-500">{hint}</p> : null}
   </div>
 );
 
 const CompsSavedReportView = ({
   report = null,
-  emptyEyebrow = "Saved comps",
-  emptyTitle = "No comps snapshot was saved",
-  emptyMessage = "No saved comparable sales are available for this property yet.",
-  tableIntro = "This saved report captures the comparable properties selected for this address.",
+  emptyEyebrow = "Saved reports",
+  emptyTitle = "No saved report was found",
+  emptyMessage = "Run and save a Master Deal Report to review it here.",
 }) => {
   const exportRef = useRef(null);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
-  const recentComps = useMemo(
-    () => (Array.isArray(report?.recentComps) ? report.recentComps : []),
-    [report]
-  );
 
   const handleExportPdf = async () => {
     if (!report?.generatedAt || !exportRef.current) return;
@@ -66,11 +36,18 @@ const CompsSavedReportView = ({
     try {
       await exportElementToPdf({
         element: exportRef.current,
-        filename: `${sanitizePdfFilename(report.title || report.address || "comps-report")}.pdf`,
+        filename: `${sanitizePdfFilename(report.title || report.subject?.address || "master-deal-report")}.pdf`,
+        options: {
+          margin: [0.22, 0.22, 0.28, 0.22],
+          html2canvas: {
+            scale: 2,
+            backgroundColor: "#f6f1ea",
+          },
+        },
       });
       toast.success("PDF downloaded.");
     } catch (error) {
-      console.error("Comps report PDF export failed", error);
+      console.error("Master Deal Report PDF export failed", error);
       toast.error(error.message || "Failed to export the PDF.");
     } finally {
       setIsExportingPdf(false);
@@ -87,18 +64,23 @@ const CompsSavedReportView = ({
     );
   }
 
+  const property = report.propertySnapshot || {};
+  const valuation = report.valuation || {};
+  const deal = report.dealInputs || {};
+  const analysis = report.dealAnalysis || {};
+  const ai = report.aiVerdict || {};
+
   return (
     <div className="space-y-6">
       <section className="surface-panel-strong overflow-hidden px-6 py-7 sm:px-7">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <span className="eyebrow">Saved comps report</span>
-            <h2 className="mt-4 font-display text-[2.3rem] leading-[0.95] text-ink-900">
-              {report.title || report.address}
+            <span className="eyebrow">Saved Master Deal Report</span>
+            <h2 className="mt-4 font-display text-[2.5rem] leading-[0.95] text-ink-900">
+              {report.title || report.subject?.address || "Master Deal Report"}
             </h2>
-            <p className="mt-3 max-w-2xl text-sm leading-7 text-ink-600">
-              Review the final comp set, reopen the AI memo, and export a polished printable report
-              for sellers, partners, or internal deal review.
+            <p className="mt-4 max-w-3xl text-sm leading-7 text-ink-600">
+              Reopen the full property, comps, deal math, and verdict package exactly as it was saved, then export a polished client-ready PDF when needed.
             </p>
           </div>
 
@@ -117,150 +99,36 @@ const CompsSavedReportView = ({
             </button>
           </div>
         </div>
-      </section>
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <MetricTile
-          label="Estimated value"
-          value={formatCurrency(report.estimatedValue)}
-          hint={`Generated ${formatDate(report.generatedAt)}`}
-        />
-        <MetricTile
-          label="Offer range"
-          value={`${formatCurrency(report.recommendedOfferLow)} - ${formatCurrency(
-            report.recommendedOfferHigh
-          )}`}
-          hint={`${report.saleCompCount || 0} selected comparable sale${
-            report.saleCompCount === 1 ? "" : "s"
-          }`}
-        />
-        <MetricTile
-          label="Median sold"
-          value={formatCurrency(report.medianSoldPrice)}
-          hint={`Average ${formatCurrency(report.averageSoldPrice)}`}
-        />
-        <MetricTile
-          label="Median $ / sqft"
-          value={formatNumber(report.medianPricePerSqft, " / sqft")}
-          hint={
-            report.averageDaysOnMarket !== null && report.averageDaysOnMarket !== undefined
-              ? `Average DOM ${formatNumber(report.averageDaysOnMarket)}`
-              : "Saved market pricing context"
-          }
-        />
-      </section>
-
-      <section className="section-card p-6 sm:p-7">
-        <span className="eyebrow">Pricing bands</span>
-        <h3 className="mt-4 text-3xl font-semibold text-ink-900">Low, median, and high snapshots</h3>
-        <div className="mt-6 grid gap-5 lg:grid-cols-3">
-          <BandCard
-            label="Sold price band"
-            low={report.lowSoldPrice}
-            median={report.medianSoldPrice}
-            high={report.highSoldPrice}
+        <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <MetricPill
+            label="Verdict"
+            value={ai.verdict || "Pending"}
+            hint={`Comp support ${ai.compSupport || "—"} • Confidence ${ai.confidence || "—"}`}
           />
-          <BandCard
-            label="Price per sqft band"
-            low={report.lowPricePerSqft}
-            median={report.medianPricePerSqft}
-            high={report.highPricePerSqft}
-            suffix=" / sqft"
+          <MetricPill
+            label="Blended value"
+            value={formatCurrency(valuation.blendedEstimate)}
+            hint={`${formatCurrency(valuation.blendedLow)} to ${formatCurrency(valuation.blendedHigh)}`}
           />
-          <BandCard
-            label="Days on market"
-            low={report.lowDaysOnMarket}
-            median={report.medianDaysOnMarket}
-            high={report.highDaysOnMarket}
-            suffix=" days"
+          <MetricPill
+            label="Asking / rehab"
+            value={`${formatCurrency(deal.askingPrice)} / ${formatCurrency(deal.rehabEstimate)}`}
+            hint={deal.strategy ? `${String(deal.strategy).toUpperCase()} strategy` : "Deal inputs"}
+          />
+          <MetricPill
+            label={analysis.mode === "hold" ? "Gross yield" : "Estimated profit"}
+            value={
+              analysis.mode === "hold"
+                ? formatPercent(analysis.metrics?.grossYieldPercent)
+                : formatCurrency(analysis.metrics?.estimatedProfit)
+            }
+            hint={property.address || report.subject?.address || "Property"}
           />
         </div>
       </section>
 
-      {report.report ? (
-        <section className="section-card p-6 sm:p-7">
-          <span className="eyebrow">AI summary</span>
-          <h3 className="mt-4 text-3xl font-semibold text-ink-900">
-            {report.report.headline || "Saved comps recommendation"}
-          </h3>
-          <p className="mt-4 text-sm leading-7 text-ink-600">
-            {report.report.executiveSummary || "No written summary was saved."}
-          </p>
-
-          <div className="mt-6 grid gap-5 lg:grid-cols-2">
-            <div className="rounded-[24px] border border-ink-100 bg-white/85 p-5">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-400">
-                Pricing recommendation
-              </p>
-              <p className="mt-3 text-sm leading-6 text-ink-700">
-                {report.report.pricingRecommendation || "—"}
-              </p>
-            </div>
-            <div className="rounded-[24px] border border-ink-100 bg-white/85 p-5">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-400">
-                Offer strategy
-              </p>
-              <p className="mt-3 text-sm leading-6 text-ink-700">
-                {report.report.offerStrategy || "—"}
-              </p>
-            </div>
-          </div>
-        </section>
-      ) : null}
-
-      <section className="section-card p-6 sm:p-7">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <span className="eyebrow">Saved comp set</span>
-            <h3 className="mt-4 text-3xl font-semibold text-ink-900">
-              {report.title || "Comparable properties"}
-            </h3>
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-ink-500">{tableIntro}</p>
-          </div>
-          <div className="rounded-full border border-sand-200 bg-sand-50 px-4 py-2 text-sm font-semibold text-sand-700">
-            {recentComps.length} saved comp{recentComps.length === 1 ? "" : "s"}
-          </div>
-        </div>
-
-        <div className="mt-8 overflow-x-auto">
-          <table className="min-w-full text-sm">
-            <thead>
-              <tr className="border-b border-ink-100 text-left text-xs font-semibold uppercase tracking-[0.18em] text-ink-400">
-                <th className="px-3 py-3">Address</th>
-                <th className="px-3 py-3">Sale price</th>
-                <th className="px-3 py-3">Date</th>
-                <th className="px-3 py-3">Distance</th>
-                <th className="px-3 py-3">Beds / baths</th>
-                <th className="px-3 py-3">Sqft</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-ink-100">
-              {recentComps.length > 0 ? (
-                recentComps.map((comp, index) => (
-                  <tr key={comp.id || `${comp.address || "comp"}-${index}`}>
-                    <td className="px-3 py-4 font-semibold text-ink-900">{comp.address || "—"}</td>
-                    <td className="px-3 py-4 text-ink-600">{formatCurrency(comp.salePrice)}</td>
-                    <td className="px-3 py-4 text-ink-600">{formatDate(comp.saleDate)}</td>
-                    <td className="px-3 py-4 text-ink-600">{formatNumber(comp.distance, " mi")}</td>
-                    <td className="px-3 py-4 text-ink-600">
-                      {[comp.bedrooms ? `${comp.bedrooms} bd` : null, comp.bathrooms ? `${comp.bathrooms} ba` : null]
-                        .filter(Boolean)
-                        .join(" • ") || "—"}
-                    </td>
-                    <td className="px-3 py-4 text-ink-600">{formatNumber(comp.squareFootage)}</td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan="6" className="px-3 py-10 text-center text-ink-500">
-                    No saved comparable sales were stored in this report.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </section>
+      <MasterDealReportSections report={report} />
 
       <div
         aria-hidden="true"

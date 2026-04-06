@@ -2,13 +2,11 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import toast from "react-hot-toast";
 import { ArrowPathIcon } from "@heroicons/react/24/outline";
 
-import CompsReportWorkspace from "../components/CompsReportWorkspace";
-import MapView from "../components/MapView";
-import PropertyAnalysisWorkspace from "../components/PropertyAnalysisWorkspace";
+import MasterDealReportWorkspace from "../components/MasterDealReportWorkspace";
 import SavedCompsReportsTab from "../components/SavedCompsReportsTab";
 import {
-  analyzeFullPropertyReport,
   analyzeStandaloneComps,
+  createOneTimeCheckout,
   createSubscriptionCheckout,
   getBillingAccess,
   getPropertyReports,
@@ -18,14 +16,17 @@ import {
 import { geocodeAddress, searchAddressSuggestions } from "../utils/locationSearch";
 import {
   buildAnalysisFromSavedReport,
+  buildCompsFilterPayload,
   buildCompsFilters,
   buildCompsReportForm,
+  buildDealForm,
+  buildDealPayload,
   buildPreviewToCompsReportForm,
   buildStandaloneCompsSubject,
-  countSavableComparables,
   composeAddress,
   formatCurrency,
   formatDate,
+  normalizeMasterReport,
   parseAddressLabel,
   propertyTypeOptions,
 } from "../utils/compsReport";
@@ -47,8 +48,7 @@ const SnapshotCard = ({ label, value, hint }) => (
 );
 
 const tabOptions = [
-  { id: "comps", label: "Comps Report" },
-  { id: "analysis", label: "Full Property Analysis" },
+  { id: "master", label: "Master Deal Report" },
   { id: "saved", label: "Saved Reports" },
 ];
 
@@ -62,65 +62,31 @@ const CompsReportPage = () => {
   const selectedSuggestionRef = useRef("");
   const suppressSuggestionsRef = useRef(false);
   const mapLookupAttemptedRef = useRef("");
-  const [activeTab, setActiveTab] = useState("comps");
+  const [activeTab, setActiveTab] = useState("master");
   const [detailForm, setDetailForm] = useState(() => buildCompsReportForm());
+  const [dealForm, setDealForm] = useState(() => buildDealForm());
   const [suggestions, setSuggestions] = useState([]);
-  const [analysis, setAnalysis] = useState(null);
-  const [fullReport, setFullReport] = useState(null);
+  const [report, setReport] = useState(null);
   const [savedReports, setSavedReports] = useState([]);
   const [savedReportsLoading, setSavedReportsLoading] = useState(true);
   const [isSavingReport, setIsSavingReport] = useState(false);
   const [filters, setFilters] = useState(() => buildCompsFilters());
-  const [compsNotice, setCompsNotice] = useState("");
+  const [reportNotice, setReportNotice] = useState("");
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
   const [isMapLookupLoading, setIsMapLookupLoading] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [isAnalyzingFullReport, setIsAnalyzingFullReport] = useState(false);
   const [billingAccess, setBillingAccess] = useState(null);
   const [isBillingAccessLoading, setIsBillingAccessLoading] = useState(true);
   const [isStartingSubscription, setIsStartingSubscription] = useState(false);
+  const [isStartingCheckout, setIsStartingCheckout] = useState(false);
 
   const subject = useMemo(() => buildStandaloneCompsSubject(detailForm), [detailForm]);
-  const pricingTarget = subject.targetOffer ?? analysis?.summary?.recommendedOfferHigh ?? null;
+  const pricingTarget = subject.targetOffer ?? report?.valuation?.blendedEstimate ?? null;
   const hasMapCoordinates =
     subject.latitude !== null &&
     subject.latitude !== undefined &&
     subject.longitude !== null &&
     subject.longitude !== undefined;
-
-  const activeMapComps = useMemo(() => {
-    if (activeTab === "analysis") {
-      return fullReport?.compsSummary?.comps || analysis?.comps || [];
-    }
-
-    return analysis?.comps || fullReport?.compsSummary?.comps || [];
-  }, [activeTab, analysis?.comps, fullReport?.compsSummary?.comps]);
-
-  const mapMarkers = useMemo(() => {
-    const markers = [];
-
-    if (hasMapCoordinates) {
-      markers.push({
-        lat: subject.latitude,
-        lng: subject.longitude,
-        color: "#0f766e",
-      });
-    }
-
-    activeMapComps.forEach((comp) => {
-      const lat = comp.latitude ?? comp.lat;
-      const lng = comp.longitude ?? comp.lng;
-      if (lat === null || lat === undefined || lng === null || lng === undefined) return;
-
-      markers.push({
-        lat,
-        lng,
-        color: "#d97706",
-      });
-    });
-
-    return markers;
-  }, [activeMapComps, hasMapCoordinates, subject.latitude, subject.longitude]);
 
   const loadBillingAccess = useCallback(async () => {
     try {
@@ -145,7 +111,7 @@ const CompsReportPage = () => {
         kind: "comps",
         contextType: "standalone",
       });
-      setSavedReports(reports);
+      setSavedReports(reports.map((item) => normalizeMasterReport(item)));
     } catch (error) {
       if (!isSavedReportsBackendUnavailable(error)) {
         console.error("Failed to load standalone saved reports", error);
@@ -207,7 +173,7 @@ const CompsReportPage = () => {
         });
       } catch (error) {
         if (!cancelled) {
-          console.error("Failed to geocode comps report address for initial map render", error);
+          console.error("Failed to geocode report address for initial map render", error);
         }
       } finally {
         if (!cancelled) {
@@ -284,10 +250,17 @@ const CompsReportPage = () => {
     }));
   };
 
-  const resetReports = () => {
-    setAnalysis(null);
-    setFullReport(null);
-    setCompsNotice("");
+  const handleDealChange = (event) => {
+    const { name, value } = event.target;
+    setDealForm((previous) => ({
+      ...previous,
+      [name]: value,
+    }));
+  };
+
+  const resetReport = () => {
+    setReport(null);
+    setReportNotice("");
   };
 
   const handlePreviewLookup = async (suggestedAddress = "", fieldOverrides = {}) => {
@@ -324,7 +297,7 @@ const CompsReportPage = () => {
             fallbackLongitude = geocodedLongitude;
           }
         } catch (geocodeError) {
-          console.error("Failed to geocode comps report address for map fallback", geocodeError);
+          console.error("Failed to geocode report address for map fallback", geocodeError);
         }
       }
 
@@ -339,8 +312,13 @@ const CompsReportPage = () => {
         selectedSuggestionRef.current = composeAddress(next) || lookupAddress;
         return next;
       });
+
+      setDealForm((previous) => ({
+        ...previous,
+        askingPrice: previous.askingPrice || mappedPreview.sellerAskingPrice || previous.askingPrice,
+      }));
       setSuggestions([]);
-      resetReports();
+      resetReport();
       toast.success("Property facts refreshed.");
     } catch (error) {
       toast.error(error.message || "Failed to refresh property facts.");
@@ -377,73 +355,55 @@ const CompsReportPage = () => {
     }
 
     setIsAnalyzing(true);
-    setCompsNotice("");
+    setReportNotice("");
     try {
-      const result = await analyzeStandaloneComps(subject, filters);
-      if (result?.noResults) {
-        setAnalysis(null);
-        setCompsNotice(
-          result.msg ||
-            "No comparable properties matched the selected filters. Try widening the radius or relaxing the size filters."
-        );
-        toast(result.msg || "No comparable properties matched the selected filters.");
-        return;
-      }
-
-      setAnalysis(result);
-      setCompsNotice("");
+      const result = await analyzeStandaloneComps(
+        subject,
+        buildCompsFilterPayload(filters),
+        buildDealPayload(dealForm)
+      );
+      const normalized = normalizeMasterReport(result, subject);
+      setReport(normalized);
+      setReportNotice("");
       await loadBillingAccess();
     } catch (error) {
-      setCompsNotice("");
-      toast.error(error.message || "Analysis failed.");
+      setReportNotice("");
+      toast.error(error.message || "Report generation failed.");
     } finally {
       setIsAnalyzing(false);
     }
   };
 
-  const handleRunFullAnalysis = async () => {
-    if (!subject.address) {
-      toast.error("Add an address before running the full analysis.");
-      return;
-    }
-
-    setIsAnalyzingFullReport(true);
-    try {
-      const result = await analyzeFullPropertyReport(subject, filters);
-      setFullReport(result);
-      await loadBillingAccess();
-    } catch (error) {
-      toast.error(error.message || "Property analysis failed.");
-    } finally {
-      setIsAnalyzingFullReport(false);
-    }
-  };
-
-  const handleSaveReport = async ({ subject: reportSubject, filters: reportFilters, valuationContext, selectedComps }) => {
-    if (countSavableComparables(selectedComps) < 3) {
-      toast.error("Select at least 3 comparable sales before saving.");
-      return;
-    }
-
+  const handleSaveReport = async ({
+    subject: reportSubject,
+    filters: reportFilters,
+    deal: reportDeal,
+    valuationContext,
+    selectedComps,
+    reportData,
+  }) => {
     setIsSavingReport(true);
     try {
       const savedReport = await saveCompsReport({
         contextType: "standalone",
         subject: reportSubject,
+        deal: reportDeal,
         filters: reportFilters,
         valuationContext,
         selectedComps,
+        reportData,
       });
 
+      const normalized = normalizeMasterReport(savedReport, reportSubject);
       setSavedReports((previous) => [
-        savedReport,
-        ...previous.filter((report) => report._id !== savedReport._id),
+        normalized,
+        ...previous.filter((item) => item._id !== normalized._id),
       ]);
-      setAnalysis(buildAnalysisFromSavedReport(savedReport, reportSubject));
+      setReport(normalized);
       setActiveTab("saved");
-      toast.success("Comps report saved.");
+      toast.success("Master Deal Report saved.");
     } catch (error) {
-      toast.error(error.message || "Failed to save comps report.");
+      toast.error(error.message || "Failed to save the report.");
     } finally {
       setIsSavingReport(false);
     }
@@ -460,18 +420,33 @@ const CompsReportPage = () => {
     }
   };
 
+  const handleBuyCredits = async () => {
+    setIsStartingCheckout(true);
+    try {
+      const kind = billingAccess?.hasActiveSubscription ? "pro_comps_topup_10" : "comps_pack_10";
+      const { url } = await createOneTimeCheckout({
+        kind,
+        returnPath: window.location.pathname,
+      });
+      window.location.href = url;
+    } catch (error) {
+      toast.error(error.message || "Could not start the credits checkout.");
+      setIsStartingCheckout(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <section className="surface-panel-strong relative overflow-hidden px-6 py-7 sm:px-8">
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1.18fr)_360px]">
           <div>
-            <span className="eyebrow">Property reports</span>
-            <h1 className="mt-5 max-w-3xl font-display text-4xl leading-tight text-ink-900 sm:text-5xl">
-              Start with an address, see it on the map, then run comps or a full property analysis.
+            <span className="eyebrow">Investor reports</span>
+            <h1 className="mt-5 max-w-4xl font-display text-4xl leading-tight text-ink-900 sm:text-5xl">
+              Turn an address and a few deal assumptions into a premium Master Deal Report.
             </h1>
-            <p className="mt-4 max-w-2xl text-base leading-7 text-ink-600 sm:text-lg">
-              This page keeps the same comps tool from your lead and project tabs, then layers a
-              deeper property profile on top using the data you already have today.
+            <p className="mt-4 max-w-3xl text-base leading-7 text-ink-600 sm:text-lg">
+              Property facts, valuation comps, recent sales, active market listings, deal math, market
+              context, and an AI verdict all in one serious investor-facing report.
             </p>
           </div>
 
@@ -480,9 +455,9 @@ const CompsReportPage = () => {
               Report flow
             </p>
             <div className="mt-5 space-y-3 text-sm leading-6 text-ink-600">
-              <p>1. Select an address and auto-fill the property facts.</p>
-              <p>2. Review the subject on the map and adjust the comp filters if needed.</p>
-              <p>3. Run either the comps report or the fuller property analysis.</p>
+              <p>1. Enter the property address and refresh the facts.</p>
+              <p>2. Review the deal inputs and comp filters.</p>
+              <p>3. Run one Master Deal Report and save/export it when ready.</p>
             </div>
           </div>
         </div>
@@ -494,13 +469,14 @@ const CompsReportPage = () => {
             <div>
               <h2 className="text-xl font-semibold text-ink-900">Property intake</h2>
               <p className="mt-1 text-sm text-ink-500">
-                Enter the subject details you want both report tabs to use.
+                Set the property facts the report will use before you run the analysis.
               </p>
             </div>
             <button
               type="button"
               onClick={() => handlePreviewLookup()}
               disabled={isPreviewLoading || !subject.address}
+              data-testid="report-autofill-button"
               className="ghost-action disabled:opacity-50"
             >
               <ArrowPathIcon className="mr-2 h-4 w-4" />
@@ -515,6 +491,7 @@ const CompsReportPage = () => {
                   name="addressLine1"
                   value={detailForm.addressLine1}
                   onChange={handleFormChange}
+                  data-testid="report-address-input"
                   className="auth-input"
                   placeholder="Start typing the property address..."
                 />
@@ -537,20 +514,10 @@ const CompsReportPage = () => {
             </div>
 
             <ReportField label="City">
-              <input
-                name="city"
-                value={detailForm.city}
-                onChange={handleFormChange}
-                className="auth-input"
-              />
+              <input name="city" value={detailForm.city} onChange={handleFormChange} className="auth-input" />
             </ReportField>
             <ReportField label="State">
-              <input
-                name="state"
-                value={detailForm.state}
-                onChange={handleFormChange}
-                className="auth-input"
-              />
+              <input name="state" value={detailForm.state} onChange={handleFormChange} className="auth-input" />
             </ReportField>
             <ReportField label="Zip code">
               <input
@@ -643,26 +610,18 @@ const CompsReportPage = () => {
                 type="number"
                 value={detailForm.sellerAskingPrice}
                 onChange={handleFormChange}
+                data-testid="report-asking-price-input"
                 className="auth-input"
                 placeholder="0"
               />
             </ReportField>
-            <ReportField label="Target offer">
+            <ReportField label="Estimated rehab">
               <input
-                name="targetOffer"
+                name="rehabEstimate"
                 type="number"
-                value={detailForm.targetOffer}
+                value={detailForm.rehabEstimate}
                 onChange={handleFormChange}
-                className="auth-input"
-                placeholder="0"
-              />
-            </ReportField>
-            <ReportField label="ARV / future value">
-              <input
-                name="arv"
-                type="number"
-                value={detailForm.arv}
-                onChange={handleFormChange}
+                data-testid="report-rehab-input"
                 className="auth-input"
                 placeholder="0"
               />
@@ -673,14 +632,20 @@ const CompsReportPage = () => {
         <div className="section-card p-6">
           <h2 className="text-xl font-semibold text-ink-900">Current snapshot</h2>
           <p className="mt-1 text-sm text-ink-500">
-            These are the numbers the comps report and property analysis will use.
+            These are the core facts the deal report will use.
           </p>
 
           <div className="mt-5 space-y-3">
             <SnapshotCard
               label="Address"
               value={subject.address || "No address selected yet"}
-              hint={detailForm.county ? `${detailForm.county} County` : "Choose a property to begin"}
+              hint={
+                isMapLookupLoading
+                  ? "Finding coordinates for this property..."
+                  : detailForm.county
+                    ? `${detailForm.county} County`
+                    : "Choose a property to begin"
+              }
             />
             <SnapshotCard
               label="Property"
@@ -701,54 +666,15 @@ const CompsReportPage = () => {
               hint={`Target ${formatCurrency(pricingTarget)}`}
             />
             <SnapshotCard
-              label="Listing status"
-              value={subject.listingStatus || "No active listing status"}
+              label="Condition / rehab"
+              value={`Rehab ${formatCurrency(subject.rehabEstimate)}`}
               hint={
-                subject.listedDate
-                  ? `Listed ${formatDate(subject.listedDate)}`
-                  : subject.lastSaleDate
-                    ? `Last sold ${formatDate(subject.lastSaleDate)}`
-                    : "Listing and transfer dates will appear here"
+                subject.lastSaleDate
+                  ? `Last sold ${formatDate(subject.lastSaleDate)}`
+                  : "Last sale date will appear here when available"
               }
             />
           </div>
-        </div>
-      </section>
-
-      <section className="section-card p-6">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <h2 className="text-xl font-semibold text-ink-900">Property map</h2>
-            <p className="mt-1 text-sm text-ink-500">
-              The subject property appears in green. Comparable properties appear in amber after a
-              report runs.
-            </p>
-          </div>
-          <div className="rounded-[18px] bg-sand-50 px-4 py-3 text-sm text-ink-600">
-            <p className="font-semibold text-ink-900">{subject.address || "No address selected yet"}</p>
-            <p className="mt-1">
-              {isMapLookupLoading
-                ? "Finding map coordinates for the selected property..."
-                : hasMapCoordinates
-                ? "Map centered on the selected property."
-                : "Run auto-fill facts to fetch coordinates for the selected address."}
-            </p>
-          </div>
-        </div>
-
-        <div className="mt-5">
-          {hasMapCoordinates ? (
-            <MapView
-              latitude={subject.latitude}
-              longitude={subject.longitude}
-              markers={mapMarkers}
-              zoom={13}
-            />
-          ) : (
-            <div className="flex h-[380px] items-center justify-center rounded-[20px] border border-dashed border-ink-200 bg-sand-50 px-6 text-center text-sm leading-6 text-ink-500">
-              Choose an address and refresh the property facts to place the subject on the map.
-            </div>
-          )}
         </div>
       </section>
 
@@ -759,6 +685,7 @@ const CompsReportPage = () => {
               key={tab.id}
               type="button"
               onClick={() => setActiveTab(tab.id)}
+              data-testid={`report-tab-${tab.id}`}
               className={`rounded-full px-4 py-2.5 text-sm font-semibold transition ${
                 activeTab === tab.id
                   ? "bg-ink-900 text-white shadow-soft"
@@ -771,44 +698,36 @@ const CompsReportPage = () => {
         </div>
       </section>
 
-      {activeTab === "comps" ? (
-        <CompsReportWorkspace
-          subject={subject}
-          analysis={analysis}
+      {activeTab === "master" ? (
+        <MasterDealReportWorkspace
+          report={report}
           filters={filters}
+          deal={dealForm}
           onFilterChange={handleFilterChange}
+          onDealChange={handleDealChange}
           isAnalyzing={isAnalyzing}
           onRunAnalysis={handleRunAnalysis}
           billingAccess={billingAccess}
           isBillingAccessLoading={isBillingAccessLoading}
           onStartSubscription={handleStartSubscription}
           isStartingSubscription={isStartingSubscription}
+          onBuyReport={handleBuyCredits}
+          isStartingCheckout={isStartingCheckout}
           onSaveReport={handleSaveReport}
           isSavingReport={isSavingReport}
-          saveButtonLabel="Save Report"
-          showOneTimeCheckout={false}
-          compsNotice={compsNotice}
+          saveButtonLabel="Save Master Report"
+          showOneTimeCheckout
+          reportNotice={reportNotice}
           runDisabled={!subject.address}
         />
-      ) : activeTab === "saved" ? (
+      ) : (
         <SavedCompsReportsTab
           reports={savedReports}
           isLoading={savedReportsLoading}
-          title="Standalone comps reports"
-          description="Saved comps snapshots from the main reports page live here so you can reopen any comp set without building a lead first."
-          emptyTitle="No standalone comps reports saved yet"
-          emptyMessage="Run a comps report from this page, choose the comp set you want, and save it to build your report library."
-        />
-      ) : (
-        <PropertyAnalysisWorkspace
-          report={fullReport}
-          isAnalyzing={isAnalyzingFullReport}
-          onRunAnalysis={handleRunFullAnalysis}
-          billingAccess={billingAccess}
-          isBillingAccessLoading={isBillingAccessLoading}
-          onStartSubscription={handleStartSubscription}
-          isStartingSubscription={isStartingSubscription}
-          runDisabled={!subject.address}
+          title="Saved Master Deal Reports"
+          description="Saved premium deal reports live here so you can reopen, compare, and export them later."
+          emptyTitle="No saved deal reports yet"
+          emptyMessage="Run a Master Deal Report from this page and save it to build your report library."
         />
       )}
     </div>

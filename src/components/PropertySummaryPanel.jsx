@@ -178,6 +178,7 @@ const PropertySummaryPanel = ({
   leadWorkspace,
   savedReports = [],
   pipelineLeadPath = "",
+  embedded = false,
 }) => {
   const investmentId = property?.workspaces?.acquisitions?.id || "";
   const acquisitionsPath = property?.workspaces?.acquisitions?.path || "";
@@ -326,121 +327,123 @@ const PropertySummaryPanel = ({
 
   const renderAcquisitionSummary = () => (
     <div className="space-y-4">
-      <section className="surface-panel px-6 py-7 sm:px-7">
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
-          <div>
-            <span className="eyebrow">Property &gt; Acquisition Summary</span>
-            <h3 className="mt-4 font-display text-[2.2rem] leading-[0.96] text-ink-900">
-              From deal assumptions to the active property workspace
-            </h3>
-            <p className="mt-4 max-w-3xl text-sm leading-7 text-ink-500 sm:text-base">
-              This section tells the story of what the team thought it was buying, what actually
-              made it into the project, and how the live execution numbers compare against the
-              original plan.
-            </p>
+      {!embedded ? (
+        <section className="surface-panel px-6 py-7 sm:px-7">
+          <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
+            <div>
+              <span className="eyebrow">Property &gt; Acquisition Summary</span>
+              <h3 className="mt-4 font-display text-[2.2rem] leading-[0.96] text-ink-900">
+                From deal assumptions to the active property workspace
+              </h3>
+              <p className="mt-4 max-w-3xl text-sm leading-7 text-ink-500 sm:text-base">
+                This section tells the story of what the team thought it was buying, what actually
+                made it into the project, and how the live execution numbers compare against the
+                original plan.
+              </p>
 
-            <div className="mt-6 flex flex-wrap gap-3">
-              {pipelineLeadPath ? (
-                <Link to={pipelineLeadPath} className="secondary-action">
-                  Open source lead
-                </Link>
+              <div className="mt-6 flex flex-wrap gap-3">
+                {pipelineLeadPath ? (
+                  <Link to={pipelineLeadPath} className="secondary-action">
+                    Open source lead
+                  </Link>
+                ) : null}
+                {acquisitionsPath ? (
+                  <Link to={acquisitionsPath} className="secondary-action">
+                    Open acquisitions project
+                  </Link>
+                ) : (
+                  <Link to={financeWorkspacePath} className="primary-action">
+                    Start finance workspace
+                  </Link>
+                )}
+              </div>
+            </div>
+
+            <div className="section-card p-5">
+              <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-ink-400">
+                Property story state
+              </p>
+              <h4 className="mt-4 text-xl font-semibold text-ink-900">How this summary is sourced</h4>
+              <p className="mt-3 text-sm leading-6 text-ink-500">{snapshotContextLabel}</p>
+
+              <div className="mt-5 space-y-2.5">
+                <div className="flex items-center justify-between rounded-[14px] bg-verdigris-50 px-4 py-3">
+                  <span className="text-sm font-medium text-ink-600">Acquisitions workspace</span>
+                  <span className="text-sm font-semibold text-ink-900">
+                    {investment ? investment.status || "Active" : "Not created"}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between rounded-[14px] bg-white px-4 py-3 ring-1 ring-ink-100">
+                  <span className="text-sm font-medium text-ink-600">Strategy</span>
+                  <span className="text-sm font-semibold text-ink-900">{strategyLabel}</span>
+                </div>
+                <div className="flex items-center justify-between rounded-[14px] bg-sand-50 px-4 py-3">
+                  <span className="text-sm font-medium text-ink-600">Latest market snapshot</span>
+                  <span className="text-sm font-semibold text-ink-900">
+                    {formatDate(marketSnapshotDate)}
+                  </span>
+                </div>
+              </div>
+
+              {loading ? (
+                <div className="mt-5 flex items-center gap-3 text-sm text-ink-500">
+                  <ArrowPathIcon className="h-4 w-4 animate-spin" />
+                  Loading acquisitions context...
+                </div>
               ) : null}
-              {acquisitionsPath ? (
-                <Link to={acquisitionsPath} className="secondary-action">
-                  Open acquisitions project
-                </Link>
-              ) : (
-                <Link to={financeWorkspacePath} className="primary-action">
-                  Start finance workspace
-                </Link>
-              )}
             </div>
           </div>
 
-          <div className="section-card p-5">
-            <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-ink-400">
-              Property story state
-            </p>
-            <h4 className="mt-4 text-xl font-semibold text-ink-900">How this summary is sourced</h4>
-            <p className="mt-3 text-sm leading-6 text-ink-500">{snapshotContextLabel}</p>
-
-            <div className="mt-5 space-y-2.5">
-              <div className="flex items-center justify-between rounded-[14px] bg-verdigris-50 px-4 py-3">
-                <span className="text-sm font-medium text-ink-600">Acquisitions workspace</span>
-                <span className="text-sm font-semibold text-ink-900">
-                  {investment ? investment.status || "Active" : "Not created"}
-                </span>
-              </div>
-              <div className="flex items-center justify-between rounded-[14px] bg-white px-4 py-3 ring-1 ring-ink-100">
-                <span className="text-sm font-medium text-ink-600">Strategy</span>
-                <span className="text-sm font-semibold text-ink-900">{strategyLabel}</span>
-              </div>
-              <div className="flex items-center justify-between rounded-[14px] bg-sand-50 px-4 py-3">
-                <span className="text-sm font-medium text-ink-600">Latest market snapshot</span>
-                <span className="text-sm font-semibold text-ink-900">
-                  {formatDate(marketSnapshotDate)}
-                </span>
-              </div>
+          {error ? (
+            <div className="mt-6 rounded-[16px] border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
+              {error}
             </div>
+          ) : null}
 
-            {loading ? (
-              <div className="mt-5 flex items-center gap-3 text-sm text-ink-500">
-                <ArrowPathIcon className="h-4 w-4 animate-spin" />
-                Loading acquisitions context...
-              </div>
-            ) : null}
+          <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <SummaryTile
+              icon={BanknotesIcon}
+              label="Actual purchase"
+              value={formatMoney(purchasePrice, investment ? "Needs update" : "Not captured")}
+              hint={
+                purchasePrice !== null && targetOffer !== null
+                  ? `Against target: ${formatDeltaLabel(purchasePrice - targetOffer)}`
+                  : "Record the final close basis in Finance."
+              }
+            />
+            <SummaryTile
+              icon={WrenchScrewdriverIcon}
+              label="Current expected cost"
+              value={formatMoney(currentBudget ?? originalScopeBudget)}
+              hint={
+                spentToDate !== null
+                  ? `${formatMoney(spentToDate)} spent so far`
+                  : "Budget updates here as scope and expenses change."
+              }
+            />
+            <SummaryTile
+              icon={ArrowTrendingUpIcon}
+              label="Current exit value"
+              value={formatMoney(currentArv)}
+              hint={
+                currentArv !== null && originalArv !== null
+                  ? `Against original ARV: ${formatDeltaLabel(currentArv - originalArv)}`
+                  : "Use Finance to refine the current exit assumptions."
+              }
+            />
+            <SummaryTile
+              icon={ChartBarIcon}
+              label="Saved market history"
+              value={`${savedReports.length} report${savedReports.length === 1 ? "" : "s"}`}
+              hint={
+                marketSnapshotDate
+                  ? `Latest snapshot ${formatDate(marketSnapshotDate)}`
+                  : "Run and save comps to build a stronger market trail."
+              }
+            />
           </div>
-        </div>
-
-        {error ? (
-          <div className="mt-6 rounded-[16px] border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
-            {error}
-          </div>
-        ) : null}
-
-        <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <SummaryTile
-            icon={BanknotesIcon}
-            label="Actual purchase"
-            value={formatMoney(purchasePrice, investment ? "Needs update" : "Not captured")}
-            hint={
-              purchasePrice !== null && targetOffer !== null
-                ? `Against target: ${formatDeltaLabel(purchasePrice - targetOffer)}`
-                : "Record the final close basis in Finance."
-            }
-          />
-          <SummaryTile
-            icon={WrenchScrewdriverIcon}
-            label="Current expected cost"
-            value={formatMoney(currentBudget ?? originalScopeBudget)}
-            hint={
-              spentToDate !== null
-                ? `${formatMoney(spentToDate)} spent so far`
-                : "Budget updates here as scope and expenses change."
-            }
-          />
-          <SummaryTile
-            icon={ArrowTrendingUpIcon}
-            label="Current exit value"
-            value={formatMoney(currentArv)}
-            hint={
-              currentArv !== null && originalArv !== null
-                ? `Against original ARV: ${formatDeltaLabel(currentArv - originalArv)}`
-                : "Use Finance to refine the current exit assumptions."
-            }
-          />
-          <SummaryTile
-            icon={ChartBarIcon}
-            label="Saved market history"
-            value={`${savedReports.length} report${savedReports.length === 1 ? "" : "s"}`}
-            hint={
-              marketSnapshotDate
-                ? `Latest snapshot ${formatDate(marketSnapshotDate)}`
-                : "Run and save comps to build a stronger market trail."
-            }
-          />
-        </div>
-      </section>
+        </section>
+      ) : null}
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.9fr)]">
         <section className="section-card p-6 sm:p-7">
@@ -523,119 +526,121 @@ const PropertySummaryPanel = ({
 
   const renderOriginalAssumptions = () => (
     <div className="space-y-4">
-      <section className="surface-panel px-6 py-7 sm:px-7">
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
-          <div>
-            <span className="eyebrow">Property &gt; Original Assumptions</span>
-            <h3 className="mt-4 font-display text-[2.2rem] leading-[0.96] text-ink-900">
-              The original underwriting snapshot for this property
-            </h3>
-            <p className="mt-4 max-w-3xl text-sm leading-7 text-ink-500 sm:text-base">
-              This preserves the pricing, market, and scope assumptions that came in with the deal
-              so the team always has a clean reference point before revisions, change orders, or
-              updated exit assumptions.
-            </p>
+      {!embedded ? (
+        <section className="surface-panel px-6 py-7 sm:px-7">
+          <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
+            <div>
+              <span className="eyebrow">Property &gt; Original Assumptions</span>
+              <h3 className="mt-4 font-display text-[2.2rem] leading-[0.96] text-ink-900">
+                The original underwriting snapshot for this property
+              </h3>
+              <p className="mt-4 max-w-3xl text-sm leading-7 text-ink-500 sm:text-base">
+                This preserves the pricing, market, and scope assumptions that came in with the deal
+                so the team always has a clean reference point before revisions, change orders, or
+                updated exit assumptions.
+              </p>
 
-            <div className="mt-6 flex flex-wrap gap-3">
-              {pipelineLeadPath ? (
-                <Link to={pipelineLeadPath} className="secondary-action">
-                  Open source lead
-                </Link>
+              <div className="mt-6 flex flex-wrap gap-3">
+                {pipelineLeadPath ? (
+                  <Link to={pipelineLeadPath} className="secondary-action">
+                    Open source lead
+                  </Link>
+                ) : null}
+                {acquisitionsPath ? (
+                  <Link to={acquisitionsPath} className="secondary-action">
+                    Open acquisitions project
+                  </Link>
+                ) : (
+                  <Link to={financeWorkspacePath} className="ghost-action">
+                    Open Finance setup
+                  </Link>
+                )}
+              </div>
+            </div>
+
+            <div className="section-card p-5">
+              <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-ink-400">
+                Snapshot source
+              </p>
+              <h4 className="mt-4 text-xl font-semibold text-ink-900">
+                {frozenSnapshot ? "Frozen acquisition snapshot" : "Live linked lead"}
+              </h4>
+              <p className="mt-3 text-sm leading-6 text-ink-500">{snapshotContextLabel}</p>
+
+              <div className="mt-5 space-y-2.5">
+                <div className="flex items-center justify-between rounded-[14px] bg-verdigris-50 px-4 py-3">
+                  <span className="text-sm font-medium text-ink-600">Saved reports</span>
+                  <span className="text-sm font-semibold text-ink-900">
+                    {savedReports.length}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between rounded-[14px] bg-white px-4 py-3 ring-1 ring-ink-100">
+                  <span className="text-sm font-medium text-ink-600">Original scope lines</span>
+                  <span className="text-sm font-semibold text-ink-900">
+                    {scopeItems.length}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between rounded-[14px] bg-sand-50 px-4 py-3">
+                  <span className="text-sm font-medium text-ink-600">Latest update</span>
+                  <span className="text-sm font-semibold text-ink-900">
+                    {formatDate(property?.updatedAt)}
+                  </span>
+                </div>
+              </div>
+
+              {loading ? (
+                <div className="mt-5 flex items-center gap-3 text-sm text-ink-500">
+                  <ArrowPathIcon className="h-4 w-4 animate-spin" />
+                  Loading current comparison...
+                </div>
               ) : null}
-              {acquisitionsPath ? (
-                <Link to={acquisitionsPath} className="secondary-action">
-                  Open acquisitions project
-                </Link>
-              ) : (
-                <Link to={financeWorkspacePath} className="ghost-action">
-                  Open Finance setup
-                </Link>
-              )}
             </div>
           </div>
 
-          <div className="section-card p-5">
-            <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-ink-400">
-              Snapshot source
-            </p>
-            <h4 className="mt-4 text-xl font-semibold text-ink-900">
-              {frozenSnapshot ? "Frozen acquisition snapshot" : "Live linked lead"}
-            </h4>
-            <p className="mt-3 text-sm leading-6 text-ink-500">{snapshotContextLabel}</p>
-
-            <div className="mt-5 space-y-2.5">
-              <div className="flex items-center justify-between rounded-[14px] bg-verdigris-50 px-4 py-3">
-                <span className="text-sm font-medium text-ink-600">Saved reports</span>
-                <span className="text-sm font-semibold text-ink-900">
-                  {savedReports.length}
-                </span>
-              </div>
-              <div className="flex items-center justify-between rounded-[14px] bg-white px-4 py-3 ring-1 ring-ink-100">
-                <span className="text-sm font-medium text-ink-600">Original scope lines</span>
-                <span className="text-sm font-semibold text-ink-900">
-                  {scopeItems.length}
-                </span>
-              </div>
-              <div className="flex items-center justify-between rounded-[14px] bg-sand-50 px-4 py-3">
-                <span className="text-sm font-medium text-ink-600">Latest update</span>
-                <span className="text-sm font-semibold text-ink-900">
-                  {formatDate(property?.updatedAt)}
-                </span>
-              </div>
+          {error ? (
+            <div className="mt-6 rounded-[16px] border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
+              {error}
             </div>
+          ) : null}
 
-            {loading ? (
-              <div className="mt-5 flex items-center gap-3 text-sm text-ink-500">
-                <ArrowPathIcon className="h-4 w-4 animate-spin" />
-                Loading current comparison...
-              </div>
-            ) : null}
+          <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <SummaryTile
+              icon={BanknotesIcon}
+              label="Seller ask"
+              value={formatMoney(askingPrice)}
+              hint="The original asking price captured with the lead."
+            />
+            <SummaryTile
+              icon={BuildingOffice2Icon}
+              label="Target offer"
+              value={formatMoney(targetOffer)}
+              hint="Your original offer target before the property moved over."
+            />
+            <SummaryTile
+              icon={ArrowTrendingUpIcon}
+              label="Original ARV"
+              value={formatMoney(originalArv)}
+              hint={
+                estimatedValueLow !== null && estimatedValueHigh !== null
+                  ? `Range ${formatCurrency(estimatedValueLow)} to ${formatCurrency(
+                      estimatedValueHigh
+                    )}`
+                  : "Uses the lead ARV or the saved comp estimate."
+              }
+            />
+            <SummaryTile
+              icon={ClipboardDocumentListIcon}
+              label="Lead rehab estimate"
+              value={formatMoney(originalScopeBudget)}
+              hint={
+                scopeItems.length > 0
+                  ? `${scopeItems.length} scope line${scopeItems.length === 1 ? "" : "s"} captured`
+                  : "No detailed scope lines were saved yet."
+              }
+            />
           </div>
-        </div>
-
-        {error ? (
-          <div className="mt-6 rounded-[16px] border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
-            {error}
-          </div>
-        ) : null}
-
-        <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <SummaryTile
-            icon={BanknotesIcon}
-            label="Seller ask"
-            value={formatMoney(askingPrice)}
-            hint="The original asking price captured with the lead."
-          />
-          <SummaryTile
-            icon={BuildingOffice2Icon}
-            label="Target offer"
-            value={formatMoney(targetOffer)}
-            hint="Your original offer target before the property moved over."
-          />
-          <SummaryTile
-            icon={ArrowTrendingUpIcon}
-            label="Original ARV"
-            value={formatMoney(originalArv)}
-            hint={
-              estimatedValueLow !== null && estimatedValueHigh !== null
-                ? `Range ${formatCurrency(estimatedValueLow)} to ${formatCurrency(
-                    estimatedValueHigh
-                  )}`
-                : "Uses the lead ARV or the saved comp estimate."
-            }
-          />
-          <SummaryTile
-            icon={ClipboardDocumentListIcon}
-            label="Lead rehab estimate"
-            value={formatMoney(originalScopeBudget)}
-            hint={
-              scopeItems.length > 0
-                ? `${scopeItems.length} scope line${scopeItems.length === 1 ? "" : "s"} captured`
-                : "No detailed scope lines were saved yet."
-            }
-          />
-        </div>
-      </section>
+        </section>
+      ) : null}
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.9fr)]">
         <section className="section-card p-6 sm:p-7">

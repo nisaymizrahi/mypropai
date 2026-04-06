@@ -31,11 +31,16 @@ import {
 import { searchAddressSuggestions } from "../utils/locationSearch";
 import {
   buildAnalysisFromSavedReport,
+  buildCompsFilterPayload,
+  buildCompsFilters as buildMasterDealFilters,
+  buildDealForm,
+  buildDealPayload,
   buildSavedReportFromLegacySnapshot,
   countSavableComparables,
+  normalizeMasterReport,
 } from "../utils/compsReport";
 import BidsTab from "../components/BidsTab";
-import CompsReportWorkspace from "../components/CompsReportWorkspace";
+import MasterDealReportWorkspace from "../components/MasterDealReportWorkspace";
 import SavedCompsReportsTab from "../components/SavedCompsReportsTab";
 import TasksPanel from "../components/TasksPanel";
 
@@ -253,11 +258,6 @@ const toOptionalNumber = (value) => {
   return Number.isFinite(parsed) ? parsed : undefined;
 };
 
-const toInputValue = (value) => {
-  if (value === "" || value === null || value === undefined) return "";
-  return String(value);
-};
-
 const toNullableNumber = (value) => {
   if (value === "" || value === null || value === undefined) return null;
   const parsed = Number(value);
@@ -419,32 +419,6 @@ const normalizePropertyType = (value) => {
   return "other";
 };
 
-const deriveCompsPropertyTypeFilter = (propertyType, unitCount) => {
-  const normalizedType = normalizePropertyType(propertyType);
-  const normalizedUnitCount = toNullableNumber(unitCount);
-
-  if (!normalizedType) return "";
-  if (normalizedType === "other") return "";
-  if (normalizedType !== "multi-family") return normalizedType;
-  if (normalizedUnitCount !== null && normalizedUnitCount >= 5) return "multi-family-5-plus";
-  if (normalizedUnitCount !== null && normalizedUnitCount >= 2) return "multi-family-2-4";
-  return "multi-family-any";
-};
-
-const buildCompsFilters = (lead = {}, savedFilters = {}) => ({
-  radius: toInputValue(savedFilters.radius ?? 1),
-  saleDateMonths: toInputValue(savedFilters.saleDateMonths ?? 6),
-  maxComps: toInputValue(savedFilters.maxComps ?? 8),
-  propertyType:
-    savedFilters.propertyType !== undefined
-      ? String(savedFilters.propertyType || "")
-      : deriveCompsPropertyTypeFilter(lead.propertyType, lead.unitCount),
-  minSquareFootage: toInputValue(savedFilters.minSquareFootage),
-  maxSquareFootage: toInputValue(savedFilters.maxSquareFootage),
-  minLotSize: toInputValue(savedFilters.minLotSize),
-  maxLotSize: toInputValue(savedFilters.maxLotSize),
-});
-
 const buildDetailsForm = (lead = {}) => {
   const parsedAddress = parseAddressLabel(lead.address || "");
   return {
@@ -590,28 +564,30 @@ const buildLeadCompsAnalysisSnapshotFromReport = (report) => {
 
   return {
     generatedAt: report.generatedAt,
-    filters: report.filters || null,
+    filters: report.compFilters || report.filters || null,
     valuationContext: report.valuationContext || null,
-    estimatedValue: report.estimatedValue ?? null,
-    estimatedValueLow: report.estimatedValueLow ?? null,
-    estimatedValueHigh: report.estimatedValueHigh ?? null,
-    averageSoldPrice: report.averageSoldPrice ?? null,
-    medianSoldPrice: report.medianSoldPrice ?? null,
+    estimatedValue: report.valuation?.blendedEstimate ?? report.estimatedValue ?? null,
+    estimatedValueLow: report.valuation?.blendedLow ?? report.estimatedValueLow ?? null,
+    estimatedValueHigh: report.valuation?.blendedHigh ?? report.estimatedValueHigh ?? null,
+    averageSoldPrice: report.averageSoldPrice ?? report.comps?.primary?.summary?.averagePrice ?? null,
+    medianSoldPrice: report.valuation?.primaryCompMedian ?? report.medianSoldPrice ?? null,
     lowSoldPrice: report.lowSoldPrice ?? null,
     highSoldPrice: report.highSoldPrice ?? null,
-    averagePricePerSqft: report.averagePricePerSqft ?? null,
-    medianPricePerSqft: report.medianPricePerSqft ?? null,
+    averagePricePerSqft:
+      report.averagePricePerSqft ?? report.comps?.primary?.summary?.averagePricePerSqft ?? null,
+    medianPricePerSqft:
+      report.medianPricePerSqft ?? report.comps?.primary?.summary?.medianPricePerSqft ?? null,
     lowPricePerSqft: report.lowPricePerSqft ?? null,
     highPricePerSqft: report.highPricePerSqft ?? null,
     averageDaysOnMarket: report.averageDaysOnMarket ?? null,
     medianDaysOnMarket: report.medianDaysOnMarket ?? null,
     lowDaysOnMarket: report.lowDaysOnMarket ?? null,
     highDaysOnMarket: report.highDaysOnMarket ?? null,
-    saleCompCount: report.saleCompCount ?? null,
+    saleCompCount: report.comps?.primary?.summary?.count ?? report.saleCompCount ?? null,
     askingPriceDelta: report.askingPriceDelta ?? null,
     recommendedOfferLow: report.recommendedOfferLow ?? null,
     recommendedOfferHigh: report.recommendedOfferHigh ?? null,
-    report: report.report || null,
+    report: report.aiVerdict || report.report || null,
     recentComps: Array.isArray(report.recentComps) ? report.recentComps : [],
   };
 };
@@ -777,7 +753,8 @@ const LeadDetailPage = () => {
   const [suggestions, setSuggestions] = useState([]);
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
   const [isSavingQuickStatus, setIsSavingQuickStatus] = useState(false);
-  const [filters, setFilters] = useState(() => buildCompsFilters());
+  const [filters, setFilters] = useState(() => buildMasterDealFilters());
+  const [dealOverrides, setDealOverrides] = useState({});
 
   const [renovationForm, setRenovationForm] = useState(() => buildRenovationForm());
   const [isSavingRenovation, setIsSavingRenovation] = useState(false);
@@ -824,9 +801,9 @@ const LeadDetailPage = () => {
       );
       const nextSavedReports =
         savedReportsData.length > 0
-          ? savedReportsData
+          ? savedReportsData.map((report) => normalizeMasterReport(report, leadData))
           : legacySavedReport
-            ? [legacySavedReport]
+            ? [normalizeMasterReport(legacySavedReport, leadData)]
             : [];
 
       setSavedReports(nextSavedReports);
@@ -836,8 +813,16 @@ const LeadDetailPage = () => {
           : null
       );
       setCompsNotice("");
-
-      setFilters(buildCompsFilters(leadData, leadData.compsAnalysis?.filters || {}));
+      setFilters(
+        buildMasterDealFilters(
+          leadData,
+          nextSavedReports[0]?.compFilters ||
+            nextSavedReports[0]?.filters ||
+            leadData.compsAnalysis?.filters ||
+            {}
+        )
+      );
+      setDealOverrides({});
     } catch (err) {
       setError(err.message || "Failed to load lead data.");
     } finally {
@@ -935,6 +920,11 @@ const LeadDetailPage = () => {
   const handleFilterChange = (event) => {
     const { name, value } = event.target;
     setFilters((previous) => ({ ...previous, [name]: value }));
+  };
+
+  const handleDealChange = (event) => {
+    const { name, value } = event.target;
+    setDealOverrides((previous) => ({ ...previous, [name]: value }));
   };
 
   const handleQuickStatusChange = async (event) => {
@@ -1169,7 +1159,10 @@ const LeadDetailPage = () => {
     setError("");
     setCompsNotice("");
     try {
-      const result = await analyzeLeadComps(id, filters);
+      const result = await analyzeLeadComps(id, {
+        filters: buildCompsFilterPayload(filters),
+        deal: buildDealPayload(dealForm),
+      });
       if (result?.noResults) {
         setAnalysis(null);
         setCompsNotice(
@@ -1183,11 +1176,12 @@ const LeadDetailPage = () => {
         toast(result.msg || "No comparable properties matched the selected filters.");
         return;
       }
-      setAnalysis(result);
+      const normalized = normalizeMasterReport(result, liveLead);
+      setAnalysis(normalized);
       setCompsNotice("");
       setLead((previous) => ({
         ...previous,
-        ...result.subject,
+        ...normalized.subject,
       }));
       await loadBillingAccess();
     } catch (err) {
@@ -1199,7 +1193,14 @@ const LeadDetailPage = () => {
     }
   };
 
-  const handleSaveReport = async ({ subject, filters: reportFilters, valuationContext, selectedComps }) => {
+  const handleSaveReport = async ({
+    subject,
+    filters: reportFilters,
+    deal: reportDeal,
+    valuationContext,
+    selectedComps,
+    reportData,
+  }) => {
     if (countSavableComparables(selectedComps) < 3) {
       const message = "Select at least 3 comparable sales before saving.";
       setError(message);
@@ -1215,29 +1216,32 @@ const LeadDetailPage = () => {
         contextType: "lead",
         leadId: id,
         subject,
+        deal: reportDeal,
         filters: reportFilters,
         valuationContext,
         selectedComps,
+        reportData,
       });
+      const normalized = normalizeMasterReport(savedReport, subject);
 
       setSavedReports((previous) => [
-        savedReport,
+        normalized,
         ...previous.filter(
           (report) =>
-            report._id !== savedReport._id && !String(report._id || "").startsWith("legacy-")
+            report._id !== normalized._id && !String(report._id || "").startsWith("legacy-")
         ),
       ]);
-      setAnalysis(buildAnalysisFromSavedReport(savedReport, subject));
+      setAnalysis(normalized);
       setLead((previous) =>
         previous
           ? {
               ...previous,
-              compsAnalysis: buildLeadCompsAnalysisSnapshotFromReport(savedReport),
+              compsAnalysis: buildLeadCompsAnalysisSnapshotFromReport(normalized),
             }
           : previous
       );
       setActiveTab("saved-reports");
-      toast.success("Comps report saved.");
+      toast.success("Master Deal Report saved.");
     } catch (err) {
       setError(err.message || "Failed to save comps report.");
       toast.error(err.message || "Failed to save comps report.");
@@ -1261,14 +1265,11 @@ const LeadDetailPage = () => {
     setIsStartingCheckout(true);
     setError("");
     try {
-      const result = await createOneTimeCheckout({ kind: "comps_report", resourceId: id });
-      if (result.alreadyUnlocked) {
-        toast.success(result.msg || "This lead already has a purchased report ready to run.");
-        await loadBillingAccess();
-        setIsStartingCheckout(false);
-        return;
-      }
-
+      const kind = billingAccess?.hasActiveSubscription ? "pro_comps_topup_10" : "comps_pack_10";
+      const result = await createOneTimeCheckout({
+        kind,
+        returnPath: window.location.pathname,
+      });
       window.location.href = result.url;
     } catch (err) {
       setError(err.message || "Could not start the report checkout.");
@@ -1363,6 +1364,13 @@ const LeadDetailPage = () => {
     typeof lead.property === "object" ? lead.property?._id : lead.property;
   const propertyWorkspaceActive = Boolean(lead.inPropertyWorkspace && propertyWorkspaceId);
   const liveLead = buildLiveLead(lead, detailForm);
+  const dealForm = useMemo(
+    () => ({
+      ...buildDealForm(analysis?.dealInputs || savedReports[0]?.dealSnapshot || {}, liveLead),
+      ...dealOverrides,
+    }),
+    [analysis?.dealInputs, dealOverrides, liveLead, savedReports]
+  );
   const workingTargetOffer =
     detailForm.targetOffer === "" ? null : Number(detailForm.targetOffer);
   const workingExitValue =
@@ -1989,11 +1997,13 @@ const LeadDetailPage = () => {
       )}
 
       {activeTab === "comps" && (
-        <CompsReportWorkspace
+        <MasterDealReportWorkspace
           subject={liveLead}
-          analysis={analysis}
+          report={analysis}
           filters={filters}
+          deal={dealForm}
           onFilterChange={handleFilterChange}
+          onDealChange={handleDealChange}
           isAnalyzing={isAnalyzing}
           onRunAnalysis={handleRunAnalysis}
           billingAccess={billingAccess}
@@ -2005,8 +2015,9 @@ const LeadDetailPage = () => {
           onSaveReport={handleSaveReport}
           isSavingReport={isSavingReport}
           saveButtonLabel="Save Lead Report"
+          runButtonLabel="Run Lead Master Report"
           showOneTimeCheckout
-          compsNotice={compsNotice}
+          reportNotice={compsNotice}
           renderSubjectPanel={() => (
             <div className="section-card p-6">
               <div className="flex items-start justify-between gap-4">
@@ -2062,10 +2073,10 @@ const LeadDetailPage = () => {
         <SavedCompsReportsTab
           reports={savedReports}
           isLoading={savedReportsLoading}
-          title="Lead comps reports"
-          description="Every saved comps snapshot for this opportunity lives here so you can compare different comp sets over time."
-          emptyTitle="No lead comps reports saved yet"
-          emptyMessage="Run the AI comps analysis, choose the comps you want to keep, and save the report to build the lead's comps history."
+          title="Lead Master Deal Reports"
+          description="Every saved report for this opportunity lives here so you can compare different deal cases over time."
+          emptyTitle="No lead reports saved yet"
+          emptyMessage="Run the Master Deal Report, save it, and the lead's report history will appear here."
         />
       )}
 

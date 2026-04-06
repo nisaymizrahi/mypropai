@@ -55,6 +55,7 @@ const PropertyOperationsPanel = ({
   propertyKey,
   activeContentKey,
   onPropertyUpdated,
+  embedded = false,
 }) => {
   const investmentId = property?.workspaces?.acquisitions?.id || "";
   const [selectedStrategy, setSelectedStrategy] = useState(
@@ -419,16 +420,18 @@ const PropertyOperationsPanel = ({
   if (activeContentKey === "operations-schedule") {
     return (
       <div className="space-y-6">
-        <section className="surface-panel px-6 py-7 sm:px-7">
-          <span className="eyebrow">Operations > Schedule</span>
-          <h3 className="mt-4 font-display text-[2.15rem] leading-[0.96] text-ink-900">
-            Run the property with a real schedule instead of scattered reminders
-          </h3>
-          <p className="mt-4 max-w-3xl text-sm leading-7 text-ink-500 sm:text-base">
-            This page uses the linked project tasks and vendor assignments to show the execution
-            calendar, gantt view, milestones, and delivery cadence for the property.
-          </p>
-        </section>
+        {!embedded ? (
+          <section className="surface-panel px-6 py-7 sm:px-7">
+            <span className="eyebrow">Operations > Schedule</span>
+            <h3 className="mt-4 font-display text-[2.15rem] leading-[0.96] text-ink-900">
+              Run the property with a real schedule instead of scattered reminders
+            </h3>
+            <p className="mt-4 max-w-3xl text-sm leading-7 text-ink-500 sm:text-base">
+              This page uses the linked project tasks and vendor assignments to show the execution
+              calendar, gantt view, milestones, and delivery cadence for the property.
+            </p>
+          </section>
+        ) : null}
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <MetricTile
@@ -471,25 +474,27 @@ const PropertyOperationsPanel = ({
   if (activeContentKey === "operations-timeline") {
     return (
       <div className="space-y-6">
-        <section className="surface-panel px-6 py-7 sm:px-7">
-          <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-            <div>
-              <span className="eyebrow">Operations > Timeline</span>
-              <h3 className="mt-4 font-display text-[2.15rem] leading-[0.96] text-ink-900">
-                A colorful property timeline across vendors, costs, documents, and milestones
-              </h3>
-              <p className="mt-4 max-w-3xl text-sm leading-7 text-ink-500 sm:text-base">
-                This timeline turns the property into a visual story: who was committed, what was
-                paid, what was uploaded, and which milestones landed when.
-              </p>
-            </div>
+        {!embedded ? (
+          <section className="surface-panel px-6 py-7 sm:px-7">
+            <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+              <div>
+                <span className="eyebrow">Operations > Timeline</span>
+                <h3 className="mt-4 font-display text-[2.15rem] leading-[0.96] text-ink-900">
+                  A colorful property timeline across vendors, costs, documents, and milestones
+                </h3>
+                <p className="mt-4 max-w-3xl text-sm leading-7 text-ink-500 sm:text-base">
+                  This timeline turns the property into a visual story: who was committed, what was
+                  paid, what was uploaded, and which milestones landed when.
+                </p>
+              </div>
 
-            <button type="button" onClick={handleExportTimeline} className="primary-action">
-              <ArrowDownTrayIcon className="mr-2 h-5 w-5" />
-              Export timeline PDF
-            </button>
-          </div>
-        </section>
+              <button type="button" onClick={handleExportTimeline} className="primary-action">
+                <ArrowDownTrayIcon className="mr-2 h-5 w-5" />
+                Export timeline PDF
+              </button>
+            </div>
+          </section>
+        ) : null}
 
         <div ref={timelineExportRef} className="space-y-6">
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -577,24 +582,26 @@ const PropertyOperationsPanel = ({
   if (activeContentKey === "operations-vendors") {
     return (
       <div className="space-y-6">
-        <section className="surface-panel px-6 py-7 sm:px-7">
-          <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-            <div>
-              <span className="eyebrow">Operations > Vendors</span>
-              <h3 className="mt-4 font-display text-[2.15rem] leading-[0.96] text-ink-900">
-                See who is involved, what they are committed to, and whether their packet is ready
-              </h3>
-              <p className="mt-4 max-w-3xl text-sm leading-7 text-ink-500 sm:text-base">
-                This roster turns vendors from a static list into a property-specific procurement
-                board with commitments, spend, packet gaps, and assignment readiness.
-              </p>
-            </div>
+        {!embedded ? (
+          <section className="surface-panel px-6 py-7 sm:px-7">
+            <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+              <div>
+                <span className="eyebrow">Operations > Vendors</span>
+                <h3 className="mt-4 font-display text-[2.15rem] leading-[0.96] text-ink-900">
+                  See who is involved, what they are committed to, and whether their packet is ready
+                </h3>
+                <p className="mt-4 max-w-3xl text-sm leading-7 text-ink-500 sm:text-base">
+                  This roster turns vendors from a static list into a property-specific procurement
+                  board with commitments, spend, packet gaps, and assignment readiness.
+                </p>
+              </div>
 
-            <Link to="/vendors" className="secondary-action">
-              Open full vendor directory
-            </Link>
-          </div>
-        </section>
+              <Link to="/vendors" className="secondary-action">
+                Open full vendor directory
+              </Link>
+            </div>
+          </section>
+        ) : null}
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <MetricTile
@@ -732,16 +739,18 @@ const PropertyOperationsPanel = ({
 
   return (
     <div className="space-y-6">
-      <section className="surface-panel px-6 py-7 sm:px-7">
-        <span className="eyebrow">Operations > Activity</span>
-        <h3 className="mt-4 font-display text-[2.15rem] leading-[0.96] text-ink-900">
-          Watch the property activity stream across schedule, vendors, costs, and documents
-        </h3>
-        <p className="mt-4 max-w-3xl text-sm leading-7 text-ink-500 sm:text-base">
-          This feed gives you one quick place to scan what has changed recently without jumping
-          between the other workspace sections.
-        </p>
-      </section>
+      {!embedded ? (
+        <section className="surface-panel px-6 py-7 sm:px-7">
+          <span className="eyebrow">Operations > Activity</span>
+          <h3 className="mt-4 font-display text-[2.15rem] leading-[0.96] text-ink-900">
+            Watch the property activity stream across schedule, vendors, costs, and documents
+          </h3>
+          <p className="mt-4 max-w-3xl text-sm leading-7 text-ink-500 sm:text-base">
+            This feed gives you one quick place to scan what has changed recently without jumping
+            between the other workspace sections.
+          </p>
+        </section>
+      ) : null}
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetricTile

@@ -62,9 +62,9 @@ const getNavSections = (user) => {
 const resolvePageMeta = (pathname, user) => {
   if (pathname === "/properties/new") {
     return {
-      kicker: "Pipeline",
+      kicker: "Property",
       title: "Add Property",
-      subtitle: "Capture a new opportunity and keep the intake process simple.",
+      subtitle: "Create the shared property first, then add the linked workspaces you need without extra friction.",
     };
   }
 
@@ -79,8 +79,8 @@ const resolvePageMeta = (pathname, user) => {
   if (pathname.startsWith("/properties/")) {
     return {
       kicker: "Property",
-      title: "Property Details",
-      subtitle: "Review and update the core record behind this property.",
+      title: "Property Workspace",
+      subtitle: "Run the property from one clear workspace with overview, financials, work, documents, analysis, and settings.",
     };
   }
 
@@ -367,12 +367,9 @@ function DashboardLayout({ children }) {
               className="relative z-10 m-4 flex w-[88vw] max-w-sm flex-col rounded-[18px] border border-ink-100 bg-white p-5 shadow-soft"
             >
               <div className="mb-4 flex items-center justify-between">
-                <div>
-                  <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-ink-400">
-                    Navigation
-                  </p>
-                  <BrandLogo className="mt-2" />
-                </div>
+                <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-ink-400">
+                  Navigation
+                </p>
                 <button
                   type="button"
                   onClick={() => setIsMobileMenuOpen(false)}

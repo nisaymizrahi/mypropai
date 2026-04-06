@@ -6,10 +6,12 @@ import reportWebVitals from './reportWebVitals';
 import { initializeDensityPreference } from './utils/densityPreferences';
 import { initializeFontSizePreference } from './utils/fontPreferences';
 import { initializeSidebarPreference } from './utils/sidebarPreferences';
+import { enableQaMode } from './qa/browser/enableQaMode';
 
 initializeDensityPreference();
 initializeFontSizePreference();
 initializeSidebarPreference();
+enableQaMode();
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(

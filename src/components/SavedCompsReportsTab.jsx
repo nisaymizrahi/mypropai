@@ -3,13 +3,18 @@ import React, { useEffect, useMemo, useState } from "react";
 import CompsSavedReportView from "./CompsSavedReportView";
 import { formatCurrency, formatDate } from "../utils/compsReport";
 
+const formatPercent = (value) => {
+  if (value === null || value === undefined || value === "") return "—";
+  return `${Number(value).toFixed(1)}%`;
+};
+
 const SavedCompsReportsTab = ({
   reports = [],
   isLoading = false,
   title = "Saved reports",
-  description = "Open any saved comps report snapshot and review the selected comp set.",
+  description = "Open any saved Master Deal Report and review the property, value, comps, and deal verdict package.",
   emptyTitle = "No saved reports yet",
-  emptyMessage = "Run a comps analysis, choose the comps you want, and save the report to build your library here.",
+  emptyMessage = "Run a Master Deal Report, save it, and your report library will build here.",
 }) => {
   const [selectedReportId, setSelectedReportId] = useState("");
 
@@ -77,7 +82,9 @@ const SavedCompsReportsTab = ({
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="text-sm font-semibold text-ink-900">{report.title || report.address}</p>
-                  <p className="mt-1 text-sm text-ink-500">{report.address}</p>
+                  <p className="mt-1 text-sm text-ink-500">
+                    {report.propertySnapshot?.address || report.subject?.address || report.address}
+                  </p>
                 </div>
                 <span className="rounded-full bg-white/80 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">
                   {formatDate(report.generatedAt)}
@@ -87,27 +94,41 @@ const SavedCompsReportsTab = ({
               <div className="mt-4 grid gap-3 sm:grid-cols-2">
                 <div className="rounded-[18px] bg-white/80 px-3 py-3">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-400">
-                    Estimated value
+                    Verdict
                   </p>
                   <p className="mt-2 text-sm font-semibold text-ink-900">
-                    {formatCurrency(report.estimatedValue)}
+                    {report.aiVerdict?.verdict || report.report?.verdict || "Pending"}
                   </p>
                 </div>
                 <div className="rounded-[18px] bg-white/80 px-3 py-3">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-400">
-                    Selected comps
+                    Blended value
                   </p>
                   <p className="mt-2 text-sm font-semibold text-ink-900">
-                    {report.saleCompCount || 0}
+                    {formatCurrency(report.valuation?.blendedEstimate ?? report.estimatedValue)}
                   </p>
                 </div>
+              </div>
+
+              <div className="mt-3 rounded-[18px] bg-white/80 px-3 py-3">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-400">
+                  Deal snapshot
+                </p>
+                <p className="mt-2 text-sm font-semibold text-ink-900">
+                  Ask {formatCurrency(report.dealInputs?.askingPrice ?? report.dealSnapshot?.askingPrice)}
+                </p>
+                <p className="mt-1 text-xs text-ink-500">
+                  {report.dealAnalysis?.mode === "hold"
+                    ? `Yield ${formatPercent(report.dealAnalysis?.metrics?.grossYieldPercent)}`
+                    : `Profit ${formatCurrency(report.dealAnalysis?.metrics?.estimatedProfit)}`}
+                </p>
               </div>
             </button>
           ))}
         </div>
       </section>
 
-      <CompsSavedReportView report={selectedReport} tableIntro="This is the saved comps report snapshot, including the comparables selected for the final report." />
+      <CompsSavedReportView report={selectedReport} />
     </div>
   );
 };

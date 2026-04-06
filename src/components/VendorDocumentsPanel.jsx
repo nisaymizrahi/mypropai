@@ -1,7 +1,13 @@
 import React, { useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
 
-import { deleteVendorDocument, uploadVendorDocument } from "../utils/api";
+import {
+  deleteVendorDocument,
+  getDocumentAssetAccessUrl,
+  getDocumentStorageOverview,
+  uploadVendorDocument,
+} from "../utils/api";
+import { DOCUMENT_FILE_ACCEPT, formatStorageBytes } from "../utils/documentStorage";
 import {
   VENDOR_DOCUMENT_CATEGORY_OPTIONS,
   formatVendorDate,
@@ -28,6 +34,7 @@ const VendorDocumentsPanel = ({ vendor, onUpdated }) => {
   const [file, setFile] = useState(null);
   const [error, setError] = useState("");
   const [isUploading, setIsUploading] = useState(false);
+  const [storageOverview, setStorageOverview] = useState(null);
   const fileInputRef = useRef(null);
 
   const documents = useMemo(
@@ -67,6 +74,29 @@ const VendorDocumentsPanel = ({ vendor, onUpdated }) => {
     }
   };
 
+  React.useEffect(() => {
+    let isMounted = true;
+
+    const loadStorageOverview = async () => {
+      try {
+        const overview = await getDocumentStorageOverview();
+        if (isMounted) {
+          setStorageOverview(overview);
+        }
+      } catch (loadError) {
+        if (isMounted) {
+          setError((current) => current || loadError.message || "Failed to load storage details.");
+        }
+      }
+    };
+
+    loadStorageOverview();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   const handleChange = (event) => {
     const { name, value } = event.target;
     setFormData((current) => ({
@@ -101,6 +131,10 @@ const VendorDocumentsPanel = ({ vendor, onUpdated }) => {
       payload.append("document", file);
 
       const updatedVendor = await uploadVendorDocument(vendor._id, payload);
+      const overview = await getDocumentStorageOverview().catch(() => null);
+      if (overview) {
+        setStorageOverview(overview);
+      }
       toast.success("Vendor document uploaded.");
       onUpdated?.(updatedVendor);
       resetForm();
@@ -120,10 +154,45 @@ const VendorDocumentsPanel = ({ vendor, onUpdated }) => {
     try {
       setError("");
       const updatedVendor = await deleteVendorDocument(vendor._id, documentId);
+      const overview = await getDocumentStorageOverview().catch(() => null);
+      if (overview) {
+        setStorageOverview(overview);
+      }
       toast.success("Vendor document removed.");
       onUpdated?.(updatedVendor);
     } catch (deleteError) {
       setError(deleteError.message || "Failed to delete vendor document.");
+    }
+  };
+
+  const handleOpenDocument = async (document) => {
+    const previewWindow = window.open("", "_blank", "noopener,noreferrer");
+
+    try {
+      setError("");
+
+      if (document.documentAsset) {
+        const payload = await getDocumentAssetAccessUrl(document.documentAsset);
+        if (previewWindow) {
+          previewWindow.location.replace(payload.url);
+        } else {
+          window.open(payload.url, "_blank", "noopener,noreferrer");
+        }
+        return;
+      }
+
+      if (document.fileUrl) {
+        if (previewWindow) {
+          previewWindow.location.replace(document.fileUrl);
+        } else {
+          window.open(document.fileUrl, "_blank", "noopener,noreferrer");
+        }
+      }
+    } catch (openError) {
+      if (previewWindow) {
+        previewWindow.close();
+      }
+      setError(openError.message || "Failed to open vendor document.");
     }
   };
 
@@ -150,6 +219,20 @@ const VendorDocumentsPanel = ({ vendor, onUpdated }) => {
               Store vendor files with document types and expiration dates so assignment and payment
               decisions stay clear.
             </p>
+
+            {storageOverview ? (
+              <div className="mt-6 rounded-[18px] border border-ink-100 bg-white/85 px-4 py-4 text-sm text-ink-600">
+                <p className="font-semibold text-ink-900">
+                  {formatStorageBytes(storageOverview.bytesUsed)} of{" "}
+                  {formatStorageBytes(storageOverview.totalStorageQuotaBytes)} used
+                </p>
+                <p className="mt-2">
+                  {formatStorageBytes(storageOverview.bytesRemaining)} remaining. Max file size:{" "}
+                  {formatStorageBytes(storageOverview.maxFileSizeBytes)} on your{" "}
+                  {storageOverview.tierLabel} plan.
+                </p>
+              </div>
+            ) : null}
 
             {error ? (
               <div className="mt-6 rounded-[18px] border border-clay-200 bg-clay-50 px-4 py-3 text-sm text-clay-700">
@@ -241,7 +324,7 @@ const VendorDocumentsPanel = ({ vendor, onUpdated }) => {
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept=".pdf,.png,.jpg,.jpeg"
+                  accept={DOCUMENT_FILE_ACCEPT}
                   onChange={(event) => setFile(event.target.files?.[0] || null)}
                   className="auth-input"
                 />
@@ -288,14 +371,13 @@ const VendorDocumentsPanel = ({ vendor, onUpdated }) => {
                   </p>
 
                   <div className="mt-5 flex flex-wrap gap-3">
-                    <a
-                      href={document.fileUrl}
-                      target="_blank"
-                      rel="noreferrer"
+                    <button
+                      type="button"
+                      onClick={() => handleOpenDocument(document)}
                       className="secondary-action"
                     >
                       Open file
-                    </a>
+                    </button>
                     <button
                       type="button"
                       onClick={() => handleDelete(document._id)}

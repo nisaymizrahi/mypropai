@@ -21,6 +21,8 @@ const TasksPanel = ({
   defaults = {},
   emptyTitle = "No tasks yet",
   emptyDescription = "Add the first task for this record and it will also appear in the central task view.",
+  embedded = false,
+  onTasksChanged,
 }) => {
   const [tasks, setTasks] = useState([]);
   const [properties, setProperties] = useState([]);
@@ -70,15 +72,24 @@ const TasksPanel = ({
   const handleTaskSaved = () => {
     setEditingTask(null);
     fetchData();
+    onTasksChanged?.();
   };
 
   const handleTaskUpdated = () => {
     fetchData();
+    onTasksChanged?.();
   };
 
   const handleTaskDeleted = () => {
     fetchData();
+    onTasksChanged?.();
   };
+
+  const statChips = [
+    { label: "Open", value: openCount },
+    { label: "Overdue", value: overdueCount },
+    { label: "Completed", value: completedCount },
+  ];
 
   return (
     <>
@@ -95,12 +106,17 @@ const TasksPanel = ({
       />
 
       <div className="space-y-6">
-        <section className="section-card p-6 sm:p-7">
-          <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-            <div>
-              <span className="eyebrow">{eyebrow}</span>
-              <h2 className="mt-4 text-[2rem] font-medium tracking-tight text-ink-900">{title}</h2>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-ink-500">{description}</p>
+        {embedded ? (
+          <section className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-wrap gap-2">
+              {statChips.map((chip) => (
+                <span
+                  key={chip.label}
+                  className="inline-flex rounded-full bg-sand-50 px-3 py-1 text-xs font-semibold text-ink-700"
+                >
+                  {chip.label} {chip.value}
+                </span>
+              ))}
             </div>
 
             <button
@@ -113,14 +129,35 @@ const TasksPanel = ({
             >
               Add task
             </button>
-          </div>
+          </section>
+        ) : (
+          <section className="section-card p-6 sm:p-7">
+            <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+              <div>
+                <span className="eyebrow">{eyebrow}</span>
+                <h2 className="mt-4 text-[2rem] font-medium tracking-tight text-ink-900">{title}</h2>
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-ink-500">{description}</p>
+              </div>
 
-          <div className="mt-7 grid gap-4 md:grid-cols-3">
-            <StatTile label="Open" value={openCount} />
-            <StatTile label="Overdue" value={overdueCount} />
-            <StatTile label="Completed" value={completedCount} />
-          </div>
-        </section>
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingTask(null);
+                  setIsModalOpen(true);
+                }}
+                className="primary-action"
+              >
+                Add task
+              </button>
+            </div>
+
+            <div className="mt-7 grid gap-4 md:grid-cols-3">
+              <StatTile label="Open" value={openCount} />
+              <StatTile label="Overdue" value={overdueCount} />
+              <StatTile label="Completed" value={completedCount} />
+            </div>
+          </section>
+        )}
 
         {error ? (
           <div className="rounded-[16px] border border-clay-200 bg-clay-50 px-5 py-4 text-sm text-clay-700">

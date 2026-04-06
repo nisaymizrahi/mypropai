@@ -14,6 +14,86 @@ const getErrorMessage = async (res, fallbackMessage) => {
   return payload?.msg || payload?.message || payload?.error || fallbackMessage;
 };
 
+const apiReadCache = new Map();
+
+const cloneApiPayload = (value) => {
+  if (value === null || value === undefined) {
+    return value;
+  }
+
+  if (typeof structuredClone === "function") {
+    return structuredClone(value);
+  }
+
+  return JSON.parse(JSON.stringify(value));
+};
+
+const readCachedResource = async (key, fetcher, ttlMs = 15000) => {
+  const now = Date.now();
+  const cached = apiReadCache.get(key);
+
+  if (cached?.data && cached.expiresAt > now) {
+    return cloneApiPayload(cached.data);
+  }
+
+  if (cached?.promise) {
+    const data = await cached.promise;
+    return cloneApiPayload(data);
+  }
+
+  const promise = fetcher()
+    .then((data) => {
+      apiReadCache.set(key, {
+        data,
+        expiresAt: Date.now() + ttlMs,
+      });
+      return data;
+    })
+    .catch((error) => {
+      apiReadCache.delete(key);
+      throw error;
+    });
+
+  apiReadCache.set(key, {
+    promise,
+    expiresAt: now + ttlMs,
+  });
+
+  const data = await promise;
+  return cloneApiPayload(data);
+};
+
+const invalidateApiReadCache = (...prefixes) => {
+  if (!prefixes.length) {
+    apiReadCache.clear();
+    return;
+  }
+
+  [...apiReadCache.keys()].forEach((key) => {
+    if (prefixes.some((prefix) => key.startsWith(prefix))) {
+      apiReadCache.delete(key);
+    }
+  });
+};
+
+const invalidateWorkspaceReadCaches = (...extraPrefixes) => {
+  invalidateApiReadCache(
+    "properties:",
+    "leads:",
+    "property-reports:",
+    "bids:lead:",
+    "tasks:list:",
+    "investments:",
+    "budget-items:",
+    "expenses:",
+    "vendors:",
+    "project-tasks:",
+    "documents:",
+    "billing:",
+    ...extraPrefixes
+  );
+};
+
 /**
  * ==========================
  *   AUTH HEADER HELPERS
@@ -86,6 +166,22 @@ export const fetchComps = async ({ lat, lng, radius = 1 }) => {
   return res.json();
 };
 
+export const submitSupportRequest = async (data) => {
+  const res = await fetch(`${API_BASE_URL}/support/contact`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!res.ok) {
+    throw new Error(await getErrorMessage(res, "Failed to submit support request"));
+  }
+
+  return res.json();
+};
+
 /**
  * ==========================
  *   DASHBOARD
@@ -117,7 +213,9 @@ export const createLead = async (data) => {
     body: JSON.stringify(data),
   });
   if (!res.ok) throw new Error((await res.json()).msg || "Failed to create lead");
-  return res.json();
+  const payload = await res.json();
+  invalidateWorkspaceReadCaches();
+  return payload;
 };
 
 export const previewLeadProperty = async (data) => {
@@ -131,11 +229,17 @@ export const previewLeadProperty = async (data) => {
 };
 
 export const getLeadDetails = async (leadId) => {
-  const res = await fetch(`${API_BASE_URL}/leads/${leadId}`, {
-    headers: getAuthHeaders(),
-  });
-  if (!res.ok) throw new Error("Failed to fetch lead details");
-  return res.json();
+  return readCachedResource(
+    `leads:detail:${leadId}`,
+    async () => {
+      const res = await fetch(`${API_BASE_URL}/leads/${leadId}`, {
+        headers: getAuthHeaders(),
+      });
+      if (!res.ok) throw new Error("Failed to fetch lead details");
+      return res.json();
+    },
+    12000
+  );
 };
 
 export const updateLead = async (id, data) => {
@@ -145,7 +249,9 @@ export const updateLead = async (id, data) => {
     body: JSON.stringify(data),
   });
   if (!res.ok) throw new Error("Failed to update lead");
-  return res.json();
+  const payload = await res.json();
+  invalidateWorkspaceReadCaches();
+  return payload;
 };
 
 export const deleteLead = async (id) => {
@@ -166,11 +272,17 @@ export const getLeadSummary = async () => {
 };
 
 export const getProperties = async () => {
-  const res = await fetch(`${API_BASE_URL}/properties`, {
-    headers: getAuthHeaders(),
-  });
-  if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to fetch properties"));
-  return res.json();
+  return readCachedResource(
+    "properties:list",
+    async () => {
+      const res = await fetch(`${API_BASE_URL}/properties`, {
+        headers: getAuthHeaders(),
+      });
+      if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to fetch properties"));
+      return res.json();
+    },
+    10000
+  );
 };
 
 export const createProperty = async (data) => {
@@ -180,15 +292,23 @@ export const createProperty = async (data) => {
     body: JSON.stringify(data),
   });
   if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to create property"));
-  return res.json();
+  const payload = await res.json();
+  invalidateWorkspaceReadCaches();
+  return payload;
 };
 
 export const getPropertyWorkspace = async (propertyKey) => {
-  const res = await fetch(`${API_BASE_URL}/properties/${encodeURIComponent(propertyKey)}`, {
-    headers: getAuthHeaders(),
-  });
-  if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to fetch property workspace"));
-  return res.json();
+  return readCachedResource(
+    `properties:workspace:${propertyKey}`,
+    async () => {
+      const res = await fetch(`${API_BASE_URL}/properties/${encodeURIComponent(propertyKey)}`, {
+        headers: getAuthHeaders(),
+      });
+      if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to fetch property workspace"));
+      return res.json();
+    },
+    10000
+  );
 };
 
 export const updatePropertyWorkspace = async (propertyKey, data) => {
@@ -198,7 +318,30 @@ export const updatePropertyWorkspace = async (propertyKey, data) => {
     body: JSON.stringify(data),
   });
   if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to update property"));
-  return res.json();
+  const payload = await res.json();
+  invalidateWorkspaceReadCaches();
+  return payload;
+};
+
+export const askPropertyCopilot = async (propertyKey, payload) => {
+  const res = await fetch(
+    `${API_BASE_URL}/properties/${encodeURIComponent(propertyKey)}/copilot`,
+    {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify(payload),
+    }
+  );
+  if (!res.ok) {
+    throw new Error(
+      await getErrorMessage(res, "Failed to reach the property copilot")
+    );
+  }
+  const responsePayload = await res.json();
+  if (Array.isArray(responsePayload.createdTasks) && responsePayload.createdTasks.length > 0) {
+    invalidateWorkspaceReadCaches("tasks:list:");
+  }
+  return responsePayload;
 };
 
 export const createPropertyWorkspace = async (propertyKey, workspaceKey, data = {}) => {
@@ -211,34 +354,36 @@ export const createPropertyWorkspace = async (propertyKey, workspaceKey, data = 
     }
   );
   if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to create workspace"));
-  return res.json();
+  const payload = await res.json();
+  invalidateWorkspaceReadCaches();
+  return payload;
 };
 
-export const analyzeLeadComps = async (leadId, filters) => {
+export const analyzeLeadComps = async (leadId, payload = {}) => {
   const res = await fetch(`${API_BASE_URL}/leads/${leadId}/analyze-comps`, {
     method: "POST",
     headers: getAuthHeaders(),
-    body: JSON.stringify(filters),
+    body: JSON.stringify(payload),
   });
   if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to analyze comps"));
   return res.json();
 };
 
-export const analyzeStandaloneComps = async (subject, filters) => {
+export const analyzeStandaloneComps = async (subject, filters = {}, deal = {}) => {
   const res = await fetch(`${API_BASE_URL}/comps/report`, {
     method: "POST",
     headers: getAuthHeaders(),
-    body: JSON.stringify({ subject, ...filters }),
+    body: JSON.stringify({ subject, filters, deal }),
   });
   if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to analyze comps"));
   return res.json();
 };
 
-export const analyzeFullPropertyReport = async (subject, filters = {}) => {
+export const analyzeFullPropertyReport = async (subject, filters = {}, deal = {}) => {
   const res = await fetch(`${API_BASE_URL}/comps/report/full`, {
     method: "POST",
     headers: getAuthHeaders(),
-    body: JSON.stringify({ subject, ...filters }),
+    body: JSON.stringify({ subject, filters, deal }),
   });
   if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to analyze property"));
   return res.json();
@@ -257,16 +402,22 @@ export const getPropertyReports = async (params = {}) => {
     ? `${API_BASE_URL}/property-reports?${query.toString()}`
     : `${API_BASE_URL}/property-reports`;
 
-  const res = await fetch(path, {
-    headers: getAuthHeaders(),
-  });
-  if (res.status === 404) {
-    throw new Error(
-      "Saved reports are not available on the server yet. Redeploy the backend and try again."
-    );
-  }
-  if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to load saved reports"));
-  return res.json();
+  return readCachedResource(
+    `property-reports:${path}`,
+    async () => {
+      const res = await fetch(path, {
+        headers: getAuthHeaders(),
+      });
+      if (res.status === 404) {
+        throw new Error(
+          "Saved reports are not available on the server yet. Redeploy the backend and try again."
+        );
+      }
+      if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to load saved reports"));
+      return res.json();
+    },
+    10000
+  );
 };
 
 export const saveCompsReport = async (payload) => {
@@ -281,15 +432,23 @@ export const saveCompsReport = async (payload) => {
     );
   }
   if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to save comps report"));
-  return res.json();
+  const responsePayload = await res.json();
+  invalidateWorkspaceReadCaches("property-reports:");
+  return responsePayload;
 };
 
 export const getBidsForLead = async (leadId) => {
-  const res = await fetch(`${API_BASE_URL}/bids/lead/${leadId}`, {
-    headers: getAuthHeaders(),
-  });
-  if (!res.ok) throw new Error("Failed to fetch bids");
-  return res.json();
+  return readCachedResource(
+    `bids:lead:${leadId}`,
+    async () => {
+      const res = await fetch(`${API_BASE_URL}/bids/lead/${leadId}`, {
+        headers: getAuthHeaders(),
+      });
+      if (!res.ok) throw new Error("Failed to fetch bids");
+      return res.json();
+    },
+    10000
+  );
 };
 
 export const importBid = async (formData) => {
@@ -299,7 +458,9 @@ export const importBid = async (formData) => {
     body: formData,
   });
   if (!res.ok) throw new Error((await res.json()).msg || "Failed to import bid");
-  return res.json();
+  const payload = await res.json();
+  invalidateWorkspaceReadCaches("bids:lead:");
+  return payload;
 };
 
 export const createBid = async (data) => {
@@ -309,7 +470,9 @@ export const createBid = async (data) => {
     body: JSON.stringify(data),
   });
   if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to create bid"));
-  return res.json();
+  const payload = await res.json();
+  invalidateWorkspaceReadCaches("bids:lead:");
+  return payload;
 };
 
 export const updateBid = async (bidId, data) => {
@@ -319,7 +482,9 @@ export const updateBid = async (bidId, data) => {
     body: JSON.stringify(data),
   });
   if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to update bid"));
-  return res.json();
+  const payload = await res.json();
+  invalidateWorkspaceReadCaches("bids:lead:");
+  return payload;
 };
 
 export const deleteBid = async (bidId) => {
@@ -328,7 +493,9 @@ export const deleteBid = async (bidId) => {
     headers: getAuthHeaders(),
   });
   if (!res.ok) throw new Error("Failed to delete bid");
-  return res.json();
+  const payload = await res.json();
+  invalidateWorkspaceReadCaches("bids:lead:");
+  return payload;
 };
 
 export const promoteLeadToProject = async (leadId) => {
@@ -363,11 +530,17 @@ export const getTaskList = async (params = {}) => {
     ? `${API_BASE_URL}/tasks?${query.toString()}`
     : `${API_BASE_URL}/tasks`;
 
-  const res = await fetch(path, {
-    headers: getAuthHeaders(),
-  });
-  if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to fetch tasks"));
-  return res.json();
+  return readCachedResource(
+    `tasks:list:${query.toString()}`,
+    async () => {
+      const res = await fetch(path, {
+        headers: getAuthHeaders(),
+      });
+      if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to fetch tasks"));
+      return res.json();
+    },
+    5000
+  );
 };
 
 export const createWorkspaceTask = async (data) => {
@@ -377,7 +550,9 @@ export const createWorkspaceTask = async (data) => {
     body: JSON.stringify(data),
   });
   if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to create task"));
-  return res.json();
+  const payload = await res.json();
+  invalidateWorkspaceReadCaches("tasks:list:");
+  return payload;
 };
 
 export const updateWorkspaceTask = async (taskId, data) => {
@@ -387,7 +562,9 @@ export const updateWorkspaceTask = async (taskId, data) => {
     body: JSON.stringify(data),
   });
   if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to update task"));
-  return res.json();
+  const payload = await res.json();
+  invalidateWorkspaceReadCaches("tasks:list:");
+  return payload;
 };
 
 export const deleteWorkspaceTask = async (taskId) => {
@@ -396,7 +573,9 @@ export const deleteWorkspaceTask = async (taskId) => {
     headers: getAuthHeaders(),
   });
   if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to delete task"));
-  return res.json();
+  const payload = await res.json();
+  invalidateWorkspaceReadCaches("tasks:list:");
+  return payload;
 };
 
 /**
@@ -424,12 +603,18 @@ export const getInvestments = async () => {
 };
 
 export const getInvestment = async (id) => {
-  const res = await fetch(`${API_BASE_URL}/investments/${id}`, {
-    method: "GET",
-    headers: getAuthHeaders(),
-  });
-  if (!res.ok) throw new Error((await res.json()).message || "Failed to fetch investment");
-  return res.json();
+  return readCachedResource(
+    `investments:detail:${id}`,
+    async () => {
+      const res = await fetch(`${API_BASE_URL}/investments/${id}`, {
+        method: "GET",
+        headers: getAuthHeaders(),
+      });
+      if (!res.ok) throw new Error((await res.json()).message || "Failed to fetch investment");
+      return res.json();
+    },
+    12000
+  );
 };
 
 export const deleteInvestment = async (id) => {
@@ -448,7 +633,9 @@ export const updateInvestment = async (id, data) => {
     body: JSON.stringify(data),
   });
   if (!res.ok) throw new Error((await res.json()).message || "Failed to update investment");
-  return res.json();
+  const payload = await res.json();
+  invalidateWorkspaceReadCaches("investments:");
+  return payload;
 };
 
 /**
@@ -457,12 +644,18 @@ export const updateInvestment = async (id, data) => {
  * ==========================
  */
 export const getBudgetItems = async (investmentId) => {
-  const res = await fetch(
-    `${API_BASE_URL}/budget-items/investment/${investmentId}`,
-    { headers: getAuthHeaders() }
+  return readCachedResource(
+    `budget-items:investment:${investmentId}`,
+    async () => {
+      const res = await fetch(
+        `${API_BASE_URL}/budget-items/investment/${investmentId}`,
+        { headers: getAuthHeaders() }
+      );
+      if (!res.ok) throw new Error("Failed to fetch budget items");
+      return res.json();
+    },
+    12000
   );
-  if (!res.ok) throw new Error("Failed to fetch budget items");
-  return res.json();
 };
 
 export const createBudgetItem = async (data) => {
@@ -472,7 +665,9 @@ export const createBudgetItem = async (data) => {
     body: JSON.stringify(data),
   });
   if (!res.ok) throw new Error("Failed to create budget item");
-  return res.json();
+  const payload = await res.json();
+  invalidateWorkspaceReadCaches("budget-items:");
+  return payload;
 };
 
 export const updateBudgetItem = async (id, data) => {
@@ -482,7 +677,9 @@ export const updateBudgetItem = async (id, data) => {
     body: JSON.stringify(data),
   });
   if (!res.ok) throw new Error("Failed to update budget item");
-  return res.json();
+  const payload = await res.json();
+  invalidateWorkspaceReadCaches("budget-items:");
+  return payload;
 };
 
 export const addBudgetAward = async (budgetItemId, data) => {
@@ -492,7 +689,9 @@ export const addBudgetAward = async (budgetItemId, data) => {
     body: JSON.stringify(data),
   });
   if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to add vendor commitment"));
-  return res.json();
+  const payload = await res.json();
+  invalidateWorkspaceReadCaches("budget-items:");
+  return payload;
 };
 
 export const updateBudgetAward = async (budgetItemId, awardId, data) => {
@@ -502,7 +701,9 @@ export const updateBudgetAward = async (budgetItemId, awardId, data) => {
     body: JSON.stringify(data),
   });
   if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to update vendor commitment"));
-  return res.json();
+  const payload = await res.json();
+  invalidateWorkspaceReadCaches("budget-items:");
+  return payload;
 };
 
 export const deleteBudgetAward = async (budgetItemId, awardId) => {
@@ -511,7 +712,9 @@ export const deleteBudgetAward = async (budgetItemId, awardId) => {
     headers: getAuthHeaders(),
   });
   if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to delete vendor commitment"));
-  return res.json();
+  const payload = await res.json();
+  invalidateWorkspaceReadCaches("budget-items:");
+  return payload;
 };
 
 export const deleteBudgetItem = async (id) => {
@@ -520,15 +723,23 @@ export const deleteBudgetItem = async (id) => {
     headers: getAuthHeaders(),
   });
   if (!res.ok) throw new Error("Failed to delete budget item");
-  return res.json();
+  const payload = await res.json();
+  invalidateWorkspaceReadCaches("budget-items:");
+  return payload;
 };
 
 export const getExpenses = async (investmentId) => {
-  const res = await fetch(`${API_BASE_URL}/expenses/investment/${investmentId}`, {
-    headers: getAuthHeaders(),
-  });
-  if (!res.ok) throw new Error("Failed to fetch expenses");
-  return res.json();
+  return readCachedResource(
+    `expenses:investment:${investmentId}`,
+    async () => {
+      const res = await fetch(`${API_BASE_URL}/expenses/investment/${investmentId}`, {
+        headers: getAuthHeaders(),
+      });
+      if (!res.ok) throw new Error("Failed to fetch expenses");
+      return res.json();
+    },
+    12000
+  );
 };
 
 export const createExpense = async (formData) => {
@@ -538,7 +749,9 @@ export const createExpense = async (formData) => {
     body: formData,
   });
   if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to create expense"));
-  return res.json();
+  const payload = await res.json();
+  invalidateWorkspaceReadCaches("expenses:");
+  return payload;
 };
 
 export const updateExpense = async (id, data) => {
@@ -548,7 +761,9 @@ export const updateExpense = async (id, data) => {
     body: JSON.stringify(data),
   });
   if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to update expense"));
-  return res.json();
+  const payload = await res.json();
+  invalidateWorkspaceReadCaches("expenses:");
+  return payload;
 };
 
 export const deleteExpense = async (id) => {
@@ -557,7 +772,9 @@ export const deleteExpense = async (id) => {
     headers: getAuthHeaders(),
   });
   if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to delete expense"));
-  return res.json();
+  const payload = await res.json();
+  invalidateWorkspaceReadCaches("expenses:");
+  return payload;
 };
 
 export const analyzeExpenseReceipt = async (formData) => {
@@ -571,9 +788,15 @@ export const analyzeExpenseReceipt = async (formData) => {
 };
 
 export const getVendors = async () => {
-  const res = await fetch(`${API_BASE_URL}/vendors`, { headers: getAuthHeaders() });
-  if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to fetch vendors"));
-  return res.json();
+  return readCachedResource(
+    "vendors:list",
+    async () => {
+      const res = await fetch(`${API_BASE_URL}/vendors`, { headers: getAuthHeaders() });
+      if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to fetch vendors"));
+      return res.json();
+    },
+    20000
+  );
 };
 
 export const getVendor = async (id) => {
@@ -591,7 +814,9 @@ export const createVendor = async (data) => {
     body: JSON.stringify(data),
   });
   if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to create vendor"));
-  return res.json();
+  const payload = await res.json();
+  invalidateWorkspaceReadCaches("vendors:");
+  return payload;
 };
 
 export const updateVendor = async (id, data) => {
@@ -601,7 +826,9 @@ export const updateVendor = async (id, data) => {
     body: JSON.stringify(data),
   });
   if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to update vendor"));
-  return res.json();
+  const payload = await res.json();
+  invalidateWorkspaceReadCaches("vendors:");
+  return payload;
 };
 
 export const deleteVendor = async (id) => {
@@ -610,7 +837,10 @@ export const deleteVendor = async (id) => {
     headers: getAuthHeaders(),
   });
   if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to delete vendor"));
-  return res.json();
+  const payload = await res.json();
+  invalidateWorkspaceReadCaches("vendors:");
+  invalidateApiReadCache("documents:storage:");
+  return payload;
 };
 
 export const uploadVendorDocument = async (vendorId, formData) => {
@@ -620,7 +850,9 @@ export const uploadVendorDocument = async (vendorId, formData) => {
     body: formData,
   });
   if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to upload vendor document"));
-  return res.json();
+  const payload = await res.json();
+  invalidateApiReadCache("documents:storage:");
+  return payload;
 };
 
 export const deleteVendorDocument = async (vendorId, documentId) => {
@@ -629,16 +861,24 @@ export const deleteVendorDocument = async (vendorId, documentId) => {
     headers: getAuthHeaders(),
   });
   if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to delete vendor document"));
-  return res.json();
+  const payload = await res.json();
+  invalidateApiReadCache("documents:storage:");
+  return payload;
 };
 
 export const getProjectTasks = async (investmentId) => {
-  const res = await fetch(
-    `${API_BASE_URL}/project-tasks/investment/${investmentId}`,
-    { headers: getAuthHeaders() }
+  return readCachedResource(
+    `project-tasks:investment:${investmentId}`,
+    async () => {
+      const res = await fetch(
+        `${API_BASE_URL}/project-tasks/investment/${investmentId}`,
+        { headers: getAuthHeaders() }
+      );
+      if (!res.ok) throw new Error("Failed to fetch project tasks");
+      return res.json();
+    },
+    12000
   );
-  if (!res.ok) throw new Error("Failed to fetch project tasks");
-  return res.json();
 };
 
 export const createProjectTask = async (data) => {
@@ -648,7 +888,9 @@ export const createProjectTask = async (data) => {
     body: JSON.stringify(data),
   });
   if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to create project task"));
-  return res.json();
+  const payload = await res.json();
+  invalidateWorkspaceReadCaches("project-tasks:");
+  return payload;
 };
 
 export const updateProjectTask = async (taskId, updates) => {
@@ -658,7 +900,9 @@ export const updateProjectTask = async (taskId, updates) => {
     body: JSON.stringify(updates),
   });
   if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to update task"));
-  return res.json();
+  const payload = await res.json();
+  invalidateWorkspaceReadCaches("project-tasks:");
+  return payload;
 };
 
 // Backwards-compatible alias used by older components.
@@ -670,14 +914,47 @@ export const deleteProjectTask = async (taskId) => {
     headers: getAuthHeaders(),
   });
   if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to delete task"));
-  return res.json();
+  const payload = await res.json();
+  invalidateWorkspaceReadCaches("project-tasks:");
+  return payload;
 };
 
 export const getProjectDocuments = async (investmentId) => {
-  const res = await fetch(`${API_BASE_URL}/documents/investment/${investmentId}`, {
+  return readCachedResource(
+    `documents:investment:${investmentId}`,
+    async () => {
+      const res = await fetch(`${API_BASE_URL}/documents/investment/${investmentId}`, {
+        headers: getAuthHeaders(),
+      });
+      if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to fetch documents"));
+      return res.json();
+    },
+    12000
+  );
+};
+
+export const getDocumentStorageOverview = async () => {
+  return readCachedResource(
+    "documents:storage:overview",
+    async () => {
+      const res = await fetch(`${API_BASE_URL}/documents/storage/overview`, {
+        headers: getAuthHeaders(),
+      });
+      if (!res.ok) {
+        throw new Error(await getErrorMessage(res, "Failed to load document storage details"));
+      }
+      return res.json();
+    },
+    12000
+  );
+};
+
+export const getDocumentAssetAccessUrl = async (assetId, options = {}) => {
+  const query = options.download ? "?download=true" : "";
+  const res = await fetch(`${API_BASE_URL}/documents/storage/assets/${assetId}/access${query}`, {
     headers: getAuthHeaders(),
   });
-  if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to fetch documents"));
+  if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to open document"));
   return res.json();
 };
 
@@ -688,7 +965,10 @@ export const uploadProjectDocument = async (formData) => {
     body: formData,
   });
   if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to upload document"));
-  return res.json();
+  const payload = await res.json();
+  invalidateWorkspaceReadCaches("documents:");
+  invalidateApiReadCache("documents:storage:");
+  return payload;
 };
 
 export const deleteProjectDocument = async (documentId) => {
@@ -697,7 +977,10 @@ export const deleteProjectDocument = async (documentId) => {
     headers: getAuthHeaders(),
   });
   if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to delete document"));
-  return res.json();
+  const payload = await res.json();
+  invalidateWorkspaceReadCaches("documents:");
+  invalidateApiReadCache("documents:storage:");
+  return payload;
 };
 
 const normalizeManagedDocumentFormData = (formData) => {
@@ -743,7 +1026,9 @@ export const uploadPropertyDocument = async (propertyId, formData) => {
     body: normalizeManagedDocumentFormData(formData),
   });
   if (!res.ok) throw new Error("Failed to upload property document");
-  return res.json();
+  const payload = await res.json();
+  invalidateApiReadCache("documents:storage:");
+  return payload;
 };
 
 export const deletePropertyDocument = async (documentId) => {
@@ -752,7 +1037,9 @@ export const deletePropertyDocument = async (documentId) => {
     headers: getAuthHeaders(),
   });
   if (!res.ok) throw new Error("Failed to delete property document");
-  return res.json();
+  const payload = await res.json();
+  invalidateApiReadCache("documents:storage:");
+  return payload;
 };
 
 export const getUnitDocuments = async (unitId) => {
@@ -770,7 +1057,9 @@ export const uploadUnitDocument = async (unitId, formData) => {
     body: normalizeManagedDocumentFormData(formData),
   });
   if (!res.ok) throw new Error("Failed to upload unit document");
-  return res.json();
+  const payload = await res.json();
+  invalidateApiReadCache("documents:storage:");
+  return payload;
 };
 
 export const deleteUnitDocument = async (documentId) => {
@@ -779,7 +1068,9 @@ export const deleteUnitDocument = async (documentId) => {
     headers: getAuthHeaders(),
   });
   if (!res.ok) throw new Error("Failed to delete unit document");
-  return res.json();
+  const payload = await res.json();
+  invalidateApiReadCache("documents:storage:");
+  return payload;
 };
 
 /**
@@ -1137,11 +1428,19 @@ export const getBillingAccess = async (kind, resourceId) => {
   if (resourceId) {
     params.set("resourceId", resourceId);
   }
-  const res = await fetch(`${API_BASE_URL}/billing/access?${params.toString()}`, {
-    headers: getAuthHeaders(),
-  });
-  if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to load billing access"));
-  return res.json();
+  const path = `${API_BASE_URL}/billing/access?${params.toString()}`;
+
+  return readCachedResource(
+    `billing:access:${params.toString()}`,
+    async () => {
+      const res = await fetch(path, {
+        headers: getAuthHeaders(),
+      });
+      if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to load billing access"));
+      return res.json();
+    },
+    10000
+  );
 };
 
 export const createSubscriptionCheckout = async (planKey = "pro") => {
@@ -1154,11 +1453,11 @@ export const createSubscriptionCheckout = async (planKey = "pro") => {
   return res.json();
 };
 
-export const createOneTimeCheckout = async ({ kind, resourceId }) => {
+export const createOneTimeCheckout = async ({ kind, resourceId, returnPath }) => {
   const res = await fetch(`${API_BASE_URL}/billing/checkout/one-time`, {
     method: "POST",
     headers: getAuthHeaders(),
-    body: JSON.stringify({ kind, resourceId }),
+    body: JSON.stringify({ kind, resourceId, returnPath }),
   });
   if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to start checkout"));
   return res.json();
@@ -1199,6 +1498,23 @@ export const getPlatformManagerUsers = async (query = "") => {
     headers: getAuthHeaders(),
   });
   if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to load platform users"));
+  return res.json();
+};
+
+export const getPlatformManagerSupportRequests = async ({ query = "", status = "all" } = {}) => {
+  const params = new URLSearchParams();
+  if (query.trim()) {
+    params.set("q", query.trim());
+  }
+  if (status && status !== "all") {
+    params.set("status", status);
+  }
+
+  const suffix = params.toString() ? `?${params.toString()}` : "";
+  const res = await fetch(`${API_BASE_URL}/platform-manager/support-requests${suffix}`, {
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to load support requests"));
   return res.json();
 };
 
@@ -1313,6 +1629,19 @@ export const deletePlatformManagerSupportNote = async (noteId) => {
     headers: getAuthHeaders(),
   });
   if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to delete support note"));
+  return res.json();
+};
+
+export const updatePlatformManagerSupportRequest = async (
+  requestId,
+  { status, reason = "" }
+) => {
+  const res = await fetch(`${API_BASE_URL}/platform-manager/support-requests/${requestId}`, {
+    method: "PATCH",
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ status, reason }),
+  });
+  if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to update support request"));
   return res.json();
 };
 

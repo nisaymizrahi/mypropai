@@ -11,6 +11,7 @@ import { useAuth } from "../context/AuthContext";
 import {
   changePassword,
   createBillingPortalSession,
+  createOneTimeCheckout,
   createSubscriptionCheckout,
   getBillingOverview,
   syncBillingCheckoutSession,
@@ -23,6 +24,7 @@ import {
   SIDEBAR_OPTIONS,
   SIDEBAR_PREFERENCE_EVENT,
 } from "../utils/sidebarPreferences";
+import { formatStorageBytes } from "../utils/documentStorage";
 
 const LoadingSpinner = () => (
   <div className="surface-panel flex items-center justify-center px-6 py-20">
@@ -126,6 +128,8 @@ const AccountCenter = () => {
   const [isBillingLoading, setIsBillingLoading] = useState(true);
   const [isStartingSubscription, setIsStartingSubscription] = useState(false);
   const [isOpeningPortal, setIsOpeningPortal] = useState(false);
+  const [isBuyingStarterPack, setIsBuyingStarterPack] = useState(false);
+  const [isBuyingTopUp, setIsBuyingTopUp] = useState(false);
   const [sidebarPreference, setSidebarPreference] = useState(() => loadSidebarPreference());
 
   const loadBillingOverview = useCallback(async () => {
@@ -266,6 +270,34 @@ const AccountCenter = () => {
     }
   };
 
+  const handleBuyStarterPack = async () => {
+    setIsBuyingStarterPack(true);
+    try {
+      const { url } = await createOneTimeCheckout({
+        kind: "comps_pack_10",
+        returnPath: "/account",
+      });
+      window.location.href = url;
+    } catch (error) {
+      toast.error(error.message || "Could not start the comps pack checkout.");
+      setIsBuyingStarterPack(false);
+    }
+  };
+
+  const handleBuyTopUp = async () => {
+    setIsBuyingTopUp(true);
+    try {
+      const { url } = await createOneTimeCheckout({
+        kind: "pro_comps_topup_10",
+        returnPath: "/account",
+      });
+      window.location.href = url;
+    } catch (error) {
+      toast.error(error.message || "Could not start the top-up checkout.");
+      setIsBuyingTopUp(false);
+    }
+  };
+
   const handleSidebarChange = (value) => {
     const appliedOption = persistSidebarPreference(value);
     setSidebarPreference(appliedOption.value);
@@ -278,7 +310,13 @@ const AccountCenter = () => {
 
   const currentPlan = billingOverview?.plan;
   const usage = billingOverview?.usage?.compsReport;
+  const storageUsage = billingOverview?.usage?.documentStorage;
   const planFeatures = currentPlan?.features || [];
+  const totalCredits = usage?.totalRemaining ?? 0;
+  const trialCredits = usage?.trialRemaining ?? 0;
+  const cycleCredits = usage?.monthlyIncludedRemainingCount ?? 0;
+  const purchasedCredits = usage?.purchasedRemaining ?? 0;
+  const trialEligible = Boolean(currentPlan?.trialEligible);
   const activeSidebarOption = getSidebarOption(sidebarPreference);
 
   return (
@@ -288,10 +326,10 @@ const AccountCenter = () => {
         <div className="relative grid gap-8 lg:grid-cols-[minmax(0,1.05fr)_minmax(320px,0.95fr)]">
           <div>
             <span className="eyebrow">Account and billing</span>
-            <h2 className="page-hero-title">Manage your workspace profile and subscription.</h2>
+            <h2 className="page-hero-title">Manage your workspace profile, plan, and comps credits.</h2>
             <p className="page-hero-copy">
-              Keep your operator identity current, review your plan, and manage the subscription
-              attached to this workspace.
+              Keep your operator identity current, review your plan, and control the credits that
+              power comps reports and full property analysis.
             </p>
 
             <div className="mt-8 flex flex-wrap gap-3">
@@ -311,7 +349,30 @@ const AccountCenter = () => {
                   disabled={isStartingSubscription}
                   className="primary-action disabled:cursor-not-allowed disabled:opacity-70"
                 >
-                  {isStartingSubscription ? "Redirecting..." : "Upgrade to Pro"}
+                  {isStartingSubscription
+                    ? "Redirecting..."
+                    : trialEligible
+                      ? "Start Free Trial"
+                      : "Start Pro"}
+                </button>
+              )}
+              {currentPlan?.isActive ? (
+                <button
+                  type="button"
+                  onClick={handleBuyTopUp}
+                  disabled={isBuyingTopUp}
+                  className="secondary-action disabled:cursor-not-allowed disabled:opacity-70"
+                >
+                  {isBuyingTopUp ? "Redirecting..." : "Buy 10 More Credits"}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleBuyStarterPack}
+                  disabled={isBuyingStarterPack}
+                  className="secondary-action disabled:cursor-not-allowed disabled:opacity-70"
+                >
+                  {isBuyingStarterPack ? "Redirecting..." : "Buy 10 Credits"}
                 </button>
               )}
             </div>
@@ -373,7 +434,7 @@ const AccountCenter = () => {
         </div>
       </section>
 
-      <section className="grid gap-5 md:grid-cols-2">
+      <section className="grid gap-5 md:grid-cols-3">
         <MetricCard
           label="Plan"
           value={currentPlan?.name || "Starter"}
@@ -382,19 +443,34 @@ const AccountCenter = () => {
           accent="ink"
         />
         <MetricCard
-          label="Comps Left"
-          value={
-            currentPlan?.isActive && usage?.monthlyIncludedLimit
-              ? usage.monthlyIncludedRemainingCount
-              : "Payg"
-          }
+          label="Credits"
+          value={totalCredits}
           detail={
-            currentPlan?.isActive && usage?.monthlyIncludedLimit
-              ? `${usage.monthlyIncludedUsedCount} of ${usage.monthlyIncludedLimit} included comps reports used this month.`
-              : "Starter users buy comps reports one at a time."
+            currentPlan?.isActive
+              ? `${cycleCredits} cycle, ${purchasedCredits} permanent${trialCredits ? `, ${trialCredits} trial` : ""}.`
+              : `${purchasedCredits} permanent credit${purchasedCredits === 1 ? "" : "s"} available.`
           }
           icon={BoltIcon}
           accent="verdigris"
+        />
+        <MetricCard
+          label="Storage"
+          value={
+            storageUsage
+              ? `${formatStorageBytes(storageUsage.bytesUsed)} / ${formatStorageBytes(
+                  storageUsage.totalStorageQuotaBytes
+                )}`
+              : "Loading..."
+          }
+          detail={
+            storageUsage
+              ? `${formatStorageBytes(storageUsage.bytesRemaining)} left. Max file size ${formatStorageBytes(
+                  storageUsage.maxFileSizeBytes
+                )}.`
+              : "Checking document storage for this workspace."
+          }
+          icon={CreditCardIcon}
+          accent="ink"
         />
       </section>
 
@@ -558,43 +634,73 @@ const AccountCenter = () => {
                         {currentPlan?.name || "Starter"}
                       </h4>
                       <p className="mt-2 text-sm leading-6 text-ink-500">
-                      {currentPlan?.isActive
+                        {currentPlan?.isActive
                           ? `Status: ${currentPlan.status || "active"}`
-                          : "Upgrade to Pro for AI investment reports and 10 included comps reports each month."}
+                          : trialEligible
+                            ? "Start a 30-day Pro trial with 2 free comps credits, or buy a 10-credit starter pack."
+                            : "Upgrade to Pro for 50 credits per billing cycle, or buy a 10-credit starter pack."}
                       </p>
                       {currentPlan?.renewsAt ? (
                         <p className="mt-1 text-sm text-ink-500">
                           Renews on {new Date(currentPlan.renewsAt).toLocaleDateString()}
                         </p>
                       ) : null}
-                      {usage?.monthlyIncludedLimit ? (
+                      {usage?.totalRemaining !== undefined ? (
                         <p className="mt-2 text-sm text-ink-500">
-                          {usage.monthlyIncludedRemainingCount} of {usage.monthlyIncludedLimit} included comps reports remaining this month
-                          {usage.monthlyIncludedResetsAt
-                            ? `, resets on ${new Date(usage.monthlyIncludedResetsAt).toLocaleDateString()}`
-                            : ''}
+                          {usage.totalRemaining} total credits available
+                          {usage.monthlyIncludedRemainingCount
+                            ? `, including ${usage.monthlyIncludedRemainingCount} cycle credits`
+                            : ""}
+                          {usage.purchasedRemaining
+                            ? ` and ${usage.purchasedRemaining} permanent purchased credits`
+                            : ""}
+                          {usage.trialRemaining ? ` and ${usage.trialRemaining} trial credits` : ""}
                           .
                         </p>
                       ) : null}
                     </div>
                     {currentPlan?.isActive ? (
-                      <button
-                        type="button"
-                        onClick={handleOpenPortal}
-                        disabled={isOpeningPortal}
-                        className="secondary-action disabled:cursor-not-allowed disabled:opacity-70"
-                      >
-                        {isOpeningPortal ? "Opening..." : "Manage subscription"}
-                      </button>
+                      <div className="flex flex-col gap-3">
+                        <button
+                          type="button"
+                          onClick={handleOpenPortal}
+                          disabled={isOpeningPortal}
+                          className="secondary-action disabled:cursor-not-allowed disabled:opacity-70"
+                        >
+                          {isOpeningPortal ? "Opening..." : "Manage subscription"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleBuyTopUp}
+                          disabled={isBuyingTopUp}
+                          className="primary-action disabled:cursor-not-allowed disabled:opacity-70"
+                        >
+                          {isBuyingTopUp ? "Redirecting..." : "Buy 10 More Credits"}
+                        </button>
+                      </div>
                     ) : (
-                      <button
-                        type="button"
-                        onClick={handleStartSubscription}
-                        disabled={isStartingSubscription}
-                        className="primary-action disabled:cursor-not-allowed disabled:opacity-70"
-                      >
-                        {isStartingSubscription ? "Redirecting..." : "Upgrade to Pro"}
-                      </button>
+                      <div className="flex flex-col gap-3">
+                        <button
+                          type="button"
+                          onClick={handleStartSubscription}
+                          disabled={isStartingSubscription}
+                          className="primary-action disabled:cursor-not-allowed disabled:opacity-70"
+                        >
+                          {isStartingSubscription
+                            ? "Redirecting..."
+                            : trialEligible
+                              ? "Start Free Trial"
+                              : "Start Pro"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleBuyStarterPack}
+                          disabled={isBuyingStarterPack}
+                          className="secondary-action disabled:cursor-not-allowed disabled:opacity-70"
+                        >
+                          {isBuyingStarterPack ? "Redirecting..." : "Buy 10 Credits"}
+                        </button>
+                      </div>
                     )}
                   </div>
 

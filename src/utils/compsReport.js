@@ -24,6 +24,13 @@ export const compsPropertyTypeOptions = [
   { value: "other", label: "Other" },
 ];
 
+export const dealStrategyOptions = [
+  { value: "flip", label: "Flip" },
+  { value: "wholetail", label: "Wholetail" },
+  { value: "hold", label: "Hold" },
+  { value: "rental", label: "Rental" },
+];
+
 export const formatCurrency = (value) => {
   if (value === null || value === undefined || value === "") return "—";
   return new Intl.NumberFormat("en-US", {
@@ -112,10 +119,35 @@ export const buildCompsFilters = (subject = {}, savedFilters = {}) => ({
     savedFilters.propertyType !== undefined
       ? String(savedFilters.propertyType || "")
       : deriveCompsPropertyTypeFilter(subject.propertyType, subject.unitCount),
+  minBedrooms: toInputValue(savedFilters.minBedrooms),
+  maxBedrooms: toInputValue(savedFilters.maxBedrooms),
+  minBathrooms: toInputValue(savedFilters.minBathrooms),
+  maxBathrooms: toInputValue(savedFilters.maxBathrooms),
   minSquareFootage: toInputValue(savedFilters.minSquareFootage),
   maxSquareFootage: toInputValue(savedFilters.maxSquareFootage),
   minLotSize: toInputValue(savedFilters.minLotSize),
   maxLotSize: toInputValue(savedFilters.maxLotSize),
+  minYearBuilt: toInputValue(savedFilters.minYearBuilt),
+  maxYearBuilt: toInputValue(savedFilters.maxYearBuilt),
+});
+
+export const buildDealForm = (deal = {}, subject = {}) => ({
+  strategy: String(deal.strategy || "flip"),
+  askingPrice: toInputValue(deal.askingPrice ?? subject.sellerAskingPrice),
+  rehabEstimate: toInputValue(deal.rehabEstimate ?? subject.rehabEstimate),
+  holdingPeriodMonths: toInputValue(deal.holdingPeriodMonths ?? 6),
+  acquisitionClosingCostPercent: toInputValue(deal.acquisitionClosingCostPercent ?? 2),
+  sellingCostPercent: toInputValue(deal.sellingCostPercent ?? 8),
+  interestRatePercent: toInputValue(deal.interestRatePercent ?? 10),
+  financingPointsPercent: toInputValue(deal.financingPointsPercent ?? 2),
+  loanToCostPercent: toInputValue(deal.loanToCostPercent ?? 85),
+  annualTaxes: toInputValue(deal.annualTaxes),
+  monthlyInsurance: toInputValue(deal.monthlyInsurance ?? 150),
+  monthlyUtilities: toInputValue(deal.monthlyUtilities ?? 150),
+  monthlyMaintenance: toInputValue(deal.monthlyMaintenance ?? 120),
+  contingencyPercent: toInputValue(deal.contingencyPercent ?? 7),
+  desiredProfitMarginPercent: toInputValue(deal.desiredProfitMarginPercent ?? 15),
+  notes: String(deal.notes || ""),
 });
 
 export const buildCompsReportForm = (subject = {}) => {
@@ -137,6 +169,7 @@ export const buildCompsReportForm = (subject = {}) => {
     yearBuilt: subject.yearBuilt ?? "",
     unitCount: subject.unitCount ?? "",
     sellerAskingPrice: subject.sellerAskingPrice ?? "",
+    rehabEstimate: subject.rehabEstimate ?? "",
     targetOffer: subject.targetOffer ?? "",
     arv: subject.arv ?? "",
     listingStatus: subject.listingStatus || "",
@@ -163,6 +196,7 @@ export const buildPreviewToCompsReportForm = (preview = {}) => ({
   yearBuilt: preview.yearBuilt ?? "",
   unitCount: preview.unitCount ?? "",
   sellerAskingPrice: preview.sellerAskingPrice ?? "",
+  rehabEstimate: preview.rehabEstimate ?? "",
   arv: preview.arv ?? "",
   listingStatus: preview.listingStatus || "",
   listedDate: preview.listedDate || "",
@@ -188,6 +222,7 @@ export const buildStandaloneCompsSubject = (form = {}) => ({
   yearBuilt: toNullableNumber(form.yearBuilt),
   unitCount: form.propertyType === "multi-family" ? toNullableNumber(form.unitCount) : null,
   sellerAskingPrice: toNullableNumber(form.sellerAskingPrice),
+  rehabEstimate: toNullableNumber(form.rehabEstimate),
   targetOffer: toNullableNumber(form.targetOffer),
   arv: toNullableNumber(form.arv),
   listingStatus: form.listingStatus || "",
@@ -241,6 +276,106 @@ export const normalizeComparableRecord = (comp = {}, fallbackIndex = 0) => {
     listingType: comp.listingType || "",
     removedDate: comp.removedDate || null,
     daysOnMarket: toNullableNumber(comp.daysOnMarket),
+    correlation: toNullableNumber(comp.correlation),
+    relevanceScore: toNullableNumber(comp.relevanceScore),
+    similarityScore: toNullableNumber(comp.similarityScore),
+    whySelected: comp.whySelected || comp.selectionReason || "",
+    sourceLabel: comp.sourceLabel || "",
+    category: comp.category || "",
+    dateSource: comp.dateSource || comp.rawDateSource || "",
+    estimatedValue: toNullableNumber(comp.estimatedValue),
+  };
+};
+
+export const buildCompsFilterPayload = (filters = {}) => ({
+  radius: toNullableNumber(filters.radius),
+  saleDateMonths: toNullableNumber(filters.saleDateMonths),
+  maxComps: toNullableNumber(filters.maxComps),
+  propertyType: filters.propertyType || "",
+  minBedrooms: toNullableNumber(filters.minBedrooms),
+  maxBedrooms: toNullableNumber(filters.maxBedrooms),
+  minBathrooms: toNullableNumber(filters.minBathrooms),
+  maxBathrooms: toNullableNumber(filters.maxBathrooms),
+  minSquareFootage: toNullableNumber(filters.minSquareFootage),
+  maxSquareFootage: toNullableNumber(filters.maxSquareFootage),
+  minLotSize: toNullableNumber(filters.minLotSize),
+  maxLotSize: toNullableNumber(filters.maxLotSize),
+  minYearBuilt: toNullableNumber(filters.minYearBuilt),
+  maxYearBuilt: toNullableNumber(filters.maxYearBuilt),
+});
+
+export const buildDealPayload = (deal = {}) => ({
+  strategy: deal.strategy || "flip",
+  askingPrice: toNullableNumber(deal.askingPrice),
+  rehabEstimate: toNullableNumber(deal.rehabEstimate),
+  holdingPeriodMonths: toNullableNumber(deal.holdingPeriodMonths),
+  acquisitionClosingCostPercent: toNullableNumber(deal.acquisitionClosingCostPercent),
+  sellingCostPercent: toNullableNumber(deal.sellingCostPercent),
+  interestRatePercent: toNullableNumber(deal.interestRatePercent),
+  financingPointsPercent: toNullableNumber(deal.financingPointsPercent),
+  loanToCostPercent: toNullableNumber(deal.loanToCostPercent),
+  annualTaxes: toNullableNumber(deal.annualTaxes),
+  monthlyInsurance: toNullableNumber(deal.monthlyInsurance),
+  monthlyUtilities: toNullableNumber(deal.monthlyUtilities),
+  monthlyMaintenance: toNullableNumber(deal.monthlyMaintenance),
+  contingencyPercent: toNullableNumber(deal.contingencyPercent),
+  desiredProfitMarginPercent: toNullableNumber(deal.desiredProfitMarginPercent),
+  notes: String(deal.notes || "").trim(),
+});
+
+export const createEmptyMasterReport = () => null;
+
+export const getMasterReportPrimaryComps = (report = null) =>
+  Array.isArray(report?.comps?.primary?.items) ? report.comps.primary.items : [];
+
+export const getMasterReportMapComps = (report = null) =>
+  Array.isArray(report?.comps?.mapSet) ? report.comps.mapSet : getMasterReportPrimaryComps(report);
+
+export const normalizeMasterReport = (report = {}, fallbackSubject = {}) => {
+  if (!report?.generatedAt) return null;
+
+  const subject = report.subject || report.subjectSnapshot || fallbackSubject || {};
+  return {
+    ...report,
+    title: report.title || `${subject.address || report.address || "Property"} - Master Deal Report`,
+    subject,
+    propertySnapshot: report.propertySnapshot || report.reportData?.propertySnapshot || null,
+    dealInputs: report.dealInputs || report.dealSnapshot || report.reportData?.dealInputs || null,
+    compFilters: report.compFilters || report.filters || report.reportData?.compFilters || null,
+    comps:
+      report.comps ||
+      report.reportData?.comps || {
+        primary: {
+          items: Array.isArray(report.recentComps) ? report.recentComps : [],
+          summary: {
+            count: report.saleCompCount || (Array.isArray(report.recentComps) ? report.recentComps.length : 0),
+            medianPrice: report.medianSoldPrice ?? null,
+            averagePrice: report.averageSoldPrice ?? null,
+            medianPricePerSqft: report.medianPricePerSqft ?? null,
+            averagePricePerSqft: report.averagePricePerSqft ?? null,
+          },
+        },
+        recentSales: { items: [] },
+        activeMarket: { items: [] },
+        logic: null,
+        mapSet: Array.isArray(report.recentComps) ? report.recentComps : [],
+      },
+    valuation:
+      report.valuation ||
+      report.reportData?.valuation || {
+        blendedEstimate: report.estimatedValue ?? null,
+        blendedLow: report.estimatedValueLow ?? null,
+        blendedHigh: report.estimatedValueHigh ?? null,
+        primaryCompMedian: report.medianSoldPrice ?? null,
+        primaryCompAverage: report.averageSoldPrice ?? null,
+      },
+    dealAnalysis: report.dealAnalysis || report.reportData?.dealAnalysis || null,
+    aiVerdict: report.aiVerdict || report.report || report.reportData?.aiVerdict || null,
+    marketContext: report.marketContext || report.reportData?.marketContext || null,
+    recentComps: Array.isArray(report.recentComps)
+      ? report.recentComps
+      : getMasterReportPrimaryComps(report),
+    reportData: report.reportData || null,
   };
 };
 
@@ -326,6 +461,9 @@ export const buildSelectionSummary = (subject = {}, comps = [], valuationContext
 
 export const buildAnalysisFromSavedReport = (report = {}, fallbackSubject = {}) => {
   if (!report?.generatedAt) return null;
+  if (report?.reportData || report?.propertySnapshot || report?.dealSnapshot) {
+    return normalizeMasterReport(report, fallbackSubject);
+  }
 
   return {
     subject: report.subjectSnapshot || fallbackSubject || {},

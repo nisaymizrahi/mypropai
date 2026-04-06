@@ -5,28 +5,29 @@ import { ArrowRightIcon } from "@heroicons/react/24/outline";
 import { API_BASE_URL } from "../config";
 import BrandLogo from "../components/BrandLogo";
 import PublicLegalLinks from "../components/PublicLegalLinks";
+import Seo from "../components/Seo";
 import { useAuth } from "../context/AuthContext";
 import { signupUser } from "../utils/api";
 
 const workspaceUseCases = [
   {
     title: "Acquisitions",
-    description: "Keep deals, assumptions, and decisions inside one clean workspace.",
+    description: "Keep pricing, notes, and decisions in one place.",
   },
   {
     title: "Execution",
-    description: "Manage rehab and leasing work without a crowded interface around it.",
+    description: "Coordinate tasks, vendors, and rehab work without tool sprawl.",
   },
   {
-    title: "Operations",
-    description: "Review portfolio activity in a lighter daily command view.",
+    title: "Property operations",
+    description: "Keep documents, property context, and daily work tied together.",
   },
 ];
 
 const onboardingPromises = [
+  "Start on Starter, then upgrade when Pro workflows become useful.",
   "Required fields stay tight: first name, last name, email, and password.",
-  "Company and phone remain optional so the form stays lighter.",
-  "Google signup can continue first, then collect any missing profile details.",
+  "Google signup can collect missing details after sign-in.",
 ];
 
 const initialFormState = {
@@ -99,6 +100,11 @@ const SignupPage = () => {
 
   return (
     <div className="public-shell min-h-screen text-ink-900">
+      <Seo
+        title="Create your workspace | Fliprop"
+        description="Start a Fliprop workspace for acquisitions, execution, and property operations."
+        path="/signup"
+      />
       <div className="mx-auto flex min-h-screen max-w-[1280px] flex-col px-4 py-4 sm:px-6 lg:px-8">
         <header className="surface-panel flex items-center justify-between gap-4 px-5 py-4">
           <Link to="/" className="flex items-center gap-3">
@@ -115,16 +121,15 @@ const SignupPage = () => {
             <section className="flex flex-col justify-center reveal-up">
               <span className="eyebrow">New workspace account</span>
               <h1 className="mt-5 max-w-3xl font-display text-[2.9rem] leading-[0.96] text-balance text-ink-900 sm:text-[3.6rem]">
-                Create an account for the lighter Fliprop workspace.
+                Create your Fliprop workspace.
               </h1>
               <p className="mt-5 max-w-2xl text-sm leading-7 text-ink-600 sm:text-base">
-                This access is for owners, operators, and teams managing acquisitions, execution,
-                and portfolio work.
+                Get one place for deals, property work, documents, and financial workflows.
               </p>
 
               <div className="surface-panel mt-7 p-5">
                 <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-ink-400">
-                  Workspace fit
+                  Built for
                 </p>
                 <div className="soft-list mt-4">
                   {workspaceUseCases.map((item) => (
@@ -153,8 +158,7 @@ const SignupPage = () => {
                 Create your account
               </h2>
               <p className="mt-3 text-sm leading-6 text-ink-500">
-                Start with email or continue with Google. If Google doesn&apos;t include everything,
-                we&apos;ll ask for the missing profile details right after sign-in.
+                Start with email or continue with Google.
               </p>
 
               <button onClick={handleGoogleSignup} type="button" className="secondary-action mt-5 w-full">

@@ -31,6 +31,13 @@
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
+    "qa": "node qa/scripts/run-suite.mjs",
+    "qa:full": "node qa/scripts/run-suite.mjs",
+    "qa:functional": "node qa/scripts/run-functional.mjs",
+    "qa:a11y": "node qa/scripts/run-a11y.mjs",
+    "qa:lighthouse": "node qa/scripts/run-lighthouse.mjs",
+    "qa:ux": "node qa/scripts/run-ai-review.mjs",
+    "qa:report": "node qa/scripts/build-report.mjs",
     "eject": "react-scripts eject"
   },
   "eslintConfig": {
@@ -52,8 +59,15 @@
     ]
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.11.0",
+    "@playwright/test": "^1.55.0",
     "autoprefixer": "^10.4.21",
+    "browserslist": "^4.25.1",
+    "caniuse-lite": "^1.0.30001779",
+    "lighthouse": "^12.8.2",
+    "openai": "^6.4.0",
     "postcss": "^8.5.6",
+    "serve": "^14.2.4",
     "tailwindcss": "^3.4.3"
   }
 }

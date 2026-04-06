@@ -134,6 +134,7 @@ const PropertyCostsPanel = ({
   propertyKey,
   activeContentKey,
   onPropertyUpdated,
+  embedded = false,
 }) => {
   const investmentId = property?.workspaces?.acquisitions?.id || "";
   const [selectedStrategy, setSelectedStrategy] = useState(
@@ -589,39 +590,41 @@ const PropertyCostsPanel = ({
       <>
         {sharedModals}
         <div className="space-y-6">
-          <section className="surface-panel px-6 py-7 sm:px-7">
-            <span className="eyebrow">Costs > Budget</span>
-            <h3 className="mt-4 font-display text-[2.15rem] leading-[0.96] text-ink-900">
-              Keep the expected cost plan editable and visible at every step
-            </h3>
-            <p className="mt-4 max-w-3xl text-sm leading-7 text-ink-500 sm:text-base">
-              Budget is the live expected-cost plan for this property. Scope lines, vendor
-              commitments, and actual spend all roll into the same cost view.
-            </p>
+          {!embedded ? (
+            <section className="surface-panel px-6 py-7 sm:px-7">
+              <span className="eyebrow">Costs > Budget</span>
+              <h3 className="mt-4 font-display text-[2.15rem] leading-[0.96] text-ink-900">
+                Keep the expected cost plan editable and visible at every step
+              </h3>
+              <p className="mt-4 max-w-3xl text-sm leading-7 text-ink-500 sm:text-base">
+                Budget is the live expected-cost plan for this property. Scope lines, vendor
+                commitments, and actual spend all roll into the same cost view.
+              </p>
 
-            <div className="mt-8 flex flex-wrap gap-3">
-              <button type="button" onClick={() => setShowAddBudgetModal(true)} className="primary-action">
-                Add scope item
-              </button>
-              <button
-                type="button"
-                onClick={() => handleOpenExpenseModal()}
-                className="secondary-action"
-              >
-                Add manual expense
-              </button>
-              <button
-                type="button"
-                onClick={() => handleOpenExpenseModal({ mode: "receipt" })}
-                className="secondary-action"
-              >
-                Scan receipt with AI
-              </button>
-              <button type="button" onClick={() => setShowAIBuilderModal(true)} className="ghost-action">
-                Generate AI budget
-              </button>
-            </div>
-          </section>
+              <div className="mt-8 flex flex-wrap gap-3">
+                <button type="button" onClick={() => setShowAddBudgetModal(true)} className="primary-action">
+                  Add scope item
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleOpenExpenseModal()}
+                  className="secondary-action"
+                >
+                  Add manual expense
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleOpenExpenseModal({ mode: "receipt" })}
+                  className="secondary-action"
+                >
+                  Scan receipt with AI
+                </button>
+                <button type="button" onClick={() => setShowAIBuilderModal(true)} className="ghost-action">
+                  Generate AI budget
+                </button>
+              </div>
+            </section>
+          ) : null}
 
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <MetricTile
@@ -691,33 +694,35 @@ const PropertyCostsPanel = ({
       <>
         {sharedModals}
         <div className="space-y-6">
-          <section className="surface-panel px-6 py-7 sm:px-7">
-            <span className="eyebrow">Costs > Expenses</span>
-            <h3 className="mt-4 font-display text-[2.15rem] leading-[0.96] text-ink-900">
-              Capture every property expense in one ledger
-            </h3>
-            <p className="mt-4 max-w-3xl text-sm leading-7 text-ink-500 sm:text-base">
-              Use manual entries or AI receipt capture, then keep every payment tied back to the
-              property, vendor, and budget line wherever possible.
-            </p>
+          {!embedded ? (
+            <section className="surface-panel px-6 py-7 sm:px-7">
+              <span className="eyebrow">Costs > Expenses</span>
+              <h3 className="mt-4 font-display text-[2.15rem] leading-[0.96] text-ink-900">
+                Capture every property expense in one ledger
+              </h3>
+              <p className="mt-4 max-w-3xl text-sm leading-7 text-ink-500 sm:text-base">
+                Use manual entries or AI receipt capture, then keep every payment tied back to the
+                property, vendor, and budget line wherever possible.
+              </p>
 
-            <div className="mt-8 flex flex-wrap gap-3">
-              <button
-                type="button"
-                onClick={() => handleOpenExpenseModal()}
-                className="primary-action"
-              >
-                Add manual expense
-              </button>
-              <button
-                type="button"
-                onClick={() => handleOpenExpenseModal({ mode: "receipt" })}
-                className="secondary-action"
-              >
-                Scan receipt with AI
-              </button>
-            </div>
-          </section>
+              <div className="mt-8 flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  onClick={() => handleOpenExpenseModal()}
+                  className="primary-action"
+                >
+                  Add manual expense
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleOpenExpenseModal({ mode: "receipt" })}
+                  className="secondary-action"
+                >
+                  Scan receipt with AI
+                </button>
+              </div>
+            </section>
+          ) : null}
 
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <MetricTile
@@ -1286,16 +1291,18 @@ const PropertyCostsPanel = ({
     <>
       {sharedModals}
       <div className="space-y-6">
-        <section className="surface-panel px-6 py-7 sm:px-7">
-          <span className="eyebrow">Costs > Commitments</span>
-          <h3 className="mt-4 font-display text-[2.15rem] leading-[0.96] text-ink-900">
-            Track what has been awarded, what has been paid, and what is still outstanding
-          </h3>
-          <p className="mt-4 max-w-3xl text-sm leading-7 text-ink-500 sm:text-base">
-            Commitments connect your chosen vendor awards to actual payments so you can see
-            remaining contract exposure before it becomes a surprise.
-          </p>
-        </section>
+        {!embedded ? (
+          <section className="surface-panel px-6 py-7 sm:px-7">
+            <span className="eyebrow">Costs > Commitments</span>
+            <h3 className="mt-4 font-display text-[2.15rem] leading-[0.96] text-ink-900">
+              Track what has been awarded, what has been paid, and what is still outstanding
+            </h3>
+            <p className="mt-4 max-w-3xl text-sm leading-7 text-ink-500 sm:text-base">
+              Commitments connect your chosen vendor awards to actual payments so you can see
+              remaining contract exposure before it becomes a surprise.
+            </p>
+          </section>
+        ) : null}
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <MetricTile

@@ -751,42 +751,48 @@ export const EmptyAcquisitionState = ({
   onStrategyChange,
   onCreate,
   isCreating,
+  compact = false,
+  eyebrow,
+  title,
+  description,
+  buttonLabel,
 }) => (
-  <section className="surface-panel px-6 py-7 sm:px-7">
-    <span className="eyebrow">Finance workspace</span>
-    <div className="mt-4 grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(280px,360px)]">
+  <section className={`${compact ? "section-card p-6 sm:p-7" : "surface-panel px-6 py-7 sm:px-7"}`}>
+    <span className="eyebrow">{eyebrow || (compact ? "Workspace setup" : "Finance workspace")}</span>
+    <div className={`mt-4 grid gap-6 ${compact ? "lg:grid-cols-[minmax(0,1fr)_320px]" : "xl:grid-cols-[minmax(0,1fr)_minmax(280px,360px)]"}`}>
       <div>
-        <h3 className="font-display text-[2.15rem] leading-[0.96] text-ink-900">
-          Create the acquisitions finance workspace for this property
+        <h3 className={`${compact ? "text-2xl font-semibold" : "font-display text-[2.15rem] leading-[0.96]"} text-ink-900`}>
+          {title || "Create the acquisitions workspace for finance"}
         </h3>
-        <p className="mt-4 max-w-3xl text-sm leading-7 text-ink-500 sm:text-base">
-          Phase 2 runs on the linked acquisitions project. Once we create it, this property gets a
-          real finance center with budget versus actual, capital stack inputs, sources and uses,
-          and PDF-ready reporting.
+        <p className={`mt-4 max-w-3xl text-sm text-ink-500 ${compact ? "leading-6" : "leading-7 sm:text-base"}`}>
+          {description ||
+            "Add the acquisitions layer once, then budget, expenses, capital, draws, payments, and reports all stay inside this property workspace."}
         </p>
 
-        <div className="mt-6 grid gap-3 md:grid-cols-3">
-          <div className="rounded-[18px] border border-ink-100 bg-white/90 px-4 py-4">
-            <p className="text-sm font-semibold text-ink-900">Expected cost plan</p>
-            <p className="mt-2 text-sm leading-6 text-ink-500">
-              Budget lines and actual expenses stay connected instead of living in separate tools.
-            </p>
+        {!compact ? (
+          <div className="mt-6 grid gap-3 md:grid-cols-3">
+            <div className="rounded-[18px] border border-ink-100 bg-white/90 px-4 py-4">
+              <p className="text-sm font-semibold text-ink-900">Expected cost plan</p>
+              <p className="mt-2 text-sm leading-6 text-ink-500">
+                Budget lines and actual expenses stay connected instead of living in separate tools.
+              </p>
+            </div>
+            <div className="rounded-[18px] border border-ink-100 bg-white/90 px-4 py-4">
+              <p className="text-sm font-semibold text-ink-900">Editable deal assumptions</p>
+              <p className="mt-2 text-sm leading-6 text-ink-500">
+                Purchase price, closing costs, hold assumptions, loan profile, and returns all stay
+                live in one place.
+              </p>
+            </div>
+            <div className="rounded-[18px] border border-ink-100 bg-white/90 px-4 py-4">
+              <p className="text-sm font-semibold text-ink-900">Report-ready outputs</p>
+              <p className="mt-2 text-sm leading-6 text-ink-500">
+                Export polished PDF deal analysis for lender reviews, investor updates, or internal
+                decision making.
+              </p>
+            </div>
           </div>
-          <div className="rounded-[18px] border border-ink-100 bg-white/90 px-4 py-4">
-            <p className="text-sm font-semibold text-ink-900">Editable deal assumptions</p>
-            <p className="mt-2 text-sm leading-6 text-ink-500">
-              Purchase price, closing costs, hold assumptions, loan profile, and returns all stay
-              live in one place.
-            </p>
-          </div>
-          <div className="rounded-[18px] border border-ink-100 bg-white/90 px-4 py-4">
-            <p className="text-sm font-semibold text-ink-900">Report-ready outputs</p>
-            <p className="mt-2 text-sm leading-6 text-ink-500">
-              Export polished PDF deal analysis for lender reviews, investor updates, or internal
-              decision making.
-            </p>
-          </div>
-        </div>
+        ) : null}
       </div>
 
       <div className="section-card p-5">
@@ -815,7 +821,7 @@ export const EmptyAcquisitionState = ({
           disabled={isCreating}
           className="primary-action mt-6 w-full justify-center disabled:cursor-not-allowed disabled:opacity-70"
         >
-          {isCreating ? "Creating..." : "Create acquisitions workspace"}
+          {isCreating ? "Creating..." : buttonLabel || "Create acquisitions workspace"}
         </button>
       </div>
     </div>
@@ -827,6 +833,7 @@ const PropertyFinancePanel = ({
   propertyKey,
   activeContentKey,
   onPropertyUpdated,
+  embedded = false,
 }) => {
   const investmentId = property?.workspaces?.acquisitions?.id || "";
   const [selectedStrategy, setSelectedStrategy] = useState(
@@ -1495,17 +1502,19 @@ const PropertyFinancePanel = ({
   if (activeContentKey === "finance-budget-vs-actual") {
     return (
       <div className="space-y-6">
-        <section className="surface-panel px-6 py-7 sm:px-7">
-          <span className="eyebrow">Finance > Budget vs Actual</span>
-          <h3 className="mt-4 font-display text-[2.15rem] leading-[0.96] text-ink-900">
-            Expected cost plan versus actual project spend
-          </h3>
-          <p className="mt-4 max-w-3xl text-sm leading-7 text-ink-500 sm:text-base">
-            This section reuses the live budget and expense engine so line-item budgets, vendor
-            commitments, receipt capture, and actual spend stay tied to the same property finance
-            model.
-          </p>
-        </section>
+        {!embedded ? (
+          <section className="surface-panel px-6 py-7 sm:px-7">
+            <span className="eyebrow">Finance > Budget vs Actual</span>
+            <h3 className="mt-4 font-display text-[2.15rem] leading-[0.96] text-ink-900">
+              Expected cost plan versus actual project spend
+            </h3>
+            <p className="mt-4 max-w-3xl text-sm leading-7 text-ink-500 sm:text-base">
+              This section reuses the live budget and expense engine so line-item budgets, vendor
+              commitments, receipt capture, and actual spend stay tied to the same property finance
+              model.
+            </p>
+          </section>
+        ) : null}
 
         <FinancialsTab
           investment={investment}
@@ -1534,32 +1543,34 @@ const PropertyFinancePanel = ({
 
     return (
       <div className="space-y-6">
-        <section className="surface-panel px-6 py-7 sm:px-7">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-            <div>
-              <span className="eyebrow">Finance > Draw Operations</span>
-              <h3 className="mt-4 font-display text-[2.15rem] leading-[0.96] text-ink-900">
-                Run lender draw workflow from one operational board
-              </h3>
-              <p className="mt-4 max-w-3xl text-sm leading-7 text-ink-500 sm:text-base">
-                Track request status, packet readiness, linked support files, and reimbursable
-                spend so hard-money and construction draws stop living in separate notes and
-                inboxes.
-              </p>
-            </div>
+        {!embedded ? (
+          <section className="surface-panel px-6 py-7 sm:px-7">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+              <div>
+                <span className="eyebrow">Finance > Draw Operations</span>
+                <h3 className="mt-4 font-display text-[2.15rem] leading-[0.96] text-ink-900">
+                  Run lender draw workflow from one operational board
+                </h3>
+                <p className="mt-4 max-w-3xl text-sm leading-7 text-ink-500 sm:text-base">
+                  Track request status, packet readiness, linked support files, and reimbursable
+                  spend so hard-money and construction draws stop living in separate notes and
+                  inboxes.
+                </p>
+              </div>
 
-            <div className="flex flex-wrap gap-3">
-              <button type="button" onClick={handleAddDrawRequest} className="primary-action">
-                <PlusIcon className="mr-2 h-4 w-4" />
-                Add draw request
-              </button>
-              <button type="button" onClick={handleExportDrawSummary} className="secondary-action">
-                <ArrowDownTrayIcon className="mr-2 h-4 w-4" />
-                Export lender summary
-              </button>
+              <div className="flex flex-wrap gap-3">
+                <button type="button" onClick={handleAddDrawRequest} className="primary-action">
+                  <PlusIcon className="mr-2 h-4 w-4" />
+                  Add draw request
+                </button>
+                <button type="button" onClick={handleExportDrawSummary} className="secondary-action">
+                  <ArrowDownTrayIcon className="mr-2 h-4 w-4" />
+                  Export lender summary
+                </button>
+              </div>
             </div>
-          </div>
-        </section>
+          </section>
+        ) : null}
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <MetricTile
@@ -1926,16 +1937,18 @@ const PropertyFinancePanel = ({
 
     return (
       <div className="space-y-6">
-        <section className="surface-panel px-6 py-7 sm:px-7">
-          <span className="eyebrow">Finance > Payment Schedule</span>
-          <h3 className="mt-4 font-display text-[2.15rem] leading-[0.96] text-ink-900">
-            Turn modeled debt into a live servicing and cash board
-          </h3>
-          <p className="mt-4 max-w-3xl text-sm leading-7 text-ink-500 sm:text-base">
-            See what is due, what is overdue, what has been paid, and how much reserve cushion the
-            project still has across every funding source.
-          </p>
-        </section>
+        {!embedded ? (
+          <section className="surface-panel px-6 py-7 sm:px-7">
+            <span className="eyebrow">Finance > Payment Schedule</span>
+            <h3 className="mt-4 font-display text-[2.15rem] leading-[0.96] text-ink-900">
+              Turn modeled debt into a live servicing and cash board
+            </h3>
+            <p className="mt-4 max-w-3xl text-sm leading-7 text-ink-500 sm:text-base">
+              See what is due, what is overdue, what has been paid, and how much reserve cushion the
+              project still has across every funding source.
+            </p>
+          </section>
+        ) : null}
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <MetricTile
@@ -2360,16 +2373,18 @@ const PropertyFinancePanel = ({
 
     return (
       <div className="space-y-6">
-        <section className="surface-panel px-6 py-7 sm:px-7">
-          <span className="eyebrow">Finance > Sources & Uses</span>
-          <h3 className="mt-4 font-display text-[2.15rem] leading-[0.96] text-ink-900">
-            Show exactly where the money comes from and where it goes
-          </h3>
-          <p className="mt-4 max-w-3xl text-sm leading-7 text-ink-500 sm:text-base">
-            This is the finance view you can use to explain the deal to partners, lenders, or your
-            own team without piecing it together from several tabs.
-          </p>
-        </section>
+        {!embedded ? (
+          <section className="surface-panel px-6 py-7 sm:px-7">
+            <span className="eyebrow">Finance > Sources & Uses</span>
+            <h3 className="mt-4 font-display text-[2.15rem] leading-[0.96] text-ink-900">
+              Show exactly where the money comes from and where it goes
+            </h3>
+            <p className="mt-4 max-w-3xl text-sm leading-7 text-ink-500 sm:text-base">
+              This is the finance view you can use to explain the deal to partners, lenders, or your
+              own team without piecing it together from several tabs.
+            </p>
+          </section>
+        ) : null}
 
         <div className="grid gap-4 md:grid-cols-3">
           <MetricTile
@@ -2462,17 +2477,19 @@ const PropertyFinancePanel = ({
 
     return (
       <div className="space-y-6">
-        <section className="surface-panel px-6 py-7 sm:px-7">
-          <span className="eyebrow">Finance > Capital Stack</span>
-          <h3 className="mt-4 font-display text-[2.15rem] leading-[0.96] text-ink-900">
-            Model every source of capital, payment draft, and draw flow
-          </h3>
-          <p className="mt-4 max-w-3xl text-sm leading-7 text-ink-500 sm:text-base">
-            This is the editable finance model for the property. Update the purchase basis,
-            monthly carry, multiple funding sources, and lender draw tracking so returns and
-            reporting stay accurate across the whole project.
-          </p>
-        </section>
+        {!embedded ? (
+          <section className="surface-panel px-6 py-7 sm:px-7">
+            <span className="eyebrow">Finance > Capital Stack</span>
+            <h3 className="mt-4 font-display text-[2.15rem] leading-[0.96] text-ink-900">
+              Model every source of capital, payment draft, and draw flow
+            </h3>
+            <p className="mt-4 max-w-3xl text-sm leading-7 text-ink-500 sm:text-base">
+              This is the editable finance model for the property. Update the purchase basis,
+              monthly carry, multiple funding sources, and lender draw tracking so returns and
+              reporting stay accurate across the whole project.
+            </p>
+          </section>
+        ) : null}
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <MetricTile
@@ -2872,16 +2889,18 @@ const PropertyFinancePanel = ({
 
   return (
     <div className="space-y-6">
-      <section className="surface-panel px-6 py-7 sm:px-7">
-        <span className="eyebrow">Finance > Financial Health</span>
-        <h3 className="mt-4 font-display text-[2.15rem] leading-[0.96] text-ink-900">
-          Keep the entire project financial picture in one control tower
-        </h3>
-        <p className="mt-4 max-w-3xl text-sm leading-7 text-ink-500 sm:text-base">
-          This dashboard brings the purchase basis, expected budget, actual spend, carry, debt,
-          and return profile together so you can see the health of the property at a glance.
-        </p>
-      </section>
+      {!embedded ? (
+        <section className="surface-panel px-6 py-7 sm:px-7">
+          <span className="eyebrow">Finance > Financial Health</span>
+          <h3 className="mt-4 font-display text-[2.15rem] leading-[0.96] text-ink-900">
+            Keep the entire project financial picture in one control tower
+          </h3>
+          <p className="mt-4 max-w-3xl text-sm leading-7 text-ink-500 sm:text-base">
+            This dashboard brings the purchase basis, expected budget, actual spend, carry, debt,
+            and return profile together so you can see the health of the property at a glance.
+          </p>
+        </section>
+      ) : null}
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetricTile
