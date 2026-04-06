@@ -6,6 +6,8 @@ const PropertyWorkspaceSection = ({
   helper = "",
   action = null,
   defaultOpen = false,
+  sectionId = "",
+  revealToken = 0,
   children,
 }) => {
   const [isOpen, setIsOpen] = useState(defaultOpen);
@@ -18,6 +20,15 @@ const PropertyWorkspaceSection = ({
     }
   }, [defaultOpen]);
 
+  useEffect(() => {
+    if (!revealToken) {
+      return;
+    }
+
+    setIsOpen(true);
+    setHasRendered(true);
+  }, [revealToken]);
+
   const handleToggle = () => {
     setIsOpen((current) => {
       const next = !current;
@@ -29,7 +40,7 @@ const PropertyWorkspaceSection = ({
   };
 
   return (
-    <section className="section-card overflow-hidden">
+    <section id={sectionId || undefined} className="section-card overflow-hidden">
       <div className="flex flex-col gap-3 border-b border-ink-100 px-5 py-4 sm:flex-row sm:items-start sm:justify-between sm:px-6">
         <button type="button" onClick={handleToggle} className="min-w-0 flex-1 text-left">
           <div className="flex items-start gap-3">
