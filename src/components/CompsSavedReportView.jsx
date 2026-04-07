@@ -13,10 +13,11 @@ import {
   getVerdictMeta,
 } from "../utils/compsReport";
 import { exportElementToPdf, sanitizePdfFilename } from "../utils/pdfExport";
+import { INVESTOR_TERMS } from "../utils/investorTerminology";
 
 const getContextLabel = (contextType = "") => {
   if (contextType === "project") return "Project report";
-  if (contextType === "lead") return "Lead report";
+  if (contextType === "lead") return `${INVESTOR_TERMS.deal.singular} report`;
   if (contextType === "standalone") return "Standalone report";
   return "Saved report";
 };
@@ -66,7 +67,7 @@ const CompsSavedReportView = ({
 
   if (!report?.generatedAt) {
     return (
-      <div className="section-card p-6 sm:p-7">
+      <div className="surface-panel px-6 py-6 sm:px-7">
         <span className="eyebrow">{emptyEyebrow}</span>
         <h3 className="mt-4 text-3xl font-semibold text-ink-900">{emptyTitle}</h3>
         <p className="mt-3 max-w-2xl text-sm leading-6 text-ink-500">{emptyMessage}</p>

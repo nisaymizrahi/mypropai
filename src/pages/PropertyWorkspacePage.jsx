@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   BanknotesIcon,
   ChartBarIcon,
@@ -12,18 +12,26 @@ import toast from "react-hot-toast";
 
 import {
   analyzeLeadComps,
+  createBudgetItem,
   createOneTimeCheckout,
+  createProjectUpdate,
   createPropertyWorkspace,
+  deleteProjectUpdate,
   getBidsForLead,
   getBidsForProject,
+  getBudgetItems,
   getBillingAccess,
+  getInvestment,
   getLeadDetails,
   getPropertyReports,
+  getProjectUpdates,
   getPropertyWorkspace,
   getTaskList,
+  getVendors,
   previewLeadProperty,
   saveCompsReport,
   updateLead,
+  updateProjectUpdate,
   updatePropertyWorkspace,
 } from "../utils/api";
 import {
@@ -39,13 +47,23 @@ import {
 import { getLocationProviderName, searchAddressSuggestions } from "../utils/locationSearch";
 import {
   buildPropertyWorkspacePath,
+  buildPropertyWorkspaceSectionPath,
+  getDefaultPropertyWorkspaceSectionId,
+  getPropertyWorkspaceSections,
+  normalizePropertyWorkspaceSectionId,
   PROPERTY_WORKSPACE_TABS,
   resolvePropertyWorkspaceRoute,
 } from "../utils/propertyWorkspaceNavigation";
 import { isTaskComplete, isTaskOverdue, sortTasks } from "../utils/tasks";
+import AddBudgetItemModal from "../components/AddBudgetItemModal";
+import AddExpenseModal from "../components/AddExpenseModal";
+import AddVendorModal from "../components/AddVendorModal";
 import BidsTab from "../components/BidsTab";
 import LeadRenovationTab, { buildRenovationForm } from "../components/LeadRenovationTab";
 import MasterDealReportWorkspace from "../components/MasterDealReportWorkspace";
+import ProjectUpdateComposerModal from "../components/ProjectUpdateComposerModal";
+import ProjectUpdatesPanel from "../components/ProjectUpdatesPanel";
+import PropertyDetailsDrawer from "../components/PropertyDetailsDrawer";
 import PropertyCostsPanel from "../components/PropertyCostsPanel";
 import PropertyCopilotPanel from "../components/PropertyCopilotPanel";
 import PropertyDocumentsPanel from "../components/PropertyDocumentsPanel";
@@ -55,8 +73,11 @@ import PropertySummaryPanel from "../components/PropertySummaryPanel";
 import PropertyWorkspaceSection from "../components/PropertyWorkspaceSection";
 import PropertyWorkspaceSettingsPanel from "../components/PropertyWorkspaceSettingsPanel";
 import SavedCompsReportsTab from "../components/SavedCompsReportsTab";
+import TaskFormModal from "../components/TaskFormModal";
 import TasksPanel from "../components/TasksPanel";
+import WorkspaceQuickAddMenu from "../components/WorkspaceQuickAddMenu";
 import useSubscriptionCheckoutConsent from "../hooks/useSubscriptionCheckoutConsent";
+import { getDrawRequests, getFundingSources } from "../utils/capitalStack";
 
 const propertyTypeOptions = [
   { value: "", label: "Select property type" },
@@ -71,21 +92,64 @@ const propertyTypeOptions = [
 ];
 
 const workspaceTabIcons = {
-  overview: HomeModernIcon,
-  financials: BanknotesIcon,
-  work: ClipboardDocumentListIcon,
-  documents: DocumentTextIcon,
-  analysis: ChartBarIcon,
+  home: HomeModernIcon,
+  execution: ClipboardDocumentListIcon,
+  budget: BanknotesIcon,
+  files: DocumentTextIcon,
+  deal: ChartBarIcon,
   settings: Cog6ToothIcon,
 };
 
-const ANALYSIS_SECTION_IDS = {
-  summary: "analysis-deal-summary",
-  comps: "analysis-comps",
-  reports: "analysis-saved-reports",
-  scope: "analysis-scope",
-  assumptions: "analysis-original-assumptions",
+const HOME_SECTION_IDS = {
+  today: "home-today",
+  "at-risk": "home-at-risk",
+  updates: "home-updates",
+  "property-details": "home-property-details",
 };
+
+const EXECUTION_SECTION_IDS = {
+  "scope-budget": "execution-scope-budget",
+  tasks: "execution-tasks",
+  schedule: "execution-schedule",
+  vendors: "execution-vendors",
+  procurement: "execution-procurement",
+  updates: "execution-updates",
+};
+
+const BUDGET_SECTION_IDS = {
+  snapshot: "budget-snapshot",
+  "line-items": "budget-line-items",
+  expenses: "budget-expenses",
+  lender: "budget-lender",
+  draws: "budget-draws",
+  reports: "budget-reports",
+};
+
+const FILES_SECTION_IDS = {
+  "all-files": "files-all-files",
+  "loan-draw": "files-loan-draw",
+  "contracts-bids": "files-contracts-bids",
+  "receipts-invoices": "files-receipts-invoices",
+  photos: "files-photos",
+};
+
+const DEAL_SECTION_IDS = {
+  summary: "deal-summary",
+  reports: "deal-reports",
+  "renovation-scope": "deal-renovation-scope",
+  "underwriting-vs-actuals": "deal-underwriting-vs-actuals",
+};
+
+const WORKSPACE_SECTION_ANCHORS = {
+  home: HOME_SECTION_IDS,
+  execution: EXECUTION_SECTION_IDS,
+  budget: BUDGET_SECTION_IDS,
+  files: FILES_SECTION_IDS,
+  deal: DEAL_SECTION_IDS,
+};
+
+const getSectionAnchorId = (tabId, sectionId) =>
+  WORKSPACE_SECTION_ANCHORS[tabId]?.[sectionId] || "";
 
 const toOptionalNumber = (value) => {
   if (value === "" || value === null || value === undefined) {
@@ -337,13 +401,13 @@ const buildPropertyCopilotSuggestions = ({
 
   if (!hasPipelineWorkspace) {
     suggestions.push("What analysis setup is missing for this property?");
-    suggestions.push("Open settings so I can add the lead workspace");
+    suggestions.push("Open settings so I can add the deal workspace");
     return suggestions;
   }
 
   if (!propertyWorkspaceActive) {
-    suggestions.push("What do I unlock if I move this lead into the property workspace?");
-    suggestions.push("Open settings so I can activate analysis here");
+    suggestions.push("What do I unlock if I move this deal into Project Workspace?");
+    suggestions.push("Open settings so I can activate deal access here");
     return suggestions;
   }
 
@@ -354,7 +418,7 @@ const buildPropertyCopilotSuggestions = ({
   if (latestReport || analysis) {
     suggestions.push("Summarize the latest comps report and recommended offer");
 
-    if (activeTabId === "analysis") {
+    if (activeTabId === "deal") {
       suggestions.push("What is the biggest comps risk or confidence signal right now?");
     }
   }
@@ -368,7 +432,7 @@ const buildPropertyCopilotSuggestions = ({
   }
 
   if (leadWorkspace?.nextAction || leadWorkspace?.followUpDate) {
-    suggestions.push("What seller follow-up is due next on this lead?");
+    suggestions.push("What seller follow-up is due next on this deal?");
   }
 
   if ((leadWorkspace?.nextAction || leadWorkspace?.followUpDate) && openPropertyTasks === 0) {
@@ -386,10 +450,10 @@ const buildPropertyCopilotSuggestions = ({
   }
 
   if (!hasAcquisitionWorkspace && (latestReport || analysis)) {
-    suggestions.push("Based on the comps, what should I set up next in financials?");
+    suggestions.push("Based on the comps, what should I set up next in budget?");
   }
 
-  if (activeTabId === "documents") {
+  if (activeTabId === "files") {
     suggestions.push("What do the uploaded property documents say about this deal?");
   }
 
@@ -433,6 +497,79 @@ const StatCard = ({ label, value, helper = "", tone = "bg-white/86" }) => (
   </div>
 );
 
+const SectionSegmentedControl = ({
+  label,
+  items,
+  activeItemId,
+  onSelect,
+}) => (
+  <section className="surface-panel px-4 py-4 sm:px-5">
+    <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+      <div>
+        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-400">
+          {label}
+        </p>
+        <p className="mt-1 text-sm text-ink-500">Jump to the part of this workspace you want to operate.</p>
+      </div>
+      <div className="segmented-control flex-wrap">
+        {items.map((item) => {
+          const isActive = item.id === activeItemId;
+
+          return (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => onSelect(item.id)}
+              className={`segmented-option ${isActive ? "segmented-option-active" : ""}`}
+            >
+              {item.label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  </section>
+);
+
+const ActionQueueCard = ({ title, detail, label, onClick, disabled = false }) => (
+  <div className="flex flex-col gap-3 rounded-[20px] border border-ink-100 bg-white/90 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="min-w-0">
+      <p className="text-sm font-semibold text-ink-900">{title}</p>
+      <p className="mt-1 text-sm text-ink-500">{detail}</p>
+    </div>
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className="secondary-action shrink-0 disabled:cursor-not-allowed disabled:opacity-70"
+    >
+      {label}
+    </button>
+  </div>
+);
+
+const WorkspaceLaunchCard = ({
+  eyebrow,
+  title,
+  detail,
+  label,
+  onClick,
+  tone = "bg-white/90",
+}) => (
+  <button
+    type="button"
+    onClick={onClick}
+    className={`rounded-[24px] border border-ink-100 p-5 text-left transition hover:-translate-y-0.5 hover:shadow-soft ${tone}`}
+  >
+    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-400">{eyebrow}</p>
+    <h3 className="mt-4 text-lg font-semibold text-ink-900">{title}</h3>
+    <p className="mt-2 text-sm leading-6 text-ink-500">{detail}</p>
+    <span className="mt-5 inline-flex rounded-full bg-ink-900 px-3 py-1.5 text-xs font-semibold text-white">
+      {label}
+    </span>
+  </button>
+);
+
 const SetupStateCard = ({
   eyebrow = "Setup",
   title,
@@ -466,10 +603,11 @@ const ProfileField = ({ label, children, className = "" }) => (
 
 const PropertyWorkspacePage = () => {
   const { propertyKey, tab: tabParam, category: categoryParam, section: sectionParam } = useParams();
+  const location = useLocation();
   const navigate = useNavigate();
-  const profileSectionRef = useRef(null);
   const selectedSuggestionRef = useRef("");
   const suppressSuggestionsRef = useRef(false);
+  const hashRevealRef = useRef("");
 
   const [property, setProperty] = useState(null);
   const [formData, setFormData] = useState(buildFormState(null));
@@ -504,6 +642,28 @@ const PropertyWorkspacePage = () => {
   const [acquisitionStrategy, setAcquisitionStrategy] = useState("flip");
   const [managementStrategy, setManagementStrategy] = useState("rental");
   const [sectionRevealTokens, setSectionRevealTokens] = useState({});
+  const [activeSections, setActiveSections] = useState({
+    home: getDefaultPropertyWorkspaceSectionId("home"),
+    execution: getDefaultPropertyWorkspaceSectionId("execution"),
+    budget: getDefaultPropertyWorkspaceSectionId("budget"),
+    files: getDefaultPropertyWorkspaceSectionId("files"),
+    deal: getDefaultPropertyWorkspaceSectionId("deal"),
+  });
+  const [investmentData, setInvestmentData] = useState(null);
+  const [budgetItems, setBudgetItems] = useState([]);
+  const [vendors, setVendors] = useState([]);
+  const [workspaceSupportLoading, setWorkspaceSupportLoading] = useState(false);
+  const [projectUpdates, setProjectUpdates] = useState([]);
+  const [projectUpdatesLoading, setProjectUpdatesLoading] = useState(false);
+  const [projectUpdatesError, setProjectUpdatesError] = useState("");
+  const [isUpdateComposerOpen, setIsUpdateComposerOpen] = useState(false);
+  const [editingProjectUpdate, setEditingProjectUpdate] = useState(null);
+  const [isSavingProjectUpdate, setIsSavingProjectUpdate] = useState(false);
+  const [isPropertyDetailsOpen, setIsPropertyDetailsOpen] = useState(false);
+  const [isTaskQuickAddOpen, setIsTaskQuickAddOpen] = useState(false);
+  const [isExpenseQuickAddOpen, setIsExpenseQuickAddOpen] = useState(false);
+  const [isBudgetItemQuickAddOpen, setIsBudgetItemQuickAddOpen] = useState(false);
+  const [isVendorQuickAddOpen, setIsVendorQuickAddOpen] = useState(false);
   const subscriptionOffer = billingAccess?.subscriptionOffer || null;
 
   const handleSubscriptionCheckoutError = useCallback((error) => {
@@ -533,6 +693,7 @@ const PropertyWorkspacePage = () => {
     [categoryParam, sectionParam, tabParam]
   );
   const activeTab = activeWorkspaceRoute.tab;
+  const activePrimaryTabId = activeTab.id === "settings" ? "" : activeTab.id;
 
   const pipelineLeadId = property?.workspaces?.pipeline?.id || "";
   const pipelineLeadPath = property?.workspaces?.pipeline?.path || "";
@@ -627,6 +788,65 @@ const PropertyWorkspacePage = () => {
   useEffect(() => {
     loadPropertyTasks(property?.propertyKey || "");
   }, [loadPropertyTasks, property?.propertyKey]);
+
+  const loadWorkspaceSupportData = useCallback(async () => {
+    if (!acquisitionWorkspaceId) {
+      setInvestmentData(null);
+      setBudgetItems([]);
+      setVendors([]);
+      setWorkspaceSupportLoading(false);
+      return;
+    }
+
+    try {
+      setWorkspaceSupportLoading(true);
+      const [investmentRecord, budgetItemRecords, vendorRecords] = await Promise.all([
+        getInvestment(acquisitionWorkspaceId),
+        getBudgetItems(acquisitionWorkspaceId),
+        getVendors(),
+      ]);
+
+      setInvestmentData(investmentRecord || null);
+      setBudgetItems(Array.isArray(budgetItemRecords) ? budgetItemRecords : []);
+      setVendors(Array.isArray(vendorRecords) ? vendorRecords : []);
+    } catch (supportError) {
+      console.error("Failed to load project workspace support data", supportError);
+      setInvestmentData(null);
+      setBudgetItems([]);
+      setVendors([]);
+    } finally {
+      setWorkspaceSupportLoading(false);
+    }
+  }, [acquisitionWorkspaceId]);
+
+  useEffect(() => {
+    loadWorkspaceSupportData();
+  }, [loadWorkspaceSupportData]);
+
+  const loadProjectWorkspaceUpdates = useCallback(async () => {
+    if (!propertyKey) {
+      setProjectUpdates([]);
+      setProjectUpdatesError("");
+      setProjectUpdatesLoading(false);
+      return;
+    }
+
+    try {
+      setProjectUpdatesLoading(true);
+      setProjectUpdatesError("");
+      const updateRecords = await getProjectUpdates(propertyKey);
+      setProjectUpdates(Array.isArray(updateRecords) ? updateRecords : []);
+    } catch (updatesError) {
+      setProjectUpdates([]);
+      setProjectUpdatesError(updatesError.message || "Failed to load project updates.");
+    } finally {
+      setProjectUpdatesLoading(false);
+    }
+  }, [propertyKey]);
+
+  useEffect(() => {
+    loadProjectWorkspaceUpdates();
+  }, [loadProjectWorkspaceUpdates]);
 
   const loadLeadBillingAccess = useCallback(async () => {
     if (!pipelineLeadId) {
@@ -741,7 +961,7 @@ const PropertyWorkspacePage = () => {
       setSavedReports([]);
       setBids([]);
       setBillingAccess(null);
-      setLeadWorkspaceError(leadError.message || "Failed to load the linked lead workspace.");
+      setLeadWorkspaceError(leadError.message || "Failed to load the linked deal workspace.");
     } finally {
       setLeadWorkspaceLoading(false);
       setSavedReportsLoading(false);
@@ -882,7 +1102,7 @@ const PropertyWorkspacePage = () => {
         title: "Comps report saved",
         detail: savedReports[0].estimatedValue
           ? `Estimated value ${formatCurrency(savedReports[0].estimatedValue)}`
-          : "Latest report is ready in Analysis.",
+          : "Latest report is ready in Deal.",
         timestamp: savedReports[0].generatedAt,
       });
     }
@@ -923,15 +1143,15 @@ const PropertyWorkspacePage = () => {
   const nextStepCard = useMemo(() => {
     if (!hasPipelineWorkspace) {
       return {
-        value: "Add lead",
+        value: "Add deal",
         helper: "Unlock comps, reports, scope, and bids.",
       };
     }
 
     if (!propertyWorkspaceActive) {
       return {
-        value: "Activate analysis",
-        helper: "Use the linked lead inside this property workspace.",
+        value: "Activate deal access",
+        helper: "Use the linked deal inside this project workspace.",
       };
     }
 
@@ -944,7 +1164,7 @@ const PropertyWorkspacePage = () => {
 
     return {
       value: "Fully set up",
-      helper: `${workspaceCount} linked workspace${workspaceCount === 1 ? "" : "s"} ready.`,
+      helper: `${workspaceCount} linked record${workspaceCount === 1 ? "" : "s"} ready.`,
     };
   }, [
     hasAcquisitionWorkspace,
@@ -952,6 +1172,108 @@ const PropertyWorkspacePage = () => {
     propertyWorkspaceActive,
     workspaceCount,
   ]);
+
+  const dealHealthCard = useMemo(() => {
+    const latestReport = analysis || savedReports[0] || null;
+    const askingPrice = Number(leadWorkspace?.sellerAskingPrice);
+    const recommendedHigh = Number(
+      latestReport?.recommendedOfferHigh ?? leadWorkspace?.compsAnalysis?.recommendedOfferHigh
+    );
+    const recommendedLow = Number(
+      latestReport?.recommendedOfferLow ?? leadWorkspace?.compsAnalysis?.recommendedOfferLow
+    );
+
+    if (!hasPipelineWorkspace) {
+      return {
+        value: "No deal yet",
+        helper: "Link a deal to keep the acquisition thesis attached to the project.",
+      };
+    }
+
+    if (!propertyWorkspaceActive) {
+      return {
+        value: "Inactive",
+        helper: "Activate deal access when you want reports and scope inside the project workspace.",
+      };
+    }
+
+    if (Number.isFinite(askingPrice) && Number.isFinite(recommendedHigh) && askingPrice > recommendedHigh) {
+      return {
+        value: "Watch pricing gap",
+        helper: `${formatCurrency(askingPrice - recommendedHigh)} above the latest range.`,
+      };
+    }
+
+    if (Number.isFinite(recommendedLow) || Number.isFinite(recommendedHigh)) {
+      return {
+        value: "Underwritten",
+        helper: `${formatCurrency(recommendedLow)} to ${formatCurrency(recommendedHigh)} saved in Deal.`,
+      };
+    }
+
+    if (latestReport) {
+      return {
+        value: "Report ready",
+        helper: "The latest deal report is saved and ready to compare against execution.",
+      };
+    }
+
+    return {
+      value: "Needs report",
+      helper: "Run the first Deal Report to anchor underwriting inside the project.",
+    };
+  }, [
+    analysis,
+    hasPipelineWorkspace,
+    leadWorkspace?.compsAnalysis?.recommendedOfferHigh,
+    leadWorkspace?.compsAnalysis?.recommendedOfferLow,
+    leadWorkspace?.sellerAskingPrice,
+    propertyWorkspaceActive,
+    savedReports,
+  ]);
+
+  const budgetHealthCard = useMemo(() => {
+    if (!hasAcquisitionWorkspace) {
+      return {
+        value: "Needs budget",
+        helper: "Create financials to unlock budget, expenses, draws, and reports.",
+      };
+    }
+
+    if (overduePropertyTasks > 0) {
+      return {
+        value: "Needs review",
+        helper: `${overduePropertyTasks} overdue task${overduePropertyTasks === 1 ? "" : "s"} could affect delivery and spend.`,
+      };
+    }
+
+    return {
+      value: "Tracking",
+      helper: "Budget, expenses, draws, and finance reports are available in Budget.",
+    };
+  }, [hasAcquisitionWorkspace, overduePropertyTasks]);
+
+  const procurementSummary = useMemo(() => {
+    if (!hasPipelineWorkspace) {
+      return "Link a deal first if you want scope-driven bids in the project workspace.";
+    }
+
+    if (!bids.length) {
+      return hasAcquisitionWorkspace
+        ? "No vendor bids saved yet. Compare scope and commitments when quotes arrive."
+        : "No vendor bids saved yet. Scope and bids will land here once the deal is active.";
+    }
+
+    return `${bids.length} bid${bids.length === 1 ? "" : "s"} ready to compare against scope and commitments.`;
+  }, [bids.length, hasAcquisitionWorkspace, hasPipelineWorkspace]);
+
+  const fundingSources = useMemo(() => getFundingSources(investmentData || {}), [investmentData]);
+  const drawRequests = useMemo(() => getDrawRequests(investmentData || {}), [investmentData]);
+  const activeSectionItems = useMemo(
+    () => getPropertyWorkspaceSections(activeTab.id),
+    [activeTab.id]
+  );
+  const activeSectionId = activeSections[activeTab.id] || "";
 
   const copilotFollowUpSuggestions = useMemo(
     () =>
@@ -984,19 +1306,11 @@ const PropertyWorkspacePage = () => {
     [navigate, property?.propertyKey, propertyKey]
   );
 
-  const handleOpenProfile = useCallback(() => {
-    if (activeTab.id !== "overview") {
-      navigate(buildPropertyWorkspacePath(property?.propertyKey || propertyKey, "overview"));
+  const revealWorkspaceSection = useCallback((sectionId) => {
+    if (!sectionId) {
       return;
     }
 
-    profileSectionRef.current?.scrollIntoView({
-      behavior: "smooth",
-      block: "start",
-    });
-  }, [activeTab.id, navigate, property?.propertyKey, propertyKey]);
-
-  const revealWorkspaceSection = useCallback((sectionId) => {
     setSectionRevealTokens((current) => ({
       ...current,
       [sectionId]: (current[sectionId] || 0) + 1,
@@ -1012,28 +1326,59 @@ const PropertyWorkspacePage = () => {
     });
   }, []);
 
-  const buildAnalysisSectionAction = useCallback(
+  const handleOpenPropertyDetails = useCallback(() => {
+    setIsPropertyDetailsOpen(true);
+  }, []);
+
+  const handleSectionControlSelect = useCallback(
+    (tabId, nextSection) => {
+      const normalizedSectionId = normalizePropertyWorkspaceSectionId(tabId, nextSection);
+      const anchorId = getSectionAnchorId(tabId, normalizedSectionId);
+
+      setActiveSections((current) => ({
+        ...current,
+        [tabId]: normalizedSectionId,
+      }));
+
+      navigate(
+        buildPropertyWorkspaceSectionPath(
+          property?.propertyKey || propertyKey,
+          tabId,
+          normalizedSectionId
+        )
+      );
+      revealWorkspaceSection(anchorId);
+    },
+    [navigate, property?.propertyKey, propertyKey, revealWorkspaceSection]
+  );
+
+  const buildDealSectionAction = useCallback(
     (readyLabel, sectionId) => {
       if (!hasPipelineWorkspace) {
         return {
-          label: "Add lead",
+          label: "Add deal",
           onClick: () => handleTabSelect("settings"),
         };
       }
 
       if (!propertyWorkspaceActive) {
         return {
-          label: "Activate analysis",
+          label: "Activate deal access",
           onClick: () => handleTabSelect("settings"),
         };
       }
 
       return {
         label: readyLabel,
-        onClick: () => revealWorkspaceSection(sectionId),
+        onClick: () =>
+          handleSectionControlSelect(
+            "deal",
+            Object.entries(DEAL_SECTION_IDS).find(([, anchorId]) => anchorId === sectionId)?.[0] ||
+              "summary"
+          ),
       };
     },
-    [handleTabSelect, hasPipelineWorkspace, propertyWorkspaceActive, revealWorkspaceSection]
+    [handleSectionControlSelect, handleTabSelect, hasPipelineWorkspace, propertyWorkspaceActive]
   );
 
   const renderWorkspaceButtons = useCallback(
@@ -1050,6 +1395,38 @@ const PropertyWorkspacePage = () => {
       )),
     []
   );
+
+  useEffect(() => {
+    if (activeTab.id === "settings") {
+      return;
+    }
+
+    const rawHash = location.hash.replace(/^#/, "");
+    const normalizedSectionId = normalizePropertyWorkspaceSectionId(activeTab.id, rawHash);
+
+    setActiveSections((current) =>
+      current[activeTab.id] === normalizedSectionId
+        ? current
+        : {
+            ...current,
+            [activeTab.id]: normalizedSectionId,
+          }
+    );
+
+    if (!rawHash) {
+      hashRevealRef.current = "";
+      return;
+    }
+
+    const anchorId = getSectionAnchorId(activeTab.id, normalizedSectionId);
+    const revealKey = `${activeTab.id}:${normalizedSectionId}:${location.hash}`;
+    if (!anchorId || hashRevealRef.current === revealKey) {
+      return;
+    }
+
+    hashRevealRef.current = revealKey;
+    revealWorkspaceSection(anchorId);
+  }, [activeTab.id, location.hash, revealWorkspaceSection]);
 
   const handleChange = (event) => {
     const { name, value } = event.target;
@@ -1166,6 +1543,7 @@ const PropertyWorkspacePage = () => {
       });
 
       syncPropertyState(updatedProperty);
+      setIsPropertyDetailsOpen(false);
       toast.success("Property profile updated.");
     } catch (saveError) {
       toast.error(saveError.message || "Failed to update the property.");
@@ -1186,7 +1564,7 @@ const PropertyWorkspacePage = () => {
 
   const handleRunLeadAnalysis = async () => {
     if (!pipelineLeadId) {
-      toast.error("Create a linked lead first.");
+      toast.error("Create a linked deal first.");
       return;
     }
 
@@ -1246,7 +1624,7 @@ const PropertyWorkspacePage = () => {
     reportData,
   }) => {
     if (!pipelineLeadId) {
-      toast.error("Create a linked lead first.");
+      toast.error("Create a linked deal first.");
       return;
     }
 
@@ -1291,11 +1669,11 @@ const PropertyWorkspacePage = () => {
             }
           : previous
       );
-      navigate(buildPropertyWorkspacePath(propertyKey, "analysis"));
+      navigate(buildPropertyWorkspaceSectionPath(propertyKey, "deal", "reports"));
       toast.success(
         acquisitionWorkspaceId
-          ? "Master Deal Report saved to the project."
-          : "Master Deal Report saved."
+          ? "Deal Report saved to the project."
+          : "Deal Report saved."
       );
     } catch (saveError) {
       setLeadWorkspaceError(saveError.message || "Failed to save comps report.");
@@ -1357,7 +1735,7 @@ const PropertyWorkspacePage = () => {
   const handleUpdatePropertyWorkspaceStatus = useCallback(
     async (nextValue) => {
       if (!pipelineLeadId) {
-        toast.error("This property is not linked to a lead.");
+        toast.error("This property is not linked to a deal.");
         return;
       }
 
@@ -1371,9 +1749,9 @@ const PropertyWorkspacePage = () => {
         handleLeadUpdated(updatedLead);
         await loadLeadWorkspace();
 
-        toast.success(nextValue ? "Moved to Property Workspace." : "Removed from Property Workspace.");
+        toast.success(nextValue ? "Moved to Project Workspace." : "Removed from Project Workspace.");
       } catch (workspaceStatusError) {
-        toast.error(workspaceStatusError.message || "Failed to update Property Workspace.");
+        toast.error(workspaceStatusError.message || "Failed to update Project Workspace.");
       } finally {
         setIsUpdatingWorkspaceStatus(false);
       }
@@ -1389,9 +1767,9 @@ const PropertyWorkspacePage = () => {
         syncPropertyState(result.property);
       }
       await loadLeadWorkspace();
-      toast.success("Lead record created.");
+      toast.success("Deal record created.");
     } catch (createError) {
-      toast.error(createError.message || "Failed to create the lead record.");
+      toast.error(createError.message || "Failed to create the deal record.");
     } finally {
       setIsCreatingPipelineWorkspace(false);
     }
@@ -1431,6 +1809,79 @@ const PropertyWorkspacePage = () => {
     }
   }, [managementStrategy, propertyKey, syncPropertyState]);
 
+  const handleOpenProjectUpdateComposer = useCallback((update = null) => {
+    setEditingProjectUpdate(update);
+    setIsUpdateComposerOpen(true);
+  }, []);
+
+  const handleCloseProjectUpdateComposer = useCallback(() => {
+    setEditingProjectUpdate(null);
+    setIsUpdateComposerOpen(false);
+  }, []);
+
+  const handleSaveProjectUpdate = useCallback(
+    async (payload) => {
+      try {
+        setIsSavingProjectUpdate(true);
+        if (editingProjectUpdate?._id) {
+          await updateProjectUpdate(propertyKey, editingProjectUpdate._id, payload);
+          toast.success("Project update saved.");
+        } else {
+          await createProjectUpdate(propertyKey, payload);
+          toast.success("Project update added.");
+        }
+
+        await loadProjectWorkspaceUpdates();
+        handleCloseProjectUpdateComposer();
+      } catch (updateError) {
+        toast.error(updateError.message || "Failed to save the project update.");
+        throw updateError;
+      } finally {
+        setIsSavingProjectUpdate(false);
+      }
+    },
+    [
+      editingProjectUpdate?._id,
+      handleCloseProjectUpdateComposer,
+      loadProjectWorkspaceUpdates,
+      propertyKey,
+    ]
+  );
+
+  const handleDeleteProjectUpdate = useCallback(
+    async (update) => {
+      if (!update?._id) {
+        return;
+      }
+
+      if (!window.confirm("Delete this project update?")) {
+        return;
+      }
+
+      try {
+        await deleteProjectUpdate(propertyKey, update._id);
+        await loadProjectWorkspaceUpdates();
+        toast.success("Project update deleted.");
+      } catch (deleteError) {
+        toast.error(deleteError.message || "Failed to delete the project update.");
+      }
+    },
+    [loadProjectWorkspaceUpdates, propertyKey]
+  );
+
+  const requireAcquisitionWorkspace = useCallback(
+    (message = "Create financials first to use this tool.") => {
+      if (hasAcquisitionWorkspace) {
+        return true;
+      }
+
+      toast.error(message);
+      handleTabSelect("settings");
+      return false;
+    },
+    [handleTabSelect, hasAcquisitionWorkspace]
+  );
+
   const renderLeadWorkspaceState = useCallback(
     ({
       missingLeadTitle,
@@ -1443,7 +1894,7 @@ const PropertyWorkspacePage = () => {
       if (!pipelineLeadId) {
         return (
           <SetupStateCard
-            eyebrow="Lead setup"
+            eyebrow="Deal setup"
             title={missingLeadTitle}
             description={missingLeadDescription}
             primaryAction={
@@ -1453,7 +1904,7 @@ const PropertyWorkspacePage = () => {
                 disabled={isCreatingPipelineWorkspace}
                 className="primary-action disabled:cursor-not-allowed disabled:opacity-70"
               >
-                {isCreatingPipelineWorkspace ? "Creating..." : "Create lead record"}
+                {isCreatingPipelineWorkspace ? "Creating..." : "Create deal record"}
               </button>
             }
           />
@@ -1473,13 +1924,13 @@ const PropertyWorkspacePage = () => {
                 disabled={isUpdatingWorkspaceStatus}
                 className="primary-action disabled:cursor-not-allowed disabled:opacity-70"
               >
-                {isUpdatingWorkspaceStatus ? "Updating..." : "Move to Property Workspace"}
+                {isUpdatingWorkspaceStatus ? "Updating..." : "Move to Project Workspace"}
               </button>
             }
             secondaryAction={
               pipelineLeadPath ? (
                 <Link to={pipelineLeadPath} className="secondary-action">
-                  Open lead
+                  Open deal
                 </Link>
               ) : null
             }
@@ -1494,9 +1945,9 @@ const PropertyWorkspacePage = () => {
       if (!leadWorkspace) {
         return (
           <SetupStateCard
-            eyebrow="Linked lead"
-            title="We could not load the linked lead"
-            description={leadWorkspaceError || "Try again or open the source lead directly."}
+            eyebrow="Linked deal"
+            title="We could not load the linked deal"
+            description={leadWorkspaceError || "Try again or open the source deal directly."}
             primaryAction={
               <button type="button" onClick={loadLeadWorkspace} className="primary-action">
                 Try again
@@ -1505,7 +1956,7 @@ const PropertyWorkspacePage = () => {
             secondaryAction={
               pipelineLeadPath ? (
                 <Link to={pipelineLeadPath} className="secondary-action">
-                  Open lead
+                  Open deal
                 </Link>
               ) : null
             }
@@ -1548,23 +1999,23 @@ const PropertyWorkspacePage = () => {
     [acquisitionStrategy, handleCreateAcquisitionWorkspace, isCreatingAcquisitionWorkspace, property]
   );
 
-  const overviewActions = useMemo(() => {
+  const homeActionQueue = useMemo(() => {
     const actions = [];
 
     if (!hasPipelineWorkspace) {
       actions.push({
         id: "lead",
-        title: "Add lead",
-        detail: "Unlock comps, reports, renovation, and bids.",
-        label: isCreatingPipelineWorkspace ? "Creating..." : "Create lead",
+        title: "Add deal",
+        detail: "Unlock comps, reports, renovation scope, and bid coverage.",
+        label: isCreatingPipelineWorkspace ? "Creating..." : "Create deal",
         disabled: isCreatingPipelineWorkspace,
         onClick: handleCreatePipelineWorkspace,
       });
     } else if (!propertyWorkspaceActive) {
       actions.push({
         id: "activate",
-        title: "Activate analysis",
-        detail: "Use the linked lead inside this property.",
+        title: "Activate deal access",
+        detail: "Bring the linked deal into the project workspace so underwriting stays visible.",
         label: isUpdatingWorkspaceStatus ? "Updating..." : "Activate",
         disabled: isUpdatingWorkspaceStatus,
         onClick: () => handleUpdatePropertyWorkspaceStatus(true),
@@ -1575,7 +2026,7 @@ const PropertyWorkspacePage = () => {
       actions.push({
         id: "financials",
         title: "Add financials",
-        detail: "Budget, expenses, documents, and schedule all start here.",
+        detail: "Budget, lender, expenses, vendors, and files all open after setup.",
         label: isCreatingAcquisitionWorkspace ? "Creating..." : "Create financials",
         disabled: isCreatingAcquisitionWorkspace,
         onClick: handleCreateAcquisitionWorkspace,
@@ -1584,21 +2035,45 @@ const PropertyWorkspacePage = () => {
 
     actions.push({
       id: "tasks",
-      title: openPropertyTasks > 0 ? "Review work" : "Add first task",
+      title: openPropertyTasks > 0 ? "Review execution" : "Add first task",
       detail:
         openPropertyTasks > 0
           ? overduePropertyTasks > 0
             ? `${overduePropertyTasks} overdue task${overduePropertyTasks === 1 ? "" : "s"} need attention.`
-            : `${openPropertyTasks} open task${openPropertyTasks === 1 ? "" : "s"} in progress.`
-          : "Keep the next step visible from day one.",
-      label: "Open work",
-      onClick: () => handleTabSelect("work"),
+            : `${openPropertyTasks} open task${openPropertyTasks === 1 ? "" : "s"} are in motion.`
+          : "Keep the next operating move visible from day one.",
+      label: "Open tasks",
+      onClick: () => handleSectionControlSelect("execution", "tasks"),
     });
 
-    return actions.slice(0, 3);
+    actions.push({
+      id: "budget",
+      title: hasAcquisitionWorkspace ? "Review budget lane" : "Set up budget lane",
+      detail: hasAcquisitionWorkspace
+        ? "Jump into line items, expenses, lender terms, and draws."
+        : "Create financials to unlock the operating budget controls.",
+      label: hasAcquisitionWorkspace ? "Open budget" : "Open setup",
+      onClick: () =>
+        hasAcquisitionWorkspace
+          ? handleSectionControlSelect("budget", "line-items")
+          : handleTabSelect("settings"),
+    });
+
+    if (hasPipelineWorkspace) {
+      actions.push({
+        id: "deal",
+        title: "Review deal context",
+        detail: "Keep report history and original assumptions close to the live project.",
+        label: "Open deal",
+        onClick: () => handleSectionControlSelect("deal", "summary"),
+      });
+    }
+
+    return actions.slice(0, 4);
   }, [
     handleCreateAcquisitionWorkspace,
     handleCreatePipelineWorkspace,
+    handleSectionControlSelect,
     handleTabSelect,
     handleUpdatePropertyWorkspaceStatus,
     hasAcquisitionWorkspace,
@@ -1611,8 +2086,123 @@ const PropertyWorkspacePage = () => {
     propertyWorkspaceActive,
   ]);
 
+  const quickAddActions = useMemo(() => {
+    if (!property || activeTab.id === "settings") {
+      return [];
+    }
+
+    const addTaskAction = {
+      id: "add-task",
+      label: "Add Task",
+      detail: "Capture the next project action.",
+      onSelect: () => setIsTaskQuickAddOpen(true),
+    };
+
+    const addExpenseAction = {
+      id: "add-expense",
+      label: "Add Expense",
+      detail: hasAcquisitionWorkspace
+        ? "Log spend, receipts, and AP details."
+        : "Create financials first to start expense tracking.",
+      onSelect: () => {
+        if (!requireAcquisitionWorkspace("Create financials first to add an expense.")) {
+          return;
+        }
+        setIsExpenseQuickAddOpen(true);
+      },
+    };
+
+    const addBudgetItemAction = {
+      id: "add-budget-item",
+      label: "Add Budget Item",
+      detail: hasAcquisitionWorkspace
+        ? "Add a scope category to the working budget."
+        : "Create financials first to build the project budget.",
+      onSelect: () => {
+        if (!requireAcquisitionWorkspace("Create financials first to add a budget item.")) {
+          return;
+        }
+        setIsBudgetItemQuickAddOpen(true);
+      },
+    };
+
+    const addVendorAction = {
+      id: "add-vendor",
+      label: "Add Vendor",
+      detail: hasAcquisitionWorkspace
+        ? "Save a subcontractor or trade partner."
+        : "Create financials first to start the vendor roster.",
+      onSelect: () => {
+        if (!requireAcquisitionWorkspace("Create financials first to add a vendor.")) {
+          return;
+        }
+        setIsVendorQuickAddOpen(true);
+      },
+    };
+
+    const addUpdateAction = {
+      id: "add-update",
+      label: "Add Update",
+      detail: "Log a site note, issue, vendor update, or lender note.",
+      onSelect: () => handleOpenProjectUpdateComposer(),
+    };
+
+    const addDrawAction = {
+      id: "add-draw-request",
+      label: "Add Draw Request",
+      detail: hasAcquisitionWorkspace
+        ? "Jump to the draws section to prepare the next request."
+        : "Create financials first to manage draws.",
+      onSelect: () => {
+        if (!requireAcquisitionWorkspace("Create financials first to manage draws.")) {
+          return;
+        }
+        handleSectionControlSelect("budget", "draws");
+      },
+    };
+
+    const uploadFileAction = {
+      id: "upload-file",
+      label: "Upload File",
+      detail: hasAcquisitionWorkspace
+        ? "Jump to the document upload area."
+        : "Create financials first to open the project library.",
+      onSelect: () => {
+        if (!requireAcquisitionWorkspace("Create financials first to upload files.")) {
+          return;
+        }
+        handleSectionControlSelect("files", "all-files");
+      },
+    };
+
+    if (activeTab.id === "home") {
+      return [addTaskAction, addExpenseAction, addBudgetItemAction, addUpdateAction];
+    }
+
+    if (activeTab.id === "execution") {
+      return [addTaskAction, addVendorAction, addExpenseAction, addUpdateAction];
+    }
+
+    if (activeTab.id === "budget") {
+      return [addExpenseAction, addBudgetItemAction, addDrawAction, addUpdateAction];
+    }
+
+    if (activeTab.id === "files") {
+      return [uploadFileAction, addUpdateAction];
+    }
+
+    return [addUpdateAction];
+  }, [
+    activeTab.id,
+    handleOpenProjectUpdateComposer,
+    handleSectionControlSelect,
+    hasAcquisitionWorkspace,
+    property,
+    requireAcquisitionWorkspace,
+  ]);
+
   if (loading) {
-    return <LoadingStateCard label="Loading property workspace..." />;
+    return <LoadingStateCard label="Loading project workspace..." />;
   }
 
   if (error) {
@@ -1623,357 +2213,262 @@ const PropertyWorkspacePage = () => {
     return <div className="section-card px-6 py-10 text-center text-ink-500">Property not found.</div>;
   }
 
-  const renderOverviewTab = () => (
+  const renderHomeTab = () => (
     <div className="space-y-4">
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <StatCard
-          label="Next step"
-          value={nextStepCard.value}
-          helper={nextStepCard.helper}
-        />
-        <StatCard
-          label="List"
-          value={listingSummary?.label || "Not listed"}
-          helper={listingSummary?.price || "No active listing price saved."}
-        />
-        <StatCard
-          label="Tasks"
-          value={String(openPropertyTasks)}
-          helper={
-            overduePropertyTasks > 0
-              ? `${overduePropertyTasks} overdue`
-              : "Nothing overdue"
-          }
-        />
-        <StatCard
-          label="Workspaces"
-          value={String(workspaceCount)}
-          helper={`${savedReports.length} saved report${savedReports.length === 1 ? "" : "s"}`}
-        />
-      </div>
+      <PropertyWorkspaceSection
+        title="Today"
+        helper="Keep next actions, today's work, and system signal in one tight operating view."
+        defaultOpen
+        sectionId={HOME_SECTION_IDS.today}
+        revealToken={sectionRevealTokens[HOME_SECTION_IDS.today] || 0}
+      >
+        <div className="grid gap-5 xl:grid-cols-[minmax(0,1.05fr)_390px]">
+          <div className="space-y-3">
+            {homeActionQueue.map((action) => (
+              <ActionQueueCard
+                key={action.id}
+                title={action.title}
+                detail={action.detail}
+                label={action.label}
+                onClick={action.onClick}
+                disabled={action.disabled}
+              />
+            ))}
+          </div>
 
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.05fr)_360px]">
-        <div className="space-y-4">
-          <section className="section-card p-6 sm:p-7">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-              <div>
-                <span className="eyebrow">Next actions</span>
-                <h3 className="mt-3 text-xl font-semibold text-ink-900">Keep moving</h3>
-              </div>
-              <div className="flex flex-wrap gap-3">
-                <button type="button" onClick={handleOpenProfile} className="secondary-action">
-                  Edit profile
-                </button>
-                <button type="button" onClick={() => handleTabSelect("settings")} className="ghost-action">
-                  Open settings
-                </button>
-              </div>
-            </div>
-
-            <div className="mt-5 space-y-3">
-              {overviewActions.map((action) => (
-                <div
-                  key={action.id}
-                  className="flex flex-col gap-3 rounded-[18px] border border-ink-100 bg-white px-4 py-4 sm:flex-row sm:items-center sm:justify-between"
-                >
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold text-ink-900">{action.title}</p>
-                    <p className="mt-1 text-sm text-ink-500">{action.detail}</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={action.onClick}
-                    disabled={action.disabled}
-                    className="secondary-action shrink-0 disabled:cursor-not-allowed disabled:opacity-70"
-                  >
-                    {action.label}
-                  </button>
+          <div className="space-y-4">
+            <div className="rounded-[22px] border border-ink-100 bg-white/92 p-5">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-400">
+                    Upcoming work
+                  </p>
+                  <h4 className="mt-2 text-lg font-semibold text-ink-900">What needs attention next</h4>
                 </div>
-              ))}
-            </div>
-          </section>
+                <button
+                  type="button"
+                  onClick={() => handleSectionControlSelect("execution", "tasks")}
+                  className="ghost-action"
+                >
+                  Open tasks
+                </button>
+              </div>
 
-          <section className="section-card p-6">
-            <div className="flex items-center justify-between gap-3">
+              {propertyTasksError ? (
+                <p className="mt-4 text-sm text-clay-700">{propertyTasksError}</p>
+              ) : propertyTasksLoading ? (
+                <p className="mt-4 text-sm text-ink-500">Loading tasks...</p>
+              ) : nextPropertyTasks.length > 0 ? (
+                <div className="mt-4 space-y-3">
+                  {nextPropertyTasks.map((task) => (
+                    <div
+                      key={task._id}
+                      className="rounded-[18px] border border-ink-100 bg-ink-50/40 px-4 py-4"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-ink-900">
+                            {task.title || "Untitled task"}
+                          </p>
+                          <p className="mt-1 text-sm text-ink-500">
+                            {task.dueDate || task.endDate
+                              ? `Due ${formatCompactDate(task.dueDate || task.endDate)}`
+                              : "No due date"}
+                          </p>
+                        </div>
+                        <span
+                          className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                            isTaskOverdue(task)
+                              ? "bg-clay-50 text-clay-700"
+                              : "bg-sand-50 text-ink-700"
+                          }`}
+                        >
+                          {task.status || "Open"}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="mt-4 text-sm text-ink-500">No upcoming tasks yet.</p>
+              )}
+            </div>
+
+            <div className="rounded-[22px] border border-ink-100 bg-sand-50/70 p-5">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-400">
+                System signal
+              </p>
+              {recentActivity.length > 0 ? (
+                <div className="mt-4 space-y-3">
+                  {recentActivity.slice(0, 3).map((item) => (
+                    <div key={item.id} className="rounded-[18px] bg-white/92 px-4 py-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-semibold text-ink-900">{item.title}</p>
+                          <p className="mt-1 text-sm text-ink-500">{item.detail}</p>
+                        </div>
+                        <span className="text-xs font-medium text-ink-400">
+                          {formatDateTime(item.timestamp)}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="mt-4 text-sm text-ink-500">No recent system activity yet.</p>
+              )}
+            </div>
+          </div>
+        </div>
+      </PropertyWorkspaceSection>
+
+      <PropertyWorkspaceSection
+        title="At Risk"
+        helper="Keep the project's pricing, budget pressure, vendor coverage, and lender readiness visible."
+        sectionId={HOME_SECTION_IDS["at-risk"]}
+        revealToken={sectionRevealTokens[HOME_SECTION_IDS["at-risk"]] || 0}
+      >
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <StatCard label="Next step" value={nextStepCard.value} helper={nextStepCard.helper} />
+          <StatCard label="Deal health" value={dealHealthCard.value} helper={dealHealthCard.helper} />
+          <StatCard label="Budget health" value={budgetHealthCard.value} helper={budgetHealthCard.helper} />
+          <StatCard
+            label="Open tasks"
+            value={String(openPropertyTasks)}
+            helper={overduePropertyTasks > 0 ? `${overduePropertyTasks} overdue` : "Nothing overdue"}
+          />
+        </div>
+
+        <div className="mt-4 grid gap-4 xl:grid-cols-2">
+          <div className="rounded-[22px] border border-ink-100 bg-white/92 p-5">
+            <div className="flex items-start justify-between gap-3">
               <div>
-                <span className="eyebrow">Upcoming</span>
-                <h3 className="mt-3 text-xl font-semibold text-ink-900">Next tasks</h3>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-400">
+                  Procurement
+                </p>
+                <h4 className="mt-2 text-lg font-semibold text-ink-900">Vendor coverage and commitments</h4>
               </div>
               <button
                 type="button"
-                onClick={() => handleTabSelect("work")}
+                onClick={() => handleSectionControlSelect("execution", "procurement")}
                 className="ghost-action"
               >
-                See all
+                Open procurement
               </button>
             </div>
+            <p className="mt-4 text-sm leading-6 text-ink-500">{procurementSummary}</p>
+          </div>
 
-            {propertyTasksError ? (
-              <p className="mt-4 text-sm text-clay-700">{propertyTasksError}</p>
-            ) : propertyTasksLoading ? (
-              <p className="mt-4 text-sm text-ink-500">Loading tasks...</p>
-            ) : nextPropertyTasks.length > 0 ? (
-              <div className="mt-5 space-y-3">
-                {nextPropertyTasks.map((task) => (
-                  <div key={task._id} className="rounded-[18px] border border-ink-100 bg-white px-4 py-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="text-sm font-semibold text-ink-900">{task.title || "Untitled task"}</p>
-                        <p className="mt-1 text-sm text-ink-500">
-                          {task.endDate ? `Due ${formatCompactDate(task.endDate)}` : "No due date"}
-                        </p>
-                      </div>
-                      <span
-                        className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                          isTaskOverdue(task)
-                            ? "bg-clay-50 text-clay-700"
-                            : "bg-sand-50 text-ink-700"
-                        }`}
-                      >
-                        {task.status || "Open"}
-                      </span>
-                    </div>
-                  </div>
-                ))}
+          <div className="rounded-[22px] border border-ink-100 bg-white/92 p-5">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-400">
+                  Lender
+                </p>
+                <h4 className="mt-2 text-lg font-semibold text-ink-900">Debt, draws, and payment cadence</h4>
               </div>
-            ) : (
-              <p className="mt-4 text-sm text-ink-500">No upcoming tasks yet.</p>
-            )}
-          </section>
+              <button
+                type="button"
+                onClick={() =>
+                  hasAcquisitionWorkspace
+                    ? handleSectionControlSelect("budget", "lender")
+                    : handleTabSelect("settings")
+                }
+                className="ghost-action"
+              >
+                {hasAcquisitionWorkspace ? "Open lender" : "Open setup"}
+              </button>
+            </div>
+            <p className="mt-4 text-sm leading-6 text-ink-500">
+              {hasAcquisitionWorkspace
+                ? "Loan terms, capital stack, payment schedule, and draw operations stay inside the Budget lane."
+                : "Create financials to unlock lender notes, draw support, and repayment tracking."}
+            </p>
+          </div>
+        </div>
+      </PropertyWorkspaceSection>
+
+      <div id={HOME_SECTION_IDS.updates}>
+        <ProjectUpdatesPanel
+          compact
+          updates={projectUpdates}
+          isLoading={projectUpdatesLoading}
+          error={projectUpdatesError}
+          onAdd={() => handleOpenProjectUpdateComposer()}
+          onEdit={handleOpenProjectUpdateComposer}
+          onDelete={handleDeleteProjectUpdate}
+        />
+      </div>
+
+      <PropertyWorkspaceSection
+        title="Property Details"
+        helper="Keep the physical asset easy to reference without turning Home into a long profile form."
+        sectionId={HOME_SECTION_IDS["property-details"]}
+        revealToken={sectionRevealTokens[HOME_SECTION_IDS["property-details"]] || 0}
+      >
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <p className="text-sm text-ink-500">
+              Asset facts, listing status, and the project key stay close by for fast reference.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <button type="button" onClick={handleOpenPropertyDetails} className="secondary-action">
+              Edit property details
+            </button>
+            <button type="button" onClick={() => handleTabSelect("settings")} className="ghost-action">
+              Project setup
+            </button>
+          </div>
         </div>
 
-        <section className="section-card p-6">
-          <span className="eyebrow">Recent activity</span>
-          <h3 className="mt-3 text-xl font-semibold text-ink-900">Latest updates</h3>
-          {recentActivity.length > 0 ? (
-            <div className="mt-5 space-y-3">
-              {recentActivity.map((item) => (
-                <div key={item.id} className="rounded-[18px] bg-ink-50/60 px-4 py-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-semibold text-ink-900">{item.title}</p>
-                      <p className="mt-1 text-sm text-ink-500">{item.detail}</p>
-                    </div>
-                    <span className="shrink-0 text-xs font-medium text-ink-400">
-                      {formatDateTime(item.timestamp)}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="mt-4 text-sm text-ink-500">No recent activity yet.</p>
-          )}
-        </section>
-      </div>
-
-      <div ref={profileSectionRef}>
-        <PropertyWorkspaceSection
-          title="Property profile"
-          helper="Edit address, facts, and listing details."
-          defaultOpen
-        >
-          <form onSubmit={handleSave} className="space-y-6">
-            <div className="grid gap-5 md:grid-cols-2">
-              <div className="relative md:col-span-2">
-                <ProfileField label="Address">
-                  <input
-                    name="addressLine1"
-                    value={formData.addressLine1}
-                    onChange={handleChange}
-                    className="auth-input"
-                    placeholder="Start typing the property address..."
-                    required
-                  />
-                </ProfileField>
-
-                {suggestions.length > 0 ? (
-                  <div className="absolute z-20 mt-2 max-h-64 w-full overflow-y-auto rounded-[16px] border border-ink-100 bg-white shadow-soft">
-                    {suggestions.map((suggestion) => (
-                      <button
-                        key={suggestion.id}
-                        type="button"
-                        onClick={() => handleSelectSuggestion(suggestion)}
-                        className="w-full border-b border-ink-100 px-4 py-3 text-left text-sm text-ink-700 transition hover:bg-sand-50 last:border-b-0"
-                      >
-                        {suggestion.place_name}
-                      </button>
-                    ))}
-                  </div>
-                ) : null}
-              </div>
-
-              <div className="md:col-span-2 flex flex-wrap items-center gap-3">
-                <button
-                  type="button"
-                  onClick={() => handlePreviewLookup()}
-                  disabled={isPreviewLoading || !composeAddress(formData).trim()}
-                  className="secondary-action disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {isPreviewLoading ? "Loading details..." : "Auto-fill details"}
-                </button>
-                <p className="text-sm text-ink-500">Suggestions from {getLocationProviderName()}.</p>
-                {previewMetadata ? (
-                  <span className="text-sm text-ink-500">
-                    {previewMetadata.propertyFound ? "Facts found." : "No facts found."}{" "}
-                    {previewMetadata.activeListingFound ? "Listing found." : "No listing found."}
-                  </span>
-                ) : null}
-              </div>
-
-              <ProfileField label="City">
-                <input name="city" value={formData.city} onChange={handleChange} className="auth-input" />
-              </ProfileField>
-              <ProfileField label="State">
-                <input name="state" value={formData.state} onChange={handleChange} className="auth-input" />
-              </ProfileField>
-              <ProfileField label="Zip code">
-                <input name="zipCode" value={formData.zipCode} onChange={handleChange} className="auth-input" />
-              </ProfileField>
-              <ProfileField label="Property type">
-                <select
-                  name="propertyType"
-                  value={formData.propertyType}
-                  onChange={handleChange}
-                  className="auth-input appearance-none"
-                >
-                  {propertyTypeOptions.map((option) => (
-                    <option key={option.value || "empty"} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </ProfileField>
-              {showsUnitCount ? (
-                <ProfileField label="Unit count">
-                  <input
-                    name="unitCount"
-                    type="number"
-                    value={formData.unitCount}
-                    onChange={handleChange}
-                    className="auth-input"
-                  />
-                </ProfileField>
-              ) : (
-                <div className="hidden md:block" />
-              )}
-              <ProfileField label="Bedrooms">
-                <input
-                  name="bedrooms"
-                  type="number"
-                  value={formData.bedrooms}
-                  onChange={handleChange}
-                  className="auth-input"
-                />
-              </ProfileField>
-              <ProfileField label="Bathrooms">
-                <input
-                  name="bathrooms"
-                  type="number"
-                  step="0.5"
-                  value={formData.bathrooms}
-                  onChange={handleChange}
-                  className="auth-input"
-                />
-              </ProfileField>
-              <ProfileField label="Square footage">
-                <input
-                  name="squareFootage"
-                  type="number"
-                  value={formData.squareFootage}
-                  onChange={handleChange}
-                  className="auth-input"
-                />
-              </ProfileField>
-              <ProfileField label="Lot size">
-                <input
-                  name="lotSize"
-                  type="number"
-                  value={formData.lotSize}
-                  onChange={handleChange}
-                  className="auth-input"
-                />
-              </ProfileField>
-              <ProfileField label="Year built">
-                <input
-                  name="yearBuilt"
-                  type="number"
-                  value={formData.yearBuilt}
-                  onChange={handleChange}
-                  className="auth-input"
-                />
-              </ProfileField>
-
-              <div className="md:col-span-2 grid gap-5 rounded-[20px] border border-ink-100 bg-sand-50/60 p-5 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(220px,0.9fr)]">
-                <ProfileField label="Listing status">
-                  <input
-                    name="listingStatus"
-                    value={formData.listingStatus}
-                    onChange={handleChange}
-                    className="auth-input"
-                    placeholder="For Sale"
-                  />
-                </ProfileField>
-                <ProfileField label="Asking price">
-                  <input
-                    name="sellerAskingPrice"
-                    type="number"
-                    value={formData.sellerAskingPrice}
-                    onChange={handleChange}
-                    className="auth-input"
-                    placeholder="0"
-                  />
-                </ProfileField>
-                <div className="rounded-[18px] border border-ink-100 bg-white/90 p-4">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-400">
-                    Snapshot
-                  </p>
-                  <p className="mt-2 text-sm font-semibold text-ink-900">
-                    {formData.listingStatus || formData.sellerAskingPrice ? formData.listingStatus || "For Sale" : "Not listed"}
-                  </p>
-                  <p className="mt-2 text-sm leading-6 text-ink-500">
-                    {formData.sellerAskingPrice
-                      ? formatCurrency(formData.sellerAskingPrice)
-                      : "No asking price saved."}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-ink-100 pt-5">
-              <p className="text-sm text-ink-500">
-                Property key <span className="font-semibold text-ink-900">{property.propertyKey}</span>
-              </p>
-              <button
-                type="submit"
-                disabled={isSaving}
-                className="primary-action disabled:cursor-not-allowed disabled:opacity-70"
-              >
-                {isSaving ? "Saving..." : "Save changes"}
-              </button>
-            </div>
-          </form>
-        </PropertyWorkspaceSection>
-      </div>
+        <div className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <div className="rounded-[18px] bg-white px-4 py-4 ring-1 ring-ink-100">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-400">Asset profile</p>
+            <p className="mt-2 text-sm font-semibold text-ink-900">{detailLine}</p>
+          </div>
+          <div className="rounded-[18px] bg-white px-4 py-4 ring-1 ring-ink-100">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-400">Listing</p>
+            <p className="mt-2 text-sm font-semibold text-ink-900">{listingSummary?.label || "Not listed"}</p>
+            <p className="mt-1 text-xs text-ink-500">{listingSummary?.price || "No asking price saved."}</p>
+          </div>
+          <div className="rounded-[18px] bg-white px-4 py-4 ring-1 ring-ink-100">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-400">Property key</p>
+            <p className="mt-2 break-all text-sm font-semibold text-ink-900">{property.propertyKey}</p>
+          </div>
+          <div className="rounded-[18px] bg-white px-4 py-4 ring-1 ring-ink-100">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-400">Linked records</p>
+            <p className="mt-2 text-sm font-semibold text-ink-900">{workspaceCount}</p>
+            <p className="mt-1 text-xs text-ink-500">Deal, budget, and management records</p>
+          </div>
+        </div>
+      </PropertyWorkspaceSection>
     </div>
   );
 
-  const renderFinancialsTab = () => (
+  const renderBudgetTab = () => (
     <div className="space-y-4">
-      {!hasAcquisitionWorkspace
-        ? renderAcquisitionSetup({
-            title: "Add financials to this property",
-            description:
-              "Budget, debt, expenses, draws, payments, and reports all start here.",
-          })
-        : null}
+      <SectionSegmentedControl
+        label="Budget views"
+        items={getPropertyWorkspaceSections("budget")}
+        activeItemId={activeSections.budget}
+        onSelect={(nextSection) => handleSectionControlSelect("budget", nextSection)}
+      />
 
-      {hasAcquisitionWorkspace ? (
+      {!hasAcquisitionWorkspace ? (
+        renderAcquisitionSetup({
+          title: "Add financials to this project",
+          description:
+            "Budget, lender, expenses, draws, and finance reports all start here.",
+        })
+      ) : (
         <>
           <PropertyWorkspaceSection
-            title="Snapshot & profitability"
-            helper="Basis, holding costs, and returns."
+            title="Snapshot"
+            helper="View profitability, carrying costs, and current finance health."
             defaultOpen
+            sectionId={BUDGET_SECTION_IDS.snapshot}
+            revealToken={sectionRevealTokens[BUDGET_SECTION_IDS.snapshot] || 0}
           >
             <PropertyFinancePanel
               property={property}
@@ -1985,26 +2480,15 @@ const PropertyWorkspacePage = () => {
           </PropertyWorkspaceSection>
 
           <PropertyWorkspaceSection
-            title="Capital & lenders"
-            helper="Funding sources, lender terms, and draw structure."
+            title="Line Items"
+            helper="Run the working budget from category-level scope lines and variance."
+            sectionId={BUDGET_SECTION_IDS["line-items"]}
+            revealToken={sectionRevealTokens[BUDGET_SECTION_IDS["line-items"]] || 0}
           >
-            <PropertyFinancePanel
+            <PropertyCostsPanel
               property={property}
               propertyKey={propertyKey}
-              activeContentKey="finance-capital-stack"
-              onPropertyUpdated={syncPropertyState}
-              embedded
-            />
-          </PropertyWorkspaceSection>
-
-          <PropertyWorkspaceSection
-            title="Budget & actuals"
-            helper="Budget, commitments, and real spend."
-          >
-            <PropertyFinancePanel
-              property={property}
-              propertyKey={propertyKey}
-              activeContentKey="finance-budget-vs-actual"
+              activeContentKey="costs-budget"
               onPropertyUpdated={syncPropertyState}
               embedded
             />
@@ -2012,7 +2496,9 @@ const PropertyWorkspacePage = () => {
 
           <PropertyWorkspaceSection
             title="Expenses"
-            helper="Expense ledger and receipts."
+            helper="Track live spend, receipts, and payables."
+            sectionId={BUDGET_SECTION_IDS.expenses}
+            revealToken={sectionRevealTokens[BUDGET_SECTION_IDS.expenses] || 0}
           >
             <PropertyCostsPanel
               property={property}
@@ -2024,14 +2510,16 @@ const PropertyWorkspacePage = () => {
           </PropertyWorkspaceSection>
 
           <PropertyWorkspaceSection
-            title="Draws & payments"
-            helper="Draw requests and servicing."
+            title="Lender"
+            helper="Review capital stack, lender terms, and payment cadence together."
+            sectionId={BUDGET_SECTION_IDS.lender}
+            revealToken={sectionRevealTokens[BUDGET_SECTION_IDS.lender] || 0}
           >
             <div className="space-y-5">
               <PropertyFinancePanel
                 property={property}
                 propertyKey={propertyKey}
-                activeContentKey="finance-draw-operations"
+                activeContentKey="finance-capital-stack"
                 onPropertyUpdated={syncPropertyState}
                 embedded
               />
@@ -2046,8 +2534,25 @@ const PropertyWorkspacePage = () => {
           </PropertyWorkspaceSection>
 
           <PropertyWorkspaceSection
+            title="Draws"
+            helper="Prepare draw support and manage request timing."
+            sectionId={BUDGET_SECTION_IDS.draws}
+            revealToken={sectionRevealTokens[BUDGET_SECTION_IDS.draws] || 0}
+          >
+            <PropertyFinancePanel
+              property={property}
+              propertyKey={propertyKey}
+              activeContentKey="finance-draw-operations"
+              onPropertyUpdated={syncPropertyState}
+              embedded
+            />
+          </PropertyWorkspaceSection>
+
+          <PropertyWorkspaceSection
             title="Reports"
-            helper="Export finance views."
+            helper="Export finance-ready views for lenders, partners, and internal review."
+            sectionId={BUDGET_SECTION_IDS.reports}
+            revealToken={sectionRevealTokens[BUDGET_SECTION_IDS.reports] || 0}
           >
             <PropertyFinancePanel
               property={property}
@@ -2058,20 +2563,53 @@ const PropertyWorkspacePage = () => {
             />
           </PropertyWorkspaceSection>
         </>
-      ) : null}
+      )}
     </div>
   );
 
-  const renderWorkTab = () => (
+  const renderExecutionTab = () => (
     <div className="space-y-4">
+      <SectionSegmentedControl
+        label="Execution views"
+        items={getPropertyWorkspaceSections("execution")}
+        activeItemId={activeSections.execution}
+        onSelect={(nextSection) => handleSectionControlSelect("execution", nextSection)}
+      />
+
+      <PropertyWorkspaceSection
+        title="Scope Budget"
+        helper="Run the job from scope categories, commitments, and live budget visibility."
+        defaultOpen
+        sectionId={EXECUTION_SECTION_IDS["scope-budget"]}
+        revealToken={sectionRevealTokens[EXECUTION_SECTION_IDS["scope-budget"]] || 0}
+      >
+        {hasAcquisitionWorkspace ? (
+          <PropertyCostsPanel
+            property={property}
+            propertyKey={propertyKey}
+            activeContentKey="costs-budget"
+            onPropertyUpdated={syncPropertyState}
+            embedded
+          />
+        ) : (
+          renderAcquisitionSetup({
+            title: "Add financials to unlock scope budget",
+            description:
+              "Scope categories, commitments, and budget visibility begin after the budget workspace is created.",
+            buttonLabel: "Create financials",
+          })
+        )}
+      </PropertyWorkspaceSection>
+
       <PropertyWorkspaceSection
         title="Tasks"
-        helper="Property-level action items."
-        defaultOpen
+        helper="Keep next actions, follow-ups, and field work in motion."
+        sectionId={EXECUTION_SECTION_IDS.tasks}
+        revealToken={sectionRevealTokens[EXECUTION_SECTION_IDS.tasks] || 0}
       >
         <TasksPanel
-          title="Property tasks"
-          description="Track follow-ups, next steps, and operational work for this property."
+          title="Project tasks"
+          description="Track follow-ups, next steps, and operating work for this project."
           query={{
             propertyKey: property.propertyKey,
           }}
@@ -2088,22 +2626,14 @@ const PropertyWorkspacePage = () => {
         />
       </PropertyWorkspaceSection>
 
-      {!hasAcquisitionWorkspace
-        ? renderAcquisitionSetup({
-            title: "Add financials to unlock execution tools",
-            description:
-              "Schedule, vendors, commitments, and timeline run from the financial workspace.",
-            buttonLabel: "Create financials",
-          })
-        : null}
-
-      {hasAcquisitionWorkspace ? (
-        <>
-          <PropertyWorkspaceSection
-            title="Schedule"
-            helper="Calendar, gantt, and milestones."
-            defaultOpen
-          >
+      <PropertyWorkspaceSection
+        title="Schedule"
+        helper="Stay close to milestones, gantt timing, and the live timeline."
+        sectionId={EXECUTION_SECTION_IDS.schedule}
+        revealToken={sectionRevealTokens[EXECUTION_SECTION_IDS.schedule] || 0}
+      >
+        {hasAcquisitionWorkspace ? (
+          <div className="space-y-5">
             <PropertyOperationsPanel
               property={property}
               propertyKey={propertyKey}
@@ -2111,38 +2641,6 @@ const PropertyWorkspacePage = () => {
               onPropertyUpdated={syncPropertyState}
               embedded
             />
-          </PropertyWorkspaceSection>
-
-          <PropertyWorkspaceSection
-            title="Vendors"
-            helper="Vendor roster and readiness."
-          >
-            <PropertyOperationsPanel
-              property={property}
-              propertyKey={propertyKey}
-              activeContentKey="operations-vendors"
-              onPropertyUpdated={syncPropertyState}
-              embedded
-            />
-          </PropertyWorkspaceSection>
-
-          <PropertyWorkspaceSection
-            title="Commitments"
-            helper="Awarded amounts and unpaid work."
-          >
-            <PropertyCostsPanel
-              property={property}
-              propertyKey={propertyKey}
-              activeContentKey="costs-commitments"
-              onPropertyUpdated={syncPropertyState}
-              embedded
-            />
-          </PropertyWorkspaceSection>
-
-          <PropertyWorkspaceSection
-            title="Timeline"
-            helper="Work, cost, and document history."
-          >
             <PropertyOperationsPanel
               property={property}
               propertyKey={propertyKey}
@@ -2150,320 +2648,373 @@ const PropertyWorkspacePage = () => {
               onPropertyUpdated={syncPropertyState}
               embedded
             />
-          </PropertyWorkspaceSection>
-        </>
-      ) : null}
-
-      <PropertyWorkspaceSection
-        title="Vendor bids"
-        helper={
-          hasAcquisitionWorkspace
-            ? "Compare bids against the project scope."
-            : "Compare bids against the planned lead scope before execution starts."
-        }
-      >
-        {renderLeadWorkspaceState({
-          missingLeadTitle: "Add a lead to manage bids",
-          missingLeadDescription:
-            "Bids start on the linked lead and carry into the project scope once financials are created.",
-          inactiveTitle: "Activate analysis to manage bids here",
-          inactiveDescription:
-            "Turn on the linked lead inside this property to use bid tools here.",
-          loadingLabel: "Loading bid management...",
-          renderContent: () => (
-            <BidsTab
-              leadId={pipelineLeadId}
-              investmentId={property?.workspaces?.acquisitions?.id || ""}
-              bids={bids}
-              renovationItems={renovationItems}
-              onUpdate={handleBidsUpdated}
-            />
-          ),
-        })}
-      </PropertyWorkspaceSection>
-    </div>
-  );
-
-  const renderDocumentsTab = () => (
-    <div className="space-y-4">
-      {!hasAcquisitionWorkspace
-        ? renderAcquisitionSetup({
-            title: "Add financials to unlock documents",
+          </div>
+        ) : (
+          renderAcquisitionSetup({
+            title: "Add financials to unlock schedule tools",
             description:
-              "Uploads, draw support files, and document links are stored there.",
+              "Schedules, milestones, and timeline planning live inside the budget-backed execution workspace.",
             buttonLabel: "Create financials",
           })
-        : (
-          <PropertyDocumentsPanel
+        )}
+      </PropertyWorkspaceSection>
+
+      <PropertyWorkspaceSection
+        title="Vendors"
+        helper="Manage the subcontractor roster and assigned relationships."
+        sectionId={EXECUTION_SECTION_IDS.vendors}
+        revealToken={sectionRevealTokens[EXECUTION_SECTION_IDS.vendors] || 0}
+      >
+        {hasAcquisitionWorkspace ? (
+          <PropertyOperationsPanel
             property={property}
             propertyKey={propertyKey}
+            activeContentKey="operations-vendors"
             onPropertyUpdated={syncPropertyState}
             embedded
           />
+        ) : (
+          renderAcquisitionSetup({
+            title: "Add financials to unlock vendor management",
+            description:
+              "Vendor records, assignments, and supporting documents begin after the budget workspace is active.",
+            buttonLabel: "Create financials",
+          })
         )}
+      </PropertyWorkspaceSection>
+
+      <PropertyWorkspaceSection
+        title="Procurement"
+        helper="Stay on top of commitments, awarded work, and bid comparison."
+        sectionId={EXECUTION_SECTION_IDS.procurement}
+        revealToken={sectionRevealTokens[EXECUTION_SECTION_IDS.procurement] || 0}
+      >
+        <div className="space-y-5">
+          {hasAcquisitionWorkspace ? (
+            <PropertyCostsPanel
+              property={property}
+              propertyKey={propertyKey}
+              activeContentKey="costs-commitments"
+              onPropertyUpdated={syncPropertyState}
+              embedded
+            />
+          ) : (
+            <div className="rounded-[18px] border border-ink-100 bg-sand-50/70 px-5 py-4 text-sm leading-6 text-ink-600">
+              Commitments and awarded work will appear here once the budget workspace is created.
+            </div>
+          )}
+
+          {renderLeadWorkspaceState({
+            missingLeadTitle: "Add a deal to manage bids",
+            missingLeadDescription:
+              "Bids start on the linked deal and carry into the project scope once financials are created.",
+            inactiveTitle: "Activate deal access to manage bids here",
+            inactiveDescription:
+              "Turn on the linked deal inside this project to use bid tools here.",
+            loadingLabel: "Loading bid management...",
+            renderContent: () => (
+              <BidsTab
+                leadId={pipelineLeadId}
+                investmentId={property?.workspaces?.acquisitions?.id || ""}
+                bids={bids}
+                renovationItems={renovationItems}
+                onUpdate={handleBidsUpdated}
+              />
+            ),
+          })}
+        </div>
+      </PropertyWorkspaceSection>
+
+      <div id={EXECUTION_SECTION_IDS.updates}>
+        <ProjectUpdatesPanel
+          updates={projectUpdates}
+          isLoading={projectUpdatesLoading}
+          error={projectUpdatesError}
+          onAdd={() => handleOpenProjectUpdateComposer()}
+          onEdit={handleOpenProjectUpdateComposer}
+          onDelete={handleDeleteProjectUpdate}
+        />
+      </div>
     </div>
   );
 
-  const renderAnalysisTab = () => {
-    const compsAction = buildAnalysisSectionAction("Run new report", ANALYSIS_SECTION_IDS.comps);
-    const scopeAction = buildAnalysisSectionAction("Edit scope", ANALYSIS_SECTION_IDS.scope);
+  const renderFilesTab = () => (
+    <div className="space-y-4">
+      <SectionSegmentedControl
+        label="File views"
+        items={getPropertyWorkspaceSections("files")}
+        activeItemId={activeSections.files}
+        onSelect={(nextSection) => handleSectionControlSelect("files", nextSection)}
+      />
+
+      {!hasAcquisitionWorkspace ? (
+        renderAcquisitionSetup({
+          title: "Add financials to unlock files",
+          description:
+            "Uploads, draw support, contracts, receipts, and document links open as soon as the budget workspace exists.",
+          buttonLabel: "Create financials",
+        })
+      ) : (
+        <PropertyDocumentsPanel
+          property={property}
+          propertyKey={propertyKey}
+          onPropertyUpdated={syncPropertyState}
+          embedded
+          sectionAnchors={{
+            allFiles: FILES_SECTION_IDS["all-files"],
+            loanDraw: FILES_SECTION_IDS["loan-draw"],
+            contractsBids: FILES_SECTION_IDS["contracts-bids"],
+            receiptsInvoices: FILES_SECTION_IDS["receipts-invoices"],
+            photos: FILES_SECTION_IDS.photos,
+          }}
+        />
+      )}
+    </div>
+  );
+
+  const renderDealTab = () => {
+    const reportAction = buildDealSectionAction("Run Deal Report", DEAL_SECTION_IDS.reports);
+    const scopeAction = buildDealSectionAction(
+      "Edit scope",
+      DEAL_SECTION_IDS["renovation-scope"]
+    );
     const summaryActions = [
       {
-        label: "Edit profile",
-        onClick: handleOpenProfile,
+        label: "Property details",
+        onClick: handleOpenPropertyDetails,
       },
       {
-        label: "Edit financials",
-        onClick: () => handleTabSelect("financials"),
+        label: "Open budget",
+        onClick: () =>
+          hasAcquisitionWorkspace
+            ? handleSectionControlSelect("budget", "line-items")
+            : handleTabSelect("settings"),
       },
       scopeAction,
     ];
     const reportActions = [
-      compsAction,
+      reportAction,
       {
-        label: "Edit financials",
-        onClick: () => handleTabSelect("financials"),
+        label: "Open deal summary",
+        onClick: () => handleSectionControlSelect("deal", "summary"),
       },
-      scopeAction,
     ];
 
     return (
       <div className="space-y-4">
-      <PropertyWorkspaceSection
-        title="Deal summary"
-        helper="Property story from assumptions through current numbers."
-        defaultOpen
-        sectionId={ANALYSIS_SECTION_IDS.summary}
-        revealToken={sectionRevealTokens[ANALYSIS_SECTION_IDS.summary] || 0}
-        action={<div className="flex flex-wrap gap-3">{renderWorkspaceButtons(summaryActions)}</div>}
-      >
-        <PropertySummaryPanel
-          property={property}
-          propertyKey={propertyKey}
-          activeContentKey="acquisition-summary"
-          leadWorkspace={leadWorkspace}
-          savedReports={savedReports}
-          pipelineLeadPath={pipelineLeadPath}
-          embedded
-          embeddedActions={renderWorkspaceButtons(summaryActions)}
-          emptyActions={renderWorkspaceButtons([
-            compsAction,
-            {
-              label: "Edit profile",
-              onClick: handleOpenProfile,
-            },
-          ])}
+        <SectionSegmentedControl
+          label="Deal views"
+          items={getPropertyWorkspaceSections("deal")}
+          activeItemId={activeSections.deal}
+          onSelect={(nextSection) => handleSectionControlSelect("deal", nextSection)}
         />
-      </PropertyWorkspaceSection>
 
-      <PropertyWorkspaceSection
-        title="Comps"
-        helper="Run comps and save reports that carry into execution."
-        sectionId={ANALYSIS_SECTION_IDS.comps}
-        revealToken={sectionRevealTokens[ANALYSIS_SECTION_IDS.comps] || 0}
-        action={
-          <div className="flex flex-wrap gap-3">
-            {renderWorkspaceButtons([
+        <PropertyWorkspaceSection
+          title="Summary"
+          helper="Keep the acquisition story, report signal, and current property context in one place."
+          defaultOpen
+          sectionId={DEAL_SECTION_IDS.summary}
+          revealToken={sectionRevealTokens[DEAL_SECTION_IDS.summary] || 0}
+          action={<div className="flex flex-wrap gap-3">{renderWorkspaceButtons(summaryActions)}</div>}
+        >
+          <PropertySummaryPanel
+            property={property}
+            propertyKey={propertyKey}
+            activeContentKey="acquisition-summary"
+            leadWorkspace={leadWorkspace}
+            savedReports={savedReports}
+            pipelineLeadPath={pipelineLeadPath}
+            embedded
+            embeddedActions={renderWorkspaceButtons(summaryActions)}
+            emptyActions={renderWorkspaceButtons([
+              reportAction,
               {
-                label: "Edit profile",
-                onClick: handleOpenProfile,
-              },
-              {
-                label: "Edit financials",
-                onClick: () => handleTabSelect("financials"),
-              },
-              scopeAction,
-            ])}
-          </div>
-        }
-      >
-        {renderLeadWorkspaceState({
-          missingLeadTitle: "Add a lead to run comps",
-          missingLeadDescription:
-            "Comps start on the linked lead, then saved reports can carry into the project once financials exist.",
-          inactiveTitle: "Activate analysis to run comps here",
-          inactiveDescription:
-            "Turn on the linked lead inside this property to use comps here.",
-          loadingLabel: "Loading comps analysis...",
-          renderContent: () => (
-            <MasterDealReportWorkspace
-              subject={leadWorkspace}
-              report={analysis}
-              filters={filters}
-              deal={dealForm}
-              onFilterChange={handleLeadFilterChange}
-              onDealChange={handleLeadDealChange}
-              isAnalyzing={isAnalyzing}
-              onRunAnalysis={handleRunLeadAnalysis}
-              billingAccess={billingAccess}
-              isBillingAccessLoading={isBillingAccessLoading}
-              onStartSubscription={handleStartSubscription}
-              isStartingSubscription={isStartingSubscription}
-              onBuyReport={handleBuyCredits}
-              isStartingCheckout={isStartingCheckout}
-              onSaveReport={handleSaveLeadReport}
-              isSavingReport={isSavingReport}
-              saveButtonLabel={
-                acquisitionWorkspaceId ? "Save to project history" : "Save property report"
-              }
-              runButtonLabel="Run Property Master Report"
-              showOneTimeCheckout
-              reportNotice={compsNotice}
-              renderSubjectPanel={() => (
-                <div className="section-card p-6">
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <h3 className="text-xl font-semibold text-ink-900">Deal snapshot</h3>
-                      <p className="mt-1 text-sm text-ink-500">
-                        Subject facts and pricing come from the linked lead.
-                      </p>
-                    </div>
-                    {pipelineLeadPath ? (
-                      <Link to={pipelineLeadPath} className="ghost-action">
-                        Open lead
-                      </Link>
-                    ) : null}
-                  </div>
-
-                  <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                    <div className="rounded-[18px] bg-sand-50 px-4 py-3">
-                      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-400">
-                        Property
-                      </p>
-                      <p className="mt-2 text-sm font-semibold text-ink-900">
-                        {[
-                          leadWorkspace.propertyType,
-                          leadWorkspace.squareFootage
-                            ? `${Number(leadWorkspace.squareFootage).toLocaleString()} sqft`
-                            : null,
-                        ]
-                          .filter(Boolean)
-                          .join(" • ") || "No property facts saved yet"}
-                      </p>
-                    </div>
-                    <div className="rounded-[18px] bg-sand-50 px-4 py-3">
-                      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-400">
-                        Pricing
-                      </p>
-                      <p className="mt-2 text-sm font-semibold text-ink-900">
-                        Ask {formatCurrency(leadPricingSummary.askingPrice)}
-                      </p>
-                      <p className="mt-1 text-xs text-ink-500">
-                        Target {formatCurrency(leadPricingSummary.targetOffer)}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-            />
-          ),
-        })}
-      </PropertyWorkspaceSection>
-
-      <PropertyWorkspaceSection
-        title="Saved reports"
-        helper="Lead and project report history."
-        sectionId={ANALYSIS_SECTION_IDS.reports}
-        revealToken={sectionRevealTokens[ANALYSIS_SECTION_IDS.reports] || 0}
-        action={<div className="flex flex-wrap gap-3">{renderWorkspaceButtons(reportActions)}</div>}
-      >
-        {renderLeadWorkspaceState({
-          missingLeadTitle: "Add a lead to store reports",
-          missingLeadDescription:
-            "Saved reports begin on the linked lead and continue on the project once financials exist.",
-          inactiveTitle: "Activate analysis to use saved reports",
-          inactiveDescription:
-            "Turn on the linked lead inside this property to keep report history here.",
-          loadingLabel: "Loading saved reports...",
-          renderContent: () => (
-            <SavedCompsReportsTab
-              reports={savedReports}
-              isLoading={savedReportsLoading}
-              title={
-                acquisitionWorkspaceId
-                  ? "Saved project and lead reports"
-                  : "Saved property reports"
-              }
-              description={
-                acquisitionWorkspaceId
-                  ? "Lead-era analysis and project-era report updates live together here so execution never loses the underwriting thread."
-                  : "Every saved Master Deal Report for this property lives here."
-              }
-              emptyTitle="No reports saved yet"
-              emptyMessage={
-                acquisitionWorkspaceId
-                  ? "Run the Master Deal Report and save it. New reports will attach to the project while older lead analysis stays visible here."
-                  : "Run the Master Deal Report, save it, and it will appear here."
-              }
-              actions={renderWorkspaceButtons(reportActions)}
-            />
-          ),
-        })}
-      </PropertyWorkspaceSection>
-
-      <PropertyWorkspaceSection
-        title="Scope & renovation"
-        helper="Renovation assumptions and scope."
-        sectionId={ANALYSIS_SECTION_IDS.scope}
-        revealToken={sectionRevealTokens[ANALYSIS_SECTION_IDS.scope] || 0}
-        action={
-          <div className="flex flex-wrap gap-3">
-            {renderWorkspaceButtons([
-              {
-                label: "Edit profile",
-                onClick: handleOpenProfile,
-              },
-              {
-                label: "Edit financials",
-                onClick: () => handleTabSelect("financials"),
+                label: "Property details",
+                onClick: handleOpenPropertyDetails,
               },
             ])}
-          </div>
-        }
-      >
-        {renderLeadWorkspaceState({
-          missingLeadTitle: "Add a lead to manage scope",
-          missingLeadDescription:
-            "Renovation scope starts on the linked lead.",
-          inactiveTitle: "Activate analysis to edit scope here",
-          inactiveDescription:
-            "Turn on the linked lead inside this property to edit scope here.",
-          loadingLabel: "Loading renovation plan...",
-          renderContent: () => (
-            <LeadRenovationTab
-              lead={leadWorkspace}
-              leadId={pipelineLeadId}
-              onLeadUpdated={handleLeadUpdated}
-            />
-          ),
-        })}
-      </PropertyWorkspaceSection>
+          />
+        </PropertyWorkspaceSection>
 
-      <PropertyWorkspaceSection
-        title="Original assumptions"
-        helper="Original deal thesis."
-        sectionId={ANALYSIS_SECTION_IDS.assumptions}
-        revealToken={sectionRevealTokens[ANALYSIS_SECTION_IDS.assumptions] || 0}
-        action={<div className="flex flex-wrap gap-3">{renderWorkspaceButtons(summaryActions)}</div>}
-      >
-        <PropertySummaryPanel
-          property={property}
-          propertyKey={propertyKey}
-          activeContentKey="original-assumptions"
-          leadWorkspace={leadWorkspace}
-          savedReports={savedReports}
-          pipelineLeadPath={pipelineLeadPath}
-          embedded
-          embeddedActions={renderWorkspaceButtons(summaryActions)}
-          emptyActions={renderWorkspaceButtons([
-            compsAction,
-            {
-              label: "Edit profile",
-              onClick: handleOpenProfile,
-            },
-          ])}
-        />
-      </PropertyWorkspaceSection>
+        <PropertyWorkspaceSection
+          title="Reports"
+          helper="Run comps, save Deal Reports, and keep underwriting history attached to execution."
+          sectionId={DEAL_SECTION_IDS.reports}
+          revealToken={sectionRevealTokens[DEAL_SECTION_IDS.reports] || 0}
+          action={<div className="flex flex-wrap gap-3">{renderWorkspaceButtons(reportActions)}</div>}
+        >
+          {renderLeadWorkspaceState({
+            missingLeadTitle: "Add a deal to run the Deal Report",
+            missingLeadDescription:
+              "Comps start on the linked deal, then saved reports carry into the project once financials exist.",
+            inactiveTitle: "Activate deal access to run reports here",
+            inactiveDescription:
+              "Turn on the linked deal inside this project to use the Deal tab here.",
+            loadingLabel: "Loading Deal Report...",
+            renderContent: () => (
+              <div className="space-y-5">
+                <MasterDealReportWorkspace
+                  subject={leadWorkspace}
+                  report={analysis}
+                  filters={filters}
+                  deal={dealForm}
+                  onFilterChange={handleLeadFilterChange}
+                  onDealChange={handleLeadDealChange}
+                  isAnalyzing={isAnalyzing}
+                  onRunAnalysis={handleRunLeadAnalysis}
+                  billingAccess={billingAccess}
+                  isBillingAccessLoading={isBillingAccessLoading}
+                  onStartSubscription={handleStartSubscription}
+                  isStartingSubscription={isStartingSubscription}
+                  onBuyReport={handleBuyCredits}
+                  isStartingCheckout={isStartingCheckout}
+                  onSaveReport={handleSaveLeadReport}
+                  isSavingReport={isSavingReport}
+                  saveButtonLabel={
+                    acquisitionWorkspaceId ? "Save to project history" : "Save Deal Report"
+                  }
+                  runButtonLabel="Run Deal Report"
+                  showOneTimeCheckout
+                  reportNotice={compsNotice}
+                  renderSubjectPanel={() => (
+                    <div className="section-card p-6">
+                      <div className="flex items-start justify-between gap-4">
+                        <div>
+                          <h3 className="text-xl font-semibold text-ink-900">Deal snapshot</h3>
+                          <p className="mt-1 text-sm text-ink-500">
+                            Subject facts and pricing come from the linked deal.
+                          </p>
+                        </div>
+                        {pipelineLeadPath ? (
+                          <Link to={pipelineLeadPath} className="ghost-action">
+                            Open deal
+                          </Link>
+                        ) : null}
+                      </div>
+
+                      <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                        <div className="rounded-[18px] bg-sand-50 px-4 py-3">
+                          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-400">
+                            Property
+                          </p>
+                          <p className="mt-2 text-sm font-semibold text-ink-900">
+                            {[
+                              leadWorkspace.propertyType,
+                              leadWorkspace.squareFootage
+                                ? `${Number(leadWorkspace.squareFootage).toLocaleString()} sqft`
+                                : null,
+                            ]
+                              .filter(Boolean)
+                              .join(" • ") || "No property facts saved yet"}
+                          </p>
+                        </div>
+                        <div className="rounded-[18px] bg-sand-50 px-4 py-3">
+                          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-400">
+                            Pricing
+                          </p>
+                          <p className="mt-2 text-sm font-semibold text-ink-900">
+                            Ask {formatCurrency(leadPricingSummary.askingPrice)}
+                          </p>
+                          <p className="mt-1 text-xs text-ink-500">
+                            Target {formatCurrency(leadPricingSummary.targetOffer)}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                />
+
+                <SavedCompsReportsTab
+                  reports={savedReports}
+                  isLoading={savedReportsLoading}
+                  title={
+                    acquisitionWorkspaceId
+                      ? "Saved project and deal reports"
+                      : "Saved deal reports"
+                  }
+                  description={
+                    acquisitionWorkspaceId
+                      ? "Deal-era analysis and project-era report updates live together here so execution never loses the underwriting thread."
+                      : "Every saved Deal Report for this property lives here."
+                  }
+                  emptyTitle="No reports saved yet"
+                  emptyMessage={
+                    acquisitionWorkspaceId
+                      ? "Run the Deal Report and save it. New reports will attach to the project while older deal analysis stays visible here."
+                      : "Run the Deal Report, save it, and it will appear here."
+                  }
+                  actions={renderWorkspaceButtons(reportActions)}
+                />
+              </div>
+            ),
+          })}
+        </PropertyWorkspaceSection>
+
+        <PropertyWorkspaceSection
+          title="Renovation Scope"
+          helper="Keep renovation assumptions and scope connected to the live project."
+          sectionId={DEAL_SECTION_IDS["renovation-scope"]}
+          revealToken={sectionRevealTokens[DEAL_SECTION_IDS["renovation-scope"]] || 0}
+          action={
+            <div className="flex flex-wrap gap-3">
+              {renderWorkspaceButtons([
+                {
+                  label: "Property details",
+                  onClick: handleOpenPropertyDetails,
+                },
+                {
+                  label: "Open budget",
+                  onClick: () =>
+                    hasAcquisitionWorkspace
+                      ? handleSectionControlSelect("budget", "line-items")
+                      : handleTabSelect("settings"),
+                },
+              ])}
+            </div>
+          }
+        >
+          {renderLeadWorkspaceState({
+            missingLeadTitle: "Add a deal to manage scope",
+            missingLeadDescription: "Renovation scope starts on the linked deal.",
+            inactiveTitle: "Activate deal access to edit scope here",
+            inactiveDescription:
+              "Turn on the linked deal inside this project to edit scope here.",
+            loadingLabel: "Loading renovation plan...",
+            renderContent: () => (
+              <LeadRenovationTab
+                lead={leadWorkspace}
+                leadId={pipelineLeadId}
+                onLeadUpdated={handleLeadUpdated}
+              />
+            ),
+          })}
+        </PropertyWorkspaceSection>
+
+        <PropertyWorkspaceSection
+          title="Underwriting vs Actuals"
+          helper="Compare the original deal thesis against what the live project is telling you now."
+          sectionId={DEAL_SECTION_IDS["underwriting-vs-actuals"]}
+          revealToken={sectionRevealTokens[DEAL_SECTION_IDS["underwriting-vs-actuals"]] || 0}
+          action={<div className="flex flex-wrap gap-3">{renderWorkspaceButtons(summaryActions)}</div>}
+        >
+          <PropertySummaryPanel
+            property={property}
+            propertyKey={propertyKey}
+            activeContentKey="original-assumptions"
+            leadWorkspace={leadWorkspace}
+            savedReports={savedReports}
+            pipelineLeadPath={pipelineLeadPath}
+            embedded
+            embeddedActions={renderWorkspaceButtons(summaryActions)}
+            emptyActions={renderWorkspaceButtons([
+              reportAction,
+              {
+                label: "Property details",
+                onClick: handleOpenPropertyDetails,
+              },
+            ])}
+          />
+        </PropertyWorkspaceSection>
       </div>
     );
   };
@@ -2491,113 +3042,144 @@ const PropertyWorkspacePage = () => {
   );
 
   const renderActiveTab = () => {
-    if (activeTab.id === "overview") return renderOverviewTab();
-    if (activeTab.id === "financials") return renderFinancialsTab();
-    if (activeTab.id === "work") return renderWorkTab();
-    if (activeTab.id === "documents") return renderDocumentsTab();
-    if (activeTab.id === "analysis") return renderAnalysisTab();
+    if (activeTab.id === "home") return renderHomeTab();
+    if (activeTab.id === "budget") return renderBudgetTab();
+    if (activeTab.id === "execution") return renderExecutionTab();
+    if (activeTab.id === "files") return renderFilesTab();
+    if (activeTab.id === "deal") return renderDealTab();
     return renderSettingsTab();
   };
 
   return (
-    <div className="space-y-4">
-      <section className="surface-panel relative overflow-hidden px-6 py-6 sm:px-7">
-        <div className="absolute inset-y-0 right-0 w-[44%] bg-[radial-gradient(circle_at_top_right,rgba(73,169,184,0.18),transparent_58%)]" />
-        <div className="absolute inset-x-0 bottom-0 h-24 bg-[linear-gradient(180deg,rgba(255,255,255,0)_0%,rgba(255,255,255,0.85)_100%)]" />
+    <div className="space-y-4 pb-28">
+      <section className="workspace-console-rail sticky top-24 z-20">
+        <div className="workspace-console-main-row">
+          <Link to="/properties" className="workspace-console-back">
+            Back to Projects
+          </Link>
 
-        <div className="relative grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
-          <div>
-            <span className="eyebrow">Property workspace</span>
-            <h1 className="mt-4 font-display text-[2.65rem] leading-[0.94] text-ink-900">
-              {property.title}
-            </h1>
-            <p className="mt-3 max-w-3xl text-sm leading-6 text-ink-500 sm:text-base">{detailLine}</p>
-
-            <div className="mt-5 flex flex-wrap gap-2">
-              <HeaderBadge
-                label={propertyWorkspaceActive ? "Workspace active" : hasPipelineWorkspace ? "Lead linked" : "Standalone property"}
-              />
-              {listingSummary ? (
-                <HeaderBadge
-                  label={`${listingSummary.label}${listingSummary.price ? ` • ${listingSummary.price}` : ""}`}
-                  tone="bg-verdigris-50 text-verdigris-700"
-                />
-              ) : (
-                <HeaderBadge label="Not listed" tone="bg-sand-50 text-ink-700" />
-              )}
-              <HeaderBadge
-                label={hasAcquisitionWorkspace ? "Financials ready" : "Needs acquisitions"}
-                tone={hasAcquisitionWorkspace ? "bg-sky-50 text-sky-700" : "bg-clay-50 text-clay-700"}
-              />
-              <HeaderBadge
-                label={hasManagementWorkspace ? "Management linked" : "Management optional"}
-                tone={hasManagementWorkspace ? "bg-verdigris-50 text-verdigris-700" : "bg-white/80 text-ink-700 ring-1 ring-white/60"}
-              />
-            </div>
-
-            <div className="mt-6 flex flex-wrap gap-3">
-              <Link to="/properties" className="secondary-action">
-                Back to properties
-              </Link>
-              <button type="button" onClick={handleOpenProfile} className="secondary-action">
-                Edit profile
+          <div className="workspace-console-primary segmented-control">
+            {PROPERTY_WORKSPACE_TABS.filter((tab) => tab.id !== "settings").map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => handleTabSelect(tab.id)}
+                className={`segmented-option workspace-console-tab ${
+                  tab.id === activePrimaryTabId ? "segmented-option-active" : ""
+                }`}
+              >
+                {tab.label}
               </button>
-              <button type="button" onClick={() => handleTabSelect("settings")} className="secondary-action">
-                Settings
-              </button>
-              {pipelineLeadPath ? (
-                <Link to={pipelineLeadPath} className="secondary-action">
-                  Open lead
-                </Link>
-              ) : null}
-            </div>
+            ))}
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
-            <StatCard
-              label="Next step"
-              value={nextStepCard.value}
-              helper={nextStepCard.helper}
-              tone="bg-white/88"
-            />
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-2">
-              <StatCard
-                label="Linked workspaces"
-                value={String(workspaceCount)}
-                helper="Lead, financials, management"
-                tone="bg-white/82"
-              />
-              <StatCard
-                label="Open tasks"
-                value={String(openPropertyTasks)}
-                helper={overduePropertyTasks > 0 ? `${overduePropertyTasks} overdue` : "Nothing overdue"}
-                tone="bg-white/82"
-              />
+          <button
+            type="button"
+            onClick={() => handleTabSelect("settings")}
+            className={`workspace-console-setup ${
+              activeTab.id === "settings" ? "workspace-console-setup-active" : ""
+            }`}
+          >
+            Project Setup
+          </button>
+        </div>
+
+        {activeTab.id !== "settings" && activeSectionItems.length ? (
+          <div className="workspace-console-secondary-row">
+            <div className="workspace-console-secondary segmented-control">
+              {activeSectionItems.map((section) => (
+                <button
+                  key={section.id}
+                  type="button"
+                  onClick={() => handleSectionControlSelect(activeTab.id, section.id)}
+                  className={`segmented-option workspace-console-subtab ${
+                    section.id === activeSectionId ? "segmented-option-active" : ""
+                  }`}
+                >
+                  {section.label}
+                </button>
+              ))}
             </div>
           </div>
-        </div>
+        ) : null}
       </section>
 
-      <section className="section-card sticky top-24 z-10 overflow-hidden bg-white/92 px-2 py-2 backdrop-blur">
-        <div className="flex gap-2 overflow-x-auto pb-1">
-          {PROPERTY_WORKSPACE_TABS.map((tab) => (
-            <TabButton
-              key={tab.id}
-              tab={tab}
-              isActive={tab.id === activeTab.id}
-              onSelect={handleTabSelect}
-            />
-          ))}
-        </div>
-      </section>
-
-      {activeTab.id === "analysis" && leadWorkspaceError && leadWorkspace ? (
+      {activeTab.id === "deal" && leadWorkspaceError && leadWorkspace ? (
         <div className="rounded-[16px] border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
           {leadWorkspaceError}
         </div>
       ) : null}
 
       {renderActiveTab()}
+
+      <PropertyDetailsDrawer
+        isOpen={isPropertyDetailsOpen}
+        onClose={() => setIsPropertyDetailsOpen(false)}
+        onSubmit={handleSave}
+        formData={formData}
+        onChange={handleChange}
+        suggestions={suggestions}
+        onSelectSuggestion={handleSelectSuggestion}
+        onPreviewLookup={() => handlePreviewLookup()}
+        isPreviewLoading={isPreviewLoading}
+        previewMetadata={previewMetadata}
+        locationProviderName={getLocationProviderName()}
+        propertyTypeOptions={propertyTypeOptions}
+        showsUnitCount={showsUnitCount}
+        isSaving={isSaving}
+        propertyKey={property.propertyKey}
+      />
+
+      <ProjectUpdateComposerModal
+        isOpen={isUpdateComposerOpen}
+        onClose={handleCloseProjectUpdateComposer}
+        onSubmit={handleSaveProjectUpdate}
+        initialUpdate={editingProjectUpdate}
+        isSaving={isSavingProjectUpdate}
+      />
+
+      <TaskFormModal
+        isOpen={isTaskQuickAddOpen}
+        onClose={() => setIsTaskQuickAddOpen(false)}
+        onSaved={() => loadPropertyTasks(property.propertyKey)}
+        properties={[property]}
+        defaults={{
+          sourceType: "property",
+          sourceId: property.propertyKey,
+          sourceLabel: property.title || "Property",
+          propertyKey: property.propertyKey,
+          dueDate: new Date().toISOString().split("T")[0],
+        }}
+      />
+
+      <AddBudgetItemModal
+        isOpen={isBudgetItemQuickAddOpen}
+        onClose={() => setIsBudgetItemQuickAddOpen(false)}
+        onSuccess={() => loadWorkspaceSupportData()}
+        investmentId={acquisitionWorkspaceId}
+      />
+
+      <AddExpenseModal
+        isOpen={isExpenseQuickAddOpen}
+        onClose={() => setIsExpenseQuickAddOpen(false)}
+        investmentId={acquisitionWorkspaceId}
+        onSuccess={() => loadWorkspaceSupportData()}
+        budgetItems={budgetItems}
+        vendors={vendors}
+        fundingSources={fundingSources}
+        drawRequests={drawRequests}
+      />
+
+      <AddVendorModal
+        isOpen={isVendorQuickAddOpen}
+        onClose={() => setIsVendorQuickAddOpen(false)}
+        onSuccess={() => {
+          loadWorkspaceSupportData();
+          toast.success("Vendor saved.");
+        }}
+      />
+
+      <WorkspaceQuickAddMenu actions={quickAddActions} />
 
       {property ? (
         <PropertyCopilotPanel

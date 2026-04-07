@@ -4,7 +4,10 @@ import { HomeModernIcon } from "@heroicons/react/24/outline";
 
 import WorkspaceDataTable from "../components/WorkspaceDataTable";
 import { getProperties } from "../utils/api";
-import { buildPropertyWorkspacePath } from "../utils/propertyWorkspaceNavigation";
+import {
+  buildPropertyWorkspacePath,
+  buildPropertyWorkspaceSectionPath,
+} from "../utils/propertyWorkspaceNavigation";
 
 const propertyViewOptions = [
   { id: "all", label: "All" },
@@ -31,6 +34,19 @@ const FilterButton = ({ label, count, isActive, onClick }) => (
 
 const StatusPill = ({ label, tone }) => (
   <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${tone}`}>{label}</span>
+);
+
+const ProjectActionLink = ({ to, label, primary = false }) => (
+  <Link
+    to={to}
+    className={
+      primary
+        ? "secondary-action min-h-0 px-3.5 py-2 text-xs"
+        : "inline-flex min-h-0 items-center rounded-full bg-mist-50 px-3 py-2 text-xs font-semibold text-ink-700 transition hover:bg-mist-100"
+    }
+  >
+    {label}
+  </Link>
 );
 
 const formatCurrency = (value) => {
@@ -89,59 +105,146 @@ const getPropertyWorkspaceState = (property) => {
   if (isActive && hasAcquisitions) {
     return {
       headline: "Ready",
-      detail: "All main workspace tabs are available.",
+      detail: "Home, execution, budget, files, and deal tools are available.",
       tone: "bg-verdigris-50 text-verdigris-700",
-      actionLabel: "Open workspace",
-      actionPath: buildPropertyWorkspacePath(property.propertyKey),
+      needsSetup,
+    };
+  }
+
+  if (hasAcquisitions && hasPipeline) {
+    return {
+      headline: "Needs deal activation",
+      detail: "Budget tools are ready. Activate the linked deal to bring comps and reports into the project.",
+      tone: "bg-sky-50 text-sky-700",
       needsSetup,
     };
   }
 
   if (hasAcquisitions) {
     return {
-      headline: hasPipeline ? "Needs analysis" : "Financials ready",
-      detail: hasPipeline
-        ? "Activate the linked lead for comps and reports."
-        : "Add a lead when you want analysis.",
+      headline: "Budget ready",
+      detail: "Execution, files, and budget are ready. Add a deal when you want underwriting context.",
       tone: "bg-sky-50 text-sky-700",
-      actionLabel: hasPipeline ? "Open settings" : "Open workspace",
-      actionPath: hasPipeline
-        ? buildPropertyWorkspacePath(property.propertyKey, "settings")
-        : buildPropertyWorkspacePath(property.propertyKey),
       needsSetup,
     };
   }
 
   if (isActive) {
     return {
-      headline: "Needs financials",
-      detail: "Add financials for budgets, documents, and execution.",
+      headline: "Needs budget",
+      detail: "Deal context is active. Add financials to unlock execution, documents, and budget tracking.",
       tone: "bg-sand-50 text-ink-700",
-      actionLabel: "Open workspace",
-      actionPath: buildPropertyWorkspacePath(property.propertyKey),
       needsSetup,
     };
   }
 
   if (hasPipeline) {
     return {
-      headline: "Activate analysis",
-      detail: "Turn on the linked lead inside Property Workspace.",
+      headline: "Deal linked",
+      detail: "Activate the linked deal or add financials to turn this into an operating project.",
       tone: "bg-sand-50 text-ink-700",
-      actionLabel: "Open settings",
-      actionPath: buildPropertyWorkspacePath(property.propertyKey, "settings"),
       needsSetup,
     };
   }
 
   return {
     headline: "Needs setup",
-    detail: "Start here, then add a lead or financials when needed.",
+    detail: "Start the project setup, then add the deal or financials when the address deserves deeper work.",
     tone: "bg-clay-50 text-clay-700",
-    actionLabel: "Open settings",
-    actionPath: buildPropertyWorkspacePath(property.propertyKey, "settings"),
     needsSetup,
   };
+};
+
+const getProjectQuickActions = (property) => {
+  const propertyKey = property.propertyKey;
+  const hasPipeline = Boolean(property?.workspaces?.pipeline);
+  const isActive = Boolean(property?.workspaces?.pipeline?.inPropertyWorkspace);
+  const hasAcquisitions = Boolean(property?.workspaces?.acquisitions);
+
+  if (isActive && hasAcquisitions) {
+    return [
+      {
+        label: "Open Home",
+        to: buildPropertyWorkspaceSectionPath(propertyKey, "home", "today"),
+        primary: true,
+      },
+      {
+        label: "Execution",
+        to: buildPropertyWorkspaceSectionPath(propertyKey, "execution", "tasks"),
+      },
+      {
+        label: "Budget",
+        to: buildPropertyWorkspaceSectionPath(propertyKey, "budget", "line-items"),
+      },
+      {
+        label: "Deal",
+        to: buildPropertyWorkspaceSectionPath(propertyKey, "deal", "summary"),
+      },
+    ];
+  }
+
+  if (hasAcquisitions && hasPipeline) {
+    return [
+      {
+        label: "Open Budget",
+        to: buildPropertyWorkspaceSectionPath(propertyKey, "budget", "line-items"),
+        primary: true,
+      },
+      {
+        label: "Deal",
+        to: buildPropertyWorkspaceSectionPath(propertyKey, "deal", "summary"),
+      },
+      { label: "Project setup", to: buildPropertyWorkspacePath(propertyKey, "settings") },
+    ];
+  }
+
+  if (hasAcquisitions) {
+    return [
+      {
+        label: "Open Home",
+        to: buildPropertyWorkspaceSectionPath(propertyKey, "home", "today"),
+        primary: true,
+      },
+      {
+        label: "Budget",
+        to: buildPropertyWorkspaceSectionPath(propertyKey, "budget", "line-items"),
+      },
+      {
+        label: "Execution",
+        to: buildPropertyWorkspaceSectionPath(propertyKey, "execution", "tasks"),
+      },
+    ];
+  }
+
+  if (isActive) {
+    return [
+      {
+        label: "Open Home",
+        to: buildPropertyWorkspaceSectionPath(propertyKey, "home", "today"),
+        primary: true,
+      },
+      {
+        label: "Deal",
+        to: buildPropertyWorkspaceSectionPath(propertyKey, "deal", "summary"),
+      },
+      { label: "Project setup", to: buildPropertyWorkspacePath(propertyKey, "settings") },
+    ];
+  }
+
+  if (hasPipeline) {
+    return [
+      {
+        label: "Open Deal",
+        to: buildPropertyWorkspaceSectionPath(propertyKey, "deal", "summary"),
+        primary: true,
+      },
+      { label: "Project setup", to: buildPropertyWorkspacePath(propertyKey, "settings") },
+    ];
+  }
+
+  return [
+    { label: "Project setup", to: buildPropertyWorkspacePath(propertyKey, "settings"), primary: true },
+  ];
 };
 
 const PropertiesPage = () => {
@@ -226,13 +329,13 @@ const PropertiesPage = () => {
   const propertyColumns = useMemo(
     () => [
       {
-        id: "property",
-        label: "Property",
+        id: "project",
+        label: "Project",
         sortValue: (property) => property.title || property.propertyKey,
         render: (property) => (
           <div>
             <Link
-              to={buildPropertyWorkspacePath(property.propertyKey)}
+              to={buildPropertyWorkspacePath(property.propertyKey, "home")}
               className="font-semibold text-ink-900 transition hover:text-verdigris-700"
             >
               {property.title}
@@ -270,26 +373,28 @@ const PropertiesPage = () => {
           <div>
             <p className="font-medium text-ink-800">{formatDate(property.updatedAt || property.createdAt)}</p>
             <p className="mt-1 text-sm text-ink-500">
-              {property.workspaces?.pipeline?.status || "No lead stage"}
+              {property.workspaces?.pipeline?.status || "No deal stage"}
             </p>
           </div>
         ),
       },
       {
         id: "actions",
-        label: "Action",
+        label: "Open",
         align: "right",
         render: (property) => {
-          const state = getPropertyWorkspaceState(property);
+          const actions = getProjectQuickActions(property);
 
           return (
-            <div className="flex justify-end">
-              <Link
-                to={state.actionPath}
-                className="secondary-action min-h-0 px-3.5 py-2 text-xs"
-              >
-                {state.actionLabel}
-              </Link>
+            <div className="flex max-w-[340px] flex-wrap justify-end gap-2">
+              {actions.map((action) => (
+                <ProjectActionLink
+                  key={`${property.propertyKey}-${action.label}`}
+                  to={action.to}
+                  label={action.label}
+                  primary={action.primary}
+                />
+              ))}
             </div>
           );
         },
@@ -299,7 +404,7 @@ const PropertiesPage = () => {
   );
 
   if (loading) {
-    return <div className="section-card px-6 py-10 text-center text-ink-500">Loading properties...</div>;
+    return <div className="section-card px-6 py-10 text-center text-ink-500">Loading projects...</div>;
   }
 
   if (error) {
@@ -312,12 +417,12 @@ const PropertiesPage = () => {
         <div className="absolute inset-y-0 right-0 hidden w-1/3 bg-[radial-gradient(circle_at_center,rgba(59,143,129,0.18),transparent_62%)] lg:block" />
         <div className="relative grid gap-8 lg:grid-cols-[minmax(0,1.05fr)_320px]">
           <div>
-            <span className="eyebrow">Properties</span>
+            <span className="eyebrow">Projects</span>
             <h2 className="mt-5 text-4xl font-semibold tracking-tight text-ink-900">
-              One clean home for every property.
+              Open the right project view on the first click.
             </h2>
             <p className="mt-4 max-w-2xl text-base leading-7 text-ink-500">
-              Open ready workspaces fast, spot what still needs setup, and keep every record easy to find.
+              Jump straight into home, execution, budget, or deal context so active projects stay easy to operate.
             </p>
 
             <div className="mt-8 flex flex-wrap gap-3">
@@ -325,7 +430,7 @@ const PropertiesPage = () => {
                 Add property
               </Link>
               <Link to="/leads" className="secondary-action">
-                Open leads
+                Open deals
               </Link>
             </div>
           </div>
@@ -334,7 +439,7 @@ const PropertiesPage = () => {
             <div className="flex items-center justify-between gap-4">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-400">
-                  Property records
+                  Active projects
                 </p>
                 <h3 className="mt-2 text-2xl font-semibold text-ink-900">{summary.total}</h3>
               </div>
@@ -362,15 +467,15 @@ const PropertiesPage = () => {
       </section>
 
       <WorkspaceDataTable
-        title="Property records"
-        description="Search and jump to the next action."
+        title="Projects"
+        description="Search the project list and jump straight to the next operating surface."
         columns={propertyColumns}
         rows={visibleProperties}
         rowKey={(property) => property.propertyKey}
         defaultSort={{ columnId: "updated", direction: "desc" }}
         searchValue={searchValue}
         onSearchValueChange={setSearchValue}
-        searchPlaceholder="Search address, key, property type, or status"
+        searchPlaceholder="Search address, key, property type, stage, or status"
         toolbarContent={
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex flex-wrap gap-2">
@@ -401,16 +506,16 @@ const PropertiesPage = () => {
         }
         emptyTitle={
           properties.length === 0
-            ? "No properties yet"
+            ? "No projects yet"
             : viewFilter === "ready"
-              ? "No ready properties match this search"
+              ? "No ready projects match this search"
               : viewFilter === "setup"
-                ? "No setup-needed properties match this search"
-                : "No properties match this search"
+                ? "No setup-needed projects match this search"
+                : "No projects match this search"
         }
         emptyDescription={
           properties.length === 0
-            ? "Add the first property to start the workspace."
+            ? "Add the first property to start the project workspace."
             : "Try a different search term or switch filters."
         }
         emptyActions={

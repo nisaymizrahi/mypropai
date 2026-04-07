@@ -9,13 +9,7 @@ import {
   formatPercent,
   getVerdictMeta,
 } from "../utils/compsReport";
-
-const getContextLabel = (contextType = "") => {
-  if (contextType === "project") return "Project";
-  if (contextType === "lead") return "Lead";
-  if (contextType === "standalone") return "Standalone";
-  return "Saved";
-};
+import { getInvestorContextLabel } from "../utils/investorTerminology";
 
 const SavedReportCard = ({ report, isActive, onSelect }) => {
   const verdictMeta = getVerdictMeta(report);
@@ -46,7 +40,7 @@ const SavedReportCard = ({ report, isActive, onSelect }) => {
       </div>
 
       <div className="mt-4 flex flex-wrap gap-2">
-        <span className="glass-chip">{getContextLabel(report.contextType)}</span>
+        <span className="glass-chip">{getInvestorContextLabel(report.contextType)}</span>
         <span className="glass-chip">{formatDate(report.generatedAt)}</span>
         <span className="glass-chip">{primaryCount} primary comps</span>
       </div>

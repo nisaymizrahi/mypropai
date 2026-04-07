@@ -10,6 +10,7 @@ import {
 } from "@heroicons/react/24/outline";
 
 import { PROPERTY_STRATEGIES } from "../utils/propertyStrategy";
+import { INVESTOR_TERMS } from "../utils/investorTerminology";
 
 const managementStrategies = PROPERTY_STRATEGIES.filter((strategy) =>
   ["fix_and_rent", "rental"].includes(strategy.value)
@@ -90,22 +91,22 @@ const PropertyWorkspaceSettingsPanel = ({
       <section className="surface-panel px-6 py-6 sm:px-7">
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
           <div>
-            <span className="eyebrow">Linked workspaces</span>
+            <span className="eyebrow">Project setup</span>
             <h2 className="mt-4 text-[2rem] font-semibold tracking-tight text-ink-900">
-              Keep this property connected
+              Keep this project connected
             </h2>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-ink-500">
-              Add or open the records behind analysis, financials, and management.
+              Add or open the records behind deal context, budget, execution, and management.
             </p>
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="rounded-[18px] bg-white px-4 py-4 ring-1 ring-ink-100">
               <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-400">
-                Analysis
+                Deal access
               </p>
               <p className="mt-2 text-sm font-semibold text-ink-900">
-                {propertyWorkspaceActive ? "Active" : hasPipelineWorkspace ? "Ready to activate" : "No lead yet"}
+                {propertyWorkspaceActive ? "Active" : hasPipelineWorkspace ? "Ready to activate" : "No deal yet"}
               </p>
             </div>
             <div className="rounded-[18px] bg-white px-4 py-4 ring-1 ring-ink-100">
@@ -135,21 +136,21 @@ const PropertyWorkspaceSettingsPanel = ({
 
       <div className="grid gap-4 xl:grid-cols-3">
         <LinkedWorkspaceCard
-          eyebrow="Lead link"
-          title="Pipeline record"
+          eyebrow="Deal link"
+          title="Deal record"
           icon={HomeModernIcon}
           tone="bg-sand-50/70"
           status={hasPipelineWorkspace ? "Linked" : "Missing"}
           helper={
             hasPipelineWorkspace
-              ? `Source stage: ${pipelineLeadStatus || "Unknown"}`
-              : "Create a lead for comps, reports, renovation, and bids."
+              ? `Deal stage: ${pipelineLeadStatus || "Unknown"}`
+              : "Create a deal for comps, reports, renovation, and bids."
           }
           action={
             hasPipelineWorkspace ? (
               pipelineLeadPath ? (
                 <Link to={pipelineLeadPath} className="secondary-action">
-                  Open lead
+                  Open deal
                 </Link>
               ) : null
             ) : (
@@ -159,7 +160,7 @@ const PropertyWorkspaceSettingsPanel = ({
                 disabled={isCreatingPipelineWorkspace}
                 className="primary-action disabled:cursor-not-allowed disabled:opacity-70"
               >
-                {isCreatingPipelineWorkspace ? "Creating..." : "Create lead record"}
+                {isCreatingPipelineWorkspace ? "Creating..." : "Create deal record"}
               </button>
             )
           }
@@ -250,7 +251,7 @@ const PropertyWorkspaceSettingsPanel = ({
         />
       </div>
 
-      <section className="section-card p-6 sm:p-7">
+      <section className="surface-panel px-6 py-6 sm:px-7">
         <div className="flex items-start gap-4">
           <div className="flex h-11 w-11 items-center justify-center rounded-[16px] bg-ink-100 text-ink-700">
             <Cog6ToothIcon className="h-5 w-5" />
@@ -301,7 +302,7 @@ const PropertyWorkspaceStatusCard = ({
   onDeactivateWorkspace,
   isUpdatingWorkspaceStatus,
 }) => (
-  <section className="section-card p-6 sm:p-7">
+  <section className="surface-panel px-6 py-6 sm:px-7">
     <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
       <div className="flex items-start gap-4">
         <div className="flex h-11 w-11 items-center justify-center rounded-[16px] bg-ink-100 text-ink-700">
@@ -309,18 +310,20 @@ const PropertyWorkspaceStatusCard = ({
         </div>
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-400">
-            Analysis status
+            Deal activation
           </p>
-          <h3 className="mt-3 text-lg font-semibold text-ink-900">Property Workspace access</h3>
+          <h3 className="mt-3 text-lg font-semibold text-ink-900">Project Workspace deal access</h3>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-ink-500">
             {hasPipelineWorkspace
               ? propertyWorkspaceActive
-                ? "Analysis tools are active inside this property."
-                : "The linked lead is ready. Activate it here when you want analysis inside this workspace."
-              : "Add a lead first if you want comps, saved reports, scope, and bids here."}
+                ? "Deal tools are active inside this project."
+                : "The linked deal is ready. Activate it here when you want deal context inside this workspace."
+              : "Add a deal first if you want comps, saved reports, scope, and bids here."}
           </p>
           {pipelineLeadStatus ? (
-            <p className="mt-2 text-sm font-medium text-ink-700">Lead stage: {pipelineLeadStatus}</p>
+            <p className="mt-2 text-sm font-medium text-ink-700">
+              {INVESTOR_TERMS.deal.singular} stage: {pipelineLeadStatus}
+            </p>
           ) : null}
         </div>
       </div>
@@ -340,7 +343,7 @@ const PropertyWorkspaceStatusCard = ({
                   Updating...
                 </>
               ) : (
-                "Deactivate analysis"
+                "Deactivate deal access"
               )}
             </button>
           ) : (
@@ -356,7 +359,7 @@ const PropertyWorkspaceStatusCard = ({
                   Updating...
                 </>
               ) : (
-                "Activate analysis"
+                "Activate deal access"
               )}
             </button>
           )}

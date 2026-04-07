@@ -8,6 +8,7 @@ import {
   formatCurrency,
   getInvestmentAnalysisMetrics,
 } from "../utils/investmentMetrics";
+import { INVESTOR_TERMS } from "../utils/investorTerminology";
 
 const SnapshotTile = ({ label, value, tone = "text-ink-900" }) => (
   <div className="metric-tile p-5">
@@ -130,22 +131,22 @@ const DashboardTab = ({
         </div>
 
         {sourceLeadSnapshot ? (
-          <section className="section-card p-6 sm:p-7">
+          <section className="surface-panel px-6 py-6 sm:px-7">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
               <div>
                 <span className="eyebrow">Original deal snapshot</span>
                 <h3 className="mt-4 text-3xl font-semibold text-ink-900">
-                  Carried over from the potential property
+                  Carried over from the original deal
                 </h3>
                 <p className="mt-3 max-w-2xl text-sm leading-6 text-ink-500">
                   This section keeps the assumptions and notes that existed before the property
-                  moved into project management.
+                  moved into Property Workspace.
                 </p>
               </div>
 
               {sourceLeadId ? (
                 <Link to={`/leads/${sourceLeadId}`} className="secondary-action">
-                  Open original lead
+                  {`Open original ${INVESTOR_TERMS.deal.lowerSingular}`}
                 </Link>
               ) : null}
             </div>
@@ -161,14 +162,14 @@ const DashboardTab = ({
               />
               <SnapshotTile label="ARV" value={formatCurrency(sourceLeadSnapshot.arv)} />
               <SnapshotTile
-                label="Lead rehab estimate"
+                label="Deal rehab estimate"
                 value={formatCurrency(sourceLeadSnapshot.rehabEstimate)}
               />
             </div>
           </section>
         ) : null}
 
-        <section className="section-card p-6 sm:p-7">
+        <section className="surface-panel px-6 py-6 sm:px-7">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <span className="eyebrow">Quick actions</span>
@@ -209,7 +210,7 @@ const DashboardTab = ({
         </div>
 
         <div className="grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
-          <section className="section-card p-6 sm:p-7">
+          <section className="surface-panel px-6 py-6 sm:px-7">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
               <div>
                 <span className="eyebrow">Upcoming work</span>
@@ -256,7 +257,7 @@ const DashboardTab = ({
             </div>
           </section>
 
-          <section className="section-card p-6 sm:p-7">
+          <section className="surface-panel px-6 py-6 sm:px-7">
             <span className="eyebrow">Project snapshot</span>
             <h3 className="mt-4 text-3xl font-semibold text-ink-900">At-a-glance math</h3>
 

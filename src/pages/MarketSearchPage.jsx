@@ -455,7 +455,7 @@ const DealResultCard = ({
                 className="primary-action px-4 py-2"
               >
                 <ArrowTopRightOnSquareIcon className="mr-2 h-4 w-4" />
-                Open lead
+                Open deal
               </button>
             ) : (
               <button
@@ -466,13 +466,13 @@ const DealResultCard = ({
                 }}
                 disabled={saving}
                 className="primary-action px-4 py-2 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {saving ? (
-                  <ArrowPathIcon className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <BuildingOffice2Icon className="mr-2 h-4 w-4" />
-                )}
-                Add to Potential
+                >
+                  {saving ? (
+                    <ArrowPathIcon className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <BuildingOffice2Icon className="mr-2 h-4 w-4" />
+                  )}
+                Save to Deals
               </button>
             )}
 
@@ -647,13 +647,13 @@ const QuickViewModal = ({ listing, saving, onClose, onImport, onOpenLead }) => {
                 Acquisition workflow
               </p>
               <p className="mt-3 text-lg font-semibold text-ink-900">
-                Save the deal or move straight into the lead workspace.
+                Save the deal or move straight into the deal workspace.
               </p>
               <div className="mt-5 flex flex-col gap-3">
                 {listing.existingLeadId ? (
                   <button type="button" onClick={onOpenLead} className="primary-action justify-center">
                     <ArrowTopRightOnSquareIcon className="mr-2 h-4 w-4" />
-                    Open saved lead
+                    Open saved deal
                   </button>
                 ) : (
                   <button
@@ -667,7 +667,7 @@ const QuickViewModal = ({ listing, saving, onClose, onImport, onOpenLead }) => {
                     ) : (
                       <BuildingOffice2Icon className="mr-2 h-4 w-4" />
                     )}
-                    Add to Potential Properties
+                    Save to Deals
                   </button>
                 )}
 
@@ -1385,13 +1385,13 @@ const MarketSearchPage = () => {
       });
 
       if (response.created) {
-        toast.success("Added to Potential Properties.");
+        toast.success("Saved to Deals.");
       } else {
-        toast.success("That property is already in Potential Properties.");
+        toast.success("That property is already in Deals.");
       }
     } catch (importError) {
       console.error("Failed to import market listing", importError);
-      toast.error(importError.message || "Failed to add this property.");
+      toast.error(importError.message || "Failed to save this deal.");
     } finally {
       setSavingListingId("");
     }

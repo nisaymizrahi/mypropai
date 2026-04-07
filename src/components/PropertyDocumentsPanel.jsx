@@ -80,6 +80,7 @@ const PropertyDocumentsPanel = ({
   propertyKey,
   onPropertyUpdated,
   embedded = false,
+  sectionAnchors = {},
 }) => {
   const investmentId = property?.workspaces?.acquisitions?.id || "";
   const [selectedStrategy, setSelectedStrategy] = useState(
@@ -423,7 +424,7 @@ const PropertyDocumentsPanel = ({
 
       <section className="section-card p-6 sm:p-7">
         <div className="grid gap-8 xl:grid-cols-[minmax(0,1.05fr)_360px]">
-          <div>
+          <div id={sectionAnchors.allFiles || undefined}>
             <span className="eyebrow">Structured buckets</span>
             <h4 className="mt-4 text-2xl font-semibold text-ink-900">How this library is organized</h4>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-ink-500">
@@ -655,7 +656,21 @@ const PropertyDocumentsPanel = ({
             documentCategories
               .filter((bucket) => (groupedDocuments[bucket] || []).length > 0)
               .map((bucket) => (
-                <div key={bucket} className="rounded-[24px] border border-ink-100 bg-white/85 p-5">
+                <div
+                  key={bucket}
+                  id={
+                    bucket === "Loan & Draw"
+                      ? sectionAnchors.loanDraw || undefined
+                      : bucket === "Contracts & Bids"
+                        ? sectionAnchors.contractsBids || undefined
+                        : bucket === "Receipts & Invoices"
+                          ? sectionAnchors.receiptsInvoices || undefined
+                          : bucket === "Photos"
+                            ? sectionAnchors.photos || undefined
+                            : undefined
+                  }
+                  className="rounded-[24px] border border-ink-100 bg-white/85 p-5"
+                >
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                       <p className="text-base font-semibold text-ink-900">{bucket}</p>

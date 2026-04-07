@@ -1,6 +1,6 @@
 import React from "react";
 import { describe, expect, it, beforeEach, vi } from "vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 
 import MarketSearchPage from "./MarketSearchPage";
@@ -189,7 +189,7 @@ describe("MarketSearchPage", () => {
             summary: "Rent coverage and pricing both look favorable.",
             reasons: ["Estimated rent looks strong relative to the asking price."],
             riskFlags: ["Condition still needs verification from the source listing."],
-            nextStep: "Verify scope and move it into Potential Properties for hold underwriting.",
+            nextStep: "Verify scope and save it to Deals for hold underwriting.",
             rentEstimate: { rent: 2500 },
             valueEstimate: { price: 305000 },
           },
@@ -220,9 +220,11 @@ describe("MarketSearchPage", () => {
 
     fireEvent.click(screen.getByText("123 Main St"));
 
-    expect(await screen.findByRole("button", { name: /add to potential properties/i })).toBeInTheDocument();
+    const quickViewPanel = screen.getByText("Acquisition workflow").closest("aside");
 
-    fireEvent.click(screen.getByRole("button", { name: /add to potential properties/i }));
+    expect(quickViewPanel).not.toBeNull();
+
+    fireEvent.click(within(quickViewPanel).getByRole("button", { name: /save to deals/i }));
 
     await waitFor(() => expect(importMarketSaleListing).toHaveBeenCalledTimes(1));
 

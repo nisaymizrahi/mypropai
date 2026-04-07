@@ -12,6 +12,7 @@ import { useNavigate } from "react-router-dom";
 import {
   ArrowRightIcon,
   BriefcaseIcon,
+  ClipboardDocumentListIcon,
   BuildingOffice2Icon,
   ChartBarIcon,
   HomeIcon,
@@ -24,11 +25,13 @@ import {
   getLeads,
   getProperties,
 } from "../utils/api";
+import { INVESTOR_TERMS } from "../utils/investorTerminology";
+import { buildPropertyWorkspacePath } from "../utils/propertyWorkspaceNavigation";
 
 const GROUP_ORDER = [
   "Quick Actions",
   "Properties",
-  "Leads",
+  INVESTOR_TERMS.deal.plural,
   "Platform",
 ];
 
@@ -121,11 +124,11 @@ const buildQuickActions = (user) => {
     createEntry({
       id: "quick-leads",
       group: "Quick Actions",
-      title: "Open leads pipeline",
-      subtitle: "Inbound opportunities, diligence, and deal status",
+      title: "Open deals pipeline",
+      subtitle: "Incoming deals, diligence, and deal status",
       to: "/leads",
       icon: UserGroupIcon,
-      keywords: ["pipeline acquisition leads"],
+      keywords: ["pipeline acquisition deals"],
       priority: 185,
       pinned: true,
     }),
@@ -145,10 +148,10 @@ const buildQuickActions = (user) => {
       id: "quick-new-property",
       group: "Quick Actions",
       title: "Create new property",
-      subtitle: "Start a property record and work from the shared property workspace",
+      subtitle: "Start a property record and add the linked deal when you need it",
       to: "/properties/new",
       icon: BriefcaseIcon,
-      keywords: ["new create add property lead workspace"],
+      keywords: ["new create add property deal workspace"],
       tone: "verdigris",
       priority: 180,
       pinned: true,
@@ -162,6 +165,17 @@ const buildQuickActions = (user) => {
       icon: HomeIcon,
       keywords: ["settings billing profile display account"],
       priority: 175,
+      pinned: true,
+    }),
+    createEntry({
+      id: "quick-tasks",
+      group: "Quick Actions",
+      title: "Open tasks",
+      subtitle: "Task queue, due dates, and operating follow-up across the workspace",
+      to: "/tasks",
+      icon: ClipboardDocumentListIcon,
+      keywords: ["tasks operations follow up to do reminders"],
+      priority: 174,
       pinned: true,
     }),
   ];
@@ -200,7 +214,7 @@ const buildPropertyEntries = (properties) =>
       group: "Properties",
       title: property.title || property.placement || property.propertyKey,
       subtitle: workspaceBits.join(" • ") || "Shared property workspace",
-      to: `/properties/${encodeURIComponent(property.propertyKey)}`,
+      to: buildPropertyWorkspacePath(property.propertyKey),
       icon: HomeModernIcon,
       tone: "verdigris",
       keywords: [
@@ -219,8 +233,8 @@ const buildLeadEntries = (leads) =>
   (leads || []).map((lead) =>
     createEntry({
       id: `lead-${lead._id}`,
-      group: "Leads",
-      title: lead.address || "Untitled lead",
+      group: INVESTOR_TERMS.deal.plural,
+      title: lead.address || "Untitled deal",
       subtitle: [lead.status, lead.propertyType, lead.listingStatus].filter(Boolean).join(" • "),
       to: `/leads/${lead._id}`,
       icon: UserGroupIcon,
@@ -390,7 +404,7 @@ const CommandPalette = ({ isOpen, onClose, user }) => {
       return dedupeEntries([
         ...searchEntries.filter((entry) => entry.pinned).slice(0, 7),
         ...searchEntries
-          .filter((entry) => ["Properties", "Leads"].includes(entry.group))
+          .filter((entry) => ["Properties", INVESTOR_TERMS.deal.plural].includes(entry.group))
           .slice(0, 6),
       ]).slice(0, 12);
     }
@@ -498,7 +512,7 @@ const CommandPalette = ({ isOpen, onClose, user }) => {
               type="text"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search pages, properties, or leads"
+              placeholder="Search pages, properties, deals, or tasks"
               className="w-full border-none bg-transparent text-sm text-ink-900 outline-none placeholder:text-ink-400"
             />
             <button
@@ -510,7 +524,7 @@ const CommandPalette = ({ isOpen, onClose, user }) => {
             </button>
           </div>
           <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-ink-400">
-            <span>Try an address, property key, or lead status.</span>
+            <span>Try an address, property key, deal status, or task keyword.</span>
             <span className="rounded-full bg-sand-100 px-2.5 py-1 font-mono uppercase tracking-[0.16em] text-ink-500">
               Ctrl/⌘ K
             </span>
@@ -561,7 +575,7 @@ const CommandPalette = ({ isOpen, onClose, user }) => {
             <div className="px-2 py-10 text-center">
               <p className="text-lg font-semibold text-ink-900">No matches yet</p>
               <p className="mt-2 text-sm leading-6 text-ink-500">
-                Try a property address, property key, or lead keyword.
+                Try a property address, property key, deal keyword, or task term.
               </p>
             </div>
           )}

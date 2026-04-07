@@ -82,6 +82,7 @@ const invalidateWorkspaceReadCaches = (...extraPrefixes) => {
     "properties:",
     "leads:",
     "property-reports:",
+    "project-updates:",
     "bids:lead:",
     "bids:project:",
     "tasks:list:",
@@ -370,6 +371,85 @@ export const updatePropertyWorkspace = async (propertyKey, data) => {
   return payload;
 };
 
+const appendProjectUpdateFormValue = (formData, key, value) => {
+  if (value === undefined || value === null || value === "") {
+    return;
+  }
+
+  formData.append(key, value);
+};
+
+const toProjectUpdateFormData = (input = {}) => {
+  if (input instanceof FormData) {
+    return input;
+  }
+
+  const formData = new FormData();
+  appendProjectUpdateFormValue(formData, "type", input.type);
+  appendProjectUpdateFormValue(formData, "title", input.title);
+  appendProjectUpdateFormValue(formData, "body", input.body);
+  appendProjectUpdateFormValue(formData, "removeAttachment", input.removeAttachment);
+  appendProjectUpdateFormValue(formData, "attachment", input.attachment);
+  return formData;
+};
+
+export const getProjectUpdates = async (propertyKey) => {
+  const path = `${API_BASE_URL}/properties/${encodeURIComponent(propertyKey)}/updates`;
+
+  return readCachedResource(
+    `project-updates:${propertyKey}`,
+    async () => {
+      const res = await fetch(path, {
+        headers: getAuthHeaders(),
+      });
+      if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to load project updates"));
+      return res.json();
+    },
+    5000
+  );
+};
+
+export const createProjectUpdate = async (propertyKey, input) => {
+  const res = await fetch(`${API_BASE_URL}/properties/${encodeURIComponent(propertyKey)}/updates`, {
+    method: "POST",
+    headers: getAuthHeaders(true),
+    body: toProjectUpdateFormData(input),
+  });
+  if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to add project update"));
+  const payload = await res.json();
+  invalidateWorkspaceReadCaches("project-updates:");
+  return payload;
+};
+
+export const updateProjectUpdate = async (propertyKey, updateId, input) => {
+  const res = await fetch(
+    `${API_BASE_URL}/properties/${encodeURIComponent(propertyKey)}/updates/${updateId}`,
+    {
+      method: "PATCH",
+      headers: getAuthHeaders(true),
+      body: toProjectUpdateFormData(input),
+    }
+  );
+  if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to update project update"));
+  const payload = await res.json();
+  invalidateWorkspaceReadCaches("project-updates:");
+  return payload;
+};
+
+export const deleteProjectUpdate = async (propertyKey, updateId) => {
+  const res = await fetch(
+    `${API_BASE_URL}/properties/${encodeURIComponent(propertyKey)}/updates/${updateId}`,
+    {
+      method: "DELETE",
+      headers: getAuthHeaders(),
+    }
+  );
+  if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to delete project update"));
+  const payload = await res.json();
+  invalidateWorkspaceReadCaches("project-updates:");
+  return payload;
+};
+
 export const askPropertyCopilot = async (propertyKey, payload) => {
   const res = await fetch(
     `${API_BASE_URL}/properties/${encodeURIComponent(propertyKey)}/copilot`,
@@ -389,6 +469,20 @@ export const askPropertyCopilot = async (propertyKey, payload) => {
     invalidateWorkspaceReadCaches("tasks:list:");
   }
   return responsePayload;
+};
+
+export const askLeadProjectAnalysisCopilot = async (leadId, payload) => {
+  const res = await fetch(`${API_BASE_URL}/leads/${leadId}/project-analysis/copilot`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    throw new Error(
+      await getErrorMessage(res, "Failed to reach the project analysis assistant")
+    );
+  }
+  return res.json();
 };
 
 export const createPropertyWorkspace = async (propertyKey, workspaceKey, data = {}) => {
@@ -1020,6 +1114,20 @@ export const getProjectDocuments = async (investmentId) => {
   );
 };
 
+export const getLeadDocuments = async (leadId) => {
+  return readCachedResource(
+    `documents:lead:${leadId}`,
+    async () => {
+      const res = await fetch(`${API_BASE_URL}/documents/lead/${leadId}`, {
+        headers: getAuthHeaders(),
+      });
+      if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to fetch documents"));
+      return res.json();
+    },
+    12000
+  );
+};
+
 export const getDocumentStorageOverview = async () => {
   return readCachedResource(
     "documents:storage:overview",
@@ -1058,6 +1166,19 @@ export const uploadProjectDocument = async (formData) => {
   return payload;
 };
 
+export const uploadLeadDocument = async (formData) => {
+  const res = await fetch(`${API_BASE_URL}/documents`, {
+    method: "POST",
+    headers: getAuthHeaders(true),
+    body: formData,
+  });
+  if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to upload document"));
+  const payload = await res.json();
+  invalidateWorkspaceReadCaches("documents:lead:");
+  invalidateApiReadCache("documents:storage:");
+  return payload;
+};
+
 export const deleteProjectDocument = async (documentId) => {
   const res = await fetch(`${API_BASE_URL}/documents/${documentId}`, {
     method: "DELETE",
@@ -1066,6 +1187,18 @@ export const deleteProjectDocument = async (documentId) => {
   if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to delete document"));
   const payload = await res.json();
   invalidateWorkspaceReadCaches("documents:");
+  invalidateApiReadCache("documents:storage:");
+  return payload;
+};
+
+export const deleteLeadDocument = async (documentId) => {
+  const res = await fetch(`${API_BASE_URL}/documents/${documentId}`, {
+    method: "DELETE",
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to delete document"));
+  const payload = await res.json();
+  invalidateWorkspaceReadCaches("documents:lead:");
   invalidateApiReadCache("documents:storage:");
   return payload;
 };

@@ -549,7 +549,7 @@ const LeadRenovationTab = ({ lead = null, leadId = "", onLeadUpdated }) => {
 
   const handleSaveRenovation = async () => {
     if (!leadId) {
-      toast.error("This property does not have a linked lead yet.");
+      toast.error("This property does not have a linked deal yet.");
       return;
     }
 
@@ -575,11 +575,11 @@ const LeadRenovationTab = ({ lead = null, leadId = "", onLeadUpdated }) => {
 
   if (!lead || !leadId) {
     return (
-      <section className="section-card p-6 sm:p-7">
+      <section className="surface-panel px-6 py-6 sm:px-7">
         <span className="eyebrow">Renovation plan</span>
-        <h3 className="mt-4 text-3xl font-semibold text-ink-900">Add this property to leads first</h3>
+        <h3 className="mt-4 text-3xl font-semibold text-ink-900">Add this property to deals first</h3>
         <p className="mt-3 max-w-2xl text-sm leading-6 text-ink-500">
-          The renovation planner stays tied to the lead workspace so budgets, bids, and saved reports
+          The renovation planner stays tied to the deal workspace so budgets, bids, and saved reports
           all follow the same property record.
         </p>
       </section>
@@ -588,7 +588,7 @@ const LeadRenovationTab = ({ lead = null, leadId = "", onLeadUpdated }) => {
 
   return (
     <div className="space-y-6">
-      <section className="section-card p-6 sm:p-7">
+      <section className="surface-panel px-6 py-6 sm:px-7">
         <span className="eyebrow">Renovation planning and estimate</span>
         <h2 className="mt-4 text-2xl font-semibold text-ink-900">
           Build the scope before you price the job
@@ -693,7 +693,7 @@ const LeadRenovationTab = ({ lead = null, leadId = "", onLeadUpdated }) => {
         />
       </div>
 
-      <section className="section-card p-6 sm:p-7">
+      <section className="surface-panel px-6 py-6 sm:px-7">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <span className="eyebrow">Renovation plan list</span>
@@ -793,8 +793,8 @@ const LeadRenovationTab = ({ lead = null, leadId = "", onLeadUpdated }) => {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-ink-500">
           {lastRenovationSavedAt
-            ? `Saved ${formatDate(lastRenovationSavedAt)}. Your renovation items and budgets are stored on this lead.`
-            : "Save renovation plan to store the item list, budgets, and project setup on this lead."}
+            ? `Saved ${formatDate(lastRenovationSavedAt)}. Your renovation items and budgets are stored on this deal.`
+            : "Save renovation plan to store the item list, budgets, and property setup on this deal."}
         </p>
         <button
           type="button"
