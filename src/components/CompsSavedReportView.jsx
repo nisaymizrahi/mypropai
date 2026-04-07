@@ -4,13 +4,15 @@ import { ArrowDownTrayIcon } from "@heroicons/react/24/outline";
 
 import CompsReportPdfTemplate from "./CompsReportPdfTemplate";
 import MasterDealReportSections from "./MasterDealReportSections";
-import { formatCurrency, formatDate } from "../utils/compsReport";
+import {
+  buildFinancialSnapshot,
+  formatCompactCurrency,
+  formatCurrency,
+  formatDate,
+  formatPercent,
+  getVerdictMeta,
+} from "../utils/compsReport";
 import { exportElementToPdf, sanitizePdfFilename } from "../utils/pdfExport";
-
-const formatPercent = (value) => {
-  if (value === null || value === undefined || value === "") return "—";
-  return `${Number(value).toFixed(1)}%`;
-};
 
 const getContextLabel = (contextType = "") => {
   if (contextType === "project") return "Project report";
@@ -19,11 +21,11 @@ const getContextLabel = (contextType = "") => {
   return "Saved report";
 };
 
-const MetricPill = ({ label, value, hint }) => (
-  <div className="rounded-[22px] border border-ink-100 bg-white/80 px-4 py-4">
-    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-400">{label}</p>
+const SummaryPill = ({ label, value, hint }) => (
+  <div className="rounded-[22px] border border-ink-100 bg-white/85 px-4 py-4">
+    <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-ink-400">{label}</p>
     <p className="mt-2 text-lg font-semibold text-ink-900">{value}</p>
-    {hint ? <p className="mt-2 text-xs text-ink-500">{hint}</p> : null}
+    {hint ? <p className="mt-1 text-xs text-ink-500">{hint}</p> : null}
   </div>
 );
 
@@ -46,7 +48,7 @@ const CompsSavedReportView = ({
         element: exportRef.current,
         filename: `${sanitizePdfFilename(report.title || report.subject?.address || "master-deal-report")}.pdf`,
         options: {
-          margin: [0.22, 0.22, 0.28, 0.22],
+          margin: [0.18, 0.18, 0.2, 0.18],
           html2canvas: {
             scale: 2,
             backgroundColor: "#f6f1ea",
@@ -73,33 +75,32 @@ const CompsSavedReportView = ({
     );
   }
 
-  const property = report.propertySnapshot || {};
   const valuation = report.valuation || {};
-  const deal = report.dealInputs || {};
-  const analysis = report.dealAnalysis || {};
-  const ai = report.aiVerdict || {};
+  const financial = buildFinancialSnapshot(report);
+  const verdictMeta = getVerdictMeta(report);
 
   return (
     <div className="space-y-6">
-      <section className="surface-panel-strong overflow-hidden px-6 py-7 sm:px-7">
-        <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+      <section className="surface-panel-strong overflow-hidden px-6 py-6 sm:px-7">
+        <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
           <div>
-            <span className="eyebrow">Saved Master Deal Report</span>
-            <h2 className="mt-4 font-display text-[2.5rem] leading-[0.95] text-ink-900">
-              {report.title || report.subject?.address || "Master Deal Report"}
+            <div className="flex flex-wrap gap-2">
+              <span className="eyebrow">Saved Master Deal Report</span>
+              <span className="glass-chip">{getContextLabel(report.contextType)}</span>
+              <span className="glass-chip">{formatDate(report.generatedAt)}</span>
+            </div>
+            <h2 className="mt-4 font-display text-[2.4rem] leading-[0.95] text-ink-900">
+              {report.propertySnapshot?.address || report.subject?.address || report.title || "Master Deal Report"}
             </h2>
-            <p className="mt-4 max-w-3xl text-sm leading-7 text-ink-600">
-              Reopen the full property, comps, deal math, and verdict package exactly as it was saved, then export a polished client-ready PDF when needed.
+            <p className="mt-3 max-w-3xl text-sm leading-7 text-ink-600">
+              Reopen the saved investor package, review the exact underwriting snapshot, and export a polished PDF when needed.
             </p>
             {actions ? <div className="mt-5 flex flex-wrap gap-3">{actions}</div> : null}
           </div>
 
-          <div className="flex flex-wrap gap-3">
-            <div className="rounded-full border border-verdigris-200 bg-verdigris-50 px-4 py-2 text-sm font-semibold text-verdigris-700">
-              {getContextLabel(report.contextType)}
-            </div>
-            <div className="rounded-full border border-sand-200 bg-sand-50 px-4 py-2 text-sm font-semibold text-sand-700">
-              Generated {formatDate(report.generatedAt)}
+          <div className="flex flex-wrap items-center gap-3">
+            <div className={`report-score-pill report-score-pill-${verdictMeta.tone}`}>
+              {verdictMeta.score}
             </div>
             <button
               type="button"
@@ -114,29 +115,31 @@ const CompsSavedReportView = ({
         </div>
 
         <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <MetricPill
+          <SummaryPill
             label="Verdict"
-            value={ai.verdict || "Pending"}
-            hint={`Comp support ${ai.compSupport || "—"} • Confidence ${ai.confidence || "—"}`}
+            value={verdictMeta.label}
+            hint={`${verdictMeta.compSupport} comp support • ${verdictMeta.confidence} confidence`}
           />
-          <MetricPill
-            label="Blended value"
+          <SummaryPill
+            label="Estimated value"
             value={formatCurrency(valuation.blendedEstimate)}
-            hint={`${formatCurrency(valuation.blendedLow)} to ${formatCurrency(valuation.blendedHigh)}`}
+            hint={`${formatCompactCurrency(financial.totalProjectCost)} total cost`}
           />
-          <MetricPill
-            label="Asking / rehab"
-            value={`${formatCurrency(deal.askingPrice)} / ${formatCurrency(deal.rehabEstimate)}`}
-            hint={deal.strategy ? `${String(deal.strategy).toUpperCase()} strategy` : "Deal inputs"}
-          />
-          <MetricPill
-            label={analysis.mode === "hold" ? "Gross yield" : "Estimated profit"}
+          <SummaryPill
+            label={financial.mode === "hold" ? "Gross yield" : "Estimated profit"}
             value={
-              analysis.mode === "hold"
-                ? formatPercent(analysis.metrics?.grossYieldPercent)
-                : formatCurrency(analysis.metrics?.estimatedProfit)
+              financial.mode === "hold"
+                ? formatPercent(financial.marginPercent)
+                : formatCurrency(financial.estimatedProfit)
             }
-            hint={property.address || report.subject?.address || "Property"}
+            hint={`${financial.returnLabel} ${formatPercent(financial.returnPercent)}`}
+          />
+          <SummaryPill
+            label="Asking / rehab"
+            value={`${formatCompactCurrency(report.dealInputs?.askingPrice)} / ${formatCompactCurrency(
+              report.dealInputs?.rehabEstimate
+            )}`}
+            hint={String(report.dealInputs?.strategy || "flip").toUpperCase()}
           />
         </div>
       </section>

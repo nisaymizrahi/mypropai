@@ -12,11 +12,12 @@ import {
   changePassword,
   createBillingPortalSession,
   createOneTimeCheckout,
-  createSubscriptionCheckout,
   getBillingOverview,
   syncBillingCheckoutSession,
   updateUserProfile,
 } from "../utils/api";
+import { SubscriptionLegalNotice } from "../components/SubscriptionConsentDialog";
+import useSubscriptionCheckoutConsent from "../hooks/useSubscriptionCheckoutConsent";
 import {
   getSidebarOption,
   loadSidebarPreference,
@@ -126,11 +127,31 @@ const AccountCenter = () => {
 
   const [billingOverview, setBillingOverview] = useState(null);
   const [isBillingLoading, setIsBillingLoading] = useState(true);
-  const [isStartingSubscription, setIsStartingSubscription] = useState(false);
   const [isOpeningPortal, setIsOpeningPortal] = useState(false);
   const [isBuyingStarterPack, setIsBuyingStarterPack] = useState(false);
   const [isBuyingTopUp, setIsBuyingTopUp] = useState(false);
   const [sidebarPreference, setSidebarPreference] = useState(() => loadSidebarPreference());
+  const currentPlan = billingOverview?.plan;
+  const proPlan =
+    billingOverview?.catalog?.subscriptionPlans?.find((plan) => plan.key === "pro") || null;
+  const trialEligible = Boolean(currentPlan?.trialEligible);
+
+  const handleSubscriptionCheckoutError = useCallback((error) => {
+    toast.error(error.message || "Could not start the Pro checkout.");
+  }, []);
+
+  const {
+    openSubscriptionConsent: handleStartSubscription,
+    isStartingSubscription,
+    subscriptionConsentDialog,
+  } = useSubscriptionCheckoutConsent({
+    planKey: "pro",
+    monthlyPriceCents: proPlan?.monthlyPriceCents ?? null,
+    trialPeriodDays: proPlan?.trialPeriodDays || 0,
+    trialEligible,
+    source: "account_center",
+    onError: handleSubscriptionCheckoutError,
+  });
 
   const loadBillingOverview = useCallback(async () => {
     try {
@@ -248,17 +269,6 @@ const AccountCenter = () => {
     }
   };
 
-  const handleStartSubscription = async () => {
-    setIsStartingSubscription(true);
-    try {
-      const { url } = await createSubscriptionCheckout("pro");
-      window.location.href = url;
-    } catch (error) {
-      toast.error(error.message || "Could not start the Pro checkout.");
-      setIsStartingSubscription(false);
-    }
-  };
-
   const handleOpenPortal = async () => {
     setIsOpeningPortal(true);
     try {
@@ -308,7 +318,6 @@ const AccountCenter = () => {
     return <LoadingSpinner />;
   }
 
-  const currentPlan = billingOverview?.plan;
   const usage = billingOverview?.usage?.compsReport;
   const storageUsage = billingOverview?.usage?.documentStorage;
   const planFeatures = currentPlan?.features || [];
@@ -316,7 +325,6 @@ const AccountCenter = () => {
   const trialCredits = usage?.trialRemaining ?? 0;
   const cycleCredits = usage?.monthlyIncludedRemainingCount ?? 0;
   const purchasedCredits = usage?.purchasedRemaining ?? 0;
-  const trialEligible = Boolean(currentPlan?.trialEligible);
   const activeSidebarOption = getSidebarOption(sidebarPreference);
 
   return (
@@ -376,6 +384,14 @@ const AccountCenter = () => {
                 </button>
               )}
             </div>
+            {!currentPlan?.isActive ? (
+              <SubscriptionLegalNotice
+                trialEligible={trialEligible}
+                trialPeriodDays={proPlan?.trialPeriodDays || 0}
+                monthlyPriceCents={proPlan?.monthlyPriceCents ?? null}
+                className="mt-4 max-w-xl bg-white/75"
+              />
+            ) : null}
           </div>
 
           <div className="section-card p-6">
@@ -703,8 +719,16 @@ const AccountCenter = () => {
                       </div>
                     )}
                   </div>
+                  {!currentPlan?.isActive ? (
+                    <SubscriptionLegalNotice
+                      trialEligible={trialEligible}
+                      trialPeriodDays={proPlan?.trialPeriodDays || 0}
+                      monthlyPriceCents={proPlan?.monthlyPriceCents ?? null}
+                      className="mt-5 bg-white/90"
+                    />
+                  ) : null}
 
-                    {planFeatures.length > 0 ? (
+                  {planFeatures.length > 0 ? (
                     <div className="mt-5 grid gap-3 md:grid-cols-2">
                       {planFeatures.map((feature) => (
                         <div
@@ -823,6 +847,7 @@ const AccountCenter = () => {
           </div>
         </div>
       </section>
+      {subscriptionConsentDialog}
     </div>
   );
 };

@@ -3,14 +3,10 @@ import toast from "react-hot-toast";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowPathIcon,
-  CheckCircleIcon,
-  ClipboardDocumentListIcon,
-  HomeModernIcon,
+  ChevronDownIcon,
   PencilSquareIcon,
   PlusIcon,
-  SparklesIcon,
   TrashIcon,
-  WrenchScrewdriverIcon,
   XMarkIcon,
 } from "@heroicons/react/24/outline";
 
@@ -18,7 +14,6 @@ import { useAuth } from "../context/AuthContext";
 import {
   analyzeLeadComps,
   createOneTimeCheckout,
-  createSubscriptionCheckout,
   getBidsForLead,
   getBillingAccess,
   getLeadDetails,
@@ -43,6 +38,7 @@ import BidsTab from "../components/BidsTab";
 import MasterDealReportWorkspace from "../components/MasterDealReportWorkspace";
 import SavedCompsReportsTab from "../components/SavedCompsReportsTab";
 import TasksPanel from "../components/TasksPanel";
+import useSubscriptionCheckoutConsent from "../hooks/useSubscriptionCheckoutConsent";
 
 const occupancyOptions = ["Unknown", "Vacant", "Owner Occupied", "Tenant Occupied"];
 const leadStatusOptions = [
@@ -52,6 +48,14 @@ const leadStatusOptions = [
   "Under Contract",
   "Closed - Won",
   "Closed - Lost",
+];
+const leadDetailTabs = [
+  { id: "details", label: "Lead Details" },
+  { id: "comps", label: "AI Comps Analysis" },
+  { id: "saved-reports", label: "Saved Reports" },
+  { id: "renovation", label: "Renovation Plan" },
+  { id: "bids", label: "Bid Management" },
+  { id: "tasks", label: "Tasks" },
 ];
 const propertyTypeOptions = [
   { value: "", label: "Select property type" },
@@ -608,17 +612,53 @@ const FormField = ({ label, hint, children, className = "" }) => (
   </label>
 );
 
-const TabButton = ({ active, icon: Icon, label, onClick }) => (
+const getLeadStageToneClassName = (status) => {
+  if (status === "Closed - Won") return "bg-emerald-600";
+  if (status === "Closed - Lost") return "bg-rose-500";
+  if (status === "Offer Made") return "bg-amber-500";
+  if (status === "Under Contract") return "bg-sky-600";
+  if (status === "Analyzing") return "bg-teal-600";
+  return "bg-slate-500";
+};
+
+const TabButton = ({ active, label, onClick }) => (
   <button
     type="button"
     onClick={onClick}
-    className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition ${
-      active ? "bg-ink-900 text-white" : "text-ink-600 hover:bg-sand-50 hover:text-ink-900"
-    }`}
+    className={`lead-detail-tab-button ${active ? "lead-detail-tab-button-active" : ""}`}
+    aria-current={active ? "page" : undefined}
+    aria-selected={active}
+    role="tab"
   >
-    <Icon className="h-4 w-4" />
     {label}
   </button>
+);
+
+const StageControl = ({ value, onChange, disabled, isSaving }) => (
+  <div className="lead-detail-stage-shell">
+    <span className="lead-detail-stage-label">Stage</span>
+    <div className="lead-detail-stage-chip">
+      <span
+        className={`lead-detail-stage-dot ${getLeadStageToneClassName(value || "Potential")}`}
+        aria-hidden="true"
+      />
+      <select
+        value={value || "Potential"}
+        onChange={onChange}
+        disabled={disabled}
+        className="lead-detail-stage-select"
+        aria-label="Move pipeline stage"
+      >
+        {leadStatusOptions.map((option) => (
+          <option key={option} value={option}>
+            {option}
+          </option>
+        ))}
+      </select>
+      <ChevronDownIcon className="lead-detail-stage-caret" aria-hidden="true" />
+    </div>
+    {isSaving ? <span className="lead-detail-stage-saving">Saving...</span> : null}
+  </div>
 );
 
 const RenovationItemModal = ({
@@ -730,7 +770,7 @@ const RenovationItemModal = ({
   );
 };
 
-const LeadDetailPage = () => {
+const LeadDetailPage = ({ setDashboardHeaderConfig }) => {
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
@@ -769,9 +809,26 @@ const LeadDetailPage = () => {
   const [activeTab, setActiveTab] = useState("details");
   const [billingAccess, setBillingAccess] = useState(null);
   const [isBillingAccessLoading, setIsBillingAccessLoading] = useState(true);
-  const [isStartingSubscription, setIsStartingSubscription] = useState(false);
   const [isStartingCheckout, setIsStartingCheckout] = useState(false);
   const [isMovingToPropertyWorkspace, setIsMovingToPropertyWorkspace] = useState(false);
+  const subscriptionOffer = billingAccess?.subscriptionOffer || null;
+
+  const handleSubscriptionCheckoutError = useCallback((error) => {
+    setError(error.message || "Could not start the Pro checkout.");
+  }, []);
+
+  const {
+    openSubscriptionConsent: handleStartSubscription,
+    isStartingSubscription,
+    subscriptionConsentDialog,
+  } = useSubscriptionCheckoutConsent({
+    planKey: "pro",
+    monthlyPriceCents: subscriptionOffer?.monthlyPriceCents ?? null,
+    trialPeriodDays: subscriptionOffer?.trialPeriodDays || 0,
+    trialEligible: Boolean(billingAccess?.trialEligible),
+    source: "lead_detail",
+    onError: handleSubscriptionCheckoutError,
+  });
 
   const fetchData = useCallback(async () => {
     try {
@@ -1254,17 +1311,6 @@ const LeadDetailPage = () => {
     }
   };
 
-  const handleStartSubscription = async () => {
-    setIsStartingSubscription(true);
-    try {
-      const { url } = await createSubscriptionCheckout("pro");
-      window.location.href = url;
-    } catch (err) {
-      setError(err.message || "Could not start the Pro checkout.");
-      setIsStartingSubscription(false);
-    }
-  };
-
   const handleBuyReport = async () => {
     setIsStartingCheckout(true);
     setError("");
@@ -1360,27 +1406,16 @@ const LeadDetailPage = () => {
     }
   };
 
-  if (loading) return <LoadingSpinner />;
-  if (error && !lead) return <p className="p-4 text-center text-red-500">{error}</p>;
-  if (!lead) return <p className="p-4 text-center">Lead not found.</p>;
-
   const propertyWorkspaceId =
-    typeof lead.property === "object" ? lead.property?._id : lead.property;
-  const propertyWorkspaceActive = Boolean(lead.inPropertyWorkspace && propertyWorkspaceId);
-  const liveLead = buildLiveLead(lead, detailForm);
+    lead && (typeof lead.property === "object" ? lead.property?._id : lead.property);
+  const propertyWorkspaceActive = Boolean(lead?.inPropertyWorkspace && propertyWorkspaceId);
+  const liveLead = useMemo(() => buildLiveLead(lead || {}, detailForm), [lead, detailForm]);
   const dealForm = {
     ...buildDealForm(analysis?.dealInputs || savedReports[0]?.dealSnapshot || {}, liveLead),
     ...dealOverrides,
   };
   const workingTargetOffer =
     detailForm.targetOffer === "" ? null : Number(detailForm.targetOffer);
-  const workingExitValue =
-    detailForm.arv === "" ? analysis?.summary?.estimatedValue ?? null : Number(detailForm.arv);
-  const askingPrice = liveLead.sellerAskingPrice;
-  const askGap =
-    askingPrice !== null && askingPrice !== undefined && workingTargetOffer !== null
-      ? askingPrice - workingTargetOffer
-      : null;
   const showsUnitCount = detailForm.propertyType === "multi-family";
   const renovationBudgetTotal = renovationForm.items.reduce(
     (sum, item) => sum + (Number(item.budget) || 0),
@@ -1390,22 +1425,22 @@ const LeadDetailPage = () => {
     (item) => item.budget !== "" && item.budget !== null && item.budget !== undefined
   ).length;
   const renovationItemsCount = renovationForm.items.length;
-  const handleOpenPropertyWorkspace = () => {
+  const handleOpenPropertyWorkspace = useCallback(() => {
     if (!propertyWorkspaceId) {
       toast.error("This lead is not linked to a property workspace yet.");
       return;
     }
 
     navigate(`/properties/${encodeURIComponent(propertyWorkspaceId)}`);
-  };
+  }, [navigate, propertyWorkspaceId]);
 
-  const handleMoveToPropertyWorkspace = async () => {
+  const handleMoveToPropertyWorkspace = useCallback(async () => {
     if (!propertyWorkspaceId) {
       toast.error("This lead is not linked to a property workspace yet.");
       return;
     }
 
-    if ((lead.status || detailForm.status) !== "Closed - Won") {
+    if ((lead?.status || detailForm.status) !== "Closed - Won") {
       toast.error("Only Closed - Won leads can move into the property workspace.");
       return;
     }
@@ -1423,19 +1458,18 @@ const LeadDetailPage = () => {
     } finally {
       setIsMovingToPropertyWorkspace(false);
     }
-  };
-
-  return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <Link to="/leads" className="ghost-action">
+  }, [detailForm.status, id, lead?.status, navigate, propertyWorkspaceId]);
+  const headerActions = useMemo(
+    () => (
+      <>
+        <Link to="/leads" className="secondary-action lead-detail-header-action">
           Back to leads
         </Link>
         {propertyWorkspaceActive ? (
           <button
             type="button"
             onClick={handleOpenPropertyWorkspace}
-            className="primary-action"
+            className="primary-action lead-detail-header-action"
           >
             Open Property Workspace
           </button>
@@ -1444,146 +1478,72 @@ const LeadDetailPage = () => {
             type="button"
             onClick={handleMoveToPropertyWorkspace}
             disabled={isMovingToPropertyWorkspace}
-            className="primary-action disabled:cursor-not-allowed disabled:opacity-70"
+            className="primary-action lead-detail-header-action disabled:cursor-not-allowed disabled:opacity-70"
           >
             {isMovingToPropertyWorkspace ? "Moving..." : "Move to Property Workspace"}
           </button>
         ) : null}
-      </div>
+      </>
+    ),
+    [
+      handleMoveToPropertyWorkspace,
+      handleOpenPropertyWorkspace,
+      isMovingToPropertyWorkspace,
+      liveLead.status,
+      propertyWorkspaceActive,
+      propertyWorkspaceId,
+    ]
+  );
+  const dashboardHeaderConfig = useMemo(
+    () => ({
+      headerClassName: "lead-detail-dashboard-header",
+      titleDetail: liveLead.address || "Address pending",
+      actions: headerActions,
+      meta: {
+        subtitle: "",
+      },
+    }),
+    [headerActions, liveLead.address]
+  );
 
-      <section className="surface-panel px-5 py-4 sm:px-6">
-        <div>
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="min-w-0 flex-1">
-              <span className="eyebrow">Lead detail</span>
-              <h1 className="mt-2 font-display text-[1.8rem] leading-[1.02] text-ink-900 sm:text-[2.25rem]">
-                {liveLead.address}
-              </h1>
-              <div className="mt-3 flex flex-wrap gap-2">
-                <span className="rounded-full bg-ink-900 px-3 py-1 text-[11px] font-medium text-white">
-                  {liveLead.status || "Potential"}
-                </span>
-                <span className="rounded-full border border-ink-100 bg-white px-3 py-1 text-[11px] font-medium text-ink-700">
-                  {liveLead.propertyType || "Property type pending"}
-                </span>
-                {liveLead.squareFootage ? (
-                  <span className="rounded-full border border-ink-100 bg-white px-3 py-1 text-[11px] font-medium text-ink-700">
-                    {Number(liveLead.squareFootage).toLocaleString()} sqft
-                  </span>
-                ) : null}
-                {liveLead.bedrooms || liveLead.bathrooms ? (
-                  <span className="rounded-full border border-ink-100 bg-white px-3 py-1 text-[11px] font-medium text-ink-700">
-                    {[liveLead.bedrooms ? `${liveLead.bedrooms} bd` : null, liveLead.bathrooms ? `${liveLead.bathrooms} ba` : null]
-                      .filter(Boolean)
-                      .join(" • ")}
-                  </span>
-                ) : null}
-              </div>
-            </div>
+  useEffect(() => {
+    if (!setDashboardHeaderConfig || !lead) {
+      return undefined;
+    }
 
-            <div className="rounded-[20px] border border-ink-100 bg-white/85 px-4 py-3 sm:min-w-[220px]">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-ink-400">
-                    Next action
-                  </p>
-                  <p className="mt-2 text-sm font-medium text-ink-900">
-                    {liveLead.nextAction || "No next action yet"}
-                  </p>
-                  <p className="mt-1 text-xs text-ink-500">
-                    {liveLead.followUpDate
-                      ? `Follow up ${formatDate(liveLead.followUpDate)}`
-                      : "No follow-up date scheduled"}
-                  </p>
-                </div>
-              </div>
+    setDashboardHeaderConfig(dashboardHeaderConfig);
 
-              <div className="mt-4 border-t border-ink-100 pt-4">
-                <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-ink-400">
-                  Move pipeline stage
-                </p>
-                <select
-                  value={detailForm.status || "Potential"}
-                  onChange={handleQuickStatusChange}
-                  disabled={isSavingQuickStatus}
-                  className="auth-input mt-2 text-sm"
-                >
-                  {leadStatusOptions.map((option) => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
-                </select>
-                <p className="mt-2 text-xs text-ink-500">
-                  {isSavingQuickStatus ? "Saving stage..." : "This saves immediately."}
-                </p>
-              </div>
-            </div>
+    return () => {
+      setDashboardHeaderConfig(null);
+    };
+  }, [dashboardHeaderConfig, setDashboardHeaderConfig]);
+
+  if (loading) return <LoadingSpinner />;
+  if (error && !lead) return <p className="p-4 text-center text-red-500">{error}</p>;
+  if (!lead) return <p className="p-4 text-center">Lead not found.</p>;
+
+  return (
+    <div className="space-y-4">
+      <section className="lead-detail-tab-rail sticky top-40 z-20 md:top-28 xl:top-24">
+        <div className="lead-detail-tab-track">
+          <div className="lead-detail-tab-list" role="tablist" aria-label="Potential property sections">
+            {leadDetailTabs.map((tab) => (
+              <TabButton
+                key={tab.id}
+                active={activeTab === tab.id}
+                label={tab.label}
+                onClick={() => setActiveTab(tab.id)}
+              />
+            ))}
           </div>
-
-          <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-            <SummaryStat label="Asking Price" value={formatCurrency(liveLead.sellerAskingPrice)} />
-            <SummaryStat
-              label="Target Offer"
-              value={formatCurrency(workingTargetOffer)}
-              hint={askGap !== null ? `${formatCurrency(askGap)} below asking` : "Set your offer target"}
-            />
-            <SummaryStat
-              label="Exit Value"
-              value={formatCurrency(workingExitValue)}
-              hint={detailForm.arv ? "Using your saved ARV" : "Falls back to AI comps estimate"}
-            />
-            <SummaryStat
-              label="Renovation Budget"
-              value={renovationBudgetedItemCount ? formatCurrency(renovationBudgetTotal) : "—"}
-              hint={
-                renovationBudgetedItemCount
-                  ? `${renovationBudgetedItemCount} of ${renovationItemsCount} items budgeted`
-                  : "Add budgets in renovation plan"
-              }
-            />
-          </div>
+          <StageControl
+            value={detailForm.status || "Potential"}
+            onChange={handleQuickStatusChange}
+            disabled={isSavingQuickStatus}
+            isSaving={isSavingQuickStatus}
+          />
         </div>
       </section>
-
-      <div className="section-card flex flex-wrap items-center gap-2 p-1.5">
-        <TabButton
-          active={activeTab === "details"}
-          icon={HomeModernIcon}
-          label="Details"
-          onClick={() => setActiveTab("details")}
-        />
-        <TabButton
-          active={activeTab === "comps"}
-          icon={SparklesIcon}
-          label="AI Comps Analysis"
-          onClick={() => setActiveTab("comps")}
-        />
-        <TabButton
-          active={activeTab === "saved-reports"}
-          icon={PencilSquareIcon}
-          label="Saved Reports"
-          onClick={() => setActiveTab("saved-reports")}
-        />
-        <TabButton
-          active={activeTab === "renovation"}
-          icon={WrenchScrewdriverIcon}
-          label="Renovation Plan"
-          onClick={() => setActiveTab("renovation")}
-        />
-        <TabButton
-          active={activeTab === "bids"}
-          icon={ClipboardDocumentListIcon}
-          label="Bid Management"
-          onClick={() => setActiveTab("bids")}
-        />
-        <TabButton
-          active={activeTab === "tasks"}
-          icon={CheckCircleIcon}
-          label="Tasks"
-          onClick={() => setActiveTab("tasks")}
-        />
-      </div>
 
       {error ? (
         <div className="rounded-[16px] border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
@@ -2340,6 +2300,8 @@ const LeadDetailPage = () => {
           emptyDescription="Add the first follow-up, diligence item, or contractor action for this lead."
         />
       )}
+
+      {subscriptionConsentDialog}
     </div>
   );
 };

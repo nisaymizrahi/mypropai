@@ -7,7 +7,6 @@ import SavedCompsReportsTab from "../components/SavedCompsReportsTab";
 import {
   analyzeStandaloneComps,
   createOneTimeCheckout,
-  createSubscriptionCheckout,
   getBillingAccess,
   getPropertyReports,
   previewLeadProperty,
@@ -29,6 +28,7 @@ import {
   parseAddressLabel,
   propertyTypeOptions,
 } from "../utils/compsReport";
+import useSubscriptionCheckoutConsent from "../hooks/useSubscriptionCheckoutConsent";
 
 const ReportField = ({ label, hint, children, className = "" }) => (
   <label className={`space-y-2 ${className}`.trim()}>
@@ -76,8 +76,25 @@ const CompsReportPage = () => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [billingAccess, setBillingAccess] = useState(null);
   const [isBillingAccessLoading, setIsBillingAccessLoading] = useState(true);
-  const [isStartingSubscription, setIsStartingSubscription] = useState(false);
   const [isStartingCheckout, setIsStartingCheckout] = useState(false);
+  const subscriptionOffer = billingAccess?.subscriptionOffer || null;
+
+  const handleSubscriptionCheckoutError = useCallback((error) => {
+    toast.error(error.message || "Could not start the Pro checkout.");
+  }, []);
+
+  const {
+    openSubscriptionConsent: handleStartSubscription,
+    isStartingSubscription,
+    subscriptionConsentDialog,
+  } = useSubscriptionCheckoutConsent({
+    planKey: "pro",
+    monthlyPriceCents: subscriptionOffer?.monthlyPriceCents ?? null,
+    trialPeriodDays: subscriptionOffer?.trialPeriodDays || 0,
+    trialEligible: Boolean(billingAccess?.trialEligible),
+    source: "standalone_comps",
+    onError: handleSubscriptionCheckoutError,
+  });
 
   const subject = useMemo(() => buildStandaloneCompsSubject(detailForm), [detailForm]);
   const pricingTarget = subject.targetOffer ?? report?.valuation?.blendedEstimate ?? null;
@@ -416,17 +433,6 @@ const CompsReportPage = () => {
     }
   };
 
-  const handleStartSubscription = async () => {
-    setIsStartingSubscription(true);
-    try {
-      const { url } = await createSubscriptionCheckout("pro");
-      window.location.href = url;
-    } catch (error) {
-      toast.error(error.message || "Could not start the Pro checkout.");
-      setIsStartingSubscription(false);
-    }
-  };
-
   const handleBuyCredits = async () => {
     setIsStartingCheckout(true);
     try {
@@ -442,84 +448,146 @@ const CompsReportPage = () => {
     }
   };
 
-  return (
-    <div className="space-y-6">
-      <section className="surface-panel-strong relative overflow-hidden px-6 py-7 sm:px-8">
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1.18fr)_360px]">
+  const propertyStepPanel = (
+    <div className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_300px]" data-testid="property-current-snapshot">
+      <section className="report-control-card report-control-card-featured">
+        <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <span className="eyebrow">Investor reports</span>
-            <h1 className="mt-5 max-w-4xl font-display text-4xl leading-tight text-ink-900 sm:text-5xl">
-              Turn an address and a few deal assumptions into a premium Master Deal Report.
-            </h1>
-            <p className="mt-4 max-w-3xl text-base leading-7 text-ink-600 sm:text-lg">
-              Property facts, valuation comps, recent sales, active market listings, deal math, market
-              context, and an AI verdict all in one serious investor-facing report.
+            <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-ink-400">
+              Property essentials
+            </p>
+            <h3 className="mt-2 text-xl font-semibold text-ink-900">
+              Enter the address, then only the facts you know
+            </h3>
+            <p className="mt-1 text-sm leading-6 text-ink-500">
+              Address is enough to start. The fields below simply sharpen the comps and the AI report.
             </p>
           </div>
-
-          <div className="section-card p-6">
-            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-ink-400">
-              Report flow
-            </p>
-            <div className="mt-5 space-y-3 text-sm leading-6 text-ink-600">
-              <p>1. Enter the property address and refresh the facts.</p>
-              <p>2. Review the deal inputs and comp filters.</p>
-              <p>3. Run one Master Deal Report and save/export it when ready.</p>
-            </div>
-          </div>
+          <button
+            type="button"
+            onClick={() => handlePreviewLookup()}
+            disabled={isPreviewLoading || !subject.address}
+            data-testid="report-autofill-button"
+            className="ghost-action disabled:opacity-50"
+          >
+            <ArrowPathIcon className="mr-2 h-4 w-4" />
+            {isPreviewLoading ? "Refreshing..." : "Auto-fill facts"}
+          </button>
         </div>
-      </section>
 
-      <section className="grid gap-6 xl:grid-cols-[minmax(0,1.25fr)_360px]">
-        <div className="section-card p-6" data-testid="property-current-snapshot">
-          <div className="flex items-start justify-between gap-4">
+        <div className="mt-4 relative">
+          <ReportField
+            label="Address"
+            hint="Use the property address you want the report centered on."
+          >
+            <input
+              name="addressLine1"
+              value={detailForm.addressLine1}
+              onChange={handleFormChange}
+              data-testid="report-address-input"
+              className="auth-input"
+              placeholder="Start typing the property address..."
+            />
+          </ReportField>
+
+          {suggestions.length > 0 ? (
+            <div className="absolute z-20 mt-2 max-h-64 w-full overflow-y-auto rounded-[16px] border border-ink-100 bg-white shadow-soft">
+              {suggestions.map((suggestion) => (
+                <button
+                  key={suggestion.id}
+                  type="button"
+                  onClick={() => handleSelectSuggestion(suggestion)}
+                  className="w-full border-b border-ink-100 px-4 py-3 text-left text-sm text-ink-700 transition hover:bg-sand-50 last:border-b-0"
+                >
+                  {suggestion.place_name}
+                </button>
+              ))}
+            </div>
+          ) : null}
+        </div>
+
+        <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          <ReportField label="Property type">
+            <select
+              name="propertyType"
+              value={detailForm.propertyType}
+              onChange={handleFormChange}
+              className="auth-input"
+            >
+              {propertyTypeOptions.map((option) => (
+                <option key={option.value || "empty"} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </ReportField>
+          <ReportField label="Bedrooms">
+            <input
+              name="bedrooms"
+              type="number"
+              value={detailForm.bedrooms}
+              onChange={handleFormChange}
+              className="auth-input"
+              placeholder="0"
+            />
+          </ReportField>
+          <ReportField label="Bathrooms">
+            <input
+              name="bathrooms"
+              type="number"
+              step="0.5"
+              value={detailForm.bathrooms}
+              onChange={handleFormChange}
+              className="auth-input"
+              placeholder="0"
+            />
+          </ReportField>
+          <ReportField label="Square footage">
+            <input
+              name="squareFootage"
+              type="number"
+              value={detailForm.squareFootage}
+              onChange={handleFormChange}
+              className="auth-input"
+              placeholder="0"
+            />
+          </ReportField>
+          <ReportField label="Asking price">
+            <input
+              name="sellerAskingPrice"
+              type="number"
+              value={detailForm.sellerAskingPrice}
+              onChange={handleFormChange}
+              data-testid="report-asking-price-input"
+              className="auth-input"
+              placeholder="0"
+            />
+          </ReportField>
+          <ReportField label="Estimated rehab">
+            <input
+              name="rehabEstimate"
+              type="number"
+              value={detailForm.rehabEstimate}
+              onChange={handleFormChange}
+              data-testid="report-rehab-input"
+              className="auth-input"
+              placeholder="0"
+            />
+          </ReportField>
+        </div>
+
+        <details className="report-collapsible mt-4">
+          <summary className="report-collapsible-summary">
             <div>
-              <h2 className="text-xl font-semibold text-ink-900">Property intake</h2>
-              <p className="mt-1 text-sm text-ink-500">
-                Set the property facts the report will use before you run the analysis.
+              <p className="text-sm font-semibold text-ink-900">More property details</p>
+              <p className="mt-1 text-xs leading-5 text-ink-500">
+                Optional fields for manual address cleanup, pricing anchors, and extra property facts.
               </p>
             </div>
-            <button
-              type="button"
-              onClick={() => handlePreviewLookup()}
-              disabled={isPreviewLoading || !subject.address}
-              data-testid="report-autofill-button"
-              className="ghost-action disabled:opacity-50"
-            >
-              <ArrowPathIcon className="mr-2 h-4 w-4" />
-              {isPreviewLoading ? "Refreshing..." : "Auto-fill facts"}
-            </button>
-          </div>
+            <span className="glass-chip shrink-0">Optional</span>
+          </summary>
 
-          <div className="mt-5 grid gap-4 md:grid-cols-2">
-            <div className="relative md:col-span-2">
-              <ReportField label="Address">
-                <input
-                  name="addressLine1"
-                  value={detailForm.addressLine1}
-                  onChange={handleFormChange}
-                  data-testid="report-address-input"
-                  className="auth-input"
-                  placeholder="Start typing the property address..."
-                />
-              </ReportField>
-
-              {suggestions.length > 0 ? (
-                <div className="absolute z-20 mt-2 max-h-64 w-full overflow-y-auto rounded-[16px] border border-ink-100 bg-white shadow-soft">
-                  {suggestions.map((suggestion) => (
-                    <button
-                      key={suggestion.id}
-                      type="button"
-                      onClick={() => handleSelectSuggestion(suggestion)}
-                      className="w-full border-b border-ink-100 px-4 py-3 text-left text-sm text-ink-700 transition hover:bg-sand-50 last:border-b-0"
-                    >
-                      {suggestion.place_name}
-                    </button>
-                  ))}
-                </div>
-              ) : null}
-            </div>
-
+          <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <ReportField label="City">
               <input name="city" value={detailForm.city} onChange={handleFormChange} className="auth-input" />
             </ReportField>
@@ -532,51 +600,6 @@ const CompsReportPage = () => {
                 value={detailForm.zipCode}
                 onChange={handleFormChange}
                 className="auth-input"
-              />
-            </ReportField>
-            <ReportField label="Property type">
-              <select
-                name="propertyType"
-                value={detailForm.propertyType}
-                onChange={handleFormChange}
-                className="auth-input"
-              >
-                {propertyTypeOptions.map((option) => (
-                  <option key={option.value || "empty"} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </ReportField>
-            <ReportField label="Bedrooms">
-              <input
-                name="bedrooms"
-                type="number"
-                value={detailForm.bedrooms}
-                onChange={handleFormChange}
-                className="auth-input"
-                placeholder="0"
-              />
-            </ReportField>
-            <ReportField label="Bathrooms">
-              <input
-                name="bathrooms"
-                type="number"
-                step="0.5"
-                value={detailForm.bathrooms}
-                onChange={handleFormChange}
-                className="auth-input"
-                placeholder="0"
-              />
-            </ReportField>
-            <ReportField label="Square footage">
-              <input
-                name="squareFootage"
-                type="number"
-                value={detailForm.squareFootage}
-                onChange={handleFormChange}
-                className="auth-input"
-                placeholder="0"
               />
             </ReportField>
             <ReportField label="Lot size">
@@ -611,102 +634,153 @@ const CompsReportPage = () => {
                 />
               </ReportField>
             ) : null}
-            <ReportField label="Asking price">
+            <ReportField label="Target offer" hint="Optional">
               <input
-                name="sellerAskingPrice"
+                name="targetOffer"
                 type="number"
-                value={detailForm.sellerAskingPrice}
+                value={detailForm.targetOffer}
                 onChange={handleFormChange}
-                data-testid="report-asking-price-input"
                 className="auth-input"
                 placeholder="0"
               />
             </ReportField>
-            <ReportField label="Estimated rehab">
+            <ReportField label="ARV" hint="Optional">
               <input
-                name="rehabEstimate"
+                name="arv"
                 type="number"
-                value={detailForm.rehabEstimate}
+                value={detailForm.arv}
                 onChange={handleFormChange}
-                data-testid="report-rehab-input"
                 className="auth-input"
                 placeholder="0"
               />
             </ReportField>
           </div>
+        </details>
+      </section>
+
+      <section className="report-control-card">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-ink-400">
+          Current snapshot
+        </p>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
+          <SnapshotCard
+            label="Address"
+            value={subject.address || "No address selected yet"}
+            hint={
+              isMapLookupLoading
+                ? "Finding map coordinates..."
+                : detailForm.county
+                  ? `${detailForm.county} County`
+                  : "Start with the address"
+            }
+          />
+          <SnapshotCard
+            label="Property"
+            value={
+              [
+                subject.propertyType,
+                subject.squareFootage ? `${Number(subject.squareFootage).toLocaleString()} sqft` : null,
+              ]
+                .filter(Boolean)
+                .join(" • ") || "Add the basics"
+            }
+            hint={
+              [
+                subject.bedrooms ? `${subject.bedrooms} bd` : null,
+                subject.bathrooms ? `${subject.bathrooms} ba` : null,
+              ]
+                .filter(Boolean)
+                .join(" • ") || "Beds and baths appear here"
+            }
+          />
+          <SnapshotCard
+            label="Pricing"
+            value={`Ask ${formatCurrency(subject.sellerAskingPrice)}`}
+            hint={`Target ${formatCurrency(pricingTarget)}`}
+          />
+          <SnapshotCard
+            label="Condition"
+            value={`Rehab ${formatCurrency(subject.rehabEstimate)}`}
+            hint={
+              subject.lastSaleDate
+                ? `Last sold ${formatDate(subject.lastSaleDate)}`
+                : "Add rehab only if you already know it"
+            }
+          />
         </div>
+      </section>
+    </div>
+  );
 
-        <div className="section-card p-6">
-          <h2 className="text-xl font-semibold text-ink-900">Current snapshot</h2>
-          <p className="mt-1 text-sm text-ink-500">
-            These are the core facts the deal report will use.
-          </p>
+  return (
+    <div className="space-y-6">
+      <section className="surface-panel-strong overflow-hidden px-6 py-5 sm:px-7">
+        <div className="flex flex-wrap items-end justify-between gap-5">
+          <div>
+            <span className="eyebrow">Master Deal Reports</span>
+            <h1 className="mt-4 font-display text-[2.25rem] leading-[0.96] text-ink-900 sm:text-[2.7rem]">
+              Run comps and the AI report from one cleaner workspace
+            </h1>
+            <p className="mt-2 max-w-3xl text-sm leading-7 text-ink-600">
+              Put the address, deal numbers, and filters in up top, then review the report below.
+            </p>
+          </div>
 
-          <div className="mt-5 space-y-3">
-            <SnapshotCard
-              label="Address"
-              value={subject.address || "No address selected yet"}
-              hint={
-                isMapLookupLoading
-                  ? "Finding coordinates for this property..."
-                  : detailForm.county
-                    ? `${detailForm.county} County`
-                    : "Choose a property to begin"
-              }
-            />
-            <SnapshotCard
-              label="Property"
-              value={
-                [subject.propertyType, subject.squareFootage ? `${Number(subject.squareFootage).toLocaleString()} sqft` : null]
-                  .filter(Boolean)
-                  .join(" • ") || "No property facts yet"
-              }
-              hint={
-                [subject.bedrooms ? `${subject.bedrooms} bd` : null, subject.bathrooms ? `${subject.bathrooms} ba` : null]
-                  .filter(Boolean)
-                  .join(" • ") || "Bedrooms and bathrooms will appear here"
-              }
-            />
-            <SnapshotCard
-              label="Pricing"
-              value={`Ask ${formatCurrency(subject.sellerAskingPrice)}`}
-              hint={`Target ${formatCurrency(pricingTarget)}`}
-            />
-            <SnapshotCard
-              label="Condition / rehab"
-              value={`Rehab ${formatCurrency(subject.rehabEstimate)}`}
-              hint={
-                subject.lastSaleDate
-                  ? `Last sold ${formatDate(subject.lastSaleDate)}`
-                  : "Last sale date will appear here when available"
-              }
-            />
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div className="rounded-[20px] border border-ink-100 bg-white/80 px-4 py-4">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-ink-400">Library</p>
+              <p className="mt-2 text-2xl font-semibold text-ink-900">{savedReports.length}</p>
+              <p className="mt-1 text-xs text-ink-500">Saved master reports</p>
+            </div>
+            <div className="rounded-[20px] border border-ink-100 bg-white/80 px-4 py-4">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-ink-400">Live subject</p>
+              <p className="mt-2 text-sm font-semibold text-ink-900">
+                {subject.address || "No address yet"}
+              </p>
+              <p className="mt-1 text-xs text-ink-500">
+                {subject.propertyType || "Property type pending"}
+              </p>
+            </div>
+            <div className="rounded-[20px] border border-ink-100 bg-white/80 px-4 py-4">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-ink-400">Current ask</p>
+              <p className="mt-2 text-sm font-semibold text-ink-900">{formatCurrency(subject.sellerAskingPrice)}</p>
+              <p className="mt-1 text-xs text-ink-500">Rehab {formatCurrency(subject.rehabEstimate)}</p>
+            </div>
           </div>
         </div>
       </section>
 
       <section className="surface-panel px-4 py-4 sm:px-5">
-        <div className="flex flex-wrap gap-2">
-          {tabOptions.map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => setActiveTab(tab.id)}
-              data-testid={`report-tab-${tab.id}`}
-              className={`rounded-full px-4 py-2.5 text-sm font-semibold transition ${
-                activeTab === tab.id
-                  ? "bg-ink-900 text-white shadow-soft"
-                  : "bg-white/80 text-ink-600 hover:bg-white"
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap gap-2">
+            {tabOptions.map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveTab(tab.id)}
+                data-testid={`report-tab-${tab.id}`}
+                className={`rounded-full px-4 py-2.5 text-sm font-semibold transition ${
+                  activeTab === tab.id
+                    ? "bg-ink-900 text-white shadow-soft"
+                    : "bg-white/80 text-ink-600 hover:bg-white"
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          <p className="text-sm text-ink-500">
+            {activeTab === "master"
+              ? "Guided input on the left, polished report on the right."
+              : "Browse, reopen, and export saved reports."}
+          </p>
         </div>
       </section>
 
       {activeTab === "master" ? (
         <MasterDealReportWorkspace
+          subject={subject}
           report={report}
           filters={filters}
           deal={dealForm}
@@ -726,6 +800,7 @@ const CompsReportPage = () => {
           showOneTimeCheckout
           reportNotice={reportNotice}
           runDisabled={!subject.address}
+          renderSubjectPanel={() => propertyStepPanel}
         />
       ) : (
         <SavedCompsReportsTab
@@ -737,6 +812,7 @@ const CompsReportPage = () => {
           emptyMessage="Run a Master Deal Report from this page and save it to build your report library."
         />
       )}
+      {subscriptionConsentDialog}
     </div>
   );
 };

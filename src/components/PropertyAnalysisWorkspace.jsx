@@ -1,4 +1,5 @@
 import React from "react";
+import { SubscriptionLegalNotice } from "./SubscriptionConsentDialog";
 
 import { formatCurrency, formatDate } from "../utils/compsReport";
 
@@ -160,6 +161,7 @@ const PropertyAnalysisWorkspace = ({
   const trialCreditsRemaining = billingAccess?.trialCreditsRemaining || 0;
   const cycleCreditsRemaining = billingAccess?.monthlyIncludedRemainingCount || 0;
   const purchasedCreditsRemaining = billingAccess?.purchasedCreditsRemaining || 0;
+  const subscriptionOffer = billingAccess?.subscriptionOffer || null;
   const startSubscriptionLabel = billingAccess?.trialEligible ? "Start Free Trial" : "Upgrade to Pro";
   const assessmentHistory = report?.taxes?.history || [];
   const compHighlights = report?.compsSummary?.comps?.slice(0, 5) || [];
@@ -249,6 +251,14 @@ const PropertyAnalysisWorkspace = ({
                     >
                       {isStartingCheckout ? "Redirecting..." : "Buy 10 Credits"}
                     </button>
+                  ) : null}
+                  {!billingAccess?.hasActiveSubscription ? (
+                    <SubscriptionLegalNotice
+                      trialEligible={Boolean(billingAccess?.trialEligible)}
+                      trialPeriodDays={subscriptionOffer?.trialPeriodDays || 0}
+                      monthlyPriceCents={subscriptionOffer?.monthlyPriceCents ?? null}
+                      className="bg-white/90"
+                    />
                   ) : null}
                 </div>
               </div>

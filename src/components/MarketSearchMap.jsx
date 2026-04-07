@@ -46,16 +46,77 @@ const buildFeatureCollection = (listings = []) => ({
 const buildPopupContent = (listing) => {
   const root = document.createElement("div");
   root.className = "market-search-popup-card";
+  root.style.padding = "0";
+  root.style.minWidth = "248px";
+
+  const photoCount = Math.max(
+    Number.isFinite(Number(listing.photoCount)) ? Number(listing.photoCount) : 0,
+    Array.isArray(listing.photos) ? listing.photos.length : 0,
+    listing.photoUrl ? 1 : 0
+  );
+
+  if (listing.photoUrl) {
+    const mediaWrap = document.createElement("div");
+    mediaWrap.style.position = "relative";
+    mediaWrap.style.height = "112px";
+    mediaWrap.style.overflow = "hidden";
+    mediaWrap.style.background = "linear-gradient(145deg, rgba(67,95,89,0.96), rgba(28,23,19,0.92))";
+
+    const imageNode = document.createElement("img");
+    imageNode.src = listing.photoUrl;
+    imageNode.alt = listing.address || "Property listing";
+    imageNode.style.width = "100%";
+    imageNode.style.height = "100%";
+    imageNode.style.objectFit = "cover";
+    mediaWrap.appendChild(imageNode);
+
+    const statusNode = document.createElement("span");
+    statusNode.textContent = listing.existingLeadId ? "In Potential" : listing.status || "For Sale";
+    statusNode.style.position = "absolute";
+    statusNode.style.top = "10px";
+    statusNode.style.left = "10px";
+    statusNode.style.padding = "5px 9px";
+    statusNode.style.borderRadius = "999px";
+    statusNode.style.fontSize = "10px";
+    statusNode.style.fontWeight = "700";
+    statusNode.style.letterSpacing = "0.12em";
+    statusNode.style.textTransform = "uppercase";
+    statusNode.style.background = listing.existingLeadId ? "rgba(67,95,89,0.92)" : "rgba(255,255,255,0.92)";
+    statusNode.style.color = listing.existingLeadId ? "#ffffff" : "#1c1713";
+    mediaWrap.appendChild(statusNode);
+
+    if (photoCount > 1) {
+      const photoNode = document.createElement("span");
+      photoNode.textContent = `${photoCount} photos`;
+      photoNode.style.position = "absolute";
+      photoNode.style.top = "10px";
+      photoNode.style.right = "10px";
+      photoNode.style.padding = "5px 9px";
+      photoNode.style.borderRadius = "999px";
+      photoNode.style.fontSize = "10px";
+      photoNode.style.fontWeight = "700";
+      photoNode.style.letterSpacing = "0.12em";
+      photoNode.style.textTransform = "uppercase";
+      photoNode.style.background = "rgba(17,24,39,0.55)";
+      photoNode.style.color = "#ffffff";
+      mediaWrap.appendChild(photoNode);
+    }
+
+    root.appendChild(mediaWrap);
+  }
+
+  const bodyNode = document.createElement("div");
+  bodyNode.style.padding = "0.9rem 1rem 1rem";
 
   const priceNode = document.createElement("p");
   priceNode.className = "market-search-popup-price";
   priceNode.textContent = formatCurrency(listing.price);
-  root.appendChild(priceNode);
+  bodyNode.appendChild(priceNode);
 
   const addressNode = document.createElement("p");
   addressNode.className = "market-search-popup-address";
   addressNode.textContent = listing.address || "Untitled property";
-  root.appendChild(addressNode);
+  bodyNode.appendChild(addressNode);
 
   const metaNode = document.createElement("p");
   metaNode.className = "market-search-popup-meta";
@@ -66,7 +127,21 @@ const buildPopupContent = (listing) => {
   ]
     .filter(Boolean)
     .join(" • ");
-  root.appendChild(metaNode);
+  bodyNode.appendChild(metaNode);
+
+  const detailNode = document.createElement("p");
+  detailNode.className = "market-search-popup-meta";
+  detailNode.style.marginTop = "0.4rem";
+  detailNode.textContent = [
+    listing.propertyType || null,
+    listing.daysOnMarket ? `${listing.daysOnMarket} DOM` : null,
+    listing.yearBuilt ? `Built ${listing.yearBuilt}` : null,
+  ]
+    .filter(Boolean)
+    .join(" • ");
+  bodyNode.appendChild(detailNode);
+
+  root.appendChild(bodyNode);
 
   return root;
 };

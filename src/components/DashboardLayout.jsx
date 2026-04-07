@@ -98,7 +98,7 @@ const resolvePageMeta = (pathname, user) => {
     return {
       kicker: "Pipeline",
       title: "Potential Property",
-      subtitle: "Track the latest notes, pricing, and next steps for this opportunity.",
+      subtitle: "",
     };
   }
 
@@ -291,6 +291,7 @@ const SidebarContent = ({ user, onNavigate, collapsed, onToggleCollapse }) => (
 function DashboardLayout({ children }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [sidebarPreference, setSidebarPreference] = useState(() => loadSidebarPreference());
+  const [pageHeaderConfig, setPageHeaderConfig] = useState(null);
   const mobileMenuRef = useRef(null);
   const location = useLocation();
   const navigate = useNavigate();
@@ -299,10 +300,18 @@ function DashboardLayout({ children }) {
   const isSidebarCollapsed = sidebarPreference === "collapsed";
   const isMarketSearchPage = location.pathname === "/market-search";
 
-  const pageMeta = useMemo(
+  const basePageMeta = useMemo(
     () => resolvePageMeta(location.pathname, user),
     [location.pathname, user]
   );
+  const pageMeta = useMemo(
+    () => ({
+      ...basePageMeta,
+      ...(pageHeaderConfig?.meta || {}),
+    }),
+    [basePageMeta, pageHeaderConfig]
+  );
+  const headerActions = pageHeaderConfig?.actions || null;
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -317,6 +326,10 @@ function DashboardLayout({ children }) {
 
   useEffect(() => {
     setIsMobileMenuOpen(false);
+  }, [location.pathname]);
+
+  useEffect(() => {
+    setPageHeaderConfig(null);
   }, [location.pathname]);
 
   useEffect(() => {
@@ -349,6 +362,15 @@ function DashboardLayout({ children }) {
     month: "long",
     day: "numeric",
   }).format(new Date());
+  const renderedChildren = useMemo(() => {
+    if (!React.isValidElement(children)) {
+      return children;
+    }
+
+    return React.cloneElement(children, {
+      setDashboardHeaderConfig,
+    });
+  }, [children]);
 
   return (
     <div className="min-h-screen app-shell-bg">
@@ -401,7 +423,11 @@ function DashboardLayout({ children }) {
 
         <div className="flex min-w-0 flex-1 flex-col gap-4">
           <header className="sticky top-4 z-30">
-            <div className="surface-panel flex flex-col gap-3 px-4 py-4 md:px-5 lg:flex-row lg:items-center lg:justify-between">
+            <div
+              className={`surface-panel flex flex-col gap-3 px-4 py-4 md:px-5 lg:flex-row lg:items-center lg:justify-between ${
+                pageHeaderConfig?.headerClassName || ""
+              }`}
+            >
               <div className="flex items-start gap-3">
                 <button
                   type="button"
@@ -411,23 +437,42 @@ function DashboardLayout({ children }) {
                   <Bars3Icon className="h-4 w-4" />
                 </button>
 
-                <div className="min-w-0">
+                <div className={`min-w-0 ${pageHeaderConfig?.titleDetail ? "lead-detail-header-block" : ""}`}>
                   <span className="eyebrow">{pageMeta.kicker}</span>
-                  <h1 className="mt-3 text-[1.55rem] font-medium tracking-tight text-ink-900 md:text-[1.75rem]">
-                    {pageMeta.title}
-                  </h1>
-                  <p className="mt-1.5 max-w-3xl text-sm leading-6 text-ink-500">
-                    {pageMeta.subtitle}
-                  </p>
+                  <div className={pageHeaderConfig?.titleDetail ? "lead-detail-header-title-row" : ""}>
+                    <h1 className="mt-3 text-[1.55rem] font-medium tracking-tight text-ink-900 md:text-[1.75rem]">
+                      {pageMeta.title}
+                    </h1>
+                    {pageHeaderConfig?.titleDetail ? (
+                      <p className="lead-detail-header-address" title={pageHeaderConfig.titleDetail}>
+                        {pageHeaderConfig.titleDetail}
+                      </p>
+                    ) : null}
+                  </div>
+                  {pageMeta.subtitle ? (
+                    <p className="mt-1.5 max-w-3xl text-sm leading-6 text-ink-500">
+                      {pageMeta.subtitle}
+                    </p>
+                  ) : null}
                 </div>
               </div>
 
-              <div className="flex flex-wrap items-center gap-2.5 lg:justify-end">
-                <span className="glass-chip hidden md:inline-flex">{todayLabel}</span>
-                <Link to="/properties/new" className="secondary-action hidden md:inline-flex">
-                  <PlusCircleIcon className="mr-2 h-4 w-4" />
-                  Add Property
-                </Link>
+              <div
+                className={`flex flex-wrap items-center gap-2.5 lg:justify-end ${
+                  headerActions ? "lead-detail-header-tools" : ""
+                }`}
+              >
+                {headerActions ? (
+                  headerActions
+                ) : (
+                  <>
+                    <span className="glass-chip hidden md:inline-flex">{todayLabel}</span>
+                    <Link to="/properties/new" className="secondary-action hidden md:inline-flex">
+                      <PlusCircleIcon className="mr-2 h-4 w-4" />
+                      Add Property
+                    </Link>
+                  </>
+                )}
                 <UserInfoBanner />
               </div>
             </div>
@@ -468,7 +513,7 @@ function DashboardLayout({ children }) {
                 </div>
               ) : null}
 
-              <div>{children}</div>
+              <div>{renderedChildren}</div>
             </div>
           </main>
         </div>

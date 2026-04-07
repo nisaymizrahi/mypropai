@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { SubscriptionLegalNotice } from "./SubscriptionConsentDialog";
 
 import {
   buildSelectionSummary,
@@ -135,6 +136,7 @@ const CompsReportWorkspace = ({
   const purchasedCreditsRemaining = billingAccess?.purchasedCreditsRemaining || 0;
   const totalCreditsRemaining = billingAccess?.totalCreditsRemaining || 0;
   const canBuyCredits = Boolean(onBuyReport);
+  const subscriptionOffer = billingAccess?.subscriptionOffer || null;
   const startSubscriptionLabel = billingAccess?.trialEligible ? "Start Free Trial" : "Upgrade to Pro";
 
   const toggleComp = (compId) => {
@@ -247,6 +249,14 @@ const CompsReportWorkspace = ({
                     >
                       {isStartingCheckout ? "Redirecting..." : "Buy 10 Credits"}
                     </button>
+                  ) : null}
+                  {!billingAccess?.hasActiveSubscription ? (
+                    <SubscriptionLegalNotice
+                      trialEligible={Boolean(billingAccess?.trialEligible)}
+                      trialPeriodDays={subscriptionOffer?.trialPeriodDays || 0}
+                      monthlyPriceCents={subscriptionOffer?.monthlyPriceCents ?? null}
+                      className="bg-white/90"
+                    />
                   ) : null}
                 </div>
               </div>
