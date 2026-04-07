@@ -391,6 +391,20 @@ export const askPropertyCopilot = async (propertyKey, payload) => {
   return responsePayload;
 };
 
+export const askLeadProjectAnalysisCopilot = async (leadId, payload) => {
+  const res = await fetch(`${API_BASE_URL}/leads/${leadId}/project-analysis/copilot`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    throw new Error(
+      await getErrorMessage(res, "Failed to reach the project analysis assistant")
+    );
+  }
+  return res.json();
+};
+
 export const createPropertyWorkspace = async (propertyKey, workspaceKey, data = {}) => {
   const res = await fetch(
     `${API_BASE_URL}/properties/${encodeURIComponent(propertyKey)}/workspaces/${workspaceKey}`,
@@ -1020,6 +1034,20 @@ export const getProjectDocuments = async (investmentId) => {
   );
 };
 
+export const getLeadDocuments = async (leadId) => {
+  return readCachedResource(
+    `documents:lead:${leadId}`,
+    async () => {
+      const res = await fetch(`${API_BASE_URL}/documents/lead/${leadId}`, {
+        headers: getAuthHeaders(),
+      });
+      if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to fetch documents"));
+      return res.json();
+    },
+    12000
+  );
+};
+
 export const getDocumentStorageOverview = async () => {
   return readCachedResource(
     "documents:storage:overview",
@@ -1058,6 +1086,19 @@ export const uploadProjectDocument = async (formData) => {
   return payload;
 };
 
+export const uploadLeadDocument = async (formData) => {
+  const res = await fetch(`${API_BASE_URL}/documents`, {
+    method: "POST",
+    headers: getAuthHeaders(true),
+    body: formData,
+  });
+  if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to upload document"));
+  const payload = await res.json();
+  invalidateWorkspaceReadCaches("documents:lead:");
+  invalidateApiReadCache("documents:storage:");
+  return payload;
+};
+
 export const deleteProjectDocument = async (documentId) => {
   const res = await fetch(`${API_BASE_URL}/documents/${documentId}`, {
     method: "DELETE",
@@ -1066,6 +1107,18 @@ export const deleteProjectDocument = async (documentId) => {
   if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to delete document"));
   const payload = await res.json();
   invalidateWorkspaceReadCaches("documents:");
+  invalidateApiReadCache("documents:storage:");
+  return payload;
+};
+
+export const deleteLeadDocument = async (documentId) => {
+  const res = await fetch(`${API_BASE_URL}/documents/${documentId}`, {
+    method: "DELETE",
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to delete document"));
+  const payload = await res.json();
+  invalidateWorkspaceReadCaches("documents:lead:");
   invalidateApiReadCache("documents:storage:");
   return payload;
 };

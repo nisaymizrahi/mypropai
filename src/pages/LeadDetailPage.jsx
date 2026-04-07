@@ -53,12 +53,11 @@ const leadStatusOptions = [
   "Closed - Lost",
 ];
 const leadDetailTabs = [
-  { id: "details", label: "Deal Details" },
-  { id: "comps", label: "Deal Report" },
-  { id: "saved-reports", label: "Saved Reports" },
-  { id: "renovation", label: "Renovation" },
-  { id: "bids", label: "Bids" },
+  { id: "overview", label: "Overview" },
+  { id: "comps", label: "Comps & Reports" },
+  { id: "project-analysis", label: "Project Analysis" },
   { id: "tasks", label: "Tasks" },
+  { id: "documents", label: "Documents" },
 ];
 const projectAnalysisScenarioPresets = [
   {
@@ -823,6 +822,72 @@ const getLeadStageToneClassName = (status) => {
   if (status === "Under Contract") return "bg-sky-600";
   if (status === "Analyzing") return "bg-teal-600";
   return "bg-slate-500";
+};
+
+const getSnapshotCompAddress = (comp = {}) =>
+  comp.address ||
+  comp.formattedAddress ||
+  comp.streetAddress ||
+  comp.subjectAddress ||
+  "Comparable property";
+
+const getSnapshotCompPrice = (comp = {}) =>
+  comp.salePrice ?? comp.soldPrice ?? comp.closePrice ?? comp.price ?? null;
+
+const getSnapshotCompSquareFootage = (comp = {}) =>
+  comp.squareFeet ?? comp.squareFootage ?? comp.livingArea ?? comp.gla ?? null;
+
+const getSnapshotCompDistance = (comp = {}) =>
+  comp.distanceMiles ?? comp.distance ?? comp.milesFromSubject ?? null;
+
+const getSnapshotCompDate = (comp = {}) =>
+  comp.saleDate || comp.closedDate || comp.closeDate || comp.lastSaleDate || null;
+
+const CompSnapshotCard = ({ comp }) => {
+  const soldPrice = getSnapshotCompPrice(comp);
+  const squareFootage = getSnapshotCompSquareFootage(comp);
+  const distance = getSnapshotCompDistance(comp);
+  const beds = comp.bedrooms ?? comp.beds ?? null;
+  const baths = comp.bathrooms ?? comp.baths ?? null;
+  const soldDate = getSnapshotCompDate(comp);
+
+  return (
+    <div className="rounded-[22px] border border-ink-100 bg-white/90 px-4 py-4 shadow-[0_10px_24px_rgba(18,32,45,0.04)]">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="truncate text-base font-semibold text-ink-900">
+            {getSnapshotCompAddress(comp)}
+          </p>
+          <p className="mt-1 text-sm text-ink-500">
+            {[
+              beds ? `${beds} bd` : null,
+              baths ? `${baths} ba` : null,
+              squareFootage ? `${Number(squareFootage).toLocaleString()} sqft` : null,
+            ]
+              .filter(Boolean)
+              .join(" • ") || "Comparable snapshot"}
+          </p>
+        </div>
+
+        <div className="text-right">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-400">
+            Sold
+          </p>
+          <p className="mt-2 text-sm font-semibold text-ink-900">{formatCurrency(soldPrice)}</p>
+        </div>
+      </div>
+
+      <div className="mt-4 flex flex-wrap gap-2">
+        {distance ? (
+          <span className="glass-chip">
+            {Number(distance).toFixed(distance < 1 ? 1 : 0)} mi away
+          </span>
+        ) : null}
+        {soldDate ? <span className="glass-chip">{formatDate(soldDate)}</span> : null}
+        {comp.source ? <span className="glass-chip">{comp.source}</span> : null}
+      </div>
+    </div>
+  );
 };
 
 const TabButton = ({ active, label, onClick }) => (
@@ -1903,832 +1968,1480 @@ const LeadDetailPage = ({ setDashboardHeaderConfig }) => {
             lead.compsAnalysis.recommendedOfferHigh
           )}`
         : formatCurrency(liveLead.targetOffer);
+  const uniqueOverviewRiskFlags = Array.from(
+    new Set(overviewRiskFlags.map((flag) => String(flag || "").trim()).filter(Boolean))
+  ).slice(0, 4);
+  const overviewNotesSummary = [liveLead.motivation, liveLead.notes]
+    .map((value) => String(value || "").trim())
+    .filter(Boolean)
+    .join(" \u2022 ");
+  const overviewNotesPreview = overviewNotesSummary
+    ? overviewNotesSummary.length > 240
+      ? `${overviewNotesSummary.slice(0, 237)}...`
+      : overviewNotesSummary
+    : "Capture seller motivation or diligence notes here so anyone reviewing the lead understands the story fast.";
+  const compsVerdictText =
+    analysis?.aiVerdict?.headline ||
+    analysis?.aiVerdict?.executiveSummary ||
+    analysis?.report?.headline ||
+    lead?.compsAnalysis?.report?.headline ||
+    "Run the comps workflow to build a stronger pricing read for this opportunity.";
+  const modeledValue =
+    Number(analysis?.valuation?.blendedEstimate) ||
+    Number(analysis?.estimatedValue) ||
+    Number(lead?.compsAnalysis?.estimatedValue) ||
+    Number(liveLead.arv) ||
+    0;
+  const askVsModelGapValue =
+    Number(liveLead.sellerAskingPrice) && modeledValue
+      ? modeledValue - Number(liveLead.sellerAskingPrice)
+      : null;
+  const askVsModelGapLabel =
+    askVsModelGapValue === null ? "Waiting on comps" : formatCurrency(Math.abs(askVsModelGapValue));
+  const askVsModelGapHint =
+    askVsModelGapValue === null
+      ? "Compare the seller ask to modeled value once comps are refreshed."
+      : askVsModelGapValue >= 0
+        ? "Ask is below modeled value"
+        : "Ask is above modeled value";
+  const selectedScenarioName = selectedScenario?.label || "No scenario selected";
+  const shouldShowCompsWorkbench = showCompsWorkbench || !analysis;
+  const compsWorkbenchAction = (
+    <button
+      type="button"
+      onClick={() => setShowCompsWorkbench((previous) => !previous)}
+      className="secondary-action"
+    >
+      {shouldShowCompsWorkbench ? "Hide full comps workbench" : "Open full comps workbench"}
+    </button>
+  );
+  const projectAnalysisLeadSnapshot = {
+    address: liveLead.address,
+    propertyType: liveLead.propertyType,
+    squareFootage: liveLead.squareFootage,
+    bedrooms: liveLead.bedrooms,
+    bathrooms: liveLead.bathrooms,
+    sellerAskingPrice: liveLead.sellerAskingPrice,
+    targetOffer: liveLead.targetOffer,
+    arv: liveLead.arv,
+    rehabEstimate: liveLead.rehabEstimate,
+    detailedScopeTotal: renovationBudgetTotal,
+    nextAction: liveLead.nextAction,
+    notes: liveLead.notes,
+    motivation: liveLead.motivation,
+    marketStatus: marketStatusLabel,
+    confidence: activeConfidenceLabel,
+    riskFlags: uniqueOverviewRiskFlags,
+  };
+
+  const detailEditorContent = (
+    <div className="space-y-5">
+      <DetailSection
+        eyebrow="Deal profile"
+        title="Property facts and stage"
+        description="Capture the address, stage, and physical facts first. Use the lookup to refresh known property data after the address changes."
+        actions={
+          <button
+            type="button"
+            onClick={() => handlePreviewLookup()}
+            disabled={isPreviewLoading || !addressQuery.trim()}
+            className="secondary-action inline-flex items-center gap-2 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <ArrowPathIcon className={`h-4 w-4 ${isPreviewLoading ? "animate-spin" : ""}`} />
+            {isPreviewLoading ? "Refreshing facts..." : "Refresh property facts"}
+          </button>
+        }
+      >
+        <div className="grid gap-5 md:grid-cols-2">
+          <div className="relative md:col-span-2">
+            <FormField label="Property address">
+              <input
+                name="addressLine1"
+                value={detailForm.addressLine1}
+                onChange={handleDetailChange}
+                className="auth-input"
+                placeholder="Start typing the property address..."
+              />
+            </FormField>
+
+            {suggestions.length > 0 ? (
+              <div className="absolute z-20 mt-2 max-h-64 w-full overflow-y-auto rounded-[16px] border border-ink-100 bg-white shadow-soft">
+                {suggestions.map((suggestion) => (
+                  <button
+                    key={suggestion.id}
+                    type="button"
+                    onClick={() => handleSelectSuggestion(suggestion)}
+                    className="w-full border-b border-ink-100 px-4 py-3 text-left text-sm text-ink-700 transition hover:bg-sand-50 last:border-b-0"
+                  >
+                    {suggestion.place_name}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </div>
+
+          <FormField label="City">
+            <input
+              name="city"
+              value={detailForm.city}
+              onChange={handleDetailChange}
+              className="auth-input"
+              placeholder="City"
+            />
+          </FormField>
+
+          <FormField label="State">
+            <input
+              name="state"
+              value={detailForm.state}
+              onChange={handleDetailChange}
+              className="auth-input"
+              placeholder="State"
+            />
+          </FormField>
+
+          <FormField label="Zip code">
+            <input
+              name="zipCode"
+              value={detailForm.zipCode}
+              onChange={handleDetailChange}
+              className="auth-input"
+              placeholder="Zip code"
+            />
+          </FormField>
+
+          <FormField label="Deal stage">
+            <select
+              name="status"
+              value={detailForm.status}
+              onChange={handleDetailChange}
+              className="auth-input appearance-none"
+            >
+              {leadStatusOptions.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
+          </FormField>
+
+          <FormField label="Property type">
+            <select
+              name="propertyType"
+              value={detailForm.propertyType}
+              onChange={handleDetailChange}
+              className="auth-input appearance-none"
+            >
+              {propertyTypeOptions.map((option) => (
+                <option key={option.value || "empty"} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </FormField>
+
+          <FormField label="Bedrooms">
+            <input
+              name="bedrooms"
+              type="number"
+              value={detailForm.bedrooms}
+              onChange={handleDetailChange}
+              className="auth-input"
+              placeholder="0"
+            />
+          </FormField>
+
+          <FormField label="Bathrooms">
+            <input
+              name="bathrooms"
+              type="number"
+              step="0.5"
+              value={detailForm.bathrooms}
+              onChange={handleDetailChange}
+              className="auth-input"
+              placeholder="0"
+            />
+          </FormField>
+
+          <FormField label="Square footage">
+            <input
+              name="squareFootage"
+              type="number"
+              value={detailForm.squareFootage}
+              onChange={handleDetailChange}
+              className="auth-input"
+              placeholder="0"
+            />
+          </FormField>
+
+          <FormField label="Lot size">
+            <input
+              name="lotSize"
+              type="number"
+              value={detailForm.lotSize}
+              onChange={handleDetailChange}
+              className="auth-input"
+              placeholder="0"
+            />
+          </FormField>
+
+          <FormField label="Year built">
+            <input
+              name="yearBuilt"
+              type="number"
+              value={detailForm.yearBuilt}
+              onChange={handleDetailChange}
+              className="auth-input"
+              placeholder="0"
+            />
+          </FormField>
+
+          {showsUnitCount ? (
+            <FormField label="Unit count">
+              <input
+                name="unitCount"
+                type="number"
+                value={detailForm.unitCount}
+                onChange={handleDetailChange}
+                className="auth-input"
+                placeholder="0"
+              />
+            </FormField>
+          ) : null}
+        </div>
+      </DetailSection>
+
+      <DetailSection
+        eyebrow="Market posture"
+        title="Listing and sales context"
+        description="Keep the active listing details here when the property is on market so the team can compare the seller’s posture with the current deal thesis."
+      >
+        <div className="rounded-[18px] border border-ink-100 bg-sand-50/70 p-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-medium text-ink-900">Market status</p>
+              <p className="mt-1 text-sm text-ink-500">
+                Capture the listing posture, ask, and last trade data in one place.
+              </p>
+            </div>
+            <span
+              className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
+                liveLead.listingStatus || liveLead.sellerAskingPrice
+                  ? "bg-verdigris-50 text-verdigris-700"
+                  : "bg-white text-ink-600 ring-1 ring-ink-100"
+              }`}
+            >
+              {marketStatusLabel}
+            </span>
+          </div>
+
+          <div className="mt-4 grid gap-5 md:grid-cols-2">
+            <FormField label="Listing status">
+              <input
+                name="listingStatus"
+                value={detailForm.listingStatus}
+                onChange={handleDetailChange}
+                className="auth-input"
+                placeholder="For Sale, Pending, Off Market"
+              />
+            </FormField>
+
+            <FormField label="Asking price">
+              <input
+                name="sellerAskingPrice"
+                type="number"
+                value={detailForm.sellerAskingPrice}
+                onChange={handleDetailChange}
+                className="auth-input"
+                placeholder="0"
+              />
+            </FormField>
+
+            <FormField label="Days on market">
+              <input
+                name="daysOnMarket"
+                type="number"
+                value={detailForm.daysOnMarket}
+                onChange={handleDetailChange}
+                className="auth-input"
+                placeholder="0"
+              />
+            </FormField>
+
+            <FormField label="Last sale price">
+              <input
+                name="lastSalePrice"
+                type="number"
+                value={detailForm.lastSalePrice}
+                onChange={handleDetailChange}
+                className="auth-input"
+                placeholder="0"
+              />
+            </FormField>
+
+            <FormField label="Last sale date">
+              <input
+                name="lastSaleDate"
+                type="date"
+                value={detailForm.lastSaleDate}
+                onChange={handleDetailChange}
+                className="auth-input"
+              />
+            </FormField>
+          </div>
+        </div>
+      </DetailSection>
+
+      <DetailSection
+        eyebrow="Seller and strategy"
+        title="Seller context and pricing plan"
+        description="Save the seller details, pricing anchors, and next move so the deal stays decision-ready between follow-ups."
+      >
+        <div className="grid gap-5 md:grid-cols-2">
+          <FormField label="Seller name">
+            <input
+              name="sellerName"
+              value={detailForm.sellerName}
+              onChange={handleDetailChange}
+              className="auth-input"
+            />
+          </FormField>
+
+          <FormField label="Deal source">
+            <input
+              name="leadSource"
+              value={detailForm.leadSource}
+              onChange={handleDetailChange}
+              className="auth-input"
+              placeholder="Agent, referral, direct mail..."
+            />
+          </FormField>
+
+          <FormField label="Seller phone">
+            <input
+              name="sellerPhone"
+              value={detailForm.sellerPhone}
+              onChange={handleDetailChange}
+              className="auth-input"
+            />
+          </FormField>
+
+          <FormField label="Seller email">
+            <input
+              name="sellerEmail"
+              type="email"
+              value={detailForm.sellerEmail}
+              onChange={handleDetailChange}
+              className="auth-input"
+            />
+          </FormField>
+
+          <FormField label="Occupancy">
+            <select
+              name="occupancyStatus"
+              value={detailForm.occupancyStatus}
+              onChange={handleDetailChange}
+              className="auth-input appearance-none"
+            >
+              {occupancyOptions.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
+          </FormField>
+
+          <FormField label="Next move">
+            <input
+              name="nextAction"
+              value={detailForm.nextAction}
+              onChange={handleDetailChange}
+              className="auth-input"
+              placeholder="Call seller, request photos, line up contractor..."
+            />
+          </FormField>
+
+          <FormField label="Target offer">
+            <input
+              name="targetOffer"
+              type="number"
+              value={detailForm.targetOffer}
+              onChange={handleDetailChange}
+              className="auth-input"
+              placeholder="0"
+            />
+          </FormField>
+
+          <FormField label="Follow-up date">
+            <input
+              name="followUpDate"
+              type="date"
+              value={detailForm.followUpDate}
+              onChange={handleDetailChange}
+              className="auth-input"
+            />
+          </FormField>
+
+          <FormField label="ARV / exit value">
+            <input
+              name="arv"
+              type="number"
+              value={detailForm.arv}
+              onChange={handleDetailChange}
+              className="auth-input"
+              placeholder="0"
+            />
+          </FormField>
+
+          <FormField label="Current rehab estimate">
+            <input
+              name="rehabEstimate"
+              type="number"
+              value={detailForm.rehabEstimate}
+              onChange={handleDetailChange}
+              className="auth-input"
+              placeholder="0"
+            />
+          </FormField>
+
+          <FormField label="Seller motivation" className="md:col-span-2">
+            <textarea
+              rows="3"
+              name="motivation"
+              value={detailForm.motivation}
+              onChange={handleDetailChange}
+              className="auth-input min-h-[110px]"
+              placeholder="Why is this seller likely to negotiate, move quickly, or sell below market?"
+            />
+          </FormField>
+
+          <FormField label="Deal notes" className="md:col-span-2">
+            <textarea
+              rows="4"
+              name="notes"
+              value={detailForm.notes}
+              onChange={handleDetailChange}
+              className="auth-input min-h-[140px]"
+              placeholder="Anything the team should remember about this opportunity..."
+            />
+          </FormField>
+        </div>
+
+        <div className="mt-6 flex flex-wrap justify-end gap-3">
+          <button
+            type="button"
+            onClick={handleSaveDetails}
+            disabled={isSavingDetails}
+            className="primary-action disabled:cursor-not-allowed disabled:opacity-70"
+          >
+            {isSavingDetails ? "Saving..." : "Save deal details"}
+          </button>
+        </div>
+      </DetailSection>
+    </div>
+  );
 
   return (
-    <div className="space-y-4">
-      <section className="lead-detail-tab-rail sticky top-40 z-20 md:top-28 xl:top-24">
-        <div className="lead-detail-tab-track">
-          <div className="lead-detail-tab-list" role="tablist" aria-label="Deal sections">
-            {leadDetailTabs.map((tab) => (
-              <TabButton
-                key={tab.id}
-                active={activeTab === tab.id}
-                label={tab.label}
-                onClick={() => setActiveTab(tab.id)}
-              />
-            ))}
-          </div>
-          <StageControl
-            value={detailForm.status || "Potential"}
-            onChange={handleQuickStatusChange}
-            disabled={isSavingQuickStatus}
-            isSaving={isSavingQuickStatus}
-          />
-        </div>
-      </section>
-
-      {error ? (
-        <div className="rounded-[16px] border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
-          {error}
-        </div>
-      ) : null}
-
-      {activeTab === "details" && (
-        <div className="space-y-5">
-          <section className="surface-panel-strong overflow-hidden px-6 py-6 sm:px-7">
-            <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
-              <div>
-                <span className="eyebrow">Deal brief</span>
-                <h2 className="mt-4 font-display text-[2.15rem] leading-[0.96] text-ink-900">
-                  Keep the deal thesis, pricing, and next move in one place
-                </h2>
-                <p className="mt-3 max-w-3xl text-sm leading-7 text-ink-500">
-                  This is the acquisition desk view for the record. Update the property facts,
-                  market posture, seller context, and pricing plan as the team learns more.
+    <>
+      <div className="space-y-5">
+        <section className="lead-workspace-intro surface-panel-strong px-6 py-6 sm:px-7">
+          <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
+            <div className="min-w-0">
+              <span className="eyebrow">Pipeline</span>
+              <div className="lead-workspace-title-row">
+                <h1 className="lead-workspace-title">Potential Property</h1>
+                <p className="lead-workspace-address">
+                  {liveLead.address || "Address still needs confirmation"}
                 </p>
               </div>
-
-              <div className="flex flex-wrap gap-2">
-                <span className="workspace-counter-pill">{detailForm.status || "Potential"}</span>
+              <p className="mt-4 max-w-3xl text-sm leading-7 text-ink-500">{compsVerdictText}</p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <span className="workspace-counter-pill">{propertySummaryLabel}</span>
+                <span className="workspace-counter-pill">{marketStatusLabel}</span>
                 <span className="workspace-counter-pill">{workspaceStatusLabel}</span>
+                {liveLead.followUpDate ? (
+                  <span className="workspace-counter-pill">
+                    Follow-up {formatDate(liveLead.followUpDate)}
+                  </span>
+                ) : null}
               </div>
             </div>
 
-            <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-              <SummaryStat
-                label="Property"
-                value={propertySummaryLabel}
-                hint={liveLead.address || "Address still needs confirmation"}
+            <div className="flex flex-col gap-3 xl:items-end">
+              <StageControl
+                value={detailForm.status || "Potential"}
+                onChange={handleQuickStatusChange}
+                disabled={isSavingQuickStatus}
+                isSaving={isSavingQuickStatus}
               />
+              {workspaceAction ? <div className="flex flex-wrap gap-3">{workspaceAction}</div> : null}
+            </div>
+          </div>
+        </section>
+
+        <section className="lead-detail-tab-rail">
+          <div className="lead-detail-tab-track">
+            <div className="lead-detail-tab-list" role="tablist" aria-label="Potential property sections">
+              {leadDetailTabs.map((tab) => (
+                <TabButton
+                  key={tab.id}
+                  active={activeTab === tab.id}
+                  label={tab.label}
+                  onClick={() => setActiveTab(tab.id)}
+                />
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {error ? (
+          <div className="rounded-[16px] border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
+            {error}
+          </div>
+        ) : null}
+
+        {activeTab === "overview" ? (
+          <div className="space-y-5">
+            <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
               <SummaryStat
-                label="Pricing"
-                value={`Ask ${formatCurrency(liveLead.sellerAskingPrice)}`}
-                hint={`Target ${formatCurrency(workingTargetOffer)}`}
-              />
-              <SummaryStat
-                label="Market posture"
-                value={marketStatusLabel}
+                label="Seller ask"
+                value={formatCurrency(liveLead.sellerAskingPrice)}
                 hint={marketStatusHint}
               />
               <SummaryStat
-                label="Workspace"
-                value={workspaceStatusLabel}
-                hint={workspaceStatusHint}
+                label="Target offer"
+                value={formatCurrency(workingTargetOffer)}
+                hint="Manual underwriting target"
               />
-            </div>
-          </section>
+              <SummaryStat
+                label="Rough rehab"
+                value={formatCurrency(liveLead.rehabEstimate)}
+                hint="Manual estimate kept separate from scope budget"
+              />
+              <SummaryStat
+                label="ARV"
+                value={formatCurrency(liveLead.arv || fallbackScenarioArv)}
+                hint="Current exit value assumption"
+              />
+            </section>
 
-          <DetailSection
-            eyebrow="Deal profile"
-            title="Property facts and stage"
-            description="Capture the address, stage, and physical facts first. Use the lookup to refresh known property data after the address changes."
-            actions={
-              <button
-                type="button"
-                onClick={() => handlePreviewLookup()}
-                disabled={isPreviewLoading || !addressQuery.trim()}
-                className="secondary-action inline-flex items-center gap-2 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                <ArrowPathIcon className={`h-4 w-4 ${isPreviewLoading ? "animate-spin" : ""}`} />
-                {isPreviewLoading ? "Refreshing facts..." : "Refresh property facts"}
-              </button>
-            }
-          >
-            <div className="grid gap-5 md:grid-cols-2">
-              <div className="relative md:col-span-2">
-                <FormField label="Property address">
-                  <input
-                    name="addressLine1"
-                    value={detailForm.addressLine1}
-                    onChange={handleDetailChange}
-                    className="auth-input"
-                    placeholder="Start typing the property address..."
-                  />
-                </FormField>
-
-                {suggestions.length > 0 ? (
-                  <div className="absolute z-20 mt-2 max-h-64 w-full overflow-y-auto rounded-[16px] border border-ink-100 bg-white shadow-soft">
-                    {suggestions.map((suggestion) => (
-                      <button
-                        key={suggestion.id}
-                        type="button"
-                        onClick={() => handleSelectSuggestion(suggestion)}
-                        className="w-full border-b border-ink-100 px-4 py-3 text-left text-sm text-ink-700 transition hover:bg-sand-50 last:border-b-0"
-                      >
-                        {suggestion.place_name}
-                      </button>
-                    ))}
+            <div className="grid gap-5 xl:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
+              <section className="surface-panel px-6 py-6 sm:px-7">
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div>
+                    <span className="eyebrow">Overview</span>
+                    <h2 className="mt-4 text-2xl font-semibold text-ink-900">
+                      Decision-ready lead summary
+                    </h2>
+                    <p className="mt-2 max-w-2xl text-sm leading-6 text-ink-500">
+                      Keep only the facts and decisions that matter upfront, then open the full
+                      detail drawer when you need the entire record.
+                    </p>
                   </div>
-                ) : null}
-              </div>
+                  <div className="flex flex-wrap gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setIsDetailsDrawerOpen(true)}
+                      className="secondary-action"
+                    >
+                      View full details
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handlePreviewLookup()}
+                      disabled={isPreviewLoading || !addressQuery.trim()}
+                      className="ghost-action disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {isPreviewLoading ? "Refreshing..." : "Refresh facts"}
+                    </button>
+                  </div>
+                </div>
 
-              <FormField label="City">
-                <input
-                  name="city"
-                  value={detailForm.city}
-                  onChange={handleDetailChange}
-                  className="auth-input"
-                  placeholder="City"
-                />
-              </FormField>
+                <div className="mt-6 grid gap-4 lg:grid-cols-2">
+                  <div className="rounded-[24px] border border-ink-100 bg-white/90 p-5">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-400">
+                      What is happening now
+                    </p>
+                    <div className="mt-4 space-y-4 text-sm">
+                      <div>
+                        <p className="font-semibold text-ink-900">Next move</p>
+                        <p className="mt-1 leading-6 text-ink-600">{nextStepSummary}</p>
+                      </div>
+                      <div>
+                        <p className="font-semibold text-ink-900">Seller context</p>
+                        <p className="mt-1 leading-6 text-ink-600">{overviewNotesPreview}</p>
+                      </div>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <div className="rounded-[18px] bg-sand-50 px-4 py-3">
+                          <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-ink-400">
+                            Follow-up
+                          </p>
+                          <p className="mt-2 text-sm font-semibold text-ink-900">
+                            {liveLead.followUpDate ? formatDate(liveLead.followUpDate) : "Not scheduled"}
+                          </p>
+                        </div>
+                        <div className="rounded-[18px] bg-sand-50 px-4 py-3">
+                          <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-ink-400">
+                            Occupancy
+                          </p>
+                          <p className="mt-2 text-sm font-semibold text-ink-900">
+                            {liveLead.occupancyStatus || "Unknown"}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
 
-              <FormField label="State">
-                <input
-                  name="state"
-                  value={detailForm.state}
-                  onChange={handleDetailChange}
-                  className="auth-input"
-                  placeholder="State"
-                />
-              </FormField>
+                  <div className="rounded-[24px] border border-ink-100 bg-white/90 p-5">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-400">
+                      Risk read
+                    </p>
+                    <div className="mt-4 space-y-4">
+                      <div>
+                        <p className="font-semibold text-ink-900">Market posture</p>
+                        <p className="mt-1 text-sm leading-6 text-ink-600">{workspaceStatusHint}</p>
+                      </div>
+                      <div>
+                        <p className="font-semibold text-ink-900">Risk flags</p>
+                        {uniqueOverviewRiskFlags.length ? (
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            {uniqueOverviewRiskFlags.map((flag) => (
+                              <span key={flag} className="glass-chip">
+                                {flag}
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="mt-2 text-sm leading-6 text-ink-500">
+                            No explicit risk flags yet. Run comps and scope planning to get a fuller read.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </section>
 
-              <FormField label="Zip code">
-                <input
-                  name="zipCode"
-                  value={detailForm.zipCode}
-                  onChange={handleDetailChange}
-                  className="auth-input"
-                  placeholder="Zip code"
-                />
-              </FormField>
-
-              <FormField label="Deal stage">
-                <select
-                  name="status"
-                  value={detailForm.status}
-                  onChange={handleDetailChange}
-                  className="auth-input appearance-none"
-                >
-                  {leadStatusOptions.map((option) => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
-                </select>
-              </FormField>
-
-              <FormField label="Property type">
-                <select
-                  name="propertyType"
-                  value={detailForm.propertyType}
-                  onChange={handleDetailChange}
-                  className="auth-input appearance-none"
-                >
-                  {propertyTypeOptions.map((option) => (
-                    <option key={option.value || "empty"} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </FormField>
-
-              <FormField label="Bedrooms">
-                <input
-                  name="bedrooms"
-                  type="number"
-                  value={detailForm.bedrooms}
-                  onChange={handleDetailChange}
-                  className="auth-input"
-                  placeholder="0"
-                />
-              </FormField>
-
-              <FormField label="Bathrooms">
-                <input
-                  name="bathrooms"
-                  type="number"
-                  step="0.5"
-                  value={detailForm.bathrooms}
-                  onChange={handleDetailChange}
-                  className="auth-input"
-                  placeholder="0"
-                />
-              </FormField>
-
-              <FormField label="Square footage">
-                <input
-                  name="squareFootage"
-                  type="number"
-                  value={detailForm.squareFootage}
-                  onChange={handleDetailChange}
-                  className="auth-input"
-                  placeholder="0"
-                />
-              </FormField>
-
-              <FormField label="Lot size">
-                <input
-                  name="lotSize"
-                  type="number"
-                  value={detailForm.lotSize}
-                  onChange={handleDetailChange}
-                  className="auth-input"
-                  placeholder="0"
-                />
-              </FormField>
-
-              <FormField label="Year built">
-                <input
-                  name="yearBuilt"
-                  type="number"
-                  value={detailForm.yearBuilt}
-                  onChange={handleDetailChange}
-                  className="auth-input"
-                  placeholder="0"
-                />
-              </FormField>
-
-              {showsUnitCount ? (
-                <FormField label="Unit count">
-                  <input
-                    name="unitCount"
-                    type="number"
-                    value={detailForm.unitCount}
-                    onChange={handleDetailChange}
-                    className="auth-input"
-                    placeholder="0"
-                  />
-                </FormField>
-              ) : null}
+              <section className="section-card p-6 sm:p-7">
+                <span className="eyebrow">Quick read</span>
+                <h3 className="mt-4 text-2xl font-semibold text-ink-900">
+                  Opportunity at a glance
+                </h3>
+                <div className="mt-6 space-y-4">
+                  <div className="rounded-[22px] border border-ink-100 bg-white/88 px-4 py-4">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-400">
+                      Ask vs target
+                    </p>
+                    <p className="mt-2 text-lg font-semibold text-ink-900">
+                      {formatCurrency(liveLead.sellerAskingPrice)}
+                    </p>
+                    <p className="mt-1 text-sm text-ink-500">
+                      Target {formatCurrency(workingTargetOffer)}
+                    </p>
+                  </div>
+                  <div className="rounded-[22px] border border-ink-100 bg-white/88 px-4 py-4">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-400">
+                      Property
+                    </p>
+                    <p className="mt-2 text-sm font-semibold text-ink-900">{propertySummaryLabel}</p>
+                    <p className="mt-1 text-sm text-ink-500">{marketStatusHint}</p>
+                  </div>
+                  <div className="rounded-[22px] border border-ink-100 bg-white/88 px-4 py-4">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-400">
+                      Workspace status
+                    </p>
+                    <p className="mt-2 text-sm font-semibold text-ink-900">{workspaceStatusLabel}</p>
+                    <p className="mt-1 text-sm text-ink-500">{workspaceStatusHint}</p>
+                  </div>
+                </div>
+              </section>
             </div>
-          </DetailSection>
+          </div>
+        ) : null}
 
-          <DetailSection
-            eyebrow="Market posture"
-            title="Listing and sales context"
-            description="Keep the active listing details here when the property is on market so the team can compare the seller’s posture with the current deal thesis."
-          >
-            <div className="rounded-[18px] border border-ink-100 bg-sand-50/70 p-5">
-              <div className="flex flex-wrap items-center justify-between gap-3">
+        {activeTab === "comps" ? (
+          <div className="space-y-5">
+            <section className="surface-panel-strong px-6 py-6 sm:px-7">
+              <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
                 <div>
-                  <p className="text-sm font-medium text-ink-900">Market status</p>
-                  <p className="mt-1 text-sm text-ink-500">
-                    Capture the listing posture, ask, and last trade data in one place.
+                  <span className="eyebrow">Comps & reports</span>
+                  <h2 className="mt-4 text-2xl font-semibold text-ink-900">
+                    Calm pricing guidance first, deep comps second
+                  </h2>
+                  <p className="mt-2 max-w-3xl text-sm leading-6 text-ink-500">
+                    Start with the value band, recommended offer, and best comparables. Open the
+                    full workbench only when you need to adjust assumptions or rerun the report.
                   </p>
                 </div>
-                <span
-                  className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
-                    liveLead.listingStatus || liveLead.sellerAskingPrice
-                      ? "bg-verdigris-50 text-verdigris-700"
-                      : "bg-white text-ink-600 ring-1 ring-ink-100"
-                  }`}
-                >
-                  {marketStatusLabel}
-                </span>
+                <div className="max-w-md rounded-[22px] border border-ink-100 bg-white/88 px-4 py-4">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-400">
+                    AI verdict
+                  </p>
+                  <p className="mt-2 text-sm leading-6 text-ink-700">{compsVerdictText}</p>
+                </div>
               </div>
 
-              <div className="mt-4 grid gap-5 md:grid-cols-2">
-                <FormField label="Listing status">
-                  <input
-                    name="listingStatus"
-                    value={detailForm.listingStatus}
-                    onChange={handleDetailChange}
-                    className="auth-input"
-                    placeholder="For Sale, Pending, Off Market"
-                  />
-                </FormField>
-
-                <FormField label="Asking price">
-                  <input
-                    name="sellerAskingPrice"
-                    type="number"
-                    value={detailForm.sellerAskingPrice}
-                    onChange={handleDetailChange}
-                    className="auth-input"
-                    placeholder="0"
-                  />
-                </FormField>
-
-                <FormField label="Days on market">
-                  <input
-                    name="daysOnMarket"
-                    type="number"
-                    value={detailForm.daysOnMarket}
-                    onChange={handleDetailChange}
-                    className="auth-input"
-                    placeholder="0"
-                  />
-                </FormField>
-
-                <FormField label="Last sale price">
-                  <input
-                    name="lastSalePrice"
-                    type="number"
-                    value={detailForm.lastSalePrice}
-                    onChange={handleDetailChange}
-                    className="auth-input"
-                    placeholder="0"
-                  />
-                </FormField>
-
-                <FormField label="Last sale date">
-                  <input
-                    name="lastSaleDate"
-                    type="date"
-                    value={detailForm.lastSaleDate}
-                    onChange={handleDetailChange}
-                    className="auth-input"
-                  />
-                </FormField>
+              <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                <SummaryStat label="ARV range" value={arValueRangeLabel} hint="Blended comps value range" />
+                <SummaryStat
+                  label="Recommended offer"
+                  value={recommendedOfferLabel}
+                  hint="Latest modeled buy range"
+                />
+                <SummaryStat label="Confidence" value={activeConfidenceLabel} hint="Based on current comps support" />
+                <SummaryStat label="Ask vs model" value={askVsModelGapLabel} hint={askVsModelGapHint} />
               </div>
-            </div>
-          </DetailSection>
+            </section>
 
-          <DetailSection
-            eyebrow="Seller and strategy"
-            title="Seller context and pricing plan"
-            description="Save the seller details, pricing anchors, and next move so the deal stays decision-ready between follow-ups."
-          >
-            <div className="grid gap-5 md:grid-cols-2">
-              <FormField label="Seller name">
-                <input
-                  name="sellerName"
-                  value={detailForm.sellerName}
-                  onChange={handleDetailChange}
-                  className="auth-input"
-                />
-              </FormField>
-
-              <FormField label="Deal source">
-                <input
-                  name="leadSource"
-                  value={detailForm.leadSource}
-                  onChange={handleDetailChange}
-                  className="auth-input"
-                  placeholder="Agent, referral, direct mail..."
-                />
-              </FormField>
-
-              <FormField label="Seller phone">
-                <input
-                  name="sellerPhone"
-                  value={detailForm.sellerPhone}
-                  onChange={handleDetailChange}
-                  className="auth-input"
-                />
-              </FormField>
-
-              <FormField label="Seller email">
-                <input
-                  name="sellerEmail"
-                  type="email"
-                  value={detailForm.sellerEmail}
-                  onChange={handleDetailChange}
-                  className="auth-input"
-                />
-              </FormField>
-
-              <FormField label="Occupancy">
-                <select
-                  name="occupancyStatus"
-                  value={detailForm.occupancyStatus}
-                  onChange={handleDetailChange}
-                  className="auth-input appearance-none"
-                >
-                  {occupancyOptions.map((option) => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
-                </select>
-              </FormField>
-
-              <FormField label="Next move">
-                <input
-                  name="nextAction"
-                  value={detailForm.nextAction}
-                  onChange={handleDetailChange}
-                  className="auth-input"
-                  placeholder="Call seller, request photos, line up contractor..."
-                />
-              </FormField>
-
-              <FormField label="Target offer">
-                <input
-                  name="targetOffer"
-                  type="number"
-                  value={detailForm.targetOffer}
-                  onChange={handleDetailChange}
-                  className="auth-input"
-                  placeholder="0"
-                />
-              </FormField>
-
-              <FormField label="Follow-up date">
-                <input
-                  name="followUpDate"
-                  type="date"
-                  value={detailForm.followUpDate}
-                  onChange={handleDetailChange}
-                  className="auth-input"
-                />
-              </FormField>
-
-              <FormField label="ARV / exit value">
-                <input
-                  name="arv"
-                  type="number"
-                  value={detailForm.arv}
-                  onChange={handleDetailChange}
-                  className="auth-input"
-                  placeholder="0"
-                />
-              </FormField>
-
-              <FormField label="Current rehab estimate">
-                <input
-                  name="rehabEstimate"
-                  type="number"
-                  value={detailForm.rehabEstimate}
-                  onChange={handleDetailChange}
-                  className="auth-input"
-                  placeholder="0"
-                />
-              </FormField>
-
-              <FormField label="Seller motivation" className="md:col-span-2">
-                <textarea
-                  rows="3"
-                  name="motivation"
-                  value={detailForm.motivation}
-                  onChange={handleDetailChange}
-                  className="auth-input min-h-[110px]"
-                  placeholder="Why is this seller likely to negotiate, move quickly, or sell below market?"
-                />
-              </FormField>
-
-              <FormField label="Deal notes" className="md:col-span-2">
-                <textarea
-                  rows="4"
-                  name="notes"
-                  value={detailForm.notes}
-                  onChange={handleDetailChange}
-                  className="auth-input min-h-[140px]"
-                  placeholder="Anything the team should remember about this opportunity..."
-                />
-              </FormField>
-            </div>
-
-            <div className="mt-6 flex flex-wrap justify-end gap-3">
-              <button
-                type="button"
-                onClick={handleSaveDetails}
-                disabled={isSavingDetails}
-                className="primary-action disabled:cursor-not-allowed disabled:opacity-70"
-              >
-                {isSavingDetails ? "Saving..." : "Save deal details"}
-              </button>
-            </div>
-          </DetailSection>
-        </div>
-      )}
-
-      {activeTab === "comps" && (
-        <MasterDealReportWorkspace
-          subject={liveLead}
-          report={analysis}
-          filters={filters}
-          deal={dealForm}
-          onFilterChange={handleFilterChange}
-          onDealChange={handleDealChange}
-          isAnalyzing={isAnalyzing}
-          onRunAnalysis={handleRunAnalysis}
-          billingAccess={billingAccess}
-          isBillingAccessLoading={isBillingAccessLoading}
-          onStartSubscription={handleStartSubscription}
-          isStartingSubscription={isStartingSubscription}
-          onBuyReport={handleBuyReport}
-          isStartingCheckout={isStartingCheckout}
-          onSaveReport={handleSaveReport}
-          isSavingReport={isSavingReport}
-          saveButtonLabel="Save Deal Report"
-          runButtonLabel="Run Deal Report"
-          showOneTimeCheckout
-          reportNotice={compsNotice}
-          renderSubjectPanel={() => (
-            <div className="surface-panel px-6 py-6">
-              <div className="flex items-start justify-between gap-4">
+            <section className="surface-panel px-6 py-6 sm:px-7">
+              <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
-                  <h3 className="text-xl font-semibold text-ink-900">Current deal snapshot</h3>
-                  <p className="mt-1 text-sm text-ink-500">
-                    These numbers come from the details saved on this deal.
+                  <span className="eyebrow">Comps snapshot</span>
+                  <h3 className="mt-4 text-2xl font-semibold text-ink-900">
+                    Best comps up front
+                  </h3>
+                  <p className="mt-2 max-w-2xl text-sm leading-6 text-ink-500">
+                    Show the nearest and most decision-useful comps first. The full report workflow
+                    stays available below when you want to tune filters or save a new case.
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-3">
+                  {snapshotComps.length > 4 ? (
+                    <button
+                      type="button"
+                      onClick={() => setShowAllSnapshotComps((previous) => !previous)}
+                      className="ghost-action"
+                    >
+                      {showAllSnapshotComps ? "Show fewer comps" : "See all comps"}
+                    </button>
+                  ) : null}
+                  {compsWorkbenchAction}
+                </div>
+              </div>
+
+              {visibleSnapshotComps.length ? (
+                <div className="mt-6 grid gap-4 lg:grid-cols-2">
+                  {visibleSnapshotComps.map((comp, index) => (
+                    <CompSnapshotCard key={comp._id || comp.id || `${getSnapshotCompAddress(comp)}-${index}`} comp={comp} />
+                  ))}
+                </div>
+              ) : (
+                <div className="mt-6 rounded-[24px] border border-dashed border-ink-200 bg-sand-50/70 px-5 py-10 text-center">
+                  <h4 className="text-xl font-semibold text-ink-900">No comps snapshot yet</h4>
+                  <p className="mt-2 text-sm leading-6 text-ink-500">
+                    Run the comps workflow to pull in comparable sales and build the value range.
+                  </p>
+                </div>
+              )}
+            </section>
+
+            <SavedCompsReportsTab
+              reports={savedReports}
+              isLoading={savedReportsLoading}
+              title="Report history"
+              description="Saved reports now live inside the comps workflow so you can compare previous underwriting cases without leaving the pricing area."
+              emptyTitle="No comps reports saved yet"
+              emptyMessage="Run the comps workflow, save a report, and your report history will appear here."
+              actions={compsWorkbenchAction}
+              reportActions={compsWorkbenchAction}
+            />
+
+            {shouldShowCompsWorkbench ? (
+              <MasterDealReportWorkspace
+                subject={liveLead}
+                report={analysis}
+                filters={filters}
+                deal={dealForm}
+                onFilterChange={handleFilterChange}
+                onDealChange={handleDealChange}
+                isAnalyzing={isAnalyzing}
+                onRunAnalysis={handleRunAnalysis}
+                billingAccess={billingAccess}
+                isBillingAccessLoading={isBillingAccessLoading}
+                onStartSubscription={handleStartSubscription}
+                isStartingSubscription={isStartingSubscription}
+                onBuyReport={handleBuyReport}
+                isStartingCheckout={isStartingCheckout}
+                onSaveReport={handleSaveReport}
+                isSavingReport={isSavingReport}
+                saveButtonLabel="Save Deal Report"
+                runButtonLabel="Run Deal Report"
+                showOneTimeCheckout
+                reportNotice={compsNotice}
+                renderSubjectPanel={() => (
+                  <div className="surface-panel px-6 py-6">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <h3 className="text-xl font-semibold text-ink-900">Current deal snapshot</h3>
+                        <p className="mt-1 text-sm text-ink-500">
+                          These numbers come from the lead details and can be edited from the overview drawer.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setIsDetailsDrawerOpen(true)}
+                        className="ghost-action"
+                      >
+                        Edit details
+                      </button>
+                    </div>
+
+                    <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                      <div className="rounded-[18px] bg-sand-50 px-4 py-3">
+                        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-400">
+                          Property
+                        </p>
+                        <p className="mt-2 text-sm font-semibold text-ink-900">{propertySummaryLabel}</p>
+                      </div>
+                      <div className="rounded-[18px] bg-sand-50 px-4 py-3">
+                        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-400">
+                          Pricing
+                        </p>
+                        <p className="mt-2 text-sm font-semibold text-ink-900">
+                          Ask {formatCurrency(liveLead.sellerAskingPrice)}
+                        </p>
+                        <p className="mt-1 text-xs text-ink-500">
+                          Target {formatCurrency(workingTargetOffer)}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              />
+            ) : null}
+          </div>
+        ) : null}
+
+        {activeTab === "project-analysis" ? (
+          <div className="space-y-5">
+            <div className="grid gap-5 xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)]">
+              <section className="surface-panel-strong px-6 py-6 sm:px-7">
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div>
+                    <span className="eyebrow">Project analysis</span>
+                    <h2 className="mt-4 text-2xl font-semibold text-ink-900">
+                      Tie rough rehab, scope, bids, and scenarios together
+                    </h2>
+                    <p className="mt-2 max-w-3xl text-sm leading-6 text-ink-500">
+                      Keep the manual rough rehab estimate separate, build the detailed scope, and
+                      pressure-test scenarios before you move this deal deeper into execution.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleSaveProjectAnalysis}
+                    disabled={isSavingProjectAnalysis}
+                    className="primary-action disabled:cursor-not-allowed disabled:opacity-70"
+                  >
+                    {isSavingProjectAnalysis ? "Saving..." : "Save project analysis"}
+                  </button>
+                </div>
+
+                <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                  <SummaryStat
+                    label="Rough rehab"
+                    value={formatCurrency(liveLead.rehabEstimate)}
+                    hint="Manual estimate from lead details"
+                  />
+                  <SummaryStat
+                    label="Detailed scope"
+                    value={renovationBudgetedItemCount ? formatCurrency(renovationBudgetTotal) : "—"}
+                    hint={`${renovationBudgetedItemCount} budgeted of ${renovationItemsCount} scoped items`}
+                  />
+                  <SummaryStat
+                    label="Delta"
+                    value={projectAnalysisDelta === null ? "—" : formatCurrency(projectAnalysisDelta)}
+                    hint="Difference between rough and detailed numbers"
+                  />
+                  <SummaryStat
+                    label="Selected scenario"
+                    value={selectedScenarioName}
+                    hint={selectedScenarioProjection?.confidenceNote || "Choose a scenario to model the spread."}
+                  />
+                </div>
+              </section>
+
+              <section className="section-card p-6 sm:p-7">
+                <span className="eyebrow">Manual rough estimate</span>
+                <h3 className="mt-4 text-2xl font-semibold text-ink-900">
+                  Keep this quick number independent
+                </h3>
+                <p className="mt-2 text-sm leading-6 text-ink-500">
+                  This rough rehab estimate is the fast acquisition assumption. Scenario modeling
+                  and detailed scope costs should inform it, not overwrite it.
+                </p>
+                <div className="mt-5 space-y-4">
+                  <FormField label="Rough rehab estimate">
+                    <input
+                      name="rehabEstimate"
+                      type="number"
+                      value={detailForm.rehabEstimate}
+                      onChange={handleDetailChange}
+                      className="auth-input"
+                      placeholder="0"
+                    />
+                  </FormField>
+                  <FormField label="ARV / exit value">
+                    <input
+                      name="arv"
+                      type="number"
+                      value={detailForm.arv}
+                      onChange={handleDetailChange}
+                      className="auth-input"
+                      placeholder="0"
+                    />
+                  </FormField>
+                  <button
+                    type="button"
+                    onClick={handleSaveDetails}
+                    disabled={isSavingDetails}
+                    className="primary-action w-full disabled:cursor-not-allowed disabled:opacity-70"
+                  >
+                    {isSavingDetails ? "Saving..." : "Save rough estimate"}
+                  </button>
+                </div>
+              </section>
+            </div>
+
+            <section className="surface-panel px-6 py-6 sm:px-7">
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div>
+                  <span className="eyebrow">Scope & budget</span>
+                  <h3 className="mt-4 text-2xl font-semibold text-ink-900">
+                    Build the renovation scope clearly
+                  </h3>
+                  <p className="mt-2 max-w-3xl text-sm leading-6 text-ink-500">
+                    Scope items should be practical, quote-ready, and easy for an investor to scan.
                   </p>
                 </div>
                 <button
                   type="button"
-                  onClick={() => setActiveTab("details")}
-                  className="ghost-action"
+                  onClick={openAddRenovationItemModal}
+                  className="primary-action inline-flex items-center gap-2"
                 >
-                  Edit details
+                  <PlusIcon className="h-4 w-4" />
+                  Add renovation item
                 </button>
               </div>
 
-              <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                <div className="rounded-[18px] bg-sand-50 px-4 py-3">
-                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-400">
-                    Property
-                  </p>
-                  <p className="mt-2 text-sm font-semibold text-ink-900">
-                    {[
-                      liveLead.propertyType,
-                      liveLead.squareFootage
-                        ? `${Number(liveLead.squareFootage).toLocaleString()} sqft`
-                        : null,
-                    ]
-                      .filter(Boolean)
-                      .join(" • ") || "No property facts yet"}
-                  </p>
-                </div>
-                <div className="rounded-[18px] bg-sand-50 px-4 py-3">
-                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-400">
-                    Pricing
-                  </p>
-                  <p className="mt-2 text-sm font-semibold text-ink-900">
-                    Ask {formatCurrency(liveLead.sellerAskingPrice)}
-                  </p>
-                  <p className="mt-1 text-xs text-ink-500">
-                    Target {formatCurrency(workingTargetOffer)}
+              <div className="mt-6 grid gap-5 md:grid-cols-2 lg:grid-cols-4">
+                <FormField
+                  label="Verified square footage"
+                  hint="Confirm usable size before finalizing the scope."
+                >
+                  <input
+                    name="verifiedSquareFootage"
+                    type="number"
+                    value={renovationForm.verifiedSquareFootage}
+                    onChange={handleRenovationChange}
+                    className="auth-input"
+                    placeholder="0"
+                  />
+                </FormField>
+
+                <FormField label="Renovation level">
+                  <select
+                    name="renovationLevel"
+                    value={renovationForm.renovationLevel}
+                    onChange={handleRenovationChange}
+                    className="auth-input appearance-none"
+                  >
+                    {renovationLevelOptions.map((option) => (
+                      <option key={option.value || "empty"} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </FormField>
+
+                <FormField label="Extension planned">
+                  <select
+                    name="extensionPlanned"
+                    value={renovationForm.extensionPlanned ? "yes" : "no"}
+                    onChange={(event) =>
+                      setRenovationForm((previous) => ({
+                        ...previous,
+                        extensionPlanned: event.target.value === "yes",
+                        extensionSquareFootage:
+                          event.target.value === "yes" ? previous.extensionSquareFootage : "",
+                      }))
+                    }
+                    className="auth-input appearance-none"
+                  >
+                    <option value="no">No</option>
+                    <option value="yes">Yes</option>
+                  </select>
+                </FormField>
+
+                <FormField label="Extension square footage">
+                  <input
+                    name="extensionSquareFootage"
+                    type="number"
+                    value={renovationForm.extensionSquareFootage}
+                    onChange={handleRenovationChange}
+                    className="auth-input"
+                    placeholder={renovationForm.extensionPlanned ? "0" : "Not needed"}
+                    disabled={!renovationForm.extensionPlanned}
+                  />
+                </FormField>
+              </div>
+
+              <div className="mt-6 grid gap-4 md:grid-cols-3">
+                <SummaryStat
+                  label="Total scoped budget"
+                  value={renovationBudgetedItemCount ? formatCurrency(renovationBudgetTotal) : "—"}
+                  hint="Budgeted scope total"
+                />
+                <SummaryStat
+                  label="Renovation items"
+                  value={renovationItemsCount}
+                  hint={renovationItemsCount ? "Items currently in the scope" : "No items added yet"}
+                />
+                <SummaryStat
+                  label="Extension"
+                  value={
+                    renovationForm.extensionPlanned
+                      ? renovationForm.extensionSquareFootage
+                        ? `${Number(renovationForm.extensionSquareFootage).toLocaleString()} sqft`
+                        : "Yes"
+                      : "No"
+                  }
+                  hint={
+                    renovationForm.verifiedSquareFootage
+                      ? `Verified ${Number(renovationForm.verifiedSquareFootage).toLocaleString()} sqft`
+                      : "Verified size not set yet"
+                  }
+                />
+              </div>
+
+              <div className="mt-6 space-y-4">
+                {renovationItemsCount ? (
+                  renovationForm.items.map((item) => {
+                    const categoryLabel =
+                      renovationCategoryOptions.find((option) => option.value === item.category)?.label ||
+                      "Custom";
+                    const statusLabel =
+                      renovationItemStatusOptions.find((option) => option.value === item.status)?.label ||
+                      "Planning";
+
+                    return (
+                      <div
+                        key={item.itemId}
+                        className="rounded-[24px] border border-ink-100 bg-white px-5 py-5"
+                      >
+                        <div className="flex flex-wrap items-start justify-between gap-4">
+                          <div>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <h4 className="text-lg font-semibold text-ink-900">
+                                {item.name || "Untitled item"}
+                              </h4>
+                              <span className="rounded-full bg-sand-100 px-3 py-1 text-xs font-semibold text-ink-600">
+                                {categoryLabel}
+                              </span>
+                              <span className="rounded-full bg-sand-100 px-3 py-1 text-xs font-semibold text-ink-600">
+                                {statusLabel}
+                              </span>
+                            </div>
+                            <p className="mt-3 max-w-3xl text-sm leading-6 text-ink-500">
+                              {item.scopeDescription || "No scope description added yet."}
+                            </p>
+                          </div>
+
+                          <div className="rounded-[18px] bg-sand-50 px-4 py-4 text-right">
+                            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-400">
+                              Budget
+                            </p>
+                            <p className="mt-2 text-lg font-semibold text-ink-900">
+                              {item.budget !== "" && item.budget !== null && item.budget !== undefined
+                                ? formatCurrency(item.budget)
+                                : "—"}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="mt-5 flex flex-wrap justify-end gap-3">
+                          <button
+                            type="button"
+                            onClick={() => openEditRenovationItemModal(item)}
+                            className="ghost-action inline-flex items-center gap-2"
+                          >
+                            <PencilSquareIcon className="h-4 w-4" />
+                            Edit item
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteRenovationItem(item.itemId)}
+                            className="ghost-action inline-flex items-center gap-2 text-red-600 hover:bg-red-50 hover:text-red-700"
+                          >
+                            <TrashIcon className="h-4 w-4" />
+                            Delete item
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="rounded-[24px] border border-dashed border-ink-200 bg-sand-50/70 px-5 py-10 text-center">
+                    <h4 className="text-xl font-semibold text-ink-900">No renovation items yet</h4>
+                    <p className="mt-2 text-sm leading-6 text-ink-500">
+                      Add the first scope item to start building a more credible project budget.
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
+                <p className="text-sm text-ink-500">
+                  {lastRenovationSavedAt
+                    ? `Saved ${formatDate(lastRenovationSavedAt)}. Your scope items and budgets stay on this lead.`
+                    : "Save scope changes to keep the renovation budget and item list on this lead."}
+                </p>
+                <button
+                  type="button"
+                  onClick={handleSaveRenovation}
+                  disabled={isSavingRenovation}
+                  className="primary-action disabled:cursor-not-allowed disabled:opacity-70"
+                >
+                  {isSavingRenovation ? "Saving..." : "Save scope & budget"}
+                </button>
+              </div>
+            </section>
+
+            <section className="surface-panel px-6 py-6 sm:px-7">
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div>
+                  <span className="eyebrow">Procurement & bids</span>
+                  <h3 className="mt-4 text-2xl font-semibold text-ink-900">
+                    Keep vendor pricing tied to the scope
+                  </h3>
+                  <p className="mt-2 max-w-2xl text-sm leading-6 text-ink-500">
+                    Instead of a separate top-level tab, bids now sit directly inside project analysis
+                    so investors can compare contractor pricing against the planned scope.
                   </p>
                 </div>
               </div>
-            </div>
-          )}
-        />
-      )}
-
-      {activeTab === "saved-reports" && (
-        <SavedCompsReportsTab
-          reports={savedReports}
-          isLoading={savedReportsLoading}
-          title="Saved Deal Reports"
-          description="Every saved report for this deal lives here so you can compare underwriting cases over time."
-          emptyTitle="No deal reports saved yet"
-          emptyMessage="Run the Deal Report, save it, and the deal's report history will appear here."
-        />
-      )}
-
-      {activeTab === "renovation" && (
-        <div className="space-y-6">
-          <section className="surface-panel px-6 py-6 sm:px-7">
-            <span className="eyebrow">Renovation planning and estimate</span>
-            <h2 className="mt-4 text-2xl font-semibold text-ink-900">
-              Build the scope before you price the job
-            </h2>
-            <p className="mt-2 text-sm leading-6 text-ink-500">
-              Set the project basics first, then build a clear renovation item list with budgets and contractor-ready scopes.
-            </p>
-
-            <div className="mt-6 grid gap-5 md:grid-cols-2 lg:grid-cols-4">
-              <FormField
-                label="Verified square footage"
-                hint="Confirm the usable square footage before building the estimate."
-              >
-                <input
-                  name="verifiedSquareFootage"
-                  type="number"
-                  value={renovationForm.verifiedSquareFootage}
-                  onChange={handleRenovationChange}
-                  className="auth-input"
-                  placeholder="0"
+              <div className="mt-6">
+                <BidsTab
+                  leadId={id}
+                  bids={bids}
+                  renovationItems={renovationForm.items}
+                  onUpdate={fetchData}
                 />
-              </FormField>
+              </div>
+            </section>
 
-              <FormField label="Renovation level">
-                <select
-                  name="renovationLevel"
-                  value={renovationForm.renovationLevel}
-                  onChange={handleRenovationChange}
-                  className="auth-input appearance-none"
-                >
-                  {renovationLevelOptions.map((option) => (
-                    <option key={option.value || "empty"} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </FormField>
+            <section className="surface-panel px-6 py-6 sm:px-7">
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div>
+                  <span className="eyebrow">Scenario lab</span>
+                  <h3 className="mt-4 text-2xl font-semibold text-ink-900">
+                    Model multiple ways to create value
+                  </h3>
+                  <p className="mt-2 max-w-3xl text-sm leading-6 text-ink-500">
+                    Compare light cosmetic, moderate, full gut, or extension paths without overwriting
+                    the lead’s manual rough rehab estimate.
+                  </p>
+                </div>
+                <button type="button" onClick={handleAddCustomScenario} className="secondary-action">
+                  Add custom scenario
+                </button>
+              </div>
 
-              <FormField label="Will there be an extension?">
-                <select
-                  name="extensionPlanned"
-                  value={renovationForm.extensionPlanned ? "yes" : "no"}
-                  onChange={(event) =>
-                    setRenovationForm((previous) => ({
-                      ...previous,
-                      extensionPlanned: event.target.value === "yes",
-                      extensionSquareFootage:
-                        event.target.value === "yes" ? previous.extensionSquareFootage : "",
-                    }))
-                  }
-                  className="auth-input appearance-none"
-                >
-                  <option value="no">No</option>
-                  <option value="yes">Yes</option>
-                </select>
-              </FormField>
+              <div className="mt-6 flex flex-wrap gap-2">
+                {projectAnalysisState.scenarios.map((scenario) => (
+                  <button
+                    key={scenario.scenarioId}
+                    type="button"
+                    onClick={() =>
+                      setProjectAnalysisState((previous) => ({
+                        ...previous,
+                        selectedScenarioId: scenario.scenarioId,
+                      }))
+                    }
+                    className={`lead-scenario-chip ${
+                      selectedScenario?.scenarioId === scenario.scenarioId
+                        ? "lead-scenario-chip-active"
+                        : ""
+                    }`}
+                  >
+                    {scenario.label}
+                  </button>
+                ))}
+              </div>
 
-              <FormField label="Extension square footage">
-                <input
-                  name="extensionSquareFootage"
-                  type="number"
-                  value={renovationForm.extensionSquareFootage}
-                  onChange={handleRenovationChange}
-                  className="auth-input"
-                  placeholder={renovationForm.extensionPlanned ? "0" : "Not needed"}
-                  disabled={!renovationForm.extensionPlanned}
-                />
-              </FormField>
-            </div>
-          </section>
+              {selectedScenario ? (
+                <div className="mt-6 grid gap-5 xl:grid-cols-[minmax(0,1.05fr)_360px]">
+                  <div className="space-y-5">
+                    <div className="grid gap-5 md:grid-cols-2">
+                      <FormField label="Scenario label">
+                        <input
+                          value={selectedScenario.label}
+                          onChange={(event) =>
+                            handleScenarioChange(
+                              selectedScenario.scenarioId,
+                              "label",
+                              event.target.value
+                            )
+                          }
+                          className="auth-input"
+                          placeholder="Scenario name"
+                        />
+                      </FormField>
 
-          <div className="grid gap-4 md:grid-cols-3">
-            <SummaryStat
-              label="Total Renovation Budget"
-              value={renovationBudgetedItemCount ? formatCurrency(renovationBudgetTotal) : "—"}
-              hint={
-                renovationBudgetedItemCount
-                  ? `${renovationBudgetedItemCount} of ${renovationItemsCount} items budgeted`
-                  : "Add budgets to your renovation items"
-              }
-            />
-            <SummaryStat
-              label="Renovation Items"
-              value={renovationItemsCount}
-              hint={renovationItemsCount ? "Items currently in the plan" : "No items added yet"}
-            />
-            <SummaryStat
-              label="Extension"
-              value={
-                renovationForm.extensionPlanned
-                  ? renovationForm.extensionSquareFootage
-                    ? `${Number(renovationForm.extensionSquareFootage).toLocaleString()} sqft`
-                    : "Yes"
-                  : "No"
-              }
-              hint={
-                renovationForm.verifiedSquareFootage
-                  ? `Verified size ${Number(renovationForm.verifiedSquareFootage).toLocaleString()} sqft`
-                  : "Square footage not verified yet"
-              }
+                      <FormField label="Strategy type">
+                        <select
+                          value={selectedScenario.strategyType}
+                          onChange={(event) =>
+                            handleScenarioChange(
+                              selectedScenario.scenarioId,
+                              "strategyType",
+                              event.target.value
+                            )
+                          }
+                          className="auth-input appearance-none"
+                        >
+                          {[
+                            ...projectAnalysisScenarioPresets.map((preset) => preset.strategyType),
+                            "custom",
+                          ].map((option) => (
+                            <option key={option} value={option}>
+                              {option}
+                            </option>
+                          ))}
+                        </select>
+                      </FormField>
+
+                      <FormField label="Scenario rehab estimate">
+                        <input
+                          type="number"
+                          value={selectedScenario.rehabEstimate}
+                          onChange={(event) =>
+                            handleScenarioChange(
+                              selectedScenario.scenarioId,
+                              "rehabEstimate",
+                              event.target.value
+                            )
+                          }
+                          className="auth-input"
+                          placeholder="0"
+                        />
+                      </FormField>
+
+                      <FormField label="Scenario ARV">
+                        <input
+                          type="number"
+                          value={selectedScenario.arv}
+                          onChange={(event) =>
+                            handleScenarioChange(
+                              selectedScenario.scenarioId,
+                              "arv",
+                              event.target.value
+                            )
+                          }
+                          className="auth-input"
+                          placeholder="0"
+                        />
+                      </FormField>
+
+                      <FormField label="Holding months">
+                        <input
+                          type="number"
+                          value={selectedScenario.holdingMonths}
+                          onChange={(event) =>
+                            handleScenarioChange(
+                              selectedScenario.scenarioId,
+                              "holdingMonths",
+                              event.target.value
+                            )
+                          }
+                          className="auth-input"
+                          placeholder="0"
+                        />
+                      </FormField>
+
+                      <FormField label="Extension square footage">
+                        <input
+                          type="number"
+                          value={selectedScenario.extensionSquareFootage}
+                          onChange={(event) =>
+                            handleScenarioChange(
+                              selectedScenario.scenarioId,
+                              "extensionSquareFootage",
+                              event.target.value
+                            )
+                          }
+                          disabled={!selectedScenario.extensionPlanned}
+                          className="auth-input"
+                          placeholder={selectedScenario.extensionPlanned ? "0" : "Not planned"}
+                        />
+                      </FormField>
+
+                      <label className="md:col-span-2 flex items-center gap-3 rounded-[18px] border border-ink-100 bg-sand-50 px-4 py-4">
+                        <input
+                          type="checkbox"
+                          checked={selectedScenario.extensionPlanned}
+                          onChange={(event) =>
+                            handleScenarioChange(
+                              selectedScenario.scenarioId,
+                              "extensionPlanned",
+                              event.target.checked
+                            )
+                          }
+                          className="h-4 w-4 rounded border-ink-300 text-ink-900"
+                        />
+                        <div>
+                          <p className="text-sm font-semibold text-ink-900">Extension planned</p>
+                          <p className="text-sm text-ink-500">
+                            Turn this on if the scenario includes additional square footage.
+                          </p>
+                        </div>
+                      </label>
+
+                      <FormField label="Scenario notes" className="md:col-span-2">
+                        <textarea
+                          rows="5"
+                          value={selectedScenario.notes}
+                          onChange={(event) =>
+                            handleScenarioChange(
+                              selectedScenario.scenarioId,
+                              "notes",
+                              event.target.value
+                            )
+                          }
+                          className="auth-input min-h-[150px]"
+                          placeholder="What makes this scenario different, and what assumptions need to be true?"
+                        />
+                      </FormField>
+                    </div>
+                  </div>
+
+                  <aside className="surface-panel-strong px-5 py-5">
+                    <span className="eyebrow">Scenario output</span>
+                    <h4 className="mt-4 text-xl font-semibold text-ink-900">
+                      {selectedScenario.label}
+                    </h4>
+                    <div className="mt-5 space-y-3">
+                      <div className="rounded-[18px] border border-ink-100 bg-white/88 px-4 py-4">
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-ink-400">
+                          Total project cost
+                        </p>
+                        <p className="mt-2 text-lg font-semibold text-ink-900">
+                          {formatCurrency(selectedScenarioProjection?.totalProjectCost)}
+                        </p>
+                      </div>
+                      <div className="rounded-[18px] border border-ink-100 bg-white/88 px-4 py-4">
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-ink-400">
+                          Projected spread
+                        </p>
+                        <p className="mt-2 text-lg font-semibold text-ink-900">
+                          {formatCurrency(selectedScenarioProjection?.projectedProfit)}
+                        </p>
+                      </div>
+                      <div className="rounded-[18px] border border-ink-100 bg-white/88 px-4 py-4">
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-ink-400">
+                          Margin
+                        </p>
+                        <p className="mt-2 text-lg font-semibold text-ink-900">
+                          {selectedScenarioProjection?.marginPercent === null ||
+                          selectedScenarioProjection?.marginPercent === undefined
+                            ? "—"
+                            : `${(selectedScenarioProjection.marginPercent * 100).toFixed(1)}%`}
+                        </p>
+                      </div>
+                      <div className="rounded-[18px] border border-ink-100 bg-white/88 px-4 py-4">
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-ink-400">
+                          Confidence note
+                        </p>
+                        <p className="mt-2 text-sm leading-6 text-ink-700">
+                          {selectedScenarioProjection?.confidenceNote ||
+                            "Fill in the scenario assumptions to see a stronger read."}
+                        </p>
+                      </div>
+                    </div>
+                  </aside>
+                </div>
+              ) : null}
+            </section>
+
+            <LeadProjectAnalysisCopilot
+              leadId={id}
+              leadAddress={liveLead.address}
+              leadSnapshot={projectAnalysisLeadSnapshot}
+              scenarios={projectAnalysisState.scenarios}
+              aiSummary={projectAnalysisState.aiSummary}
+              onApplySuggestions={handleApplyProjectAnalysisSuggestions}
             />
           </div>
+        ) : null}
 
-          <section className="surface-panel px-6 py-6 sm:px-7">
-            <div className="flex flex-wrap items-start justify-between gap-4">
+        {activeTab === "tasks" ? (
+          <TasksPanel
+            eyebrow="Deal tasks"
+            title="Deal follow-up and execution tasks"
+            description="Create deal-specific work here, or tie the task to this property so it also appears in the property record and the main task center."
+            query={{
+              sourceType: "lead",
+              sourceId: id,
+              propertyKey: propertyWorkspaceId || undefined,
+              match: propertyWorkspaceId ? "any" : undefined,
+            }}
+            defaults={{
+              sourceType: "lead",
+              sourceId: id,
+              sourceLabel: liveLead.address || INVESTOR_TERMS.deal.singular,
+              propertyKey: propertyWorkspaceId || "",
+            }}
+            emptyTitle="No deal tasks yet"
+            emptyDescription="Add the first follow-up, diligence item, or contractor action for this deal."
+          />
+        ) : null}
+
+        {activeTab === "documents" ? <LeadDocumentsTab lead={lead} /> : null}
+
+        <RenovationItemModal
+          isOpen={isRenovationItemModalOpen}
+          draft={renovationItemDraft}
+          isEditing={Boolean(editingRenovationItemId)}
+          onChange={handleRenovationDraftChange}
+          onClose={closeRenovationItemModal}
+          onSave={handleSaveRenovationItemDraft}
+        />
+
+        {subscriptionConsentDialog}
+      </div>
+
+      {isDetailsDrawerOpen ? (
+        <div className="lead-detail-drawer-shell" role="dialog" aria-modal="true" aria-label="Full lead details">
+          <button
+            type="button"
+            className="lead-detail-drawer-backdrop"
+            onClick={() => setIsDetailsDrawerOpen(false)}
+            aria-label="Close full details"
+          />
+          <div className="lead-detail-drawer-panel">
+            <div className="flex items-start justify-between gap-4 border-b border-ink-100 px-6 py-5 sm:px-7">
               <div>
-                <span className="eyebrow">Renovation plan list</span>
-                <h3 className="mt-3 text-2xl font-semibold text-ink-900">Build the scope list</h3>
-                <p className="mt-2 text-sm leading-6 text-ink-500">
-                  Add renovation items one by one, set the budget, and write what the contractor should quote.
+                <span className="eyebrow">Full details</span>
+                <h2 className="mt-4 text-2xl font-semibold text-ink-900">
+                  Potential Property record
+                </h2>
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-ink-500">
+                  Edit the complete lead record here without crowding the day-to-day decision view.
                 </p>
               </div>
               <button
                 type="button"
-                onClick={openAddRenovationItemModal}
-                className="primary-action inline-flex items-center gap-2"
+                onClick={() => setIsDetailsDrawerOpen(false)}
+                className="ghost-action"
               >
-                <PlusIcon className="h-4 w-4" />
-                Add renovation item
+                <XMarkIcon className="h-5 w-5" />
               </button>
             </div>
-
-            <div className="mt-6 space-y-4">
-              {renovationItemsCount ? (
-                renovationForm.items.map((item) => {
-                  const categoryLabel =
-                    renovationCategoryOptions.find((option) => option.value === item.category)?.label ||
-                    "Custom";
-                  const statusLabel =
-                    renovationItemStatusOptions.find((option) => option.value === item.status)?.label ||
-                    "Planning";
-
-                  return (
-                    <div
-                      key={item.itemId}
-                      className="rounded-[24px] border border-ink-100 bg-white px-5 py-5"
-                    >
-                      <div className="flex flex-wrap items-start justify-between gap-4">
-                        <div>
-                          <div className="flex flex-wrap items-center gap-2">
-                            <h4 className="text-lg font-semibold text-ink-900">
-                              {item.name || "Untitled item"}
-                            </h4>
-                            <span className="rounded-full bg-sand-100 px-3 py-1 text-xs font-semibold text-ink-600">
-                              {categoryLabel}
-                            </span>
-                            <span className="rounded-full bg-sand-100 px-3 py-1 text-xs font-semibold text-ink-600">
-                              {statusLabel}
-                            </span>
-                          </div>
-                          <p className="mt-3 max-w-3xl text-sm leading-6 text-ink-500">
-                            {item.scopeDescription || "No scope description added yet."}
-                          </p>
-                        </div>
-
-                        <div className="rounded-[18px] bg-sand-50 px-4 py-4 text-right">
-                          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-400">
-                            Budget
-                          </p>
-                          <p className="mt-2 text-lg font-semibold text-ink-900">
-                            {item.budget !== "" && item.budget !== null && item.budget !== undefined
-                              ? formatCurrency(item.budget)
-                              : "—"}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="mt-5 flex flex-wrap justify-end gap-3">
-                        <button
-                          type="button"
-                          onClick={() => openEditRenovationItemModal(item)}
-                          className="ghost-action inline-flex items-center gap-2"
-                        >
-                          <PencilSquareIcon className="h-4 w-4" />
-                          Edit item
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteRenovationItem(item.itemId)}
-                          className="ghost-action inline-flex items-center gap-2 text-red-600 hover:bg-red-50 hover:text-red-700"
-                        >
-                          <TrashIcon className="h-4 w-4" />
-                          Delete item
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })
-              ) : (
-                <div className="rounded-[24px] border border-dashed border-ink-200 bg-sand-50/70 px-5 py-10 text-center">
-                  <h4 className="text-xl font-semibold text-ink-900">No renovation items yet</h4>
-                  <p className="mt-2 text-sm leading-6 text-ink-500">
-                    Click <span className="font-semibold text-ink-900">Add renovation item</span> to choose from the preset list or create a custom one.
-                  </p>
-                </div>
-              )}
-            </div>
-          </section>
-
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="text-sm text-ink-500">
-              {lastRenovationSavedAt
-                ? `Saved ${formatDate(lastRenovationSavedAt)}. Your renovation items and budgets are stored on this deal.`
-                : "Save renovation plan to store the item list, budgets, and project setup on this deal."}
-            </p>
-            <button
-              type="button"
-              onClick={handleSaveRenovation}
-              disabled={isSavingRenovation}
-              className="primary-action disabled:cursor-not-allowed disabled:opacity-70"
-            >
-              {isSavingRenovation ? "Saving..." : "Save renovation plan"}
-            </button>
+            <div className="lead-detail-drawer-body">{detailEditorContent}</div>
           </div>
         </div>
-      )}
-
-      <RenovationItemModal
-        isOpen={isRenovationItemModalOpen}
-        draft={renovationItemDraft}
-        isEditing={Boolean(editingRenovationItemId)}
-        onChange={handleRenovationDraftChange}
-        onClose={closeRenovationItemModal}
-        onSave={handleSaveRenovationItemDraft}
-      />
-
-      {activeTab === "bids" && (
-        <BidsTab
-          leadId={id}
-          bids={bids}
-          renovationItems={renovationForm.items}
-          onUpdate={fetchData}
-        />
-      )}
-
-      {activeTab === "tasks" && (
-        <TasksPanel
-          eyebrow="Deal tasks"
-          title="Deal follow-up and execution tasks"
-          description="Create deal-specific work here, or tie the task to this property so it also appears in the property record and the main task center."
-          query={{
-            sourceType: "lead",
-            sourceId: id,
-            propertyKey: propertyWorkspaceId || undefined,
-            match: propertyWorkspaceId ? "any" : undefined,
-          }}
-          defaults={{
-            sourceType: "lead",
-            sourceId: id,
-            sourceLabel: liveLead.address || INVESTOR_TERMS.deal.singular,
-            propertyKey: propertyWorkspaceId || "",
-          }}
-          emptyTitle="No deal tasks yet"
-          emptyDescription="Add the first follow-up, diligence item, or contractor action for this deal."
-        />
-      )}
-
-      {subscriptionConsentDialog}
-    </div>
+      ) : null}
+    </>
   );
 };
 

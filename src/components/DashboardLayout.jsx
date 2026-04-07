@@ -419,7 +419,8 @@ function DashboardLayout({ children }) {
     }),
     [basePageMeta, pageHeaderConfig]
   );
-  const headerActions = pageHeaderConfig?.actions || null;
+  const showPipelineShortcut =
+    location.pathname.startsWith("/leads") || location.pathname.startsWith("/properties");
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -552,6 +553,26 @@ function DashboardLayout({ children }) {
         user={user}
       />
 
+      <div className="fixed right-4 top-4 z-40 flex items-center gap-2 md:right-5 md:top-5 lg:right-6 lg:top-6">
+        <button
+          type="button"
+          onClick={() => setIsMobileMenuOpen(true)}
+          className="secondary-action xl:hidden"
+          aria-label="Open navigation"
+        >
+          <Bars3Icon className="h-4 w-4" />
+          <span className="hidden sm:inline">Menu</span>
+        </button>
+
+        {showPipelineShortcut ? (
+          <Link to="/leads" className="secondary-action">
+            Potential Properties
+          </Link>
+        ) : null}
+
+        <UserInfoBanner />
+      </div>
+
       <div className="mx-auto flex max-w-[1440px] gap-4 px-4 py-4 md:px-5 lg:px-6">
         <aside
           className={`hidden xl:block xl:flex-shrink-0 xl:transition-all xl:duration-200 ${
@@ -616,75 +637,7 @@ function DashboardLayout({ children }) {
           </div>
         ) : null}
 
-        <div className="flex min-w-0 flex-1 flex-col gap-4">
-          <header className="sticky top-4 z-30">
-            <div
-              className={`surface-panel flex flex-col gap-3 px-4 py-4 md:px-5 lg:flex-row lg:items-center lg:justify-between ${
-                pageHeaderConfig?.headerClassName || ""
-              }`}
-            >
-              <div className="flex min-w-0 items-start gap-3">
-                <button
-                  type="button"
-                  onClick={() => setIsMobileMenuOpen(true)}
-                  className="mt-0.5 flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-[14px] border border-ink-100 bg-white/92 text-ink-800 transition hover:bg-white xl:hidden"
-                  aria-label="Open navigation"
-                >
-                  <Bars3Icon className="h-4 w-4" />
-                </button>
-
-                <div
-                  className={`min-w-0 ${
-                    pageHeaderConfig?.titleDetail ? "lead-detail-header-block" : ""
-                  }`}
-                >
-                  <span className="eyebrow">{pageMeta.kicker}</span>
-                  <div
-                    className={
-                      pageHeaderConfig?.titleDetail ? "lead-detail-header-title-row" : ""
-                    }
-                  >
-                    <h1 className="mt-3 text-[1.55rem] font-medium tracking-tight text-ink-900 md:text-[1.75rem]">
-                      {pageMeta.title}
-                    </h1>
-                    {pageHeaderConfig?.titleDetail ? (
-                      <p
-                        className="lead-detail-header-address"
-                        title={pageHeaderConfig.titleDetail}
-                      >
-                        {pageHeaderConfig.titleDetail}
-                      </p>
-                    ) : null}
-                  </div>
-                  {pageMeta.subtitle ? (
-                    <p className="mt-1.5 max-w-3xl text-sm leading-6 text-ink-500">
-                      {pageMeta.subtitle}
-                    </p>
-                  ) : null}
-                </div>
-              </div>
-
-              <div
-                className={`flex flex-wrap items-center gap-2.5 lg:justify-end ${
-                  headerActions ? "lead-detail-header-tools" : ""
-                }`}
-              >
-                {headerActions ? (
-                  headerActions
-                ) : (
-                  <Link
-                    to="/properties/new?workspace=pipeline"
-                    className="secondary-action hidden md:inline-flex"
-                  >
-                    <PlusCircleIcon className="mr-2 h-4 w-4" />
-                    Add deal
-                  </Link>
-                )}
-                <UserInfoBanner />
-              </div>
-            </div>
-          </header>
-
+        <div className="flex min-w-0 flex-1 flex-col">
           <main className="pb-8">
             <div
               className={`mx-auto w-full space-y-4 xl:transition-all xl:duration-200 ${
