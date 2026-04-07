@@ -48,7 +48,7 @@ const SnapshotCard = ({ label, value, hint }) => (
 
 const tabOptions = [
   { id: "master", label: "Master Deal Report" },
-  { id: "saved", label: "Saved Reports" },
+  { id: "saved", label: "Saved Deal Reports" },
 ];
 
 const isSavedReportsBackendUnavailable = (error) =>
@@ -730,7 +730,7 @@ const CompsReportPage = () => {
             <div className="rounded-[20px] border border-ink-100 bg-white/80 px-4 py-4">
               <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-ink-400">Library</p>
               <p className="mt-2 text-2xl font-semibold text-ink-900">{savedReports.length}</p>
-              <p className="mt-1 text-xs text-ink-500">Saved master reports</p>
+              <p className="mt-1 text-xs text-ink-500">Saved deal reports</p>
             </div>
             <div className="rounded-[20px] border border-ink-100 bg-white/80 px-4 py-4">
               <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-ink-400">Live subject</p>

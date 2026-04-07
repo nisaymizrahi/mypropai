@@ -101,8 +101,8 @@ const getPropertyWorkspaceState = (property) => {
     return {
       headline: hasPipeline ? "Needs analysis" : "Financials ready",
       detail: hasPipeline
-        ? "Activate the linked lead for comps and reports."
-        : "Add a lead when you want analysis.",
+        ? "Activate the linked deal for comps and reports."
+        : "Add a deal when you want analysis.",
       tone: "bg-sky-50 text-sky-700",
       actionLabel: hasPipeline ? "Open settings" : "Open workspace",
       actionPath: hasPipeline
@@ -126,7 +126,7 @@ const getPropertyWorkspaceState = (property) => {
   if (hasPipeline) {
     return {
       headline: "Activate analysis",
-      detail: "Turn on the linked lead inside Property Workspace.",
+      detail: "Turn on the linked deal inside Property Workspace.",
       tone: "bg-sand-50 text-ink-700",
       actionLabel: "Open settings",
       actionPath: buildPropertyWorkspacePath(property.propertyKey, "settings"),
@@ -136,7 +136,7 @@ const getPropertyWorkspaceState = (property) => {
 
   return {
     headline: "Needs setup",
-    detail: "Start here, then add a lead or financials when needed.",
+    detail: "Start here, then add a deal or financials when needed.",
     tone: "bg-clay-50 text-clay-700",
     actionLabel: "Open settings",
     actionPath: buildPropertyWorkspacePath(property.propertyKey, "settings"),
@@ -270,7 +270,7 @@ const PropertiesPage = () => {
           <div>
             <p className="font-medium text-ink-800">{formatDate(property.updatedAt || property.createdAt)}</p>
             <p className="mt-1 text-sm text-ink-500">
-              {property.workspaces?.pipeline?.status || "No lead stage"}
+              {property.workspaces?.pipeline?.status || "No deal stage"}
             </p>
           </div>
         ),
@@ -325,7 +325,7 @@ const PropertiesPage = () => {
                 Add property
               </Link>
               <Link to="/leads" className="secondary-action">
-                Open leads
+                Open deals
               </Link>
             </div>
           </div>

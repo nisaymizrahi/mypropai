@@ -337,12 +337,12 @@ const buildPropertyCopilotSuggestions = ({
 
   if (!hasPipelineWorkspace) {
     suggestions.push("What analysis setup is missing for this property?");
-    suggestions.push("Open settings so I can add the lead workspace");
+    suggestions.push("Open settings so I can add the deal workspace");
     return suggestions;
   }
 
   if (!propertyWorkspaceActive) {
-    suggestions.push("What do I unlock if I move this lead into the property workspace?");
+    suggestions.push("What do I unlock if I move this deal into Property Workspace?");
     suggestions.push("Open settings so I can activate analysis here");
     return suggestions;
   }
@@ -368,7 +368,7 @@ const buildPropertyCopilotSuggestions = ({
   }
 
   if (leadWorkspace?.nextAction || leadWorkspace?.followUpDate) {
-    suggestions.push("What seller follow-up is due next on this lead?");
+    suggestions.push("What seller follow-up is due next on this deal?");
   }
 
   if ((leadWorkspace?.nextAction || leadWorkspace?.followUpDate) && openPropertyTasks === 0) {
@@ -741,7 +741,7 @@ const PropertyWorkspacePage = () => {
       setSavedReports([]);
       setBids([]);
       setBillingAccess(null);
-      setLeadWorkspaceError(leadError.message || "Failed to load the linked lead workspace.");
+      setLeadWorkspaceError(leadError.message || "Failed to load the linked deal workspace.");
     } finally {
       setLeadWorkspaceLoading(false);
       setSavedReportsLoading(false);
@@ -923,7 +923,7 @@ const PropertyWorkspacePage = () => {
   const nextStepCard = useMemo(() => {
     if (!hasPipelineWorkspace) {
       return {
-        value: "Add lead",
+        value: "Add deal",
         helper: "Unlock comps, reports, scope, and bids.",
       };
     }
@@ -931,7 +931,7 @@ const PropertyWorkspacePage = () => {
     if (!propertyWorkspaceActive) {
       return {
         value: "Activate analysis",
-        helper: "Use the linked lead inside this property workspace.",
+        helper: "Use the linked deal inside this property workspace.",
       };
     }
 
@@ -1016,7 +1016,7 @@ const PropertyWorkspacePage = () => {
     (readyLabel, sectionId) => {
       if (!hasPipelineWorkspace) {
         return {
-          label: "Add lead",
+          label: "Add deal",
           onClick: () => handleTabSelect("settings"),
         };
       }
@@ -1186,7 +1186,7 @@ const PropertyWorkspacePage = () => {
 
   const handleRunLeadAnalysis = async () => {
     if (!pipelineLeadId) {
-      toast.error("Create a linked lead first.");
+      toast.error("Create a linked deal first.");
       return;
     }
 
@@ -1246,7 +1246,7 @@ const PropertyWorkspacePage = () => {
     reportData,
   }) => {
     if (!pipelineLeadId) {
-      toast.error("Create a linked lead first.");
+      toast.error("Create a linked deal first.");
       return;
     }
 
@@ -1357,7 +1357,7 @@ const PropertyWorkspacePage = () => {
   const handleUpdatePropertyWorkspaceStatus = useCallback(
     async (nextValue) => {
       if (!pipelineLeadId) {
-        toast.error("This property is not linked to a lead.");
+        toast.error("This property is not linked to a deal.");
         return;
       }
 
@@ -1389,9 +1389,9 @@ const PropertyWorkspacePage = () => {
         syncPropertyState(result.property);
       }
       await loadLeadWorkspace();
-      toast.success("Lead record created.");
+      toast.success("Deal record created.");
     } catch (createError) {
-      toast.error(createError.message || "Failed to create the lead record.");
+      toast.error(createError.message || "Failed to create the deal record.");
     } finally {
       setIsCreatingPipelineWorkspace(false);
     }
@@ -1443,7 +1443,7 @@ const PropertyWorkspacePage = () => {
       if (!pipelineLeadId) {
         return (
           <SetupStateCard
-            eyebrow="Lead setup"
+            eyebrow="Deal setup"
             title={missingLeadTitle}
             description={missingLeadDescription}
             primaryAction={
@@ -1453,7 +1453,7 @@ const PropertyWorkspacePage = () => {
                 disabled={isCreatingPipelineWorkspace}
                 className="primary-action disabled:cursor-not-allowed disabled:opacity-70"
               >
-                {isCreatingPipelineWorkspace ? "Creating..." : "Create lead record"}
+                {isCreatingPipelineWorkspace ? "Creating..." : "Create deal record"}
               </button>
             }
           />
@@ -1479,7 +1479,7 @@ const PropertyWorkspacePage = () => {
             secondaryAction={
               pipelineLeadPath ? (
                 <Link to={pipelineLeadPath} className="secondary-action">
-                  Open lead
+                  Open deal
                 </Link>
               ) : null
             }
@@ -1494,9 +1494,9 @@ const PropertyWorkspacePage = () => {
       if (!leadWorkspace) {
         return (
           <SetupStateCard
-            eyebrow="Linked lead"
-            title="We could not load the linked lead"
-            description={leadWorkspaceError || "Try again or open the source lead directly."}
+            eyebrow="Linked deal"
+            title="We could not load the linked deal"
+            description={leadWorkspaceError || "Try again or open the source deal directly."}
             primaryAction={
               <button type="button" onClick={loadLeadWorkspace} className="primary-action">
                 Try again
@@ -1505,7 +1505,7 @@ const PropertyWorkspacePage = () => {
             secondaryAction={
               pipelineLeadPath ? (
                 <Link to={pipelineLeadPath} className="secondary-action">
-                  Open lead
+                  Open deal
                 </Link>
               ) : null
             }
@@ -1554,9 +1554,9 @@ const PropertyWorkspacePage = () => {
     if (!hasPipelineWorkspace) {
       actions.push({
         id: "lead",
-        title: "Add lead",
+        title: "Add deal",
         detail: "Unlock comps, reports, renovation, and bids.",
-        label: isCreatingPipelineWorkspace ? "Creating..." : "Create lead",
+        label: isCreatingPipelineWorkspace ? "Creating..." : "Create deal",
         disabled: isCreatingPipelineWorkspace,
         onClick: handleCreatePipelineWorkspace,
       });
@@ -1564,7 +1564,7 @@ const PropertyWorkspacePage = () => {
       actions.push({
         id: "activate",
         title: "Activate analysis",
-        detail: "Use the linked lead inside this property.",
+        detail: "Use the linked deal inside this property.",
         label: isUpdatingWorkspaceStatus ? "Updating..." : "Activate",
         disabled: isUpdatingWorkspaceStatus,
         onClick: () => handleUpdatePropertyWorkspaceStatus(true),
@@ -2159,16 +2159,16 @@ const PropertyWorkspacePage = () => {
         helper={
           hasAcquisitionWorkspace
             ? "Compare bids against the project scope."
-            : "Compare bids against the planned lead scope before execution starts."
+            : "Compare bids against the planned deal scope before execution starts."
         }
       >
         {renderLeadWorkspaceState({
-          missingLeadTitle: "Add a lead to manage bids",
+          missingLeadTitle: "Add a deal to manage bids",
           missingLeadDescription:
-            "Bids start on the linked lead and carry into the project scope once financials are created.",
+            "Bids start on the linked deal and carry into the project scope once financials are created.",
           inactiveTitle: "Activate analysis to manage bids here",
           inactiveDescription:
-            "Turn on the linked lead inside this property to use bid tools here.",
+            "Turn on the linked deal inside this property to use bid tools here.",
           loadingLabel: "Loading bid management...",
           renderContent: () => (
             <BidsTab
@@ -2278,12 +2278,12 @@ const PropertyWorkspacePage = () => {
         }
       >
         {renderLeadWorkspaceState({
-          missingLeadTitle: "Add a lead to run comps",
+          missingLeadTitle: "Add a deal to run comps",
           missingLeadDescription:
-            "Comps start on the linked lead, then saved reports can carry into the project once financials exist.",
+            "Comps start on the linked deal, then saved reports can carry into the project once financials exist.",
           inactiveTitle: "Activate analysis to run comps here",
           inactiveDescription:
-            "Turn on the linked lead inside this property to use comps here.",
+            "Turn on the linked deal inside this property to use comps here.",
           loadingLabel: "Loading comps analysis...",
           renderContent: () => (
             <MasterDealReportWorkspace
@@ -2304,9 +2304,9 @@ const PropertyWorkspacePage = () => {
               onSaveReport={handleSaveLeadReport}
               isSavingReport={isSavingReport}
               saveButtonLabel={
-                acquisitionWorkspaceId ? "Save to project history" : "Save property report"
+                acquisitionWorkspaceId ? "Save to project history" : "Save Deal Report"
               }
-              runButtonLabel="Run Property Master Report"
+              runButtonLabel="Run Deal Report"
               showOneTimeCheckout
               reportNotice={compsNotice}
               renderSubjectPanel={() => (
@@ -2315,12 +2315,12 @@ const PropertyWorkspacePage = () => {
                     <div>
                       <h3 className="text-xl font-semibold text-ink-900">Deal snapshot</h3>
                       <p className="mt-1 text-sm text-ink-500">
-                        Subject facts and pricing come from the linked lead.
+                        Subject facts and pricing come from the linked deal.
                       </p>
                     </div>
                     {pipelineLeadPath ? (
                       <Link to={pipelineLeadPath} className="ghost-action">
-                        Open lead
+                        Open deal
                       </Link>
                     ) : null}
                   </div>
@@ -2362,18 +2362,18 @@ const PropertyWorkspacePage = () => {
 
       <PropertyWorkspaceSection
         title="Saved reports"
-        helper="Lead and project report history."
+        helper="Deal and project report history."
         sectionId={ANALYSIS_SECTION_IDS.reports}
         revealToken={sectionRevealTokens[ANALYSIS_SECTION_IDS.reports] || 0}
         action={<div className="flex flex-wrap gap-3">{renderWorkspaceButtons(reportActions)}</div>}
       >
         {renderLeadWorkspaceState({
-          missingLeadTitle: "Add a lead to store reports",
+          missingLeadTitle: "Add a deal to store reports",
           missingLeadDescription:
-            "Saved reports begin on the linked lead and continue on the project once financials exist.",
+            "Saved reports begin on the linked deal and continue on the project once financials exist.",
           inactiveTitle: "Activate analysis to use saved reports",
           inactiveDescription:
-            "Turn on the linked lead inside this property to keep report history here.",
+            "Turn on the linked deal inside this property to keep report history here.",
           loadingLabel: "Loading saved reports...",
           renderContent: () => (
             <SavedCompsReportsTab
@@ -2381,18 +2381,18 @@ const PropertyWorkspacePage = () => {
               isLoading={savedReportsLoading}
               title={
                 acquisitionWorkspaceId
-                  ? "Saved project and lead reports"
+                  ? "Saved project and deal reports"
                   : "Saved property reports"
               }
               description={
                 acquisitionWorkspaceId
-                  ? "Lead-era analysis and project-era report updates live together here so execution never loses the underwriting thread."
+                  ? "Deal-era analysis and project-era report updates live together here so execution never loses the underwriting thread."
                   : "Every saved Master Deal Report for this property lives here."
               }
               emptyTitle="No reports saved yet"
               emptyMessage={
                 acquisitionWorkspaceId
-                  ? "Run the Master Deal Report and save it. New reports will attach to the project while older lead analysis stays visible here."
+                  ? "Run the Master Deal Report and save it. New reports will attach to the project while older deal analysis stays visible here."
                   : "Run the Master Deal Report, save it, and it will appear here."
               }
               actions={renderWorkspaceButtons(reportActions)}
@@ -2422,12 +2422,12 @@ const PropertyWorkspacePage = () => {
         }
       >
         {renderLeadWorkspaceState({
-          missingLeadTitle: "Add a lead to manage scope",
+          missingLeadTitle: "Add a deal to manage scope",
           missingLeadDescription:
-            "Renovation scope starts on the linked lead.",
+            "Renovation scope starts on the linked deal.",
           inactiveTitle: "Activate analysis to edit scope here",
           inactiveDescription:
-            "Turn on the linked lead inside this property to edit scope here.",
+            "Turn on the linked deal inside this property to edit scope here.",
           loadingLabel: "Loading renovation plan...",
           renderContent: () => (
             <LeadRenovationTab
@@ -2515,7 +2515,7 @@ const PropertyWorkspacePage = () => {
 
             <div className="mt-5 flex flex-wrap gap-2">
               <HeaderBadge
-                label={propertyWorkspaceActive ? "Workspace active" : hasPipelineWorkspace ? "Lead linked" : "Standalone property"}
+                label={propertyWorkspaceActive ? "Workspace active" : hasPipelineWorkspace ? "Deal linked" : "Standalone property"}
               />
               {listingSummary ? (
                 <HeaderBadge
@@ -2547,7 +2547,7 @@ const PropertyWorkspacePage = () => {
               </button>
               {pipelineLeadPath ? (
                 <Link to={pipelineLeadPath} className="secondary-action">
-                  Open lead
+                  Open deal
                 </Link>
               ) : null}
             </div>
@@ -2564,7 +2564,7 @@ const PropertyWorkspacePage = () => {
               <StatCard
                 label="Linked workspaces"
                 value={String(workspaceCount)}
-                helper="Lead, financials, management"
+                helper="Deal, financials, management"
                 tone="bg-white/82"
               />
               <StatCard

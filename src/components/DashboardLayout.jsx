@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
   ArrowPathIcon,
@@ -10,6 +10,7 @@ import {
   ClipboardDocumentListIcon,
   BuildingOffice2Icon,
   Cog6ToothIcon,
+  MagnifyingGlassIcon,
   MapIcon,
   PlusCircleIcon,
   ShieldCheckIcon,
@@ -18,10 +19,12 @@ import {
   XMarkIcon,
 } from "@heroicons/react/24/outline";
 
-import UserInfoBanner from "./UserInfoBanner";
 import BrandLogo from "./BrandLogo";
+import CommandPalette from "./CommandPalette";
+import UserInfoBanner from "./UserInfoBanner";
 import { useAuth } from "../context/AuthContext";
-import { getLeads } from "../utils/api";
+import { getProperties } from "../utils/api";
+import { buildPropertyWorkspacePath } from "../utils/propertyWorkspaceNavigation";
 import {
   getSidebarOption,
   loadSidebarPreference,
@@ -29,129 +32,152 @@ import {
   SIDEBAR_PREFERENCE_EVENT,
 } from "../utils/sidebarPreferences";
 
-const visibleNavSections = [
-  {
-    title: "Launch flow",
-    links: [
-      { to: "/leads", label: "Leads", icon: UsersIcon },
-      { to: "/comps-report", label: "Deal Analysis", icon: ChartBarIcon },
-      { to: "/properties", label: "Project Workspace", icon: BuildingOffice2Icon },
-    ],
-  },
-  {
-    title: "More tools",
-    links: [
-      { to: "/market-search", label: "Market Search", icon: MapIcon },
-      { to: "/master-calendar", label: "Master Calendar", icon: CalendarDaysIcon },
-      { to: "/tasks", label: "Tasks", icon: ClipboardDocumentListIcon },
-      { to: "/vendors", label: "Vendors", icon: WrenchScrewdriverIcon },
-      { to: "/account", label: "Account", icon: Cog6ToothIcon },
-    ],
-  },
+const WORKSPACE_LINKS = [
+  { to: "/leads", label: "Pipeline", icon: UsersIcon, end: false },
+  { to: "/comps-report", label: "Analysis", icon: ChartBarIcon, end: true },
+  { to: "/properties", label: "Projects", icon: BuildingOffice2Icon, end: false },
+  { to: "/market-search", label: "Search", icon: MapIcon, end: true },
 ];
 
-const getNavSections = (user) => {
-  const sections = visibleNavSections.map((section) => ({
-    ...section,
-    links: [...section.links],
-  }));
+const OPERATIONS_LINKS = [
+  { to: "/master-calendar", label: "Calendar", icon: CalendarDaysIcon, end: true },
+  { to: "/tasks", label: "Tasks", icon: ClipboardDocumentListIcon, end: true },
+  { to: "/vendors", label: "Vendors", icon: WrenchScrewdriverIcon, end: true },
+];
+
+const getUtilityLinks = (user) => {
+  const links = [{ to: "/account", label: "Settings", icon: Cog6ToothIcon, end: true }];
 
   if (user?.isPlatformManager) {
-    sections.unshift({
-      title: "Platform",
-      links: [{ to: "/platform-manager", label: "Platform Manager", icon: ShieldCheckIcon }],
+    links.push({
+      to: "/platform-manager",
+      label: "Platform Manager",
+      icon: ShieldCheckIcon,
+      end: true,
     });
   }
 
-  return sections;
+  return links;
 };
+
+const getPropertyLabel = (property) =>
+  property?.sharedProfile?.address ||
+  property?.title ||
+  property?.placement ||
+  property?.propertyKey ||
+  "Untitled property";
+
+const getPropertyMeta = (property) =>
+  [
+    property?.workspaces?.pipeline?.status,
+    property?.sharedProfile?.propertyType,
+    property?.sharedProfile?.squareFootage
+      ? `${Number(property.sharedProfile.squareFootage).toLocaleString()} sqft`
+      : null,
+  ]
+    .filter(Boolean)
+    .join(" • ") || "Property workspace";
+
+const sortPropertiesByRecency = (properties = []) =>
+  [...properties].sort((left, right) => {
+    const leftTime = new Date(left?.updatedAt || left?.createdAt || 0).getTime();
+    const rightTime = new Date(right?.updatedAt || right?.createdAt || 0).getTime();
+    return rightTime - leftTime;
+  });
 
 const resolvePageMeta = (pathname, user) => {
   if (pathname === "/properties/new") {
     return {
-      kicker: "Launch flow",
-      title: "Add lead",
-      subtitle: "Start with the lead and linked property together, then use advanced setup only when you need it.",
+      kicker: "Projects",
+      title: "Add deal",
+      subtitle:
+        "Start the deal and property record together, then open the workspace only when the opportunity is worth deeper work.",
     };
   }
 
   if (pathname === "/properties") {
     return {
-      kicker: "Project workspace",
-      title: "Project workspace",
-      subtitle: "Open the active project record for scope, tasks, vendors, documents, and next steps.",
+      kicker: "Projects",
+      title: "Projects",
+      subtitle:
+        "Open active property workspaces for financials, documents, vendors, work, and the next operating decision.",
     };
   }
 
   if (pathname.startsWith("/properties/")) {
     return {
-      kicker: "Project workspace",
-      title: "Project workspace",
-      subtitle: "Run the property from one clear workspace with overview, financials, work, documents, analysis, and settings.",
+      kicker: "Projects",
+      title: "Property Workspace",
+      subtitle:
+        "Run the property from one calm workspace with overview, financials, work, documents, analysis, and settings.",
     };
   }
 
   if (pathname === "/comps-report") {
     return {
-      kicker: "Deal analysis",
+      kicker: "Analysis",
       title: "Deal analysis",
-      subtitle: "Run comps, review the modeled spread, and decide whether the deal deserves the next step.",
+      subtitle:
+        "Run comps, review the modeled spread, and decide whether the deal deserves the next step.",
     };
   }
 
   if (pathname.startsWith("/leads/")) {
     return {
-      kicker: "Lead",
-      title: "Lead",
-      subtitle: "Keep the address, seller context, pricing case, and next action together before the project begins.",
+      kicker: "Pipeline",
+      title: "Deal",
+      subtitle:
+        "Keep the address, seller context, pricing case, and next action together before the project begins.",
     };
   }
 
   if (pathname === "/leads") {
     return {
-      kicker: "Launch flow",
-      title: "Leads",
-      subtitle: "Capture opportunities, run deal analysis, and move the winners into project work without losing context.",
+      kicker: "Pipeline",
+      title: "Pipeline",
+      subtitle:
+        "Capture opportunities, run analysis fast, and move the winners into active property work without losing context.",
     };
   }
 
   if (pathname === "/market-search") {
     return {
-      kicker: "More tools",
+      kicker: "Search",
       title: "Market Search",
-      subtitle: "Browse live for-sale inventory, then push promising addresses into the lead flow when they look worth pursuing.",
+      subtitle:
+        "Browse live inventory, compare fit quickly, and push the best addresses into the pipeline when they look worth pursuing.",
     };
   }
 
   if (pathname === "/account") {
     return {
-      kicker: "Workspace",
+      kicker: "Settings",
       title: "Account Center",
-      subtitle: "Manage profile settings and workspace preferences.",
+      subtitle: "Manage profile settings, preferences, and workspace controls.",
     };
   }
 
   if (pathname === "/tasks") {
     return {
-      kicker: "More tools",
+      kicker: "Operations",
       title: "Tasks",
-      subtitle: "Track work across leads, property records, and general operations from one view.",
+      subtitle: "Track work across deals, properties, and daily operations from one place.",
     };
   }
 
   if (pathname === "/master-calendar") {
     return {
-      kicker: "More tools",
-      title: "Master Calendar",
-      subtitle: "See upcoming property work in one shared timeline across the workspace.",
+      kicker: "Operations",
+      title: "Calendar",
+      subtitle: "See upcoming property work in one shared operating timeline.",
     };
   }
 
   if (pathname === "/vendors") {
     return {
-      kicker: "More tools",
+      kicker: "Operations",
       title: "Vendors",
-      subtitle: "Organize trades, documents, and assignment readiness from one vendor directory.",
+      subtitle: "Keep trades, documents, and assignment readiness together in one directory.",
     };
   }
 
@@ -166,148 +192,133 @@ const resolvePageMeta = (pathname, user) => {
   return {
     kicker: "Workspace",
     title: `Welcome back${user?.name ? `, ${user.name.split(" ")[0]}` : ""}`,
-    subtitle: "A simpler workspace for reviewing leads, running deal analysis, and opening the next project.",
+    subtitle:
+      "A calmer investor workspace for reviewing deals, running analysis, and opening the next property workspace.",
   };
 };
 
-const getUserInitials = (name, email) => {
-  const source = (name || email || "Fliprop").replace(/@.*$/, "");
-  const parts = source.split(/[\s._-]+/).filter(Boolean);
-
-  if (parts.length === 0) {
-    return "FL";
-  }
-
-  if (parts.length === 1) {
-    return parts[0].slice(0, 2).toUpperCase();
-  }
-
-  return parts
-    .slice(0, 2)
-    .map((part) => part.charAt(0).toUpperCase())
-    .join("");
-};
-
-const getLeadPropertyKey = (lead) =>
-  typeof lead?.property === "object" ? lead.property?._id : lead?.property;
-
-const buildLaunchProgress = (leads = []) => {
-  const firstLead = leads[0] || null;
-  const analyzedLead = leads.find((lead) => Boolean(lead?.compsAnalysis)) || null;
-  const workspaceLead =
-    leads.find((lead) => Boolean(getLeadPropertyKey(lead) && lead?.inPropertyWorkspace)) || null;
-  const leadCount = leads.length;
-
-  const steps = [
-    {
-      key: "lead",
-      label: "Add the lead",
-      complete: leadCount > 0,
-      detail:
-        leadCount > 0
-          ? `${leadCount} lead${leadCount === 1 ? "" : "s"} already in the workspace.`
-          : "Capture the first opportunity and keep the seller context attached.",
-    },
-    {
-      key: "analysis",
-      label: "Run deal analysis",
-      complete: Boolean(analyzedLead),
-      detail: analyzedLead?.address
-        ? `Analysis is available for ${analyzedLead.address}.`
-        : "Open a lead and run comps before spending more time on the deal.",
-    },
-    {
-      key: "project",
-      label: "Open project workspace",
-      complete: Boolean(workspaceLead),
-      detail: workspaceLead?.address
-        ? `${workspaceLead.address} is already in the project workspace.`
-        : "Move the winning lead into the project workspace when the deal is ready.",
-    },
-  ];
-
-  const completedCount = steps.filter((step) => step.complete).length;
-
-  if (!firstLead) {
-    return {
-      steps,
-      completedCount,
-      nextAction: {
-        label: "Add first lead",
-        to: "/properties/new?workspace=pipeline",
-      },
-    };
-  }
-
-  if (!analyzedLead) {
-    return {
-      steps,
-      completedCount,
-      nextAction: {
-        label: "Run first analysis",
-        to: `/leads/${firstLead._id}`,
-      },
-    };
-  }
-
-  if (!workspaceLead) {
-    return {
-      steps,
-      completedCount,
-      nextAction: {
-        label: "Open winning lead",
-        to: `/leads/${analyzedLead._id}`,
-      },
-    };
-  }
-
-  return {
-    steps,
-    completedCount,
-    nextAction: {
-      label: "Review leads",
-      to: "/leads",
-    },
-  };
-};
+const SidebarNavItem = ({ item, onNavigate, collapsed }) => (
+  <li>
+    <NavLink
+      to={item.to}
+      end={item.end}
+      onClick={onNavigate}
+      aria-label={item.label}
+      className={({ isActive }) =>
+        `group relative flex items-center rounded-[16px] text-sm font-medium transition ${
+          collapsed
+            ? "shell-nav-button justify-center px-0"
+            : "shell-nav-button gap-3 px-3.5"
+        } ${isActive ? "shell-nav-button-active" : ""}`
+      }
+    >
+      <item.icon className="h-4 w-4 flex-shrink-0" />
+      {collapsed ? (
+        <>
+          <span className="sr-only">{item.label}</span>
+          <span className="pointer-events-none absolute left-full top-1/2 ml-2 hidden -translate-y-1/2 whitespace-nowrap rounded-[10px] bg-ink-900 px-2.5 py-1.5 text-xs font-medium text-white shadow-soft group-hover:block group-focus-visible:block">
+            {item.label}
+          </span>
+        </>
+      ) : (
+        <span className="truncate">{item.label}</span>
+      )}
+    </NavLink>
+  </li>
+);
 
 const SidebarSection = ({ title, links, onNavigate, collapsed }) => (
-  <div>
+  <section className="space-y-2.5" aria-label={title}>
     {!collapsed ? (
-      <p className="px-2 text-[11px] font-medium uppercase tracking-[0.2em] text-ink-400">
+      <p className="px-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-400">
         {title}
       </p>
     ) : null}
-    <ul className={collapsed ? "space-y-2" : "mt-3 space-y-1.5"} aria-label={title}>
-      {links.map((link) => (
-        <li key={link.to}>
-          <NavLink
-            to={link.to}
-            onClick={onNavigate}
-            title={collapsed ? link.label : undefined}
-            aria-label={link.label}
-            className={({ isActive }) =>
-              `group flex items-center text-sm transition ${
-                collapsed
-                  ? "justify-center rounded-[14px] px-0 py-2.5"
-                  : "gap-3 rounded-[14px] px-3 py-2.5"
-              } ${
-                isActive
-                  ? "bg-steel-900 text-white shadow-soft"
-                  : "text-ink-600 hover:bg-white/90 hover:text-ink-900"
-              }`
-            }
-          >
-            <link.icon className="h-4 w-4 flex-shrink-0" />
-            {collapsed ? <span className="sr-only">{link.label}</span> : <span>{link.label}</span>}
-          </NavLink>
-        </li>
+    <ul className={collapsed ? "space-y-1.5" : "space-y-1"} aria-label={title}>
+      {links.map((item) => (
+        <SidebarNavItem
+          key={item.to}
+          item={item}
+          onNavigate={onNavigate}
+          collapsed={collapsed}
+        />
       ))}
     </ul>
-  </div>
+  </section>
 );
 
-const SidebarContent = ({ user, onNavigate, collapsed, onToggleCollapse, launchProgress, launchProgressLoading }) => (
+const RecentDealsSection = ({ properties, onNavigate, pathname }) => (
+  <section className="space-y-2.5" aria-label="Recent deals">
+    <p className="px-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-400">
+      Recent deals
+    </p>
+    <div className="space-y-1">
+      {properties.map((property) => {
+        const to = buildPropertyWorkspacePath(property.propertyKey);
+        const isActive = pathname.startsWith(`/properties/${encodeURIComponent(property.propertyKey)}`);
+
+        return (
+          <Link
+            key={property.propertyKey}
+            to={to}
+            onClick={onNavigate}
+            className={`block rounded-[16px] px-3 py-2.5 transition ${
+              isActive
+                ? "bg-ink-900 text-white shadow-soft"
+                : "shell-recent-link text-ink-800 hover:bg-white"
+            }`}
+          >
+            <p className="truncate text-sm font-medium">{getPropertyLabel(property)}</p>
+            <p className={`mt-1 truncate text-xs ${isActive ? "text-white/70" : "text-ink-500"}`}>
+              {getPropertyMeta(property)}
+            </p>
+          </Link>
+        );
+      })}
+    </div>
+  </section>
+);
+
+const SidebarSearchTrigger = ({ collapsed, onOpen }) => (
+  <button
+    type="button"
+    onClick={onOpen}
+    aria-label="Jump to property, deal, or task"
+    className={
+      collapsed
+        ? "shell-search-trigger flex h-[46px] w-full items-center justify-center rounded-[16px]"
+        : "shell-search-trigger flex min-h-[52px] w-full items-center justify-between gap-3 rounded-[18px] px-4 py-3 text-left"
+    }
+  >
+    <div className={`flex min-w-0 items-center ${collapsed ? "justify-center" : "gap-3"}`}>
+      <MagnifyingGlassIcon className="h-4 w-4 flex-shrink-0" />
+      {collapsed ? (
+        <span className="sr-only">Jump to property, deal, or task</span>
+      ) : (
+        <div className="min-w-0">
+          <p className="truncate text-sm font-medium text-ink-900">
+            Jump to property, deal, or task
+          </p>
+          <p className="truncate text-xs text-ink-500">
+            Search pages, properties, and active pipeline records
+          </p>
+        </div>
+      )}
+    </div>
+    {!collapsed ? <span className="shell-search-hint">Cmd/Ctrl K</span> : null}
+  </button>
+);
+
+const SidebarContent = ({
+  user,
+  collapsed,
+  pathname,
+  onNavigate,
+  onOpenSearch,
+  onToggleCollapse,
+  recentDeals,
+  recentDealsLoading,
+}) => (
   <>
     <div className={`flex items-center ${collapsed ? "justify-center" : "justify-between"} gap-3`}>
       <Link
@@ -316,7 +327,7 @@ const SidebarContent = ({ user, onNavigate, collapsed, onToggleCollapse, launchP
         className={collapsed ? "flex items-center justify-center" : "flex items-center"}
         title={collapsed ? "Fliprop workspace" : undefined}
       >
-        {collapsed ? <BrandLogo compact /> : <BrandLogo caption="Lead -> analysis -> project" />}
+        {collapsed ? <BrandLogo compact /> : <BrandLogo caption="Investor workspace" />}
         <span className="sr-only">Fliprop workspace</span>
       </Link>
 
@@ -327,110 +338,69 @@ const SidebarContent = ({ user, onNavigate, collapsed, onToggleCollapse, launchP
           aria-expanded={!collapsed}
           aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          className="hidden h-9 w-9 items-center justify-center rounded-[12px] border border-ink-100 bg-white text-ink-600 xl:flex"
+          className="hidden h-10 w-10 items-center justify-center rounded-[14px] border border-ink-100 bg-white/92 text-ink-600 transition hover:bg-white xl:flex"
         >
-          {collapsed ? <ChevronRightIcon className="h-4 w-4" /> : <ChevronLeftIcon className="h-4 w-4" />}
+          {collapsed ? (
+            <ChevronRightIcon className="h-4 w-4" />
+          ) : (
+            <ChevronLeftIcon className="h-4 w-4" />
+          )}
         </button>
       ) : null}
     </div>
 
-    <div className={`mt-5 ${collapsed ? "space-y-4" : "space-y-5"}`}>
-      {getNavSections(user).map((section) => (
-        <SidebarSection
-          key={section.title}
-          title={section.title}
-          links={section.links}
-          onNavigate={onNavigate}
-          collapsed={collapsed}
-        />
-      ))}
+    <div className="group relative mt-5">
+      <SidebarSearchTrigger collapsed={collapsed} onOpen={onOpenSearch} />
+      {collapsed ? (
+        <span className="pointer-events-none absolute left-full top-1/2 ml-2 hidden -translate-y-1/2 whitespace-nowrap rounded-[10px] bg-ink-900 px-2.5 py-1.5 text-xs font-medium text-white shadow-soft group-hover:block group-focus-within:block">
+          Jump to property, deal, or task
+        </span>
+      ) : null}
     </div>
 
-    <div className={`mt-auto ${collapsed ? "space-y-3" : "space-y-4"}`}>
-      {!collapsed ? (
-        <div className="section-card p-4">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-ink-400">
-                First deal flow
-              </p>
-              <p className="mt-2 text-sm font-medium text-ink-900">
-                {launchProgressLoading
-                  ? "Checking your progress..."
-                  : `${launchProgress?.completedCount || 0}/3 steps completed`}
-              </p>
-            </div>
-            <span className="rounded-full bg-sand-50 px-3 py-1 text-xs font-semibold text-ink-600">
-              Launch
-            </span>
-          </div>
-
-          <div className="mt-4 space-y-3">
-            {(launchProgress?.steps || []).map((step) => (
-              <div
-                key={step.key}
-                className="rounded-[16px] border border-ink-100 bg-white px-3 py-3"
-              >
-                <div className="flex items-center gap-3">
-                  <span
-                    className={`h-2.5 w-2.5 rounded-full ${
-                      step.complete ? "bg-verdigris-600" : "bg-ink-200"
-                    }`}
-                  />
-                  <p className="text-sm font-medium text-ink-900">{step.label}</p>
-                </div>
-                <p className="mt-2 text-sm leading-6 text-ink-500">{step.detail}</p>
-              </div>
-            ))}
-          </div>
-
-          {!launchProgressLoading && launchProgress?.nextAction ? (
-            <Link
-              to={launchProgress.nextAction.to}
-              onClick={onNavigate}
-              className="secondary-action mt-4 w-full justify-center"
-            >
-              {launchProgress.nextAction.label}
-            </Link>
-          ) : null}
-        </div>
+    <div className={`mt-6 ${collapsed ? "space-y-5" : "space-y-6"}`}>
+      <SidebarSection
+        title="Workspace"
+        links={WORKSPACE_LINKS}
+        onNavigate={onNavigate}
+        collapsed={collapsed}
+      />
+      <SidebarSection
+        title="Operations"
+        links={OPERATIONS_LINKS}
+        onNavigate={onNavigate}
+        collapsed={collapsed}
+      />
+      {!collapsed && recentDeals.length > 0 ? (
+        <RecentDealsSection
+          properties={recentDeals}
+          onNavigate={onNavigate}
+          pathname={pathname}
+        />
       ) : null}
+      {!collapsed && recentDealsLoading && !recentDeals.length ? (
+        <p className="px-1 text-sm text-ink-500">Loading recent deals...</p>
+      ) : null}
+    </div>
 
-      {collapsed ? (
-        <div
-          className="flex h-10 items-center justify-center rounded-[14px] border border-ink-100 bg-white text-xs font-medium text-ink-700"
-          title={user?.email || user?.name || "Workspace user"}
-        >
-          {getUserInitials(user?.name, user?.email)}
-        </div>
-      ) : (
-        <div className="section-card p-4">
-          <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-ink-400">
-            Workspace owner
-          </p>
-          <p className="mt-3 text-sm font-medium text-ink-900">{user?.name || "Fliprop User"}</p>
-          <p className="mt-1 text-sm text-ink-500">{user?.email || "Property operations"}</p>
-          <Link
-            to="/properties/new?workspace=pipeline"
-            onClick={onNavigate}
-            className="secondary-action mt-4 w-full justify-center"
-          >
-            <PlusCircleIcon className="mr-2 h-4 w-4" />
-            Add lead
-          </Link>
-        </div>
-      )}
+    <div className={`mt-auto ${collapsed ? "pt-4" : "pt-5"} shell-sidebar-divider`}>
+      <SidebarSection
+        title="Utility"
+        links={getUtilityLinks(user)}
+        onNavigate={onNavigate}
+        collapsed={collapsed}
+      />
     </div>
   </>
 );
 
 function DashboardLayout({ children }) {
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [sidebarPreference, setSidebarPreference] = useState(() => loadSidebarPreference());
   const [pageHeaderConfig, setPageHeaderConfig] = useState(null);
-  const [launchProgress, setLaunchProgress] = useState(() => buildLaunchProgress());
-  const [launchProgressLoading, setLaunchProgressLoading] = useState(true);
-  const mobileMenuRef = useRef(null);
+  const [recentDeals, setRecentDeals] = useState([]);
+  const [recentDealsLoading, setRecentDealsLoading] = useState(true);
   const location = useLocation();
   const navigate = useNavigate();
   const { stopImpersonation, user } = useAuth();
@@ -452,25 +422,6 @@ function DashboardLayout({ children }) {
   const headerActions = pageHeaderConfig?.actions || null;
 
   useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (mobileMenuRef.current && !mobileMenuRef.current.contains(event.target)) {
-        setIsMobileMenuOpen(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  useEffect(() => {
-    setIsMobileMenuOpen(false);
-  }, [location.pathname]);
-
-  useEffect(() => {
-    setPageHeaderConfig(null);
-  }, [location.pathname]);
-
-  useEffect(() => {
     if (typeof window === "undefined") {
       return undefined;
     }
@@ -480,40 +431,96 @@ function DashboardLayout({ children }) {
     };
 
     window.addEventListener(SIDEBAR_PREFERENCE_EVENT, handleSidebarPreferenceChange);
-    return () => window.removeEventListener(SIDEBAR_PREFERENCE_EVENT, handleSidebarPreferenceChange);
+    return () =>
+      window.removeEventListener(SIDEBAR_PREFERENCE_EVENT, handleSidebarPreferenceChange);
   }, []);
 
   useEffect(() => {
     let isSubscribed = true;
 
-    const loadLaunchProgress = async () => {
-      setLaunchProgressLoading(true);
+    const loadRecentDeals = async () => {
+      setRecentDealsLoading(true);
 
       try {
-        const leads = await getLeads();
+        const properties = await getProperties();
         if (!isSubscribed) {
           return;
         }
-        setLaunchProgress(buildLaunchProgress(Array.isArray(leads) ? leads : []));
+
+        setRecentDeals(
+          sortPropertiesByRecency(Array.isArray(properties) ? properties : [])
+            .filter((property) => Boolean(property?.propertyKey))
+            .slice(0, 5)
+        );
       } catch (error) {
         if (!isSubscribed) {
           return;
         }
-        console.error("Failed to load launch progress", error);
-        setLaunchProgress(buildLaunchProgress());
+
+        console.error("Failed to load recent deals", error);
+        setRecentDeals([]);
       } finally {
         if (isSubscribed) {
-          setLaunchProgressLoading(false);
+          setRecentDealsLoading(false);
         }
       }
     };
 
-    loadLaunchProgress();
+    loadRecentDeals();
 
     return () => {
       isSubscribed = false;
     };
   }, [location.pathname]);
+
+  useEffect(() => {
+    setIsMobileMenuOpen(false);
+    setIsCommandPaletteOpen(false);
+  }, [location.pathname]);
+
+  useEffect(() => {
+    setPageHeaderConfig(null);
+  }, [location.pathname]);
+
+  useEffect(() => {
+    const isTextEntryTarget = (target) => {
+      if (!(target instanceof HTMLElement)) {
+        return false;
+      }
+
+      const tagName = target.tagName.toLowerCase();
+      return (
+        target.isContentEditable ||
+        tagName === "input" ||
+        tagName === "textarea" ||
+        tagName === "select"
+      );
+    };
+
+    const handleKeyDown = (event) => {
+      if (event.defaultPrevented) {
+        return;
+      }
+
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        if (isTextEntryTarget(event.target)) {
+          return;
+        }
+
+        event.preventDefault();
+        setIsCommandPaletteOpen(true);
+        return;
+      }
+
+      if (event.key === "Escape" && isMobileMenuOpen) {
+        event.preventDefault();
+        setIsMobileMenuOpen(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isMobileMenuOpen]);
 
   const handleStopImpersonation = () => {
     stopImpersonation();
@@ -527,11 +534,6 @@ function DashboardLayout({ children }) {
     setSidebarPreference(appliedOption.value);
   };
 
-  const todayLabel = new Intl.DateTimeFormat("en-US", {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-  }).format(new Date());
   const renderedChildren = useMemo(() => {
     if (!React.isValidElement(children)) {
       return children;
@@ -544,42 +546,56 @@ function DashboardLayout({ children }) {
 
   return (
     <div className="min-h-screen app-shell-bg">
+      <CommandPalette
+        isOpen={isCommandPaletteOpen}
+        onClose={() => setIsCommandPaletteOpen(false)}
+        user={user}
+      />
+
       <div className="mx-auto flex max-w-[1440px] gap-4 px-4 py-4 md:px-5 lg:px-6">
         <aside
           className={`hidden xl:block xl:flex-shrink-0 xl:transition-all xl:duration-200 ${
-            isSidebarCollapsed ? "xl:w-[92px]" : "xl:w-[250px]"
+            isSidebarCollapsed ? "xl:w-[72px]" : "xl:w-[292px]"
           }`}
         >
           <div
-            className={`surface-panel-strong sticky top-4 flex h-[calc(100vh-2rem)] flex-col ${
-              isSidebarCollapsed ? "px-3 py-4" : "px-4 py-4"
+            className={`shell-sidebar sticky top-4 flex h-[calc(100vh-2rem)] flex-col ${
+              isSidebarCollapsed ? "px-3 py-4" : "px-5 py-5"
             }`}
           >
             <SidebarContent
               user={user}
               collapsed={isSidebarCollapsed}
+              pathname={location.pathname}
+              onNavigate={undefined}
+              onOpenSearch={() => setIsCommandPaletteOpen(true)}
               onToggleCollapse={handleSidebarToggle}
-              launchProgress={launchProgress}
-              launchProgressLoading={launchProgressLoading}
+              recentDeals={recentDeals}
+              recentDealsLoading={recentDealsLoading}
             />
           </div>
         </aside>
 
-        {isMobileMenuOpen && (
-          <div className="fixed inset-0 z-50 flex xl:hidden">
-            <div className="absolute inset-0 bg-ink-900/20" />
+        {isMobileMenuOpen ? (
+          <div className="fixed inset-0 z-50 xl:hidden">
+            <button
+              type="button"
+              className="absolute inset-0 bg-ink-900/28 backdrop-blur-[2px]"
+              onClick={() => setIsMobileMenuOpen(false)}
+              aria-label="Close navigation"
+            />
             <div
-              ref={mobileMenuRef}
-              className="surface-panel-strong relative z-10 m-4 flex w-[88vw] max-w-sm flex-col p-5"
+              className="shell-mobile-drawer relative z-10 flex h-full flex-col overflow-y-auto px-5 py-5"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Navigation"
             >
-              <div className="mb-4 flex items-center justify-between">
-                <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-ink-400">
-                  Navigation
-                </p>
+              <div className="mb-4 flex items-center justify-end">
                 <button
                   type="button"
                   onClick={() => setIsMobileMenuOpen(false)}
-                    className="flex h-9 w-9 items-center justify-center rounded-[12px] border border-ink-100 bg-white/90 text-ink-700"
+                  className="flex h-10 w-10 items-center justify-center rounded-[14px] border border-ink-100 bg-white text-ink-700 transition hover:bg-ink-50"
+                  aria-label="Close navigation"
                 >
                   <XMarkIcon className="h-4 w-4" />
                 </button>
@@ -587,38 +603,55 @@ function DashboardLayout({ children }) {
               <SidebarContent
                 user={user}
                 collapsed={false}
+                pathname={location.pathname}
                 onNavigate={() => setIsMobileMenuOpen(false)}
-                launchProgress={launchProgress}
-                launchProgressLoading={launchProgressLoading}
+                onOpenSearch={() => {
+                  setIsMobileMenuOpen(false);
+                  setIsCommandPaletteOpen(true);
+                }}
+                recentDeals={recentDeals}
+                recentDealsLoading={recentDealsLoading}
               />
             </div>
           </div>
-        )}
+        ) : null}
 
         <div className="flex min-w-0 flex-1 flex-col gap-4">
           <header className="sticky top-4 z-30">
             <div
-              className={`surface-panel-strong flex flex-col gap-3 px-4 py-4 md:px-5 lg:flex-row lg:items-center lg:justify-between ${
+              className={`surface-panel flex flex-col gap-3 px-4 py-4 md:px-5 lg:flex-row lg:items-center lg:justify-between ${
                 pageHeaderConfig?.headerClassName || ""
               }`}
             >
-              <div className="flex items-start gap-3">
+              <div className="flex min-w-0 items-start gap-3">
                 <button
                   type="button"
                   onClick={() => setIsMobileMenuOpen(true)}
-                  className="mt-0.5 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-[12px] border border-ink-100 bg-white/90 text-ink-800 xl:hidden"
+                  className="mt-0.5 flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-[14px] border border-ink-100 bg-white/92 text-ink-800 transition hover:bg-white xl:hidden"
+                  aria-label="Open navigation"
                 >
                   <Bars3Icon className="h-4 w-4" />
                 </button>
 
-                <div className={`min-w-0 ${pageHeaderConfig?.titleDetail ? "lead-detail-header-block" : ""}`}>
+                <div
+                  className={`min-w-0 ${
+                    pageHeaderConfig?.titleDetail ? "lead-detail-header-block" : ""
+                  }`}
+                >
                   <span className="eyebrow">{pageMeta.kicker}</span>
-                  <div className={pageHeaderConfig?.titleDetail ? "lead-detail-header-title-row" : ""}>
+                  <div
+                    className={
+                      pageHeaderConfig?.titleDetail ? "lead-detail-header-title-row" : ""
+                    }
+                  >
                     <h1 className="mt-3 text-[1.55rem] font-medium tracking-tight text-ink-900 md:text-[1.75rem]">
                       {pageMeta.title}
                     </h1>
                     {pageHeaderConfig?.titleDetail ? (
-                      <p className="lead-detail-header-address" title={pageHeaderConfig.titleDetail}>
+                      <p
+                        className="lead-detail-header-address"
+                        title={pageHeaderConfig.titleDetail}
+                      >
                         {pageHeaderConfig.titleDetail}
                       </p>
                     ) : null}
@@ -639,16 +672,13 @@ function DashboardLayout({ children }) {
                 {headerActions ? (
                   headerActions
                 ) : (
-                  <>
-                    <span className="glass-chip hidden md:inline-flex">{todayLabel}</span>
-                    <Link
-                      to="/properties/new?workspace=pipeline"
-                      className="secondary-action hidden md:inline-flex"
-                    >
-                      <PlusCircleIcon className="mr-2 h-4 w-4" />
-                      Add lead
-                    </Link>
-                  </>
+                  <Link
+                    to="/properties/new?workspace=pipeline"
+                    className="secondary-action hidden md:inline-flex"
+                  >
+                    <PlusCircleIcon className="mr-2 h-4 w-4" />
+                    Add deal
+                  </Link>
                 )}
                 <UserInfoBanner />
               </div>
@@ -661,8 +691,8 @@ function DashboardLayout({ children }) {
                 isMarketSearchPage
                   ? "max-w-none"
                   : isSidebarCollapsed
-                    ? "max-w-[1280px]"
-                    : "max-w-[1180px]"
+                    ? "max-w-[1288px]"
+                    : "max-w-[1168px]"
               }`}
             >
               {user?.impersonation?.active ? (

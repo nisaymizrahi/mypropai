@@ -5,6 +5,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { createProperty, previewLeadProperty } from "../utils/api";
 import { getLocationProviderName, searchAddressSuggestions } from "../utils/locationSearch";
 import { buildPropertyWorkspacePath } from "../utils/propertyWorkspaceNavigation";
+import { INVESTOR_TERMS } from "../utils/investorTerminology";
 
 const propertyTypeOptions = [
   { value: "", label: "Select property type" },
@@ -21,14 +22,14 @@ const propertyTypeOptions = [
 const workspaceModeOptions = [
   {
     value: "pipeline",
-    label: "Lead + property",
+    label: "Deal + property",
     helper: "Recommended for the first deal flow.",
     badge: "Recommended",
   },
   {
     value: "property_only",
     label: "Property only",
-    helper: "Start with the project record only.",
+    helper: "Start with the property record only.",
   },
   {
     value: "acquisitions",
@@ -47,7 +48,7 @@ const workspaceModeMeta = {
     eyebrow: "New property",
     title: "Create the shared property first",
     description:
-      "Start with one clean project record now and add the lead or other workspaces later if needed.",
+      `Start with one clean property record now and add the ${INVESTOR_TERMS.deal.lowerSingular} or other workspaces later if needed.`,
     backTo: "/properties",
     backLabel: "Back to properties",
     submitLabel: "Create property",
@@ -59,18 +60,18 @@ const workspaceModeMeta = {
     ],
   },
   pipeline: {
-    eyebrow: "New property + lead",
-    title: "Create the property and linked lead together",
+    eyebrow: "New property + deal",
+    title: "Create the property and linked deal together",
     description:
-      "This is the default launch path: create the property and lead together so deal analysis is ready right away.",
+      "This is the default launch path: create the property and deal together so deal analysis is ready right away.",
     backTo: "/leads",
-    backLabel: "Back to leads",
-    submitLabel: "Create property + lead",
-    successMessage: "Lead and property created.",
+    backLabel: "Back to deals",
+    submitLabel: "Create property + deal",
+    successMessage: "Deal and property created.",
     outcomes: [
-      "Linked lead",
+      "Linked deal",
       "Analysis ready",
-      "Project workspace later",
+      "Property Workspace later",
     ],
   },
   acquisitions: {
@@ -499,7 +500,7 @@ const CreatePropertyPage = () => {
               <span className="eyebrow">Starting mode</span>
               <h3 className="mt-4 text-2xl font-semibold text-ink-900">Start simple</h3>
               <p className="mt-2 text-sm text-ink-500">
-                Lead + property is the recommended launch path. You can still open advanced setup when needed.
+                Deal + property is the recommended launch path. You can still open advanced setup when needed.
               </p>
             </div>
             <button

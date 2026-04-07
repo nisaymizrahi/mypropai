@@ -154,18 +154,18 @@ const VarianceRow = ({ label, originalLabel, originalValue, currentLabel, curren
 );
 
 const EmptySnapshotState = ({ pipelineLeadPath, actions = null }) => (
-  <section className="section-card p-6 sm:p-7">
+  <section className="surface-panel px-6 py-6 sm:px-7">
     <span className="eyebrow">Property story</span>
     <h3 className="mt-4 text-3xl font-semibold text-ink-900">Original deal details are still missing</h3>
     <p className="mt-3 max-w-2xl text-sm leading-6 text-ink-500">
-      This property does not have a linked lead snapshot yet, so we cannot reconstruct the
+      This property does not have a linked deal snapshot yet, so we cannot reconstruct the
       original assumptions or the acquisition story from inside the workspace.
     </p>
     <div className="mt-6 flex flex-wrap gap-3">
       {actions}
       {pipelineLeadPath ? (
         <Link to={pipelineLeadPath} className="secondary-action">
-          Open source lead
+          Open source deal
         </Link>
       ) : null}
     </div>
@@ -277,9 +277,9 @@ const PropertySummaryPanel = ({
   const estimatedValueLow = readMeaningfulAmount(marketAnalysis?.estimatedValueLow);
   const estimatedValueHigh = readMeaningfulAmount(marketAnalysis?.estimatedValueHigh);
   const snapshotContextLabel = frozenSnapshot
-    ? "Frozen at the moment the project workspace was created."
+    ? "Frozen at the moment the Property Workspace was created."
     : leadWorkspace
-      ? "Using the live linked lead until a frozen acquisition snapshot exists."
+      ? "Using the live linked deal until a frozen acquisition snapshot exists."
       : "Only the shared property record is available right now.";
   const financeWorkspacePath = buildPropertyWorkspacePath(propertyKey, "finance", "health");
 
@@ -329,7 +329,7 @@ const PropertySummaryPanel = ({
   }
 
   const embeddedActionBar = embedded && embeddedActions ? (
-    <section className="section-card p-4">
+    <section className="surface-panel px-4 py-4">
       <div className="flex flex-wrap gap-3">{embeddedActions}</div>
     </section>
   ) : null;
@@ -347,19 +347,19 @@ const PropertySummaryPanel = ({
               </h3>
               <p className="mt-4 max-w-3xl text-sm leading-7 text-ink-500 sm:text-base">
                 This section tells the story of what the team thought it was buying, what actually
-                made it into the project, and how the live execution numbers compare against the
-                original plan.
+                made it into Property Workspace, and how the live execution numbers compare against
+                the original plan.
               </p>
 
               <div className="mt-6 flex flex-wrap gap-3">
                 {pipelineLeadPath ? (
                   <Link to={pipelineLeadPath} className="secondary-action">
-                    Open source lead
+                    Open source deal
                   </Link>
                 ) : null}
                 {acquisitionsPath ? (
                   <Link to={acquisitionsPath} className="secondary-action">
-                    Open acquisitions project
+                    Open acquisitions workspace
                   </Link>
                 ) : (
                   <Link to={financeWorkspacePath} className="primary-action">
@@ -456,17 +456,17 @@ const PropertySummaryPanel = ({
       ) : null}
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.9fr)]">
-        <section className="section-card p-6 sm:p-7">
+        <section className="surface-panel px-6 py-7 sm:px-7">
           <span className="eyebrow">Acquisition narrative</span>
           <h4 className="mt-4 text-2xl font-semibold text-ink-900">What came into the property</h4>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-ink-500">
-            These are the core details that moved with the property from the lead stage into the
+            These are the core details that moved with the property from the deal stage into the
             acquisition and execution workflows.
           </p>
 
           <div className="mt-6">
-            <DetailRow label="Source lead stage" value={formatText(property?.workspaces?.pipeline?.status)} />
-            <DetailRow label="Lead source" value={formatText(sourceSnapshot.leadSource)} />
+            <DetailRow label="Source deal stage" value={formatText(property?.workspaces?.pipeline?.status)} />
+            <DetailRow label="Deal source" value={formatText(sourceSnapshot.leadSource)} />
             <DetailRow label="Occupancy" value={formatText(sourceSnapshot.occupancyStatus)} />
             <DetailRow label="Motivation" value={formatText(sourceSnapshot.motivation)} />
             <DetailRow
@@ -478,14 +478,14 @@ const PropertySummaryPanel = ({
               value={formatNumber(marketAnalysis?.saleCompCount)}
             />
             <DetailRow
-              label="Project created"
+              label="Acquisitions workspace created"
               value={formatDate(investment?.createdAt)}
               hint="This is the timestamp for the acquisitions workspace, not the exact closing date."
             />
           </div>
         </section>
 
-        <section className="section-card p-6 sm:p-7">
+        <section className="surface-panel px-6 py-7 sm:px-7">
           <span className="eyebrow">Live bridge to Finance</span>
           <h4 className="mt-4 text-2xl font-semibold text-ink-900">Execution status</h4>
           <p className="mt-3 text-sm leading-6 text-ink-500">
@@ -516,8 +516,8 @@ const PropertySummaryPanel = ({
           <div>
             <h4 className="text-2xl font-semibold text-ink-900">Where the deal moved</h4>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-ink-500">
-              This is the fast read on what changed between the original lead assumptions and the
-              live project data.
+              This is the fast read on what changed between the original deal assumptions and the
+              live workspace data.
             </p>
           </div>
           <Link to={financeWorkspacePath} className="ghost-action">
@@ -554,12 +554,12 @@ const PropertySummaryPanel = ({
               <div className="mt-6 flex flex-wrap gap-3">
                 {pipelineLeadPath ? (
                   <Link to={pipelineLeadPath} className="secondary-action">
-                    Open source lead
+                    Open source deal
                   </Link>
                 ) : null}
                 {acquisitionsPath ? (
                   <Link to={acquisitionsPath} className="secondary-action">
-                    Open acquisitions project
+                    Open acquisitions workspace
                   </Link>
                 ) : (
                   <Link to={financeWorkspacePath} className="ghost-action">
@@ -574,7 +574,7 @@ const PropertySummaryPanel = ({
                 Snapshot source
               </p>
               <h4 className="mt-4 text-xl font-semibold text-ink-900">
-                {frozenSnapshot ? "Frozen acquisition snapshot" : "Live linked lead"}
+                {frozenSnapshot ? "Frozen acquisition snapshot" : "Live linked deal"}
               </h4>
               <p className="mt-3 text-sm leading-6 text-ink-500">{snapshotContextLabel}</p>
 
@@ -619,7 +619,7 @@ const PropertySummaryPanel = ({
               icon={BanknotesIcon}
               label="Seller ask"
               value={formatMoney(askingPrice)}
-              hint="The original asking price captured with the lead."
+              hint="The original asking price captured with the deal."
             />
             <SummaryTile
               icon={BuildingOffice2Icon}
@@ -636,12 +636,12 @@ const PropertySummaryPanel = ({
                   ? `Range ${formatCurrency(estimatedValueLow)} to ${formatCurrency(
                       estimatedValueHigh
                     )}`
-                  : "Uses the lead ARV or the saved comp estimate."
+                  : "Uses the deal ARV or the saved comp estimate."
               }
             />
             <SummaryTile
               icon={ClipboardDocumentListIcon}
-              label="Lead rehab estimate"
+              label="Deal rehab estimate"
               value={formatMoney(originalScopeBudget)}
               hint={
                 scopeItems.length > 0
@@ -654,12 +654,12 @@ const PropertySummaryPanel = ({
       ) : null}
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.9fr)]">
-        <section className="section-card p-6 sm:p-7">
+        <section className="surface-panel px-6 py-7 sm:px-7">
           <span className="eyebrow">Pricing and market context</span>
           <h4 className="mt-4 text-2xl font-semibold text-ink-900">What the market looked like</h4>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-ink-500">
             These details preserve the market posture and comp guidance that came in before the
-            property became an active project.
+            property became an active workspace.
           </p>
 
           <div className="mt-6">
@@ -687,16 +687,16 @@ const PropertySummaryPanel = ({
           </div>
         </section>
 
-        <section className="section-card p-6 sm:p-7">
-          <span className="eyebrow">Lead context</span>
+        <section className="surface-panel px-6 py-7 sm:px-7">
+          <span className="eyebrow">Deal context</span>
           <h4 className="mt-4 text-2xl font-semibold text-ink-900">What the team knew then</h4>
           <p className="mt-3 text-sm leading-6 text-ink-500">
             These fields preserve the original context around the seller and the opportunity.
           </p>
 
           <div className="mt-6">
-            <DetailRow label="Lead status" value={formatText(sourceSnapshot.status)} />
-            <DetailRow label="Lead source" value={formatText(sourceSnapshot.leadSource)} />
+            <DetailRow label="Deal status" value={formatText(sourceSnapshot.status)} />
+            <DetailRow label="Deal source" value={formatText(sourceSnapshot.leadSource)} />
             <DetailRow label="Occupancy" value={formatText(sourceSnapshot.occupancyStatus)} />
             <DetailRow label="Motivation" value={formatText(sourceSnapshot.motivation)} />
             <DetailRow label="Next action" value={formatText(sourceSnapshot.nextAction)} />
@@ -708,7 +708,7 @@ const PropertySummaryPanel = ({
               Original notes
             </p>
             <p className="mt-3 text-sm leading-6 text-ink-600">
-              {formatText(sourceSnapshot.notes, "No lead notes were captured on the original record.")}
+              {formatText(sourceSnapshot.notes, "No deal notes were captured on the original record.")}
             </p>
           </div>
         </section>
@@ -756,13 +756,13 @@ const PropertySummaryPanel = ({
             </div>
           ) : (
             <div className="mt-6 rounded-[20px] border border-dashed border-ink-200 bg-white/80 px-5 py-6 text-sm leading-6 text-ink-500">
-              No renovation line items were preserved on the original lead, so this section is
+              No renovation line items were preserved on the original deal, so this section is
               currently relying on the top-level rehab estimate only.
             </div>
           )}
         </section>
 
-        <section className="section-card p-6 sm:p-7">
+        <section className="surface-panel px-6 py-7 sm:px-7">
           <span className="eyebrow">Today vs original</span>
           <h4 className="mt-4 text-2xl font-semibold text-ink-900">Quick comparison</h4>
           <p className="mt-3 text-sm leading-6 text-ink-500">

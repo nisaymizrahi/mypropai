@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
-import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowPathIcon,
   ChevronDownIcon,
@@ -35,10 +35,13 @@ import {
   normalizeMasterReport,
 } from "../utils/compsReport";
 import BidsTab from "../components/BidsTab";
+import LeadDocumentsTab from "../components/LeadDocumentsTab";
+import LeadProjectAnalysisCopilot from "../components/LeadProjectAnalysisCopilot";
 import MasterDealReportWorkspace from "../components/MasterDealReportWorkspace";
 import SavedCompsReportsTab from "../components/SavedCompsReportsTab";
 import TasksPanel from "../components/TasksPanel";
 import useSubscriptionCheckoutConsent from "../hooks/useSubscriptionCheckoutConsent";
+import { INVESTOR_TERMS } from "../utils/investorTerminology";
 
 const occupancyOptions = ["Unknown", "Vacant", "Owner Occupied", "Tenant Occupied"];
 const leadStatusOptions = [
@@ -50,12 +53,54 @@ const leadStatusOptions = [
   "Closed - Lost",
 ];
 const leadDetailTabs = [
-  { id: "details", label: "Lead Details" },
-  { id: "comps", label: "AI Comps Analysis" },
+  { id: "details", label: "Deal Details" },
+  { id: "comps", label: "Deal Report" },
   { id: "saved-reports", label: "Saved Reports" },
-  { id: "renovation", label: "Renovation Plan" },
-  { id: "bids", label: "Bid Management" },
+  { id: "renovation", label: "Renovation" },
+  { id: "bids", label: "Bids" },
   { id: "tasks", label: "Tasks" },
+];
+const projectAnalysisScenarioPresets = [
+  {
+    key: "light-cosmetic",
+    label: "Light Cosmetic",
+    strategyType: "light-cosmetic",
+    rehabMultiplier: 0.72,
+    arvMultiplier: 1,
+    holdingMonths: 4,
+    extensionPlanned: false,
+    notes: "Fast-turn cosmetic refresh with limited scope creep.",
+  },
+  {
+    key: "moderate",
+    label: "Moderate",
+    strategyType: "moderate",
+    rehabMultiplier: 1,
+    arvMultiplier: 1.05,
+    holdingMonths: 6,
+    extensionPlanned: false,
+    notes: "Balanced rehab with key layout or systems upgrades where needed.",
+  },
+  {
+    key: "full-gut",
+    label: "Full Gut",
+    strategyType: "full-gut",
+    rehabMultiplier: 1.35,
+    arvMultiplier: 1.12,
+    holdingMonths: 8,
+    extensionPlanned: false,
+    notes: "Whole-home reset with deeper systems and finish work.",
+  },
+  {
+    key: "extension",
+    label: "Extension",
+    strategyType: "extension",
+    rehabMultiplier: 1.6,
+    arvMultiplier: 1.18,
+    holdingMonths: 10,
+    extensionPlanned: true,
+    notes: "Adds square footage and resale upside, but takes longer and needs more diligence.",
+  },
 ];
 const propertyTypeOptions = [
   { value: "", label: "Select property type" },
@@ -554,6 +599,150 @@ const buildLiveLead = (lead, form) => ({
   notes: form.notes,
 });
 
+const roundToNearestThousand = (value) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return 0;
+  }
+  return Math.round(parsed / 1000) * 1000;
+};
+
+const buildProjectAnalysisScenarioId = () =>
+  `scenario-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+
+const normalizeScenarioRecord = (scenario = {}, fallbackLabel = "Scenario") => ({
+  scenarioId: scenario.scenarioId || buildProjectAnalysisScenarioId(),
+  label: String(scenario.label || fallbackLabel).trim() || fallbackLabel,
+  strategyType: String(scenario.strategyType || "").trim(),
+  rehabEstimate:
+    scenario.rehabEstimate === null || scenario.rehabEstimate === undefined
+      ? ""
+      : scenario.rehabEstimate,
+  arv: scenario.arv === null || scenario.arv === undefined ? "" : scenario.arv,
+  extensionPlanned: Boolean(scenario.extensionPlanned),
+  extensionSquareFootage:
+    scenario.extensionSquareFootage === null || scenario.extensionSquareFootage === undefined
+      ? ""
+      : scenario.extensionSquareFootage,
+  holdingMonths:
+    scenario.holdingMonths === null || scenario.holdingMonths === undefined
+      ? ""
+      : scenario.holdingMonths,
+  notes: String(scenario.notes || ""),
+});
+
+const buildProjectAnalysisState = (lead = {}) => {
+  const existing = lead.projectAnalysis || {};
+  if (Array.isArray(existing.scenarios) && existing.scenarios.length > 0) {
+    const scenarios = existing.scenarios.map((scenario, index) =>
+      normalizeScenarioRecord(scenario, `Scenario ${index + 1}`)
+    );
+    const selectedScenarioId = scenarios.some(
+      (scenario) => scenario.scenarioId === existing.selectedScenarioId
+    )
+      ? existing.selectedScenarioId
+      : scenarios[0]?.scenarioId || "";
+
+    return {
+      scenarios,
+      selectedScenarioId,
+      aiSummary: String(existing.aiSummary || ""),
+      lastAiUpdatedAt: existing.lastAiUpdatedAt || "",
+    };
+  }
+
+  const detailedScopeTotal = Array.isArray(lead?.renovationPlan?.items)
+    ? lead.renovationPlan.items.reduce((sum, item) => sum + (Number(item?.budget) || 0), 0)
+    : 0;
+  const baseRehab = Number(lead.rehabEstimate) || detailedScopeTotal || 0;
+  const baseArv =
+    Number(lead.arv) ||
+    Number(lead.compsAnalysis?.estimatedValue) ||
+    Number(lead.compsAnalysis?.estimatedValueHigh) ||
+    0;
+
+  const scenarios = projectAnalysisScenarioPresets.map((preset) =>
+    normalizeScenarioRecord({
+      scenarioId: buildProjectAnalysisScenarioId(),
+      label: preset.label,
+      strategyType: preset.strategyType,
+      rehabEstimate: roundToNearestThousand(
+        baseRehab ? baseRehab * preset.rehabMultiplier : detailedScopeTotal
+      ),
+      arv: roundToNearestThousand(baseArv ? baseArv * preset.arvMultiplier : 0),
+      extensionPlanned: preset.extensionPlanned,
+      extensionSquareFootage:
+        preset.extensionPlanned && lead.squareFootage ? Math.round(Number(lead.squareFootage) * 0.18) : "",
+      holdingMonths: preset.holdingMonths,
+      notes: preset.notes,
+    })
+  );
+
+  return {
+    scenarios,
+    selectedScenarioId: scenarios[0]?.scenarioId || "",
+    aiSummary: "",
+    lastAiUpdatedAt: "",
+  };
+};
+
+const buildScenarioPayload = (scenario) => ({
+  scenarioId: scenario.scenarioId,
+  label: String(scenario.label || "").trim(),
+  strategyType: String(scenario.strategyType || "").trim(),
+  rehabEstimate: toNullableNumber(scenario.rehabEstimate),
+  arv: toNullableNumber(scenario.arv),
+  extensionPlanned: Boolean(scenario.extensionPlanned),
+  extensionSquareFootage: scenario.extensionPlanned
+    ? toNullableNumber(scenario.extensionSquareFootage)
+    : null,
+  holdingMonths: toNullableNumber(scenario.holdingMonths),
+  notes: String(scenario.notes || "").trim(),
+});
+
+const buildScenarioProjection = ({
+  scenario,
+  liveLead,
+  detailedScopeTotal,
+  fallbackArv,
+}) => {
+  const acquisitionBasis = Number(liveLead.targetOffer) || Number(liveLead.sellerAskingPrice) || 0;
+  const rehabEstimate =
+    Number(scenario?.rehabEstimate) ||
+    Number(liveLead.rehabEstimate) ||
+    detailedScopeTotal ||
+    0;
+  const arv = Number(scenario?.arv) || Number(liveLead.arv) || fallbackArv || 0;
+  const holdingMonths = Math.max(Number(scenario?.holdingMonths) || 0, 0);
+  const holdingCost = acquisitionBasis > 0 ? roundToNearestThousand(acquisitionBasis * 0.006 * holdingMonths) : 0;
+  const totalProjectCost = acquisitionBasis + rehabEstimate + holdingCost;
+  const projectedProfit = arv - totalProjectCost;
+  const marginPercent = arv > 0 ? projectedProfit / arv : null;
+
+  let confidenceNote = "Add an ARV and rehab estimate to see a stronger read.";
+  if (marginPercent !== null) {
+    if (marginPercent >= 0.2) {
+      confidenceNote = "Strong spread if the ARV and rehab hold.";
+    } else if (marginPercent >= 0.1) {
+      confidenceNote = "Reasonable spread, but this needs tighter contractor validation.";
+    } else {
+      confidenceNote = "Thin spread. Rework the assumptions before moving forward.";
+    }
+  }
+
+  return {
+    acquisitionBasis,
+    rehabEstimate,
+    arv,
+    holdingMonths,
+    holdingCost,
+    totalProjectCost,
+    projectedProfit,
+    marginPercent,
+    confidenceNote,
+  };
+};
+
 const LoadingSpinner = () => (
   <div className="section-card flex items-center justify-center px-6 py-14">
     <div className="loading-ring h-10 w-10 animate-spin rounded-full" />
@@ -610,6 +799,21 @@ const FormField = ({ label, hint, children, className = "" }) => (
     {children}
     {hint ? <span className="block text-xs leading-5 text-ink-400">{hint}</span> : null}
   </label>
+);
+
+const DetailSection = ({ eyebrow, title, description, actions = null, children, className = "" }) => (
+  <section className={`surface-panel px-6 py-7 sm:px-7 ${className}`.trim()}>
+    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+      <div>
+        {eyebrow ? <span className="eyebrow">{eyebrow}</span> : null}
+        <h2 className="mt-4 text-2xl font-semibold text-ink-900">{title}</h2>
+        {description ? <p className="mt-3 max-w-3xl text-sm leading-6 text-ink-500">{description}</p> : null}
+      </div>
+      {actions ? <div className="flex flex-wrap gap-3">{actions}</div> : null}
+    </div>
+
+    <div className="mt-6">{children}</div>
+  </section>
 );
 
 const getLeadStageToneClassName = (status) => {
@@ -806,7 +1010,14 @@ const LeadDetailPage = ({ setDashboardHeaderConfig }) => {
   );
 
   const [bids, setBids] = useState([]);
-  const [activeTab, setActiveTab] = useState("details");
+  const [activeTab, setActiveTab] = useState("overview");
+  const [isDetailsDrawerOpen, setIsDetailsDrawerOpen] = useState(false);
+  const [showCompsWorkbench, setShowCompsWorkbench] = useState(false);
+  const [showAllSnapshotComps, setShowAllSnapshotComps] = useState(false);
+  const [projectAnalysisState, setProjectAnalysisState] = useState(() =>
+    buildProjectAnalysisState()
+  );
+  const [isSavingProjectAnalysis, setIsSavingProjectAnalysis] = useState(false);
   const [billingAccess, setBillingAccess] = useState(null);
   const [isBillingAccessLoading, setIsBillingAccessLoading] = useState(true);
   const [isStartingCheckout, setIsStartingCheckout] = useState(false);
@@ -881,7 +1092,7 @@ const LeadDetailPage = ({ setDashboardHeaderConfig }) => {
       );
       setDealOverrides({});
     } catch (err) {
-      setError(err.message || "Failed to load lead data.");
+      setError(err.message || "Failed to load deal data.");
     } finally {
       setSavedReportsLoading(false);
       setLoading(false);
@@ -898,6 +1109,7 @@ const LeadDetailPage = ({ setDashboardHeaderConfig }) => {
     const nextRenovationForm = buildRenovationForm(lead);
     setDetailForm(nextDetailForm);
     setRenovationForm(nextRenovationForm);
+    setProjectAnalysisState(buildProjectAnalysisState(lead));
     selectedSuggestionRef.current = composeAddress(nextDetailForm);
   }, [lead]);
 
@@ -1012,7 +1224,7 @@ const LeadDetailPage = ({ setDashboardHeaderConfig }) => {
             }
           : previous
       );
-      toast.success(`Lead moved to ${nextStatus}.`);
+      toast.success(`Deal moved to ${nextStatus}.`);
     } catch (error) {
       setDetailForm((previous) => ({
         ...previous,
@@ -1301,7 +1513,8 @@ const LeadDetailPage = ({ setDashboardHeaderConfig }) => {
             }
           : previous
       );
-      setActiveTab("saved-reports");
+      setActiveTab("comps");
+      setShowCompsWorkbench(true);
       toast.success("Master Deal Report saved.");
     } catch (err) {
       setError(err.message || "Failed to save comps report.");
@@ -1380,9 +1593,9 @@ const LeadDetailPage = ({ setDashboardHeaderConfig }) => {
             }
           : previous
       );
-      toast.success("Lead details saved.");
+      toast.success("Deal details saved.");
     } catch (err) {
-      setError(err.message || "Failed to save lead details.");
+      setError(err.message || "Failed to save deal details.");
     } finally {
       setIsSavingDetails(false);
     }
@@ -1398,12 +1611,129 @@ const LeadDetailPage = ({ setDashboardHeaderConfig }) => {
       setLead(updatedLead);
       setRenovationForm(buildRenovationForm(updatedLead));
       setLastRenovationSavedAt(new Date().toISOString());
-      toast.success("Renovation plan saved. It will stay here when you reopen the lead.");
+      toast.success("Renovation plan saved. It will stay here when you reopen the deal.");
     } catch (err) {
       setError(err.message || "Failed to save renovation plan.");
     } finally {
       setIsSavingRenovation(false);
     }
+  };
+
+  const handleScenarioChange = (scenarioId, field, value) => {
+    setProjectAnalysisState((previous) => ({
+      ...previous,
+      scenarios: previous.scenarios.map((scenario) =>
+        scenario.scenarioId === scenarioId
+          ? {
+              ...scenario,
+              [field]:
+                field === "extensionPlanned"
+                  ? Boolean(value)
+                  : value,
+            }
+          : scenario
+      ),
+    }));
+  };
+
+  const handleAddCustomScenario = () => {
+    const newScenario = normalizeScenarioRecord({
+      scenarioId: buildProjectAnalysisScenarioId(),
+      label: `Custom ${projectAnalysisState.scenarios.length + 1}`,
+      strategyType: "custom",
+      rehabEstimate: liveLead.rehabEstimate || renovationBudgetTotal || "",
+      arv:
+        liveLead.arv ||
+        analysis?.valuation?.blendedEstimate ||
+        analysis?.estimatedValue ||
+        "",
+      extensionPlanned: false,
+      extensionSquareFootage: "",
+      holdingMonths: 6,
+      notes: "Custom scenario for testing a different path.",
+    });
+
+    setProjectAnalysisState((previous) => ({
+      ...previous,
+      scenarios: [...previous.scenarios, newScenario],
+      selectedScenarioId: newScenario.scenarioId,
+    }));
+  };
+
+  const persistProjectAnalysis = useCallback(
+    async (nextProjectAnalysis, successMessage) => {
+      setIsSavingProjectAnalysis(true);
+      setError("");
+
+      try {
+        const payload = {
+          selectedScenarioId: nextProjectAnalysis.selectedScenarioId,
+          aiSummary: nextProjectAnalysis.aiSummary || "",
+          lastAiUpdatedAt: nextProjectAnalysis.lastAiUpdatedAt || null,
+          scenarios: nextProjectAnalysis.scenarios.map(buildScenarioPayload),
+        };
+
+        const updatedLead = await updateLead(id, {
+          projectAnalysis: payload,
+        });
+        setLead(updatedLead);
+        toast.success(successMessage);
+      } catch (saveError) {
+        setError(saveError.message || "Failed to save project analysis.");
+        toast.error(saveError.message || "Failed to save project analysis.");
+      } finally {
+        setIsSavingProjectAnalysis(false);
+      }
+    },
+    [id]
+  );
+
+  const handleSaveProjectAnalysis = async () => {
+    await persistProjectAnalysis(projectAnalysisState, "Project analysis saved.");
+  };
+
+  const handleApplyProjectAnalysisSuggestions = async (patchBundle) => {
+    const nextProjectAnalysis = {
+      ...projectAnalysisState,
+      scenarios: projectAnalysisState.scenarios.map((scenario) => {
+        const patchRecord = (patchBundle?.scenarioPatches || []).find(
+          (item) => item?.scenarioId === scenario.scenarioId
+        );
+        if (!patchRecord?.patch) {
+          return scenario;
+        }
+
+        return normalizeScenarioRecord({
+          ...scenario,
+          ...patchRecord.patch,
+          rehabEstimate:
+            patchRecord.patch.rehabEstimate !== undefined
+              ? patchRecord.patch.rehabEstimate
+              : scenario.rehabEstimate,
+          arv: patchRecord.patch.arv !== undefined ? patchRecord.patch.arv : scenario.arv,
+          extensionPlanned:
+            patchRecord.patch.extensionPlanned !== undefined
+              ? patchRecord.patch.extensionPlanned
+              : scenario.extensionPlanned,
+          extensionSquareFootage:
+            patchRecord.patch.extensionSquareFootage !== undefined
+              ? patchRecord.patch.extensionSquareFootage
+              : scenario.extensionSquareFootage,
+          holdingMonths:
+            patchRecord.patch.holdingMonths !== undefined
+              ? patchRecord.patch.holdingMonths
+              : scenario.holdingMonths,
+        });
+      }),
+      aiSummary:
+        patchBundle?.summaryPatch?.aiSummary !== undefined
+          ? patchBundle.summaryPatch.aiSummary
+          : projectAnalysisState.aiSummary,
+      lastAiUpdatedAt: new Date().toISOString(),
+    };
+
+    setProjectAnalysisState(nextProjectAnalysis);
+    await persistProjectAnalysis(nextProjectAnalysis, "AI suggestions applied.");
   };
 
   const propertyWorkspaceId =
@@ -1427,7 +1757,7 @@ const LeadDetailPage = ({ setDashboardHeaderConfig }) => {
   const renovationItemsCount = renovationForm.items.length;
   const handleOpenPropertyWorkspace = useCallback(() => {
     if (!propertyWorkspaceId) {
-      toast.error("This lead is not linked to a property workspace yet.");
+      toast.error("This deal is not linked to a Property Workspace yet.");
       return;
     }
 
@@ -1436,12 +1766,12 @@ const LeadDetailPage = ({ setDashboardHeaderConfig }) => {
 
   const handleMoveToPropertyWorkspace = useCallback(async () => {
     if (!propertyWorkspaceId) {
-      toast.error("This lead is not linked to a property workspace yet.");
+      toast.error("This deal is not linked to a Property Workspace yet.");
       return;
     }
 
     if ((lead?.status || detailForm.status) !== "Closed - Won") {
-      toast.error("Only Closed - Won leads can move into the property workspace.");
+      toast.error("Only Closed - Won deals can move into Property Workspace.");
       return;
     }
 
@@ -1454,79 +1784,131 @@ const LeadDetailPage = ({ setDashboardHeaderConfig }) => {
       toast.success("Moved to Property Workspace.");
       navigate(`/properties/${encodeURIComponent(propertyWorkspaceId)}`);
     } catch (moveError) {
-      toast.error(moveError.message || "Failed to move this lead into Property Workspace.");
+      toast.error(moveError.message || "Failed to move this deal into Property Workspace.");
     } finally {
       setIsMovingToPropertyWorkspace(false);
     }
   }, [detailForm.status, id, lead?.status, navigate, propertyWorkspaceId]);
-  const headerActions = useMemo(
-    () => (
-      <>
-        <Link to="/leads" className="secondary-action lead-detail-header-action">
-          Back to leads
-        </Link>
-        {propertyWorkspaceActive ? (
-          <button
-            type="button"
-            onClick={handleOpenPropertyWorkspace}
-            className="primary-action lead-detail-header-action"
-          >
-            Open Property Workspace
-          </button>
-        ) : propertyWorkspaceId && liveLead.status === "Closed - Won" ? (
-          <button
-            type="button"
-            onClick={handleMoveToPropertyWorkspace}
-            disabled={isMovingToPropertyWorkspace}
-            className="primary-action lead-detail-header-action disabled:cursor-not-allowed disabled:opacity-70"
-          >
-            {isMovingToPropertyWorkspace ? "Moving..." : "Move to Property Workspace"}
-          </button>
-        ) : null}
-      </>
-    ),
-    [
-      handleMoveToPropertyWorkspace,
-      handleOpenPropertyWorkspace,
-      isMovingToPropertyWorkspace,
-      liveLead.status,
-      propertyWorkspaceActive,
-      propertyWorkspaceId,
-    ]
-  );
-  const dashboardHeaderConfig = useMemo(
-    () => ({
-      headerClassName: "lead-detail-dashboard-header",
-      titleDetail: liveLead.address || "Address pending",
-      actions: headerActions,
-      meta: {
-        subtitle: "",
-      },
-    }),
-    [headerActions, liveLead.address]
-  );
-
-  useEffect(() => {
-    if (!setDashboardHeaderConfig || !lead) {
-      return undefined;
-    }
-
-    setDashboardHeaderConfig(dashboardHeaderConfig);
-
-    return () => {
-      setDashboardHeaderConfig(null);
-    };
-  }, [dashboardHeaderConfig, setDashboardHeaderConfig]);
+  const workspaceAction = propertyWorkspaceActive ? (
+    <button
+      type="button"
+      onClick={handleOpenPropertyWorkspace}
+      className="primary-action"
+    >
+      Open Property Workspace
+    </button>
+  ) : propertyWorkspaceId && liveLead.status === "Closed - Won" ? (
+    <button
+      type="button"
+      onClick={handleMoveToPropertyWorkspace}
+      disabled={isMovingToPropertyWorkspace}
+      className="primary-action disabled:cursor-not-allowed disabled:opacity-70"
+    >
+      {isMovingToPropertyWorkspace ? "Moving..." : "Move to Property Workspace"}
+    </button>
+  ) : null;
 
   if (loading) return <LoadingSpinner />;
   if (error && !lead) return <p className="p-4 text-center text-red-500">{error}</p>;
-  if (!lead) return <p className="p-4 text-center">Lead not found.</p>;
+  if (!lead) return <p className="p-4 text-center">Deal not found.</p>;
+
+  const propertySummaryLabel =
+    [
+      liveLead.propertyType,
+      liveLead.squareFootage ? `${Number(liveLead.squareFootage).toLocaleString()} sqft` : null,
+      liveLead.bedrooms ? `${liveLead.bedrooms} bd` : null,
+      liveLead.bathrooms ? `${liveLead.bathrooms} ba` : null,
+    ]
+      .filter(Boolean)
+      .join(" • ") || "Property facts still coming together";
+  const workspaceStatusLabel = propertyWorkspaceActive
+    ? "In Property Workspace"
+    : propertyWorkspaceId
+      ? "Linked property ready"
+      : "Property Workspace pending";
+  const workspaceStatusHint = propertyWorkspaceActive
+    ? "Property execution is already unlocked."
+    : propertyWorkspaceId
+      ? "Close the deal to move it into Property Workspace."
+      : "This deal has not been linked into Property Workspace yet.";
+  const marketStatusLabel =
+    liveLead.listingStatus || liveLead.sellerAskingPrice ? "On market" : "Off market";
+  const marketStatusHint =
+    liveLead.listingStatus || liveLead.sellerAskingPrice
+      ? liveLead.listingStatus || "Listing status captured"
+      : "Listing details have not been captured yet.";
+  const overviewRiskFlags = [
+    ...(Array.isArray(liveLead.marketSearchAssessment?.match?.riskFlags)
+      ? liveLead.marketSearchAssessment.match.riskFlags
+      : []),
+    ...(Array.isArray(analysis?.aiVerdict?.riskFlags) ? analysis.aiVerdict.riskFlags : []),
+    ...(Array.isArray(analysis?.report?.riskFlags) ? analysis.report.riskFlags : []),
+  ].filter(Boolean);
+  const nextStepSummary =
+    liveLead.nextAction ||
+    liveLead.marketSearchAssessment?.match?.nextStep ||
+    analysis?.aiVerdict?.nextSteps?.[0] ||
+    "Add the next action so the team knows what happens after this review.";
+  const snapshotComps = Array.isArray(analysis?.recentComps)
+    ? analysis.recentComps
+    : Array.isArray(lead?.compsAnalysis?.recentComps)
+      ? lead.compsAnalysis.recentComps
+      : [];
+  const visibleSnapshotComps = showAllSnapshotComps ? snapshotComps : snapshotComps.slice(0, 4);
+  const selectedScenario =
+    projectAnalysisState.scenarios.find(
+      (scenario) => scenario.scenarioId === projectAnalysisState.selectedScenarioId
+    ) || projectAnalysisState.scenarios[0] || null;
+  const fallbackScenarioArv =
+    Number(analysis?.valuation?.blendedEstimate) ||
+    Number(analysis?.estimatedValue) ||
+    Number(lead?.compsAnalysis?.estimatedValue) ||
+    0;
+  const selectedScenarioProjection = selectedScenario
+    ? buildScenarioProjection({
+        scenario: selectedScenario,
+        liveLead,
+        detailedScopeTotal: renovationBudgetTotal,
+        fallbackArv: fallbackScenarioArv,
+      })
+    : null;
+  const projectAnalysisDelta =
+    liveLead.rehabEstimate !== null &&
+    liveLead.rehabEstimate !== undefined &&
+    renovationBudgetTotal
+      ? renovationBudgetTotal - Number(liveLead.rehabEstimate || 0)
+      : null;
+  const activeConfidenceLabel =
+    analysis?.aiVerdict?.confidence ||
+    analysis?.report?.confidence ||
+    lead?.compsAnalysis?.report?.confidence ||
+    "Not rated";
+  const arValueRangeLabel =
+    analysis?.valuation?.blendedLow && analysis?.valuation?.blendedHigh
+      ? `${formatCurrency(analysis.valuation.blendedLow)} - ${formatCurrency(
+          analysis.valuation.blendedHigh
+        )}`
+      : lead?.compsAnalysis?.estimatedValueLow && lead?.compsAnalysis?.estimatedValueHigh
+        ? `${formatCurrency(lead.compsAnalysis.estimatedValueLow)} - ${formatCurrency(
+            lead.compsAnalysis.estimatedValueHigh
+          )}`
+        : formatCurrency(liveLead.arv || fallbackScenarioArv);
+  const recommendedOfferLabel =
+    analysis?.recommendedOfferLow && analysis?.recommendedOfferHigh
+      ? `${formatCurrency(analysis.recommendedOfferLow)} - ${formatCurrency(
+          analysis.recommendedOfferHigh
+        )}`
+      : lead?.compsAnalysis?.recommendedOfferLow && lead?.compsAnalysis?.recommendedOfferHigh
+        ? `${formatCurrency(lead.compsAnalysis.recommendedOfferLow)} - ${formatCurrency(
+            lead.compsAnalysis.recommendedOfferHigh
+          )}`
+        : formatCurrency(liveLead.targetOffer);
 
   return (
     <div className="space-y-4">
       <section className="lead-detail-tab-rail sticky top-40 z-20 md:top-28 xl:top-24">
         <div className="lead-detail-tab-track">
-          <div className="lead-detail-tab-list" role="tablist" aria-label="Potential property sections">
+          <div className="lead-detail-tab-list" role="tablist" aria-label="Deal sections">
             {leadDetailTabs.map((tab) => (
               <TabButton
                 key={tab.id}
@@ -1552,193 +1934,236 @@ const LeadDetailPage = ({ setDashboardHeaderConfig }) => {
       ) : null}
 
       {activeTab === "details" && (
-        <div className="section-card p-6 sm:p-7">
-          <span className="eyebrow">Edit lead</span>
-          <h2 className="mt-4 font-display text-[2rem] leading-none text-ink-900">Property, seller, and deal details</h2>
-          <p className="mt-2 text-sm leading-6 text-ink-500">
-            Update the core information here whenever you learn something new about the opportunity.
-          </p>
-
-          <div className="mt-6 grid gap-5 md:grid-cols-2">
-            <div className="relative md:col-span-2">
-              <FormField label="Address line">
-                <input
-                  name="addressLine1"
-                  value={detailForm.addressLine1}
-                  onChange={handleDetailChange}
-                  className="auth-input"
-                  placeholder="Start typing the property address..."
-                />
-              </FormField>
-
-              {suggestions.length > 0 ? (
-                <div className="absolute z-20 mt-2 max-h-64 w-full overflow-y-auto rounded-[16px] border border-ink-100 bg-white shadow-soft">
-                  {suggestions.map((suggestion) => (
-                    <button
-                      key={suggestion.id}
-                      type="button"
-                      onClick={() => handleSelectSuggestion(suggestion)}
-                      className="w-full border-b border-ink-100 px-4 py-3 text-left text-sm text-ink-700 transition hover:bg-sand-50 last:border-b-0"
-                    >
-                      {suggestion.place_name}
-                    </button>
-                  ))}
-                </div>
-              ) : null}
-            </div>
-
-            <FormField label="City">
-              <input
-                name="city"
-                value={detailForm.city}
-                onChange={handleDetailChange}
-                className="auth-input"
-                placeholder="City"
-              />
-            </FormField>
-
-            <FormField label="State">
-              <input
-                name="state"
-                value={detailForm.state}
-                onChange={handleDetailChange}
-                className="auth-input"
-                placeholder="State"
-              />
-            </FormField>
-
-            <FormField label="Zip code">
-              <input
-                name="zipCode"
-                value={detailForm.zipCode}
-                onChange={handleDetailChange}
-                className="auth-input"
-                placeholder="Zip code"
-              />
-            </FormField>
-
-            <FormField label="Pipeline status">
-              <select
-                name="status"
-                value={detailForm.status}
-                onChange={handleDetailChange}
-                className="auth-input appearance-none"
-              >
-                {leadStatusOptions.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
-            </FormField>
-
-            <div className="md:col-span-2">
-              <div className="flex flex-wrap items-center gap-3">
-                <button
-                  type="button"
-                  onClick={() => handlePreviewLookup()}
-                  disabled={isPreviewLoading || !addressQuery.trim()}
-                  className="secondary-action inline-flex items-center gap-2 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  <ArrowPathIcon className={`h-4 w-4 ${isPreviewLoading ? "animate-spin" : ""}`} />
-                  {isPreviewLoading ? "Refreshing details..." : "Refresh property facts"}
-                </button>
-                <p className="text-sm text-ink-500">
-                  Use the lookup after editing the address to refresh property facts and listing info.
+        <div className="space-y-5">
+          <section className="surface-panel-strong overflow-hidden px-6 py-6 sm:px-7">
+            <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
+              <div>
+                <span className="eyebrow">Deal brief</span>
+                <h2 className="mt-4 font-display text-[2.15rem] leading-[0.96] text-ink-900">
+                  Keep the deal thesis, pricing, and next move in one place
+                </h2>
+                <p className="mt-3 max-w-3xl text-sm leading-7 text-ink-500">
+                  This is the acquisition desk view for the record. Update the property facts,
+                  market posture, seller context, and pricing plan as the team learns more.
                 </p>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                <span className="workspace-counter-pill">{detailForm.status || "Potential"}</span>
+                <span className="workspace-counter-pill">{workspaceStatusLabel}</span>
               </div>
             </div>
 
-            <FormField label="Property type">
-              <select
-                name="propertyType"
-                value={detailForm.propertyType}
-                onChange={handleDetailChange}
-                className="auth-input appearance-none"
+            <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              <SummaryStat
+                label="Property"
+                value={propertySummaryLabel}
+                hint={liveLead.address || "Address still needs confirmation"}
+              />
+              <SummaryStat
+                label="Pricing"
+                value={`Ask ${formatCurrency(liveLead.sellerAskingPrice)}`}
+                hint={`Target ${formatCurrency(workingTargetOffer)}`}
+              />
+              <SummaryStat
+                label="Market posture"
+                value={marketStatusLabel}
+                hint={marketStatusHint}
+              />
+              <SummaryStat
+                label="Workspace"
+                value={workspaceStatusLabel}
+                hint={workspaceStatusHint}
+              />
+            </div>
+          </section>
+
+          <DetailSection
+            eyebrow="Deal profile"
+            title="Property facts and stage"
+            description="Capture the address, stage, and physical facts first. Use the lookup to refresh known property data after the address changes."
+            actions={
+              <button
+                type="button"
+                onClick={() => handlePreviewLookup()}
+                disabled={isPreviewLoading || !addressQuery.trim()}
+                className="secondary-action inline-flex items-center gap-2 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {propertyTypeOptions.map((option) => (
-                  <option key={option.value || "empty"} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </FormField>
+                <ArrowPathIcon className={`h-4 w-4 ${isPreviewLoading ? "animate-spin" : ""}`} />
+                {isPreviewLoading ? "Refreshing facts..." : "Refresh property facts"}
+              </button>
+            }
+          >
+            <div className="grid gap-5 md:grid-cols-2">
+              <div className="relative md:col-span-2">
+                <FormField label="Property address">
+                  <input
+                    name="addressLine1"
+                    value={detailForm.addressLine1}
+                    onChange={handleDetailChange}
+                    className="auth-input"
+                    placeholder="Start typing the property address..."
+                  />
+                </FormField>
 
-            <FormField label="Bedrooms">
-              <input
-                name="bedrooms"
-                type="number"
-                value={detailForm.bedrooms}
-                onChange={handleDetailChange}
-                className="auth-input"
-                placeholder="0"
-              />
-            </FormField>
+                {suggestions.length > 0 ? (
+                  <div className="absolute z-20 mt-2 max-h-64 w-full overflow-y-auto rounded-[16px] border border-ink-100 bg-white shadow-soft">
+                    {suggestions.map((suggestion) => (
+                      <button
+                        key={suggestion.id}
+                        type="button"
+                        onClick={() => handleSelectSuggestion(suggestion)}
+                        className="w-full border-b border-ink-100 px-4 py-3 text-left text-sm text-ink-700 transition hover:bg-sand-50 last:border-b-0"
+                      >
+                        {suggestion.place_name}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
 
-            <FormField label="Bathrooms">
-              <input
-                name="bathrooms"
-                type="number"
-                step="0.5"
-                value={detailForm.bathrooms}
-                onChange={handleDetailChange}
-                className="auth-input"
-                placeholder="0"
-              />
-            </FormField>
-
-            <FormField label="Square footage">
-              <input
-                name="squareFootage"
-                type="number"
-                value={detailForm.squareFootage}
-                onChange={handleDetailChange}
-                className="auth-input"
-                placeholder="0"
-              />
-            </FormField>
-
-            <FormField label="Lot size">
-              <input
-                name="lotSize"
-                type="number"
-                value={detailForm.lotSize}
-                onChange={handleDetailChange}
-                className="auth-input"
-                placeholder="0"
-              />
-            </FormField>
-
-            <FormField label="Year built">
-              <input
-                name="yearBuilt"
-                type="number"
-                value={detailForm.yearBuilt}
-                onChange={handleDetailChange}
-                className="auth-input"
-                placeholder="0"
-              />
-            </FormField>
-
-            {showsUnitCount ? (
-              <FormField label="Unit count">
+              <FormField label="City">
                 <input
-                  name="unitCount"
+                  name="city"
+                  value={detailForm.city}
+                  onChange={handleDetailChange}
+                  className="auth-input"
+                  placeholder="City"
+                />
+              </FormField>
+
+              <FormField label="State">
+                <input
+                  name="state"
+                  value={detailForm.state}
+                  onChange={handleDetailChange}
+                  className="auth-input"
+                  placeholder="State"
+                />
+              </FormField>
+
+              <FormField label="Zip code">
+                <input
+                  name="zipCode"
+                  value={detailForm.zipCode}
+                  onChange={handleDetailChange}
+                  className="auth-input"
+                  placeholder="Zip code"
+                />
+              </FormField>
+
+              <FormField label="Deal stage">
+                <select
+                  name="status"
+                  value={detailForm.status}
+                  onChange={handleDetailChange}
+                  className="auth-input appearance-none"
+                >
+                  {leadStatusOptions.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+              </FormField>
+
+              <FormField label="Property type">
+                <select
+                  name="propertyType"
+                  value={detailForm.propertyType}
+                  onChange={handleDetailChange}
+                  className="auth-input appearance-none"
+                >
+                  {propertyTypeOptions.map((option) => (
+                    <option key={option.value || "empty"} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </FormField>
+
+              <FormField label="Bedrooms">
+                <input
+                  name="bedrooms"
                   type="number"
-                  value={detailForm.unitCount}
+                  value={detailForm.bedrooms}
                   onChange={handleDetailChange}
                   className="auth-input"
                   placeholder="0"
                 />
               </FormField>
-            ) : null}
 
-            <div className="md:col-span-2 mt-2 rounded-[16px] border border-ink-100 bg-sand-50/70 p-5">
+              <FormField label="Bathrooms">
+                <input
+                  name="bathrooms"
+                  type="number"
+                  step="0.5"
+                  value={detailForm.bathrooms}
+                  onChange={handleDetailChange}
+                  className="auth-input"
+                  placeholder="0"
+                />
+              </FormField>
+
+              <FormField label="Square footage">
+                <input
+                  name="squareFootage"
+                  type="number"
+                  value={detailForm.squareFootage}
+                  onChange={handleDetailChange}
+                  className="auth-input"
+                  placeholder="0"
+                />
+              </FormField>
+
+              <FormField label="Lot size">
+                <input
+                  name="lotSize"
+                  type="number"
+                  value={detailForm.lotSize}
+                  onChange={handleDetailChange}
+                  className="auth-input"
+                  placeholder="0"
+                />
+              </FormField>
+
+              <FormField label="Year built">
+                <input
+                  name="yearBuilt"
+                  type="number"
+                  value={detailForm.yearBuilt}
+                  onChange={handleDetailChange}
+                  className="auth-input"
+                  placeholder="0"
+                />
+              </FormField>
+
+              {showsUnitCount ? (
+                <FormField label="Unit count">
+                  <input
+                    name="unitCount"
+                    type="number"
+                    value={detailForm.unitCount}
+                    onChange={handleDetailChange}
+                    className="auth-input"
+                    placeholder="0"
+                  />
+                </FormField>
+              ) : null}
+            </div>
+          </DetailSection>
+
+          <DetailSection
+            eyebrow="Market posture"
+            title="Listing and sales context"
+            description="Keep the active listing details here when the property is on market so the team can compare the seller’s posture with the current deal thesis."
+          >
+            <div className="rounded-[18px] border border-ink-100 bg-sand-50/70 p-5">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <p className="text-sm font-medium text-ink-900">Sale status</p>
+                  <p className="text-sm font-medium text-ink-900">Market status</p>
                   <p className="mt-1 text-sm text-ink-500">
-                    Keep the active listing details here if the property is on market.
+                    Capture the listing posture, ask, and last trade data in one place.
                   </p>
                 </div>
                 <span
@@ -1748,7 +2173,7 @@ const LeadDetailPage = ({ setDashboardHeaderConfig }) => {
                       : "bg-white text-ink-600 ring-1 ring-ink-100"
                   }`}
                 >
-                  {liveLead.listingStatus || liveLead.sellerAskingPrice ? "For sale" : "Not listed"}
+                  {marketStatusLabel}
                 </span>
               </div>
 
@@ -1763,7 +2188,7 @@ const LeadDetailPage = ({ setDashboardHeaderConfig }) => {
                   />
                 </FormField>
 
-                <FormField label="Sale price">
+                <FormField label="Asking price">
                   <input
                     name="sellerAskingPrice"
                     type="number"
@@ -1807,153 +2232,154 @@ const LeadDetailPage = ({ setDashboardHeaderConfig }) => {
                 </FormField>
               </div>
             </div>
+          </DetailSection>
 
-            <div className="md:col-span-2 mt-2">
-              <h3 className="text-lg font-semibold text-ink-900">Seller and deal plan</h3>
-              <p className="mt-1 text-sm text-ink-500">
-                Save the contact details, pricing targets, and the next move for this lead.
-              </p>
+          <DetailSection
+            eyebrow="Seller and strategy"
+            title="Seller context and pricing plan"
+            description="Save the seller details, pricing anchors, and next move so the deal stays decision-ready between follow-ups."
+          >
+            <div className="grid gap-5 md:grid-cols-2">
+              <FormField label="Seller name">
+                <input
+                  name="sellerName"
+                  value={detailForm.sellerName}
+                  onChange={handleDetailChange}
+                  className="auth-input"
+                />
+              </FormField>
+
+              <FormField label="Deal source">
+                <input
+                  name="leadSource"
+                  value={detailForm.leadSource}
+                  onChange={handleDetailChange}
+                  className="auth-input"
+                  placeholder="Agent, referral, direct mail..."
+                />
+              </FormField>
+
+              <FormField label="Seller phone">
+                <input
+                  name="sellerPhone"
+                  value={detailForm.sellerPhone}
+                  onChange={handleDetailChange}
+                  className="auth-input"
+                />
+              </FormField>
+
+              <FormField label="Seller email">
+                <input
+                  name="sellerEmail"
+                  type="email"
+                  value={detailForm.sellerEmail}
+                  onChange={handleDetailChange}
+                  className="auth-input"
+                />
+              </FormField>
+
+              <FormField label="Occupancy">
+                <select
+                  name="occupancyStatus"
+                  value={detailForm.occupancyStatus}
+                  onChange={handleDetailChange}
+                  className="auth-input appearance-none"
+                >
+                  {occupancyOptions.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+              </FormField>
+
+              <FormField label="Next move">
+                <input
+                  name="nextAction"
+                  value={detailForm.nextAction}
+                  onChange={handleDetailChange}
+                  className="auth-input"
+                  placeholder="Call seller, request photos, line up contractor..."
+                />
+              </FormField>
+
+              <FormField label="Target offer">
+                <input
+                  name="targetOffer"
+                  type="number"
+                  value={detailForm.targetOffer}
+                  onChange={handleDetailChange}
+                  className="auth-input"
+                  placeholder="0"
+                />
+              </FormField>
+
+              <FormField label="Follow-up date">
+                <input
+                  name="followUpDate"
+                  type="date"
+                  value={detailForm.followUpDate}
+                  onChange={handleDetailChange}
+                  className="auth-input"
+                />
+              </FormField>
+
+              <FormField label="ARV / exit value">
+                <input
+                  name="arv"
+                  type="number"
+                  value={detailForm.arv}
+                  onChange={handleDetailChange}
+                  className="auth-input"
+                  placeholder="0"
+                />
+              </FormField>
+
+              <FormField label="Current rehab estimate">
+                <input
+                  name="rehabEstimate"
+                  type="number"
+                  value={detailForm.rehabEstimate}
+                  onChange={handleDetailChange}
+                  className="auth-input"
+                  placeholder="0"
+                />
+              </FormField>
+
+              <FormField label="Seller motivation" className="md:col-span-2">
+                <textarea
+                  rows="3"
+                  name="motivation"
+                  value={detailForm.motivation}
+                  onChange={handleDetailChange}
+                  className="auth-input min-h-[110px]"
+                  placeholder="Why is this seller likely to negotiate, move quickly, or sell below market?"
+                />
+              </FormField>
+
+              <FormField label="Deal notes" className="md:col-span-2">
+                <textarea
+                  rows="4"
+                  name="notes"
+                  value={detailForm.notes}
+                  onChange={handleDetailChange}
+                  className="auth-input min-h-[140px]"
+                  placeholder="Anything the team should remember about this opportunity..."
+                />
+              </FormField>
             </div>
 
-            <FormField label="Seller name">
-              <input
-                name="sellerName"
-                value={detailForm.sellerName}
-                onChange={handleDetailChange}
-                className="auth-input"
-              />
-            </FormField>
-
-            <FormField label="Lead source">
-              <input
-                name="leadSource"
-                value={detailForm.leadSource}
-                onChange={handleDetailChange}
-                className="auth-input"
-                placeholder="Agent, referral, direct mail..."
-              />
-            </FormField>
-
-            <FormField label="Seller phone">
-              <input
-                name="sellerPhone"
-                value={detailForm.sellerPhone}
-                onChange={handleDetailChange}
-                className="auth-input"
-              />
-            </FormField>
-
-            <FormField label="Seller email">
-              <input
-                name="sellerEmail"
-                type="email"
-                value={detailForm.sellerEmail}
-                onChange={handleDetailChange}
-                className="auth-input"
-              />
-            </FormField>
-
-            <FormField label="Occupancy">
-              <select
-                name="occupancyStatus"
-                value={detailForm.occupancyStatus}
-                onChange={handleDetailChange}
-                className="auth-input appearance-none"
+            <div className="mt-6 flex flex-wrap justify-end gap-3">
+              <button
+                type="button"
+                onClick={handleSaveDetails}
+                disabled={isSavingDetails}
+                className="primary-action disabled:cursor-not-allowed disabled:opacity-70"
               >
-                {occupancyOptions.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
-            </FormField>
-
-            <FormField label="Next action">
-              <input
-                name="nextAction"
-                value={detailForm.nextAction}
-                onChange={handleDetailChange}
-                className="auth-input"
-                placeholder="Call seller, request photos, line up contractor..."
-              />
-            </FormField>
-
-            <FormField label="Target offer">
-              <input
-                name="targetOffer"
-                type="number"
-                value={detailForm.targetOffer}
-                onChange={handleDetailChange}
-                className="auth-input"
-                placeholder="0"
-              />
-            </FormField>
-
-            <FormField label="Follow-up date">
-              <input
-                name="followUpDate"
-                type="date"
-                value={detailForm.followUpDate}
-                onChange={handleDetailChange}
-                className="auth-input"
-              />
-            </FormField>
-
-            <FormField label="ARV / exit value">
-              <input
-                name="arv"
-                type="number"
-                value={detailForm.arv}
-                onChange={handleDetailChange}
-                className="auth-input"
-                placeholder="0"
-              />
-            </FormField>
-
-            <FormField label="Current rehab estimate">
-              <input
-                name="rehabEstimate"
-                type="number"
-                value={detailForm.rehabEstimate}
-                onChange={handleDetailChange}
-                className="auth-input"
-                placeholder="0"
-              />
-            </FormField>
-
-            <FormField label="Seller motivation" className="md:col-span-2">
-              <textarea
-                rows="3"
-                name="motivation"
-                value={detailForm.motivation}
-                onChange={handleDetailChange}
-                className="auth-input min-h-[110px]"
-                placeholder="Why is this seller likely to negotiate, move quickly, or sell below market?"
-              />
-            </FormField>
-
-            <FormField label="Notes" className="md:col-span-2">
-              <textarea
-                rows="4"
-                name="notes"
-                value={detailForm.notes}
-                onChange={handleDetailChange}
-                className="auth-input min-h-[140px]"
-                placeholder="Anything the team should remember about this opportunity..."
-              />
-            </FormField>
-          </div>
-
-          <div className="mt-5 flex flex-wrap justify-end gap-3">
-            <button
-              type="button"
-              onClick={handleSaveDetails}
-              disabled={isSavingDetails}
-              className="primary-action disabled:cursor-not-allowed disabled:opacity-70"
-            >
-              {isSavingDetails ? "Saving..." : "Save details"}
-            </button>
-          </div>
+                {isSavingDetails ? "Saving..." : "Save deal details"}
+              </button>
+            </div>
+          </DetailSection>
         </div>
       )}
 
@@ -1975,17 +2401,17 @@ const LeadDetailPage = ({ setDashboardHeaderConfig }) => {
           isStartingCheckout={isStartingCheckout}
           onSaveReport={handleSaveReport}
           isSavingReport={isSavingReport}
-          saveButtonLabel="Save Lead Report"
-          runButtonLabel="Run Lead Master Report"
+          saveButtonLabel="Save Deal Report"
+          runButtonLabel="Run Deal Report"
           showOneTimeCheckout
           reportNotice={compsNotice}
           renderSubjectPanel={() => (
-            <div className="section-card p-6">
+            <div className="surface-panel px-6 py-6">
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <h3 className="text-xl font-semibold text-ink-900">Current deal snapshot</h3>
                   <p className="mt-1 text-sm text-ink-500">
-                    These numbers come from the details you save on the lead.
+                    These numbers come from the details saved on this deal.
                   </p>
                 </div>
                 <button
@@ -2034,16 +2460,16 @@ const LeadDetailPage = ({ setDashboardHeaderConfig }) => {
         <SavedCompsReportsTab
           reports={savedReports}
           isLoading={savedReportsLoading}
-          title="Lead Master Deal Reports"
-          description="Every saved report for this opportunity lives here so you can compare different deal cases over time."
-          emptyTitle="No lead reports saved yet"
-          emptyMessage="Run the Master Deal Report, save it, and the lead's report history will appear here."
+          title="Saved Deal Reports"
+          description="Every saved report for this deal lives here so you can compare underwriting cases over time."
+          emptyTitle="No deal reports saved yet"
+          emptyMessage="Run the Deal Report, save it, and the deal's report history will appear here."
         />
       )}
 
       {activeTab === "renovation" && (
         <div className="space-y-6">
-          <section className="section-card p-6 sm:p-7">
+          <section className="surface-panel px-6 py-6 sm:px-7">
             <span className="eyebrow">Renovation planning and estimate</span>
             <h2 className="mt-4 text-2xl font-semibold text-ink-900">
               Build the scope before you price the job
@@ -2147,7 +2573,7 @@ const LeadDetailPage = ({ setDashboardHeaderConfig }) => {
             />
           </div>
 
-          <section className="section-card p-6 sm:p-7">
+          <section className="surface-panel px-6 py-6 sm:px-7">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
                 <span className="eyebrow">Renovation plan list</span>
@@ -2246,8 +2672,8 @@ const LeadDetailPage = ({ setDashboardHeaderConfig }) => {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm text-ink-500">
               {lastRenovationSavedAt
-                ? `Saved ${formatDate(lastRenovationSavedAt)}. Your renovation items and budgets are stored on this lead.`
-                : "Save renovation plan to store the item list, budgets, and project setup on this lead."}
+                ? `Saved ${formatDate(lastRenovationSavedAt)}. Your renovation items and budgets are stored on this deal.`
+                : "Save renovation plan to store the item list, budgets, and project setup on this deal."}
             </p>
             <button
               type="button"
@@ -2281,9 +2707,9 @@ const LeadDetailPage = ({ setDashboardHeaderConfig }) => {
 
       {activeTab === "tasks" && (
         <TasksPanel
-          eyebrow="Lead tasks"
-          title="Lead follow-up and execution tasks"
-          description="Create lead-specific work here, or tie the task to this property so it also appears in the property record and the main task center."
+          eyebrow="Deal tasks"
+          title="Deal follow-up and execution tasks"
+          description="Create deal-specific work here, or tie the task to this property so it also appears in the property record and the main task center."
           query={{
             sourceType: "lead",
             sourceId: id,
@@ -2293,11 +2719,11 @@ const LeadDetailPage = ({ setDashboardHeaderConfig }) => {
           defaults={{
             sourceType: "lead",
             sourceId: id,
-            sourceLabel: liveLead.address || "Lead",
+            sourceLabel: liveLead.address || INVESTOR_TERMS.deal.singular,
             propertyKey: propertyWorkspaceId || "",
           }}
-          emptyTitle="No lead tasks yet"
-          emptyDescription="Add the first follow-up, diligence item, or contractor action for this lead."
+          emptyTitle="No deal tasks yet"
+          emptyDescription="Add the first follow-up, diligence item, or contractor action for this deal."
         />
       )}
 
