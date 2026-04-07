@@ -160,7 +160,7 @@ const geocodeWithMapbox = async (address) => {
 
 const buildMapboxSuggestionTypes = (options = {}) => {
   if (options.searchContext === "location") {
-    return "address,place,postcode,neighborhood,locality,region";
+    return "address,place,postcode,neighborhood,locality,district,region";
   }
 
   return "address";

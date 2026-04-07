@@ -405,13 +405,13 @@ const TabButton = ({ tab, isActive, onSelect }) => {
       onClick={() => onSelect(tab.id)}
       className={`flex min-w-[132px] shrink-0 items-center gap-3 rounded-[20px] px-4 py-3 text-left transition ${
         isActive
-          ? "bg-ink-900 text-white shadow-[0_16px_30px_rgba(26,35,48,0.14)]"
-          : "bg-white text-ink-600 ring-1 ring-ink-100 hover:bg-ink-50"
+          ? "bg-steel-900 text-white shadow-soft"
+          : "bg-white/92 text-ink-600 ring-1 ring-ink-100 hover:bg-mist-50"
       }`}
     >
       <div
         className={`flex h-10 w-10 items-center justify-center rounded-[14px] ${
-          isActive ? "bg-white/12 text-white" : "bg-sand-50 text-ink-700"
+          isActive ? "bg-white/12 text-white" : "bg-mist-50 text-ink-700"
         }`}
       >
         <Icon className="h-5 w-5" />

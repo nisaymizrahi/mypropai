@@ -10,6 +10,30 @@ module.exports = {
         display: ["Fraunces", ...defaultTheme.fontFamily.serif],
       },
       colors: {
+        mist: {
+          50: "#f7fafc",
+          100: "#edf3f8",
+          200: "#dce6ef",
+          300: "#c2d2df",
+          400: "#9ab1c4",
+          500: "#738ca3",
+          600: "#586e82",
+          700: "#415362",
+          800: "#2a3946",
+          900: "#17212b",
+        },
+        steel: {
+          50: "#f4f7fb",
+          100: "#e8eff6",
+          200: "#d0dce8",
+          300: "#adc1d3",
+          400: "#819db6",
+          500: "#5f7d97",
+          600: "#496175",
+          700: "#374957",
+          800: "#24323e",
+          900: "#141d26",
+        },
         ink: {
           50: "#f7f3ef",
           100: "#e7ddd2",
@@ -85,8 +109,8 @@ module.exports = {
         },
       },
       boxShadow: {
-        luxe: "0 28px 72px rgba(62, 44, 30, 0.14)",
-        soft: "0 18px 42px rgba(62, 44, 30, 0.1)",
+        luxe: "0 32px 80px rgba(18, 32, 45, 0.14)",
+        soft: "0 16px 40px rgba(24, 42, 58, 0.12)",
       },
       backgroundImage: {
         "executive-grid":

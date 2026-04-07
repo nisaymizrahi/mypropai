@@ -136,7 +136,7 @@ const WorkspaceDataTable = ({
             <label className="sr-only" htmlFor={searchInputId}>
               Search rows
             </label>
-            <div className="flex items-center gap-3 rounded-[18px] border border-ink-100 bg-white px-4 py-3 shadow-soft">
+            <div className="workspace-search-shell">
               <MagnifyingGlassIcon className="h-5 w-5 flex-shrink-0 text-ink-400" />
               <input
                 id={searchInputId}
@@ -144,7 +144,7 @@ const WorkspaceDataTable = ({
                 value={searchValue}
                 onChange={(event) => onSearchValueChange(event.target.value)}
                 placeholder={searchPlaceholder}
-                className="w-full border-none bg-transparent text-sm text-ink-900 outline-none placeholder:text-ink-400"
+                className="workspace-search-input"
               />
             </div>
           </div>
@@ -154,10 +154,10 @@ const WorkspaceDataTable = ({
       {toolbarContent ? <div className="mt-5">{toolbarContent}</div> : null}
 
       {sortedRows.length > 0 ? (
-        <div className="mt-5 overflow-hidden rounded-[20px] border border-ink-100 bg-white">
+        <div className="mt-5 overflow-hidden rounded-[24px] border border-ink-100 bg-white/92 shadow-soft">
           <div className="max-w-full overflow-x-auto">
             <table className="min-w-full text-left text-sm">
-              <thead className="sticky top-0 z-10 bg-[rgba(251,248,242,0.96)] backdrop-blur">
+              <thead className="sticky top-0 z-10 bg-[rgba(247,250,252,0.96)] backdrop-blur">
                 <tr className="border-b border-ink-100">
                   {columns.map((column) => {
                     const isSortable = typeof column.sortValue === "function";
@@ -202,7 +202,7 @@ const WorkspaceDataTable = ({
                 {sortedRows.map((row, rowIndex) => (
                   <tr
                     key={rowKey ? rowKey(row, rowIndex) : row._id || row.id || rowIndex}
-                    className="transition hover:bg-sand-50/65"
+                    className="transition hover:bg-mist-50/70"
                   >
                     {columns.map((column) => (
                       <td
@@ -221,7 +221,7 @@ const WorkspaceDataTable = ({
           </div>
         </div>
       ) : (
-        <div className="mt-5 rounded-[20px] border border-dashed border-ink-200 bg-sand-50 px-6 py-12 text-center">
+        <div className="mt-5 rounded-[24px] border border-dashed border-ink-200 bg-mist-50 px-6 py-12 text-center">
           <p className="text-lg font-semibold text-ink-900">{emptyTitle}</p>
           <p className="mt-2 text-sm leading-6 text-ink-500">{emptyDescription}</p>
           {emptyActions ? <div className="mt-5 flex flex-wrap justify-center gap-3">{emptyActions}</div> : null}

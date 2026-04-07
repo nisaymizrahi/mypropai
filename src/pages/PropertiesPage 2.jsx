@@ -7,30 +7,38 @@ import { getProperties } from "../utils/api";
 import { buildPropertyWorkspacePath } from "../utils/propertyWorkspaceNavigation";
 
 const propertyViewOptions = [
-  { id: "all", label: "All" },
+  { id: "all", label: "All properties" },
   { id: "ready", label: "Ready" },
   { id: "setup", label: "Needs setup" },
 ];
+
+const SummaryCard = ({ label, value, detail }) => (
+  <div className="metric-tile p-5">
+    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-400">{label}</p>
+    <p className="mt-4 text-3xl font-semibold text-ink-900">{value}</p>
+    <p className="mt-3 text-sm leading-6 text-ink-500">{detail}</p>
+  </div>
+);
 
 const FilterButton = ({ label, count, isActive, onClick }) => (
   <button
     type="button"
     onClick={onClick}
-    className={`toolbar-chip ${isActive ? "toolbar-chip-active" : ""}`}
+    className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition ${
+      isActive
+        ? "bg-ink-900 text-white"
+        : "bg-white text-ink-600 ring-1 ring-ink-100 hover:bg-ink-50"
+    }`}
   >
     <span>{label}</span>
     <span
       className={`rounded-full px-2.5 py-0.5 text-xs ${
-        isActive ? "bg-white/15 text-white" : "bg-mist-50 text-ink-500"
+        isActive ? "bg-white/15 text-white" : "bg-sand-50 text-ink-500"
       }`}
     >
       {count}
     </span>
   </button>
-);
-
-const StatusPill = ({ label, tone }) => (
-  <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${tone}`}>{label}</span>
 );
 
 const formatCurrency = (value) => {
@@ -64,7 +72,7 @@ const formatPropertyDetails = (property) => {
       : null,
   ].filter(Boolean);
 
-  return bits.join(" • ") || "Add core property details";
+  return bits.join(" • ") || "Shared property profile is still light";
 };
 
 const formatListingSummary = (property) => {
@@ -84,64 +92,111 @@ const getPropertyWorkspaceState = (property) => {
   const hasPipeline = Boolean(property?.workspaces?.pipeline);
   const isActive = Boolean(property?.workspaces?.pipeline?.inPropertyWorkspace);
   const hasAcquisitions = Boolean(property?.workspaces?.acquisitions);
+  const hasManagement = Boolean(property?.workspaces?.management);
   const needsSetup = !isActive && !hasAcquisitions;
 
   if (isActive && hasAcquisitions) {
     return {
-      headline: "Ready",
-      detail: "All main workspace tabs are available.",
-      tone: "bg-verdigris-50 text-verdigris-700",
+      hasPipeline,
+      isActive,
+      hasAcquisitions,
+      hasManagement,
+      needsSetup,
+      headline: "Fully ready",
+      detail: "Overview, financials, work, documents, and analysis are available.",
       actionLabel: "Open workspace",
       actionPath: buildPropertyWorkspacePath(property.propertyKey),
-      needsSetup,
     };
   }
 
   if (hasAcquisitions) {
     return {
-      headline: hasPipeline ? "Needs analysis" : "Financials ready",
-      detail: hasPipeline
-        ? "Activate the linked lead for comps and reports."
-        : "Add a lead when you want analysis.",
-      tone: "bg-sky-50 text-sky-700",
-      actionLabel: hasPipeline ? "Open settings" : "Open workspace",
-      actionPath: hasPipeline
-        ? buildPropertyWorkspacePath(property.propertyKey, "settings")
-        : buildPropertyWorkspacePath(property.propertyKey),
+      hasPipeline,
+      isActive,
+      hasAcquisitions,
+      hasManagement,
       needsSetup,
+      headline: "Financials ready",
+      detail: "Financials, work, and documents are ready. Add or activate a lead for analysis.",
+      actionLabel: "Open workspace",
+      actionPath: buildPropertyWorkspacePath(property.propertyKey),
     };
   }
 
   if (isActive) {
     return {
-      headline: "Needs financials",
-      detail: "Add financials for budgets, documents, and execution.",
-      tone: "bg-sand-50 text-ink-700",
+      hasPipeline,
+      isActive,
+      hasAcquisitions,
+      hasManagement,
+      needsSetup,
+      headline: "Analysis ready",
+      detail: "Lead-linked analysis is active. Add acquisitions when you need financials and documents.",
       actionLabel: "Open workspace",
       actionPath: buildPropertyWorkspacePath(property.propertyKey),
-      needsSetup,
     };
   }
 
   if (hasPipeline) {
     return {
-      headline: "Activate analysis",
-      detail: "Turn on the linked lead inside Property Workspace.",
-      tone: "bg-sand-50 text-ink-700",
-      actionLabel: "Open settings",
-      actionPath: buildPropertyWorkspacePath(property.propertyKey, "settings"),
+      hasPipeline,
+      isActive,
+      hasAcquisitions,
+      hasManagement,
       needsSetup,
+      headline: "Lead linked",
+      detail: "Open Settings to activate the workspace or add acquisitions.",
+      actionLabel: "Finish setup",
+      actionPath: buildPropertyWorkspacePath(property.propertyKey, "settings"),
     };
   }
 
   return {
-    headline: "Needs setup",
-    detail: "Start here, then add a lead or financials when needed.",
-    tone: "bg-clay-50 text-clay-700",
-    actionLabel: "Open settings",
-    actionPath: buildPropertyWorkspacePath(property.propertyKey, "settings"),
+    hasPipeline,
+    isActive,
+    hasAcquisitions,
+    hasManagement,
     needsSetup,
+    headline: "Needs setup",
+    detail: "Start with the property record now, then link leads or financials when you need them.",
+    actionLabel: "Finish setup",
+    actionPath: buildPropertyWorkspacePath(property.propertyKey, "settings"),
   };
+};
+
+const renderWorkspaceChips = (state) => {
+  const chips = [];
+
+  chips.push(
+    state.isActive
+      ? { label: "Workspace active", tone: "bg-verdigris-50 text-verdigris-700" }
+      : state.hasPipeline
+        ? { label: "Lead linked", tone: "bg-sand-50 text-ink-700" }
+        : { label: "No lead", tone: "bg-clay-50 text-clay-700" }
+  );
+
+  chips.push(
+    state.hasAcquisitions
+      ? { label: "Financials ready", tone: "bg-sky-50 text-sky-700" }
+      : { label: "Needs acquisitions", tone: "bg-clay-50 text-clay-700" }
+  );
+
+  if (state.hasManagement) {
+    chips.push({ label: "Management linked", tone: "bg-verdigris-50 text-verdigris-700" });
+  }
+
+  return (
+    <div className="flex flex-wrap gap-2">
+      {chips.map((chip) => (
+        <span
+          key={chip.label}
+          className={`rounded-full px-3 py-1 text-xs font-semibold ${chip.tone}`}
+        >
+          {chip.label}
+        </span>
+      ))}
+    </div>
+  );
 };
 
 const PropertiesPage = () => {
@@ -248,19 +303,24 @@ const PropertiesPage = () => {
         ),
       },
       {
-        id: "status",
+        id: "setup",
         label: "Status",
         sortValue: (property) => getPropertyWorkspaceState(property).headline,
         render: (property) => {
           const state = getPropertyWorkspaceState(property);
 
           return (
-            <div className="space-y-2">
-              <StatusPill label={state.headline} tone={state.tone} />
-              <p className="text-sm text-ink-500">{state.detail}</p>
+            <div>
+              <p className="font-medium text-ink-800">{state.headline}</p>
+              <p className="mt-1 text-sm leading-6 text-ink-500">{state.detail}</p>
             </div>
           );
         },
+      },
+      {
+        id: "workspaces",
+        label: "Workspaces",
+        render: (property) => renderWorkspaceChips(getPropertyWorkspaceState(property)),
       },
       {
         id: "updated",
@@ -270,7 +330,7 @@ const PropertiesPage = () => {
           <div>
             <p className="font-medium text-ink-800">{formatDate(property.updatedAt || property.createdAt)}</p>
             <p className="mt-1 text-sm text-ink-500">
-              {property.workspaces?.pipeline?.status || "No lead stage"}
+              {property.workspaces?.pipeline?.status || "No linked lead stage"}
             </p>
           </div>
         ),
@@ -286,7 +346,7 @@ const PropertiesPage = () => {
             <div className="flex justify-end">
               <Link
                 to={state.actionPath}
-                className="secondary-action min-h-0 px-3.5 py-2 text-xs"
+                className="inline-flex items-center rounded-full bg-ink-900 px-3.5 py-2 text-xs font-semibold text-white transition hover:bg-ink-800"
               >
                 {state.actionLabel}
               </Link>
@@ -299,25 +359,34 @@ const PropertiesPage = () => {
   );
 
   if (loading) {
-    return <div className="section-card px-6 py-10 text-center text-ink-500">Loading properties...</div>;
+    return (
+      <div className="section-card px-6 py-10 text-center text-ink-500">
+        Loading properties...
+      </div>
+    );
   }
 
   if (error) {
-    return <div className="section-card px-6 py-10 text-center text-clay-700">{error}</div>;
+    return (
+      <div className="section-card px-6 py-10 text-center text-clay-700">
+        {error}
+      </div>
+    );
   }
 
   return (
     <div className="space-y-6">
       <section className="surface-panel-strong relative overflow-hidden px-6 py-7 sm:px-8">
         <div className="absolute inset-y-0 right-0 hidden w-1/3 bg-[radial-gradient(circle_at_center,rgba(59,143,129,0.18),transparent_62%)] lg:block" />
-        <div className="relative grid gap-8 lg:grid-cols-[minmax(0,1.05fr)_320px]">
+        <div className="relative grid gap-8 lg:grid-cols-[minmax(0,1.05fr)_minmax(320px,0.95fr)]">
           <div>
             <span className="eyebrow">Properties</span>
             <h2 className="mt-5 text-4xl font-semibold tracking-tight text-ink-900">
-              One clean home for every property.
+              Every property record in one place.
             </h2>
             <p className="mt-4 max-w-2xl text-base leading-7 text-ink-500">
-              Open ready workspaces fast, spot what still needs setup, and keep every record easy to find.
+              Browse active workspaces, direct-created property records, and anything that still
+              needs setup without jumping between stitched systems.
             </p>
 
             <div className="mt-8 flex flex-wrap gap-3">
@@ -330,7 +399,7 @@ const PropertiesPage = () => {
             </div>
           </div>
 
-          <div className="visual-feature-card p-6">
+          <div className="section-card p-6">
             <div className="flex items-center justify-between gap-4">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-400">
@@ -343,12 +412,12 @@ const PropertiesPage = () => {
               </div>
             </div>
 
-            <div className="mt-7 space-y-3">
+            <div className="mt-8 space-y-3">
               <div className="flex items-center justify-between rounded-[18px] bg-white px-4 py-3 ring-1 ring-ink-100">
                 <span className="text-sm font-medium text-ink-600">Ready</span>
                 <span className="text-sm font-semibold text-ink-900">{summary.ready}</span>
               </div>
-              <div className="flex items-center justify-between rounded-[18px] bg-mist-50 px-4 py-3">
+              <div className="flex items-center justify-between rounded-[18px] bg-sand-50 px-4 py-3">
                 <span className="text-sm font-medium text-ink-600">Needs setup</span>
                 <span className="text-sm font-semibold text-ink-900">{summary.needsSetup}</span>
               </div>
@@ -361,9 +430,32 @@ const PropertiesPage = () => {
         </div>
       </section>
 
+      <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+        <SummaryCard
+          label="All properties"
+          value={summary.total}
+          detail="Every shared property record you have access to."
+        />
+        <SummaryCard
+          label="Ready"
+          value={summary.ready}
+          detail="Properties with an active lead workspace or acquisitions layer already in place."
+        />
+        <SummaryCard
+          label="Needs setup"
+          value={summary.needsSetup}
+          detail="Records that still need lead activation or acquisitions setup."
+        />
+        <SummaryCard
+          label="Listed"
+          value={summary.listed}
+          detail="Properties still carrying sale status or asking price data."
+        />
+      </section>
+
       <WorkspaceDataTable
         title="Property records"
-        description="Search and jump to the next action."
+        description="Search, filter, and jump straight into the right workspace state."
         columns={propertyColumns}
         rows={visibleProperties}
         rowKey={(property) => property.propertyKey}
@@ -394,7 +486,7 @@ const PropertiesPage = () => {
               })}
             </div>
 
-            <div className="workspace-counter-pill">
+            <div className="rounded-full bg-sand-100 px-4 py-2 text-sm font-semibold text-ink-600">
               Showing {visibleProperties.length} of {filteredProperties.length}
             </div>
           </div>
@@ -410,8 +502,10 @@ const PropertiesPage = () => {
         }
         emptyDescription={
           properties.length === 0
-            ? "Add the first property to start the workspace."
-            : "Try a different search term or switch filters."
+            ? "Add the first property record to start the new property-centric workflow."
+            : viewFilter === "setup"
+              ? "Try a different search term or switch filters."
+              : "Try a different search term or switch filters."
         }
         emptyActions={
           properties.length === 0 ? (

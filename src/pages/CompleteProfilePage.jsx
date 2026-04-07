@@ -4,6 +4,7 @@ import { ArrowRightIcon } from "@heroicons/react/24/outline";
 
 import BrandLogo from "../components/BrandLogo";
 import PublicLegalLinks from "../components/PublicLegalLinks";
+import Seo from "../components/Seo";
 import { useAuth } from "../context/AuthContext";
 import { completeUserProfile } from "../utils/api";
 
@@ -77,10 +78,16 @@ const CompleteProfilePage = () => {
 
   return (
     <div className="public-shell min-h-screen text-ink-900">
+      <Seo
+        title="Finish setup | Fliprop"
+        description="Finish your Fliprop profile and enter the lead, deal analysis, and project workflow."
+        path="/complete-profile"
+        section="auth"
+      />
       <div className="mx-auto flex min-h-screen max-w-[1180px] flex-col px-4 py-4 sm:px-6 lg:px-8">
         <header className="surface-panel flex items-center justify-between gap-4 px-5 py-4">
           <Link to="/" className="flex items-center gap-3">
-            <BrandLogo caption="Google onboarding" />
+            <BrandLogo caption="Finish setup" />
           </Link>
 
           <div className="rounded-full bg-sand-100 px-4 py-2 text-sm font-semibold text-ink-700">
@@ -93,11 +100,11 @@ const CompleteProfilePage = () => {
             <section className="surface-panel-strong px-6 py-7 sm:px-8 reveal-up">
               <span className="eyebrow">Complete your workspace profile</span>
               <h1 className="mt-5 max-w-3xl font-display text-[2.9rem] leading-[0.96] text-ink-900 sm:text-[3.6rem]">
-                Finish the details Google didn&apos;t cover.
+                Finish the details Google did not cover.
               </h1>
               <p className="mt-4 max-w-2xl text-sm leading-7 text-ink-600 sm:text-base">
-                We already secured your account. Add the contact details you want attached to the
-                workspace and confirm the legal terms before entering the app.
+                We already secured the account. Add the contact details you want attached to the
+                workspace, confirm the legal terms, and then go straight into the lead flow.
               </p>
 
               <div className="section-card mt-6 p-5">
@@ -109,6 +116,23 @@ const CompleteProfilePage = () => {
                   Your Google email is already linked. You can add or update the rest of your
                   operator profile here.
                 </p>
+              </div>
+
+              <div className="section-card mt-4 p-5">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-400">
+                  What happens next
+                </p>
+                <div className="soft-list mt-4">
+                  {[
+                    "Your workspace opens to the lead flow after this step.",
+                    "You can still edit company and phone details later.",
+                    "Nothing here changes your Google sign-in connection.",
+                  ].map((item) => (
+                    <div key={item} className="py-3 first:pt-0 last:pb-0">
+                      <p className="text-sm leading-6 text-ink-600">{item}</p>
+                    </div>
+                  ))}
+                </div>
               </div>
             </section>
 

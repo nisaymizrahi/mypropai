@@ -274,6 +274,20 @@ export const getLeadSummary = async () => {
   return res.json();
 };
 
+export const searchMarketDealMatches = async (data) => {
+  const res = await fetch(`${API_BASE_URL}/market-search/deal-search`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(data),
+  });
+
+  if (!res.ok) {
+    throw new Error(await getErrorMessage(res, "Failed to analyze the market search brief"));
+  }
+
+  return res.json();
+};
+
 export const searchMarketSaleListings = async (data) => {
   const res = await fetch(`${API_BASE_URL}/market-search/sale-listings/search`, {
     method: "POST",

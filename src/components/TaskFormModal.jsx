@@ -125,7 +125,7 @@ const TaskFormModal = ({
           <button
             type="button"
             onClick={onClose}
-            className="flex h-10 w-10 items-center justify-center rounded-[14px] border border-ink-100 bg-white text-ink-600"
+            className="flex h-10 w-10 items-center justify-center rounded-[14px] border border-ink-100 bg-white/92 text-ink-600 shadow-soft"
           >
             <span className="sr-only">Close</span>
             <span aria-hidden="true">×</span>

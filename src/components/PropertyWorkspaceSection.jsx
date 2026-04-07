@@ -44,7 +44,7 @@ const PropertyWorkspaceSection = ({
       <div className="flex flex-col gap-3 border-b border-ink-100 px-5 py-4 sm:flex-row sm:items-start sm:justify-between sm:px-6">
         <button type="button" onClick={handleToggle} className="min-w-0 flex-1 text-left">
           <div className="flex items-start gap-3">
-            <div className="mt-0.5 rounded-full bg-ink-100 p-1.5 text-ink-700">
+            <div className="mt-0.5 rounded-full bg-mist-100 p-1.5 text-ink-700">
               {isOpen ? <ChevronUpIcon className="h-4 w-4" /> : <ChevronDownIcon className="h-4 w-4" />}
             </div>
             <div className="min-w-0">

@@ -39,6 +39,8 @@ const buildFeatureCollection = (listings = []) => ({
         photoUrl: listing.photoUrl || "",
         propertyType: listing.propertyType || "",
         existingLeadId: listing.existingLeadId || "",
+        verdict: listing.match?.verdict || "",
+        score: listing.match?.score ?? null,
       },
     })),
 });
@@ -133,6 +135,8 @@ const buildPopupContent = (listing) => {
   detailNode.className = "market-search-popup-meta";
   detailNode.style.marginTop = "0.4rem";
   detailNode.textContent = [
+    listing?.match?.score ? `${listing.match.score}/100 fit` : null,
+    listing?.match?.verdict ? String(listing.match.verdict).replace(/(^\w)/, (char) => char.toUpperCase()) : null,
     listing.propertyType || null,
     listing.daysOnMarket ? `${listing.daysOnMarket} DOM` : null,
     listing.yearBuilt ? `Built ${listing.yearBuilt}` : null,
@@ -344,13 +348,11 @@ const MarketSearchMap = ({
             "case",
             ["has", "existingLeadId"],
             "#435f59",
-            ["<=", ["coalesce", ["to-number", ["get", "price"]], 0], 0],
-            "#1c1713",
-            ["<", ["coalesce", ["to-number", ["get", "price"]], 0], 350000],
-            "#435f59",
-            ["<", ["coalesce", ["to-number", ["get", "price"]], 0], 750000],
-            "#6d7f5d",
+            ["==", ["get", "verdict"], "strong"],
+            "#2f7665",
+            ["==", ["get", "verdict"], "weak"],
             "#a8735b",
+            "#6d7f5d",
           ],
           "circle-stroke-color": "#ffffff",
           "circle-stroke-width": [

@@ -10,25 +10,25 @@ import { useAuth } from "../context/AuthContext";
 import { trackAnalyticsEvent } from "../utils/analytics";
 import { loginUser } from "../utils/api";
 
-const workspaceNotes = [
+const signInNotes = [
   {
-    title: "Deals",
-    description: "Jump back into pricing, comps, and decisions fast.",
+    title: "Lead first",
+    description: "Pick up the address, seller context, and next action without hunting through notes.",
   },
   {
-    title: "Work",
-    description: "Open tasks, vendors, documents, and property work in one place.",
+    title: "Decision next",
+    description: "Reopen comps, modeled ROI, and the latest recommendation from the same record.",
   },
   {
-    title: "Reporting",
-    description: "Pick up saved analysis and reports without hunting for context.",
+    title: "Project after",
+    description: "Move straight into project tasks, vendors, and documents when the deal is already active.",
   },
 ];
 
-const accessPrinciples = [
+const trustNotes = [
   "Google and email sign in stay on one screen.",
   "Password recovery is one click away.",
-  "Legal links stay close to the form.",
+  "Your workspace opens to the lead flow after sign-in.",
 ];
 
 const oauthMessages = {
@@ -98,15 +98,15 @@ const LoginPage = () => {
   return (
     <div className="public-shell min-h-screen text-ink-900">
       <Seo
-        title="Workspace login | Fliprop"
-        description="Sign in to your Fliprop workspace for acquisitions, execution, and ongoing property work."
+        title="Sign in | Fliprop"
+        description="Sign in to your Fliprop workspace to resume the lead, deal analysis, and project workflow."
         path="/login"
         section="auth"
       />
       <div className="mx-auto flex min-h-screen max-w-[1240px] flex-col px-4 py-4 sm:px-6 lg:px-8">
-        <header className="surface-panel flex items-center justify-between gap-4 px-5 py-4">
+        <header className="surface-panel-strong flex items-center justify-between gap-4 px-5 py-4">
           <Link to="/" className="flex items-center gap-3">
-            <BrandLogo caption="Workspace access" />
+            <BrandLogo caption="Sign in" />
           </Link>
 
           <div className="flex items-center gap-2.5">
@@ -119,20 +119,21 @@ const LoginPage = () => {
         <main className="flex flex-1 items-center py-10 lg:py-12">
           <div className="grid w-full gap-6 lg:grid-cols-[minmax(0,1fr)_420px] lg:gap-8">
             <section className="flex flex-col justify-center reveal-up">
-              <span className="eyebrow">Workspace login</span>
+              <span className="eyebrow">Sign in</span>
               <h1 className="mt-5 max-w-3xl font-display text-[2.9rem] leading-[0.96] text-balance text-ink-900 sm:text-[3.6rem]">
-                Sign in to your Fliprop workspace.
+                Sign back in and pick up the deal where you left it.
               </h1>
               <p className="mt-5 max-w-2xl text-sm leading-7 text-ink-600 sm:text-base">
-                Access deals, financials, tasks, documents, and property workflows in one place.
+                Fliprop is built so the lead, the buy case, and the project workspace stay connected.
+                Signing back in should feel like resuming work, not re-finding context.
               </p>
 
               <div className="surface-panel mt-7 p-5">
                 <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-ink-400">
-                  Built for
+                  What you return to
                 </p>
                 <div className="soft-list mt-4">
-                  {workspaceNotes.map((note) => (
+                  {signInNotes.map((note) => (
                     <div key={note.title} className="py-4 first:pt-0 last:pb-0">
                       <h2 className="text-sm font-medium text-ink-900">{note.title}</h2>
                       <p className="mt-2 text-sm leading-6 text-ink-600">{note.description}</p>
@@ -143,9 +144,9 @@ const LoginPage = () => {
 
               <div className="section-card mt-4 p-5">
                 <div className="soft-list">
-                  {accessPrinciples.map((principle) => (
-                    <div key={principle} className="py-3 first:pt-0 last:pb-0">
-                      <p className="text-sm leading-6 text-ink-600">{principle}</p>
+                  {trustNotes.map((note) => (
+                    <div key={note} className="py-3 first:pt-0 last:pb-0">
+                      <p className="text-sm leading-6 text-ink-600">{note}</p>
                     </div>
                   ))}
                 </div>
