@@ -133,7 +133,7 @@ describe("DashboardLayout", () => {
   it("opens the mounted command palette from the sidebar search trigger", async () => {
     renderLayout("/leads");
 
-    fireEvent.click(screen.getByRole("button", { name: /jump to property, deal, or task/i }));
+    fireEvent.click(screen.getByRole("button", { name: /jump to project, deal, or task/i }));
 
     expect(await screen.findByText("Command palette open")).toBeInTheDocument();
   });
@@ -141,7 +141,7 @@ describe("DashboardLayout", () => {
   it("shows the five most recent deals in descending freshness order", async () => {
     renderLayout("/leads");
 
-    const recentDealsSection = await screen.findByLabelText("Recent deals");
+    const recentDealsSection = await screen.findByLabelText("Recent projects");
     const links = within(recentDealsSection).getAllByRole("link");
 
     expect(links).toHaveLength(5);
@@ -161,7 +161,7 @@ describe("DashboardLayout", () => {
 
     await waitFor(() => expect(getProperties).toHaveBeenCalled());
 
-    expect(screen.queryByLabelText("Recent deals")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Recent projects")).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Pipeline" })).toHaveAttribute("aria-current", "page");
   });
 });
