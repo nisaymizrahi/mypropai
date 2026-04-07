@@ -1,10 +1,14 @@
-import React from "react";
+import React, { useState } from "react";
 import { Link, NavLink } from "react-router-dom";
-import { ArrowRightIcon } from "@heroicons/react/24/outline";
+import { ArrowRightIcon, Bars3Icon, XMarkIcon } from "@heroicons/react/24/outline";
 
 import BrandLogo from "./BrandLogo";
 import PublicLegalLinks from "./PublicLegalLinks";
-import { marketingNavItems, pricingModel, resourceArticles } from "../content/marketingContent";
+import {
+  marketingNavItems,
+  marketingSecondaryNavItems,
+  pricingModel,
+} from "../content/marketingContent";
 import { trackMarketingEvent } from "../utils/analytics";
 
 const footerCollections = [
@@ -14,23 +18,18 @@ const footerCollections = [
       { label: "Homepage", to: "/" },
       { label: "Product", to: "/product" },
       { label: "Pricing", to: "/pricing" },
-      { label: "Compare", to: "/compare/flipper-force" },
-      { label: "About", to: "/about" },
     ],
   },
   {
-    title: "Resources",
-    links: resourceArticles.map((article) => ({
-      label: article.title,
-      to: `/resources/${article.slug}`,
-    })),
+    title: "Explore",
+    links: marketingSecondaryNavItems,
   },
 ];
 
 const navLinkClassName = ({ isActive }) =>
-  `rounded-full px-3 py-2 transition ${
+  `segmented-option ${
     isActive
-      ? "bg-white text-ink-900 shadow-sm"
+      ? "segmented-option-active"
       : "text-ink-500 hover:bg-white/80 hover:text-ink-900"
   }`;
 
@@ -68,70 +67,121 @@ const trackDatasetEvent = (event) => {
 };
 
 function MarketingLayout({ children }) {
+  const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
+
   return (
     <div className="public-shell min-h-screen text-ink-900" onClickCapture={trackDatasetEvent}>
       <div className="mx-auto flex min-h-screen max-w-[1280px] flex-col px-4 py-4 sm:px-6 lg:px-8">
-        <header className="surface-panel sticky top-4 z-30 flex flex-wrap items-center gap-4 px-5 py-4 backdrop-blur-md">
-          <Link to="/" className="shrink-0">
-            <BrandLogo caption="Real estate workspace for operators" />
-          </Link>
+        <header className="surface-panel-strong sticky top-4 z-30 space-y-4 px-5 py-4 backdrop-blur-md">
+          <div className="flex flex-wrap items-start gap-4 lg:items-center">
+            <Link to="/" className="shrink-0">
+              <BrandLogo caption="Fix-and-flip workspace for operators" />
+            </Link>
 
-          <nav className="order-3 flex w-full flex-wrap items-center gap-1 rounded-full bg-white/50 p-1 text-sm lg:order-2 lg:ml-auto lg:w-auto">
-            {marketingNavItems.map((item) => (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                className={navLinkClassName}
-                data-analytics-event="marketing_nav_click"
-                data-analytics-label={item.label}
-                data-analytics-location="header_nav"
-                data-analytics-category="navigation"
+            <div className="ml-auto flex flex-wrap items-center gap-2">
+              <Link
+                to="/login"
+                className="ghost-action"
+                data-testid="home-nav-login"
+                data-analytics-event="marketing_cta_click"
+                data-analytics-label="Sign in"
+                data-analytics-location="header"
+                data-analytics-category="auth"
               >
-                {item.label}
-              </NavLink>
-            ))}
-          </nav>
-
-          <div className="order-2 ml-auto flex flex-wrap items-center gap-2 lg:order-3">
-            <Link
-              to="/login"
-              className="ghost-action"
-              data-testid="home-nav-login"
-              data-analytics-event="marketing_cta_click"
-              data-analytics-label="Workspace login"
-              data-analytics-location="header"
-              data-analytics-category="auth"
-            >
-              Workspace login
-            </Link>
-            <Link
-              to="/signup"
-              className="primary-action"
-              data-testid="home-nav-create-account"
-              data-analytics-event="marketing_cta_click"
-              data-analytics-label="Start free"
-              data-analytics-location="header"
-              data-analytics-category="conversion"
-            >
-              Start free
-              <ArrowRightIcon className="ml-2 h-4 w-4" />
-            </Link>
+                Sign in
+              </Link>
+              <Link
+                to="/signup"
+                className="primary-action"
+                data-testid="home-nav-create-account"
+                data-analytics-event="marketing_cta_click"
+                data-analytics-label="Start free"
+                data-analytics-location="header"
+                data-analytics-category="conversion"
+              >
+                Start free
+                <ArrowRightIcon className="ml-2 h-4 w-4" />
+              </Link>
+              <button
+                type="button"
+                onClick={() => setIsMoreMenuOpen((current) => !current)}
+                className="ghost-action lg:hidden"
+                aria-expanded={isMoreMenuOpen}
+                aria-label={isMoreMenuOpen ? "Close more links" : "Open more links"}
+              >
+                {isMoreMenuOpen ? <XMarkIcon className="h-4 w-4" /> : <Bars3Icon className="h-4 w-4" />}
+                {isMoreMenuOpen ? "Close" : "More"}
+              </button>
+            </div>
           </div>
+
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <nav className="segmented-control flex flex-wrap items-center gap-1 text-sm">
+              {marketingNavItems.map((item) => (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  className={navLinkClassName}
+                  data-analytics-event="marketing_nav_click"
+                  data-analytics-label={item.label}
+                  data-analytics-location="header_nav"
+                  data-analytics-category="navigation"
+                >
+                  {item.label}
+                </NavLink>
+              ))}
+            </nav>
+
+            <div className="hidden flex-wrap items-center gap-4 text-sm text-ink-500 lg:flex">
+              {marketingSecondaryNavItems.map((item) => (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  className="transition hover:text-ink-900"
+                  data-analytics-event="marketing_nav_click"
+                  data-analytics-label={item.label}
+                  data-analytics-location="header_secondary_nav"
+                  data-analytics-category="navigation"
+                >
+                  {item.label}
+                </NavLink>
+              ))}
+            </div>
+          </div>
+
+          {isMoreMenuOpen ? (
+            <div className="grid gap-2 rounded-[22px] border border-ink-100 bg-white/80 p-4 lg:hidden">
+              {marketingSecondaryNavItems.map((item) => (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  onClick={() => setIsMoreMenuOpen(false)}
+                  className="rounded-[14px] px-3 py-2 text-sm text-ink-600 transition hover:bg-sand-50 hover:text-ink-900"
+                  data-analytics-event="marketing_nav_click"
+                  data-analytics-label={item.label}
+                  data-analytics-location="mobile_more_menu"
+                  data-analytics-category="navigation"
+                >
+                  {item.label}
+                </NavLink>
+              ))}
+            </div>
+          ) : null}
         </header>
 
         <main className="marketing-stage flex-1 space-y-6 py-10 lg:py-12">{children}</main>
 
         <footer className="pb-8">
           <div className="marketing-spotlight px-6 py-6 sm:px-7">
-            <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_220px_300px]">
+            <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_220px_220px]">
               <div>
                 <span className="eyebrow">Fliprop</span>
                 <h2 className="mt-4 max-w-xl font-display text-[2rem] leading-none text-ink-900">
-                  One workspace for acquisitions, execution, and property operations.
+                  Go from lead to rehab-ready workspace without rebuilding the deal in three tools.
                 </h2>
                 <p className="mt-4 max-w-2xl text-sm leading-7 text-ink-600 sm:text-base">
-                  Start with the core operating system, then upgrade when recurring premium analysis,
-                  reporting, and credits become part of the weekly workflow.
+                  Start free, centralize the lead and project first, then turn on Pro when recurring
+                  deal analysis becomes part of the weekly workflow.
                 </p>
                 <div className="mt-5 flex flex-wrap gap-3">
                   <Link

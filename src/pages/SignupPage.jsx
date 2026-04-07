@@ -12,23 +12,23 @@ import { signupUser } from "../utils/api";
 
 const workspaceUseCases = [
   {
-    title: "Acquisitions",
-    description: "Keep pricing, notes, and decisions in one place.",
+    title: "Lead intake",
+    description: "Capture the address, seller context, and buy box notes without spreadsheet drift.",
   },
   {
-    title: "Execution",
-    description: "Coordinate tasks, vendors, and rehab work without tool sprawl.",
+    title: "Deal analysis",
+    description: "Run comps and keep the recommendation attached to the same record.",
   },
   {
-    title: "Property workspace",
-    description: "Keep documents, property context, and active work tied together.",
+    title: "Project workspace",
+    description: "Move the approved deal into scope, vendors, documents, and execution without starting over.",
   },
 ];
 
 const onboardingPromises = [
-  "Start on Starter, then activate Pro later with a 30-day trial when premium workflows become useful.",
+  "Starter is free, so you can organize the workflow before making a plan decision.",
   "Required fields stay tight: first name, last name, email, and password.",
-  "Google signup can collect missing details after sign-in.",
+  "Google signup can collect anything missing after sign-in.",
 ];
 
 const initialFormState = {
@@ -117,36 +117,37 @@ const SignupPage = () => {
   return (
     <div className="public-shell min-h-screen text-ink-900">
       <Seo
-        title="Create your workspace | Fliprop"
-        description="Start a Fliprop workspace for acquisitions, execution, and ongoing property work."
+        title="Start free | Fliprop"
+        description="Create a free Fliprop workspace for the lead, deal analysis, and project flow."
         path="/signup"
         section="auth"
       />
       <div className="mx-auto flex min-h-screen max-w-[1280px] flex-col px-4 py-4 sm:px-6 lg:px-8">
-        <header className="surface-panel flex items-center justify-between gap-4 px-5 py-4">
+        <header className="surface-panel-strong flex items-center justify-between gap-4 px-5 py-4">
           <Link to="/" className="flex items-center gap-3">
-            <BrandLogo caption="Workspace onboarding" />
+            <BrandLogo caption="Start free" />
           </Link>
 
           <Link to="/login" className="ghost-action">
-            Workspace login
+            Sign in
           </Link>
         </header>
 
         <main className="flex flex-1 items-center py-10 lg:py-12">
           <div className="grid w-full gap-6 lg:grid-cols-[minmax(0,1fr)_480px] lg:gap-8">
             <section className="flex flex-col justify-center reveal-up">
-              <span className="eyebrow">New workspace account</span>
+              <span className="eyebrow">Start free</span>
               <h1 className="mt-5 max-w-3xl font-display text-[2.9rem] leading-[0.96] text-balance text-ink-900 sm:text-[3.6rem]">
-                Create your Fliprop workspace.
+                Open your Fliprop workspace and run the first deal fast.
               </h1>
               <p className="mt-5 max-w-2xl text-sm leading-7 text-ink-600 sm:text-base">
-                Get one place for deals, property work, documents, and financial workflows.
+                The goal is simple: bring in the lead, pressure-test the deal, and move the winner
+                into project work without bouncing between tools.
               </p>
 
               <div className="surface-panel mt-7 p-5">
                 <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-ink-400">
-                  Built for
+                  Why operators start here
                 </p>
                 <div className="soft-list mt-4">
                   {workspaceUseCases.map((item) => (
@@ -170,12 +171,12 @@ const SignupPage = () => {
             </section>
 
             <section className="auth-card p-6 reveal-up" style={{ animationDelay: "90ms" }}>
-              <span className="eyebrow">Workspace onboarding</span>
+              <span className="eyebrow">Create account</span>
               <h2 className="mt-4 font-display text-[2.2rem] leading-none text-ink-900">
                 Create your account
               </h2>
               <p className="mt-3 text-sm leading-6 text-ink-500">
-                Start with email or continue with Google.
+                Start with email or continue with Google. Starter is free.
               </p>
 
               <button onClick={handleGoogleSignup} type="button" className="secondary-action mt-5 w-full">

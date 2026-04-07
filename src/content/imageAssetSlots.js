@@ -199,3 +199,11 @@ export const PHASE_ONE_IMAGE_ASSET_KEYS = [
   "acquisition.compsReportCover",
   "acquisition.createPropertyEntry",
 ];
+
+export const IMAGEGEN_ANCHOR_APPROVAL_KEYS = [
+  "marketing.homepageHero",
+  "account.authTrust",
+  "acquisition.leadsHero",
+  "acquisition.marketSearchVisual",
+  "workspace.propertyWorkspaceHeader",
+];

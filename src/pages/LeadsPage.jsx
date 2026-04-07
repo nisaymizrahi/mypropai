@@ -99,6 +99,9 @@ const buildLeadSearchText = (lead) =>
     .join(' ')
     .toLowerCase();
 
+const getLeadPropertyKey = (lead) =>
+  typeof lead?.property === 'object' ? lead.property?._id : lead?.property;
+
 const LeadCard = ({ lead, onClick, dragHandleProps }) => (
   <div
     {...dragHandleProps}
@@ -306,6 +309,48 @@ const LeadsPage = () => {
   );
 
   const portfolioSummary = useMemo(() => summarizeLeadPortfolio(allLeads), [allLeads]);
+  const analyzedLead = useMemo(
+    () => allLeads.find((lead) => Boolean(lead.compsAnalysis)) || null,
+    [allLeads]
+  );
+  const workspaceLead = useMemo(
+    () =>
+      allLeads.find((lead) => Boolean(getLeadPropertyKey(lead) && lead.inPropertyWorkspace)) ||
+      null,
+    [allLeads]
+  );
+  const projectWorkspaceCount = useMemo(
+    () =>
+      allLeads.filter((lead) => Boolean(getLeadPropertyKey(lead) && lead.inPropertyWorkspace)).length,
+    [allLeads]
+  );
+  const launchChecklist = useMemo(
+    () => [
+      {
+        title: 'Add the lead',
+        complete: allLeads.length > 0,
+        detail:
+          allLeads.length > 0
+            ? `${allLeads.length} lead${allLeads.length === 1 ? '' : 's'} already in the workspace.`
+            : 'Capture the address, seller context, and asking price first.',
+      },
+      {
+        title: 'Run deal analysis',
+        complete: Boolean(analyzedLead),
+        detail: analyzedLead?.address
+          ? `Analysis is already live for ${analyzedLead.address}.`
+          : 'Open a lead and run comps before committing more time to it.',
+      },
+      {
+        title: 'Open project workspace',
+        complete: Boolean(workspaceLead),
+        detail: workspaceLead?.address
+          ? `${workspaceLead.address} already has a project workspace.`
+          : 'Promote the winning lead into active project work when it is ready.',
+      },
+    ],
+    [allLeads.length, analyzedLead, workspaceLead]
+  );
 
   const visibleAnalyses = useMemo(
     () =>
@@ -352,107 +397,134 @@ const LeadsPage = () => {
       <section className="surface-panel px-6 py-6">
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_420px]">
           <div>
-            <span className="eyebrow">Lead pipeline</span>
+            <span className="eyebrow">Lead -&gt; deal analysis -&gt; project workspace</span>
             <h2 className="mt-4 font-display text-[2.4rem] leading-[0.96] text-ink-900">
-              Turn every lead into an instant go or no-go decision.
+              Keep the first decision path obvious.
             </h2>
             <p className="mt-4 max-w-2xl text-sm leading-7 text-ink-500 sm:text-base">
-              Fliprop now surfaces profit, ROI, risk, and AI judgment at a glance so your team can
-              scan the pipeline like a premium acquisitions desk instead of a spreadsheet backlog.
+              Start with the lead, pressure-test the deal fast, and move the winner into project
+              work without rebuilding the record in spreadsheets, docs, and task apps.
             </p>
 
             <div className="mt-6 flex flex-wrap gap-3">
               <button type="button" onClick={openUnifiedLeadCreator} className="primary-action">
                 <PlusIcon className="h-4 w-4" />
-                Add property
+                Add lead
               </button>
               <button
                 type="button"
-                onClick={() => navigate('/market-search')}
+                onClick={() => navigate(allLeads[0]?._id ? `/leads/${allLeads[0]._id}` : '/comps-report')}
                 className="secondary-action"
               >
-                <MagnifyingGlassIcon className="mr-2 h-4 w-4" />
-                Browse market
+                <SparklesIcon className="mr-2 h-4 w-4" />
+                Run comps report
               </button>
             </div>
+
+            <p className="mt-4 text-sm leading-6 text-ink-500">
+              Market Search is still available when you want more inventory.{' '}
+              <button
+                type="button"
+                onClick={() => navigate('/market-search')}
+                className="font-semibold text-ink-700 underline underline-offset-4"
+              >
+                Open Market Search
+              </button>
+            </p>
           </div>
 
           <div className="grid gap-4">
-            <div className="rounded-[28px] border border-ink-100 bg-[radial-gradient(circle_at_top_right,rgba(67,95,89,0.14),transparent_34%),linear-gradient(145deg,rgba(255,255,255,0.98),rgba(246,241,234,0.96))] p-5 shadow-[0_16px_38px_rgba(28,23,19,0.06)]">
-              <div className="flex items-start justify-between gap-4">
+            <div className="section-card p-5">
+              <div className="flex items-start justify-between gap-3">
                 <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-ink-400">
-                    Market search
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-ink-400">
+                    First deal checklist
                   </p>
                   <h3 className="mt-3 text-xl font-semibold tracking-tight text-ink-900">
-                    See live for-sale listings on the map
+                    {launchChecklist.filter((item) => item.complete).length}/3 steps completed
                   </h3>
                 </div>
-                <div className="flex h-12 w-12 items-center justify-center rounded-[18px] bg-white text-ink-900 shadow-sm ring-1 ring-ink-100">
-                  <MagnifyingGlassIcon className="h-5 w-5" />
+                <div className="rounded-full bg-sand-50 px-3 py-1 text-xs font-semibold text-ink-600 ring-1 ring-ink-100">
+                  Launch
                 </div>
               </div>
 
-              <p className="mt-4 text-sm leading-6 text-ink-600">
-                Search a city, ZIP, neighborhood, or address, browse inventory visually, and save promising properties straight into Potential Properties.
-              </p>
-
-              <div className="mt-4 flex flex-wrap gap-2">
-                <span className="rounded-full bg-white px-3 py-1.5 text-xs font-medium text-ink-600 ring-1 ring-ink-100">
-                  Map + list
-                </span>
-                <span className="rounded-full bg-white px-3 py-1.5 text-xs font-medium text-ink-600 ring-1 ring-ink-100">
-                  Filters
-                </span>
-                <span className="rounded-full bg-white px-3 py-1.5 text-xs font-medium text-ink-600 ring-1 ring-ink-100">
-                  Save to Potential Properties
-                </span>
-              </div>
-
-              <div className="mt-5">
-                <button
-                  type="button"
-                  onClick={() => navigate('/market-search')}
-                  className="primary-action"
-                >
-                  <MagnifyingGlassIcon className="mr-2 h-4 w-4" />
-                  Open Market Search
-                </button>
+              <div className="mt-4 space-y-3">
+                {launchChecklist.map((item) => (
+                  <div key={item.title} className="rounded-[16px] border border-ink-100 bg-white px-4 py-4">
+                    <div className="flex items-center gap-3">
+                      <span
+                        className={`h-2.5 w-2.5 rounded-full ${
+                          item.complete ? 'bg-verdigris-600' : 'bg-ink-200'
+                        }`}
+                      />
+                      <p className="text-sm font-medium text-ink-900">{item.title}</p>
+                    </div>
+                    <p className="mt-2 text-sm leading-6 text-ink-500">{item.detail}</p>
+                  </div>
+                ))}
               </div>
             </div>
 
-            {featuredAnalysis ? (
-              <>
-                <DealScoreCard
-                  score={featuredAnalysis.score}
-                  verdict={featuredAnalysis.verdict}
-                  title="Best live signal"
-                  label={featuredAnalysis.address}
-                  detail={`${featuredAnalysis.tone.label} with ${formatDealPercent(
-                    featuredAnalysis.roi
-                  )} ROI and ${formatDealCompactCurrency(featuredAnalysis.profit)} upside.`}
-                  assetPath={featuredAnalysis.assetPaths.score}
-                  compact
-                />
-                <AISummaryCard
-                  verdict={featuredAnalysis.verdict}
-                  headline={featuredAnalysis.aiSummary.headline}
-                  detail={featuredAnalysis.aiSummary.detail}
-                  recommendation={featuredAnalysis.aiSummary.recommendation}
-                  confidenceLabel={featuredAnalysis.aiSummary.confidenceLabel}
-                  bullets={featuredAnalysis.aiSummary.bullets}
-                  assetPath={featuredAnalysis.assetPaths.verdict}
-                  compact
-                />
-              </>
-            ) : (
-              <div className="section-card p-5">
-                <p className="text-sm text-ink-500">Add a few deals to unlock the live AI summary view.</p>
+            <div className="section-card p-5">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-ink-400">
+                Proof
+              </p>
+              <h3 className="mt-3 text-xl font-semibold tracking-tight text-ink-900">
+                {featuredAnalysis
+                  ? `${featuredAnalysis.address} is already decision-ready.`
+                  : 'Your first report becomes the proof asset for the whole workflow.'}
+              </h3>
+              <p className="mt-4 text-sm leading-6 text-ink-600">
+                {featuredAnalysis
+                  ? `${featuredAnalysis.score}/100 score, ${formatDealPercent(
+                      featuredAnalysis.roi
+                    )} ROI, and ${formatDealCompactCurrency(
+                      featuredAnalysis.profit
+                    )} modeled upside stay attached to the lead record.`
+                  : 'Once you run analysis, Fliprop keeps the verdict, ROI, and next recommendation attached to the same lead and project record.'}
+              </p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <span className="rounded-full bg-white px-3 py-1.5 text-xs font-medium text-ink-600 ring-1 ring-ink-100">
+                  {allLeads.length} active leads
+                </span>
+                <span className="rounded-full bg-white px-3 py-1.5 text-xs font-medium text-ink-600 ring-1 ring-ink-100">
+                  {portfolioSummary.analyses.length} scored deals
+                </span>
+                <span className="rounded-full bg-white px-3 py-1.5 text-xs font-medium text-ink-600 ring-1 ring-ink-100">
+                  {projectWorkspaceCount} project workspace{projectWorkspaceCount === 1 ? '' : 's'}
+                </span>
               </div>
-            )}
+            </div>
           </div>
         </div>
       </section>
+
+      {featuredAnalysis ? (
+        <section className="grid gap-4 xl:grid-cols-2">
+          <DealScoreCard
+            score={featuredAnalysis.score}
+            verdict={featuredAnalysis.verdict}
+            title="Featured decision signal"
+            label={featuredAnalysis.address}
+            detail={`${featuredAnalysis.tone.label} with ${formatDealPercent(
+              featuredAnalysis.roi
+            )} ROI and ${formatDealCompactCurrency(featuredAnalysis.profit)} upside.`}
+            assetPath={featuredAnalysis.assetPaths.score}
+            compact
+          />
+          <AISummaryCard
+            verdict={featuredAnalysis.verdict}
+            headline={featuredAnalysis.aiSummary.headline}
+            detail={featuredAnalysis.aiSummary.detail}
+            recommendation={featuredAnalysis.aiSummary.recommendation}
+            confidenceLabel={featuredAnalysis.aiSummary.confidenceLabel}
+            bullets={featuredAnalysis.aiSummary.bullets}
+            assetPath={featuredAnalysis.assetPaths.verdict}
+            compact
+          />
+        </section>
+      ) : null}
 
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         <DashboardStatCard
@@ -494,14 +566,14 @@ const LeadsPage = () => {
 
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h3 className="font-display text-[2rem] leading-none text-ink-900">Potential properties</h3>
+          <h3 className="font-display text-[2rem] leading-none text-ink-900">Leads</h3>
           <p className="mt-2 text-sm leading-6 text-ink-500">
-            Deal grid is tuned for scan speed. Pipeline board is still available when the team needs
-            drag-and-drop stage management.
+            Deal grid is tuned for fast go or no-go review. Pipeline board is still available when
+            you need stage management.
           </p>
         </div>
 
-        <div className="inline-flex flex-wrap items-center gap-2 rounded-full border border-ink-100 bg-white p-1">
+        <div className="segmented-control">
           {leadViewModes.map((mode) => {
             const Icon = mode.icon;
             const isActive = viewMode === mode.value;
@@ -511,9 +583,7 @@ const LeadsPage = () => {
                 key={mode.value}
                 type="button"
                 onClick={() => setViewMode(mode.value)}
-                className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition ${
-                  isActive ? 'bg-ink-900 text-white shadow-sm' : 'text-ink-600 hover:bg-white'
-                }`}
+                className={`segmented-option ${isActive ? 'segmented-option-active' : ''}`}
               >
                 <Icon className="h-4 w-4" />
                 {mode.label}
@@ -525,18 +595,20 @@ const LeadsPage = () => {
 
       <section className="section-card p-5 sm:p-6">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-          <div className="relative w-full xl:max-w-md">
-            <MagnifyingGlassIcon className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-400" />
-            <input
-              type="search"
-              value={searchValue}
-              onChange={(event) => setSearchValue(event.target.value)}
-              placeholder="Search address, seller, source, status, or next action"
-              className="w-full rounded-full border border-ink-100 bg-white py-3 pl-11 pr-4 text-sm text-ink-900 outline-none transition focus:border-verdigris-300 focus:ring-4 focus:ring-verdigris-100/60"
-            />
+          <div className="w-full xl:max-w-md">
+            <div className="workspace-search-shell">
+              <MagnifyingGlassIcon className="h-4 w-4 text-ink-400" />
+              <input
+                type="search"
+                value={searchValue}
+                onChange={(event) => setSearchValue(event.target.value)}
+                placeholder="Search address, seller, source, status, or next action"
+                className="workspace-search-input"
+              />
+            </div>
           </div>
-          <div className="rounded-full border border-ink-100 bg-white px-4 py-2 text-sm font-medium text-ink-600">
-            Showing {visibleAnalyses.length} of {allLeads.length}
+          <div className="workspace-counter-pill">
+            Showing {visibleLeads.length} of {allLeads.length}
           </div>
         </div>
 
@@ -546,11 +618,7 @@ const LeadsPage = () => {
               key={filterOption.value}
               type="button"
               onClick={() => setStatusFilter(filterOption.value)}
-              className={`rounded-full px-4 py-2 text-sm font-medium transition ${
-                statusFilter === filterOption.value
-                  ? 'bg-ink-900 text-white'
-                  : 'bg-white text-ink-600 hover:bg-sand-50'
-              }`}
+              className={`toolbar-chip ${statusFilter === filterOption.value ? 'toolbar-chip-active' : ''}`}
             >
               {filterOption.label} ({filterOption.count})
             </button>
@@ -581,13 +649,13 @@ const LeadsPage = () => {
             </p>
             <p className="mt-2 text-sm leading-6 text-ink-500">
               {allLeads.length === 0
-                ? 'Add your first property to unlock AI deal scoring, risk flags, and premium scanning cards.'
+                ? 'Add your first lead to unlock deal scoring, AI guidance, and the path into project work.'
                 : 'Try a different search or stage filter to bring the right opportunities back into view.'}
             </p>
             <div className="mt-5 flex flex-wrap justify-center gap-3">
               <button type="button" onClick={openUnifiedLeadCreator} className="primary-action">
                 <PlusIcon className="h-4 w-4" />
-                Add first property
+                Add first lead
               </button>
               <button type="button" onClick={() => navigate('/market-search')} className="secondary-action">
                 <MagnifyingGlassIcon className="mr-2 h-4 w-4" />
@@ -605,7 +673,7 @@ const LeadsPage = () => {
                 Drag deals from one stage to the next and keep the acquisition team aligned on the real pipeline.
               </p>
             </div>
-            <div className="rounded-full border border-ink-100 bg-white px-4 py-2 text-sm font-medium text-ink-600">
+            <div className="workspace-counter-pill">
               {visibleLeads.length} visible lead{visibleLeads.length === 1 ? '' : 's'}
             </div>
           </div>
@@ -683,13 +751,13 @@ const LeadsPage = () => {
               </p>
               <p className="mt-2 text-sm leading-6 text-ink-500">
                 {allLeads.length === 0
-                  ? 'Add your first property to start tracking pricing, notes, and deal progress in one place.'
+                  ? 'Add your first lead to start tracking pricing, notes, and deal progress in one place.'
                   : 'Try a different search term or stage filter to bring deals back into the board.'}
               </p>
               <div className="mt-5 flex flex-wrap justify-center gap-3">
                 <button type="button" onClick={openUnifiedLeadCreator} className="primary-action">
                   <PlusIcon className="h-4 w-4" />
-                  Add first property
+                  Add first lead
                 </button>
                 <button type="button" onClick={() => navigate('/market-search')} className="secondary-action">
                   <MagnifyingGlassIcon className="mr-2 h-4 w-4" />

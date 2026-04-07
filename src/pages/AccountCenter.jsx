@@ -84,8 +84,8 @@ const PreferenceOptionCard = ({
     onClick={onClick}
     className={`rounded-[18px] border px-4 py-4 text-left transition ${
       active
-        ? "border-verdigris-200 bg-verdigris-50 shadow-soft"
-        : "border-ink-100 bg-white hover:border-ink-200 hover:bg-sand-50"
+        ? "border-steel-200 bg-mist-50 shadow-soft"
+        : "border-ink-100 bg-white/92 hover:border-ink-200 hover:bg-mist-50"
     }`}
   >
     <div className="flex items-start justify-between gap-4">
@@ -94,7 +94,7 @@ const PreferenceOptionCard = ({
         <p className="mt-1 text-sm leading-6 text-ink-500">{description}</p>
       </div>
       {active ? (
-        <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-verdigris-700">
+        <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-steel-700 ring-1 ring-steel-100">
           Active
         </span>
       ) : null}

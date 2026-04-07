@@ -20,24 +20,25 @@ const propertyTypeOptions = [
 
 const workspaceModeOptions = [
   {
-    value: "property_only",
-    label: "Property only",
-    helper: "Start with the property.",
-  },
-  {
     value: "pipeline",
     label: "Lead + property",
-    helper: "Add analysis now.",
+    helper: "Recommended for the first deal flow.",
+    badge: "Recommended",
+  },
+  {
+    value: "property_only",
+    label: "Property only",
+    helper: "Start with the project record only.",
   },
   {
     value: "acquisitions",
     label: "Property + financials",
-    helper: "Add budgets and execution now.",
+    helper: "Advanced setup for financial work now.",
   },
   {
     value: "management",
     label: "Management-ready",
-    helper: "Add management now.",
+    helper: "Advanced setup for management now.",
   },
 ];
 
@@ -46,7 +47,7 @@ const workspaceModeMeta = {
     eyebrow: "New property",
     title: "Create the shared property first",
     description:
-      "Start with one clean property record. Add other workspaces later if you need them.",
+      "Start with one clean project record now and add the lead or other workspaces later if needed.",
     backTo: "/properties",
     backLabel: "Back to properties",
     submitLabel: "Create property",
@@ -61,15 +62,15 @@ const workspaceModeMeta = {
     eyebrow: "New property + lead",
     title: "Create the property and linked lead together",
     description:
-      "Create the property and lead together so analysis is ready right away.",
+      "This is the default launch path: create the property and lead together so deal analysis is ready right away.",
     backTo: "/leads",
     backLabel: "Back to leads",
     submitLabel: "Create property + lead",
-    successMessage: "Property and lead created.",
+    successMessage: "Lead and property created.",
     outcomes: [
-      "Property record",
       "Linked lead",
       "Analysis ready",
+      "Project workspace later",
     ],
   },
   acquisitions: {
@@ -110,12 +111,21 @@ const ModeCard = ({ option, isActive, onSelect }) => (
     onClick={() => onSelect(option.value)}
     className={`rounded-[22px] border p-4 text-left transition ${
       isActive
-        ? "border-ink-900 bg-ink-900 text-white shadow-[0_16px_30px_rgba(26,35,48,0.12)]"
-        : "border-ink-100 bg-white text-ink-700 hover:border-ink-200 hover:bg-ink-50"
+        ? "border-steel-900 bg-steel-900 text-white shadow-soft"
+        : "border-ink-100 bg-white/92 text-ink-700 hover:border-ink-200 hover:bg-mist-50"
     }`}
   >
     <div className="flex items-start justify-between gap-3">
       <div>
+        {option.badge ? (
+          <span
+            className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+              isActive ? "bg-white/15 text-white" : "bg-verdigris-50 text-verdigris-700"
+            }`}
+          >
+            {option.badge}
+          </span>
+        ) : null}
         <p className="text-sm font-semibold">{option.label}</p>
         <p className={`mt-2 text-sm leading-6 ${isActive ? "text-white/75" : "text-ink-500"}`}>
           {option.helper}
@@ -142,7 +152,7 @@ const normalizeWorkspaceKey = (value) => {
     return value;
   }
 
-  return "property_only";
+  return "pipeline";
 };
 
 const toOptionalNumber = (value) => {
@@ -256,7 +266,7 @@ const CreatePropertyPage = () => {
     ["acquisitions", "management"].includes(initialWorkspace)
   );
 
-  const currentMode = workspaceModeMeta[formData.workspaceKey] || workspaceModeMeta.property_only;
+  const currentMode = workspaceModeMeta[formData.workspaceKey] || workspaceModeMeta.pipeline;
   const visibleModeOptions = showAdvancedModes
     ? workspaceModeOptions
     : workspaceModeOptions.filter((option) => ["property_only", "pipeline"].includes(option.value));
@@ -420,15 +430,15 @@ const CreatePropertyPage = () => {
 
       const result = await createProperty(payload);
 
-      if (result.property?.propertyKey) {
+      if (formData.workspaceKey === "pipeline" && result.leadId) {
         toast.success(currentMode.successMessage);
-        navigate(buildPropertyWorkspacePath(result.property.propertyKey));
+        navigate(`/leads/${result.leadId}`);
         return;
       }
 
-      if (result.leadId) {
-        toast.success("Property created and linked lead added.");
-        navigate(`/leads/${result.leadId}`);
+      if (result.property?.propertyKey) {
+        toast.success(currentMode.successMessage);
+        navigate(buildPropertyWorkspacePath(result.property.propertyKey));
         return;
       }
 
@@ -461,7 +471,7 @@ const CreatePropertyPage = () => {
             </div>
           </div>
 
-          <div className="section-card p-5">
+          <div className="visual-feature-card p-5">
             <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-ink-400">
               Starts with
             </p>
@@ -488,19 +498,21 @@ const CreatePropertyPage = () => {
             <div>
               <span className="eyebrow">Starting mode</span>
               <h3 className="mt-4 text-2xl font-semibold text-ink-900">Start simple</h3>
-              <p className="mt-2 text-sm text-ink-500">You can add more later from Settings.</p>
+              <p className="mt-2 text-sm text-ink-500">
+                Lead + property is the recommended launch path. You can still open advanced setup when needed.
+              </p>
             </div>
             <button
               type="button"
               onClick={() => {
                 if (showAdvancedModes && ["acquisitions", "management"].includes(formData.workspaceKey)) {
-                  handleModeSelect("property_only");
+                  handleModeSelect("pipeline");
                 }
                 setShowAdvancedModes((current) => !current);
               }}
               className="ghost-action"
             >
-              {showAdvancedModes ? "Hide extra setup" : "Show financials + management"}
+              {showAdvancedModes ? "Hide advanced setup" : "Show advanced setup"}
             </button>
           </div>
 

@@ -1,6 +1,9 @@
 export const marketingNavItems = [
   { label: "Product", to: "/product" },
   { label: "Pricing", to: "/pricing" },
+];
+
+export const marketingSecondaryNavItems = [
   { label: "Compare", to: "/compare/flipper-force" },
   { label: "Resources", to: "/resources" },
   { label: "About", to: "/about" },
@@ -70,19 +73,19 @@ export const workflowPillars = [
 
 export const productModules = [
   {
-    title: "Potential Properties",
+    title: "Leads",
     summary:
-      "Keep incoming opportunities organized with pricing notes, ownership context, seller information, and decision-ready next steps.",
+      "Keep incoming opportunities organized with seller context, pricing notes, and decision-ready next steps.",
   },
   {
-    title: "Property Workspace",
+    title: "Project Workspace",
     summary:
-      "Run the asset from a central record with sections for overview, financials, work, documents, analysis, and settings.",
+      "Run the active project from one central record with overview, financials, work, documents, analysis, and settings.",
   },
   {
-    title: "AI Comps Reports",
+    title: "Deal Analysis",
     summary:
-      "Generate comps-driven pricing guidance and investor-ready reporting without exporting the deal into another tool.",
+      "Generate comps-driven pricing guidance and investor-ready reporting without exporting the lead into another tool.",
   },
   {
     title: "AI Investment Reports",
@@ -116,7 +119,7 @@ export const featureCollections = [
     title: "Deal intake and pipeline",
     description: "Capture everything the team needs before a lead becomes real work.",
     bullets: [
-      "Potential property pipeline",
+      "Lead pipeline",
       "Seller context and decision notes",
       "Pricing targets and follow-up steps",
     ],
@@ -131,8 +134,8 @@ export const featureCollections = [
     ],
   },
   {
-    title: "Property workspace",
-    description: "Open a shared record for the asset and keep every team member on the same page.",
+    title: "Project workspace",
+    description: "Open a shared record for the active project and keep every team member on the same page.",
     bullets: [
       "Overview and status tracking",
       "Financials and cost context",
@@ -299,35 +302,35 @@ export const comparisonSourceNote =
 
 export const pricingFacts = [
   {
-    label: "Pro trial",
+    label: "Starter",
+    value: "Free",
+    detail: "Open the workspace first and keep the launch flow simple.",
+  },
+  {
+    label: "Pro",
+    value: `${pricingModel.proMonthlyPrice}/mo`,
+    detail: "Upgrade once deal analysis becomes a weekly habit instead of an occasional need.",
+  },
+  {
+    label: "Trial",
     value: `${pricingModel.proTrialDays} days`,
-    detail: `Includes ${pricingModel.proTrialCredits} starter comps credits before the paid cycle begins.`,
+    detail: `Pro includes ${pricingModel.proTrialCredits} starter comps credits before the first paid cycle.`,
   },
   {
-    label: "Included credits",
-    value: `${pricingModel.proMonthlyCredits}/cycle`,
-    detail: "Paid Pro workspaces receive comps credits every billing cycle.",
-  },
-  {
-    label: "Starter comps pack",
-    value: pricingModel.starterPackPrice,
-    detail: `Buy ${pricingModel.starterPackCredits} permanent comps credits without subscribing.`,
-  },
-  {
-    label: "Pro top-up",
+    label: "Extra comps",
     value: pricingModel.proTopUpPrice,
-    detail: `Add ${pricingModel.proTopUpCredits} credits any time while Pro is active.`,
+    detail: `Active Pro workspaces can add ${pricingModel.proTopUpCredits} credits at a time when they need more volume.`,
   },
 ];
 
 export const planComparisonRows = [
   {
-    label: "Potential properties and pipeline",
+    label: "Lead capture and pipeline",
     starter: "Included",
     pro: "Included",
   },
   {
-    label: "Property workspace, tasks, calendar, vendors, and documents",
+    label: "Project workspace, tasks, calendar, vendors, and documents",
     starter: "Included",
     pro: "Included",
   },
@@ -366,12 +369,13 @@ export const pricingPlans = [
     cadence: "",
     badge: "Start here",
     description:
-      "A clean workspace for tracking deals and property work, with flexible premium purchases only when you need them.",
+      "Built for the first part of the launch flow: capture leads, centralize the project, and pay for deeper analysis only when needed.",
     ctaLabel: "Start free",
     ctaTo: "/signup",
     features: [
-      "Manage potential properties, property workspaces, tasks, calendar, vendors, documents, and account settings",
-      "View saved reports that were previously purchased or generated",
+      "Capture leads and property details in one place",
+      "Open the shared project workspace for tasks, vendors, and documents",
+      "View saved reports that were already generated or purchased",
       `Buy ${pricingModel.starterPackCredits}-credit comps packs for ${pricingModel.starterPackPrice}`,
       "Keep billing details and workspace preferences in one account center",
     ],
@@ -383,13 +387,13 @@ export const pricingPlans = [
     cadence: "/month",
     badge: "Most popular",
     description:
-      "For operators who need recurring analysis and premium AI workflows as the workspace becomes part of the weekly routine.",
+      "For fix-and-flip operators who want the lead-to-report workflow available every week without buying one-off analysis each time.",
     ctaLabel: "Choose Pro",
     ctaTo: "/signup",
     features: [
       `${pricingModel.proTrialDays}-day free trial with ${pricingModel.proTrialCredits} starter comps credits`,
       `${pricingModel.proMonthlyCredits} comps credits included every paid billing cycle`,
-      "AI investment report generation and premium analysis workflows",
+      "AI investment report generation and premium deal analysis workflows",
       `Buy unlimited ${pricingModel.proTopUpCredits}-credit top-ups for ${pricingModel.proTopUpPrice}`,
       "Billing portal access and subscription management",
     ],
@@ -413,7 +417,7 @@ export const faqItems = [
   {
     question: "Who is Fliprop built for?",
     answer:
-      "Fliprop is built for owners, operators, flippers, and lean real estate teams that want one workspace for acquisitions, rehab execution, and ongoing property work.",
+      "Fliprop is currently best for solo and lean fix-and-flip operators who want one clear workflow from lead intake to comps to project execution.",
   },
   {
     question: "How does the Pro trial work?",
@@ -423,12 +427,12 @@ export const faqItems = [
   {
     question: "What is included in Starter vs Pro?",
     answer:
-      "Starter gives you the core operating workspace. Pro adds included comps credits, AI investment reports, and lower-cost ongoing premium usage.",
+      "Starter gives you the core workspace for leads, project setup, tasks, vendors, documents, and saved reports. Pro adds recurring comps credits, AI investment reports, and lower-cost ongoing premium analysis.",
   },
   {
     question: "Can I start without committing to a paid plan?",
     answer:
-      "Yes. You can open a Starter workspace for free, centralize the workflow first, and upgrade later when premium analysis becomes part of the weekly process.",
+      "Yes. You can open a Starter workspace for free, centralize the lead and project workflow first, and upgrade later when recurring comps or reporting becomes part of the weekly process.",
   },
   {
     question: "Do I have to buy everything as a subscription?",
