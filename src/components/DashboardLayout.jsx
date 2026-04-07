@@ -76,7 +76,7 @@ const getPropertyMeta = (property) =>
       : null,
   ]
     .filter(Boolean)
-    .join(" • ") || "Property workspace";
+    .join(" • ") || "Project workspace";
 
 const sortPropertiesByRecency = (properties = []) =>
   [...properties].sort((left, right) => {
@@ -100,16 +100,16 @@ const resolvePageMeta = (pathname, user) => {
       kicker: "Projects",
       title: "Projects",
       subtitle:
-        "Open active property workspaces for financials, documents, vendors, work, and the next operating decision.",
+        "Open the project home, jump into execution or budget, and keep every active property moving from one investor workspace.",
     };
   }
 
   if (pathname.startsWith("/properties/")) {
     return {
       kicker: "Projects",
-      title: "Property Workspace",
+      title: "Project Workspace",
       subtitle:
-        "Run the property from one calm workspace with overview, financials, work, documents, analysis, and settings.",
+        "Run the project from one calm workspace with a home command center, execution, budget, files, deal context, and project setup.",
     };
   }
 
@@ -248,9 +248,9 @@ const SidebarSection = ({ title, links, onNavigate, collapsed }) => (
 );
 
 const RecentDealsSection = ({ properties, onNavigate, pathname }) => (
-  <section className="space-y-2.5" aria-label="Recent deals">
+  <section className="space-y-2.5" aria-label="Recent projects">
     <p className="px-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-400">
-      Recent deals
+      Recent projects
     </p>
     <div className="space-y-1">
       {properties.map((property) => {
@@ -283,7 +283,7 @@ const SidebarSearchTrigger = ({ collapsed, onOpen }) => (
   <button
     type="button"
     onClick={onOpen}
-    aria-label="Jump to property, deal, or task"
+    aria-label="Jump to project, deal, or task"
     className={
       collapsed
         ? "shell-search-trigger flex h-[46px] w-full items-center justify-center rounded-[16px]"
@@ -297,10 +297,10 @@ const SidebarSearchTrigger = ({ collapsed, onOpen }) => (
       ) : (
         <div className="min-w-0">
           <p className="truncate text-sm font-medium text-ink-900">
-            Jump to property, deal, or task
+            Jump to project, deal, or task
           </p>
           <p className="truncate text-xs text-ink-500">
-            Search pages, properties, and active pipeline records
+            Search pages, projects, and active pipeline records
           </p>
         </div>
       )}
@@ -353,7 +353,7 @@ const SidebarContent = ({
       <SidebarSearchTrigger collapsed={collapsed} onOpen={onOpenSearch} />
       {collapsed ? (
         <span className="pointer-events-none absolute left-full top-1/2 ml-2 hidden -translate-y-1/2 whitespace-nowrap rounded-[10px] bg-ink-900 px-2.5 py-1.5 text-xs font-medium text-white shadow-soft group-hover:block group-focus-within:block">
-          Jump to property, deal, or task
+          Jump to project, deal, or task
         </span>
       ) : null}
     </div>
@@ -379,7 +379,7 @@ const SidebarContent = ({
         />
       ) : null}
       {!collapsed && recentDealsLoading && !recentDeals.length ? (
-        <p className="px-1 text-sm text-ink-500">Loading recent deals...</p>
+        <p className="px-1 text-sm text-ink-500">Loading recent projects...</p>
       ) : null}
     </div>
 

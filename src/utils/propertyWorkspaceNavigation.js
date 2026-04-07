@@ -1,71 +1,80 @@
-export const PROPERTY_WORKSPACE_DEFAULT_TAB = "overview";
+export const PROPERTY_WORKSPACE_DEFAULT_TAB = "home";
 
 export const PROPERTY_WORKSPACE_TABS = [
   {
-    id: "overview",
-    label: "Overview",
-    description: "Property identity, status, KPIs, activity, and quick actions.",
+    id: "home",
+    label: "Home",
+    description: "Project command center, priorities, updates, and quick launches.",
   },
   {
-    id: "financials",
-    label: "Financials",
-    description: "Budget, expenses, capital, lenders, draws, and profitability.",
+    id: "execution",
+    label: "Execution",
+    description: "Tasks, schedule, vendors, procurement, and delivery work.",
   },
   {
-    id: "work",
-    label: "Work",
-    description: "Tasks, schedule, vendors, bids, commitments, and execution.",
+    id: "budget",
+    label: "Budget",
+    description: "Profitability, capital, budget vs actuals, expenses, and draws.",
   },
   {
-    id: "documents",
-    label: "Documents",
+    id: "files",
+    label: "Files",
     description: "Uploads, categories, recent files, and linked support docs.",
   },
   {
-    id: "analysis",
-    label: "Analysis",
-    description: "Comps, reports, assumptions, scope, and deal analysis.",
+    id: "deal",
+    label: "Deal",
+    description: "Deal summary, reports, scope, and underwriting context.",
   },
   {
     id: "settings",
     label: "Settings",
-    description: "Workspace status, linked records, and property-level controls.",
+    description: "Project setup, linked records, and property-level controls.",
   },
 ];
 
+const LEGACY_TAB_ALIASES = {
+  overview: "home",
+  work: "execution",
+  financials: "budget",
+  documents: "files",
+  analysis: "deal",
+  settings: "settings",
+};
+
 const LEGACY_ROUTE_TO_TAB = {
-  "property:close-snapshot": "overview",
-  "property:acquisition-summary": "analysis",
-  "property:original-assumptions": "analysis",
-  "property:market-comps": "analysis",
-  "property:saved-reports": "analysis",
-  "property:scope": "analysis",
-  "finance:health": "financials",
-  "finance:sources-uses": "financials",
-  "finance:budget-vs-actual": "financials",
-  "finance:capital-stack": "financials",
-  "finance:draw-operations": "financials",
-  "finance:payment-schedule": "financials",
-  "finance:reports": "financials",
-  "costs:bids": "work",
-  "costs:budget": "financials",
-  "costs:expenses": "financials",
-  "costs:commitments": "work",
-  "documents:overview": "documents",
-  "operations:tasks": "work",
-  "operations:schedule": "work",
-  "operations:timeline": "work",
-  "operations:vendors": "work",
-  "operations:activity": "overview",
+  "property:close-snapshot": "home",
+  "property:acquisition-summary": "deal",
+  "property:original-assumptions": "deal",
+  "property:market-comps": "deal",
+  "property:saved-reports": "deal",
+  "property:scope": "deal",
+  "finance:health": "budget",
+  "finance:sources-uses": "budget",
+  "finance:budget-vs-actual": "budget",
+  "finance:capital-stack": "budget",
+  "finance:draw-operations": "budget",
+  "finance:payment-schedule": "budget",
+  "finance:reports": "budget",
+  "costs:bids": "execution",
+  "costs:budget": "budget",
+  "costs:expenses": "budget",
+  "costs:commitments": "execution",
+  "documents:overview": "files",
+  "operations:tasks": "execution",
+  "operations:schedule": "execution",
+  "operations:timeline": "execution",
+  "operations:vendors": "execution",
+  "operations:activity": "home",
   "settings:workspace": "settings",
 };
 
 const LEGACY_CATEGORY_TO_TAB = {
-  property: "overview",
-  finance: "financials",
-  costs: "financials",
-  documents: "documents",
-  operations: "work",
+  property: "home",
+  finance: "budget",
+  costs: "budget",
+  documents: "files",
+  operations: "execution",
   settings: "settings",
 };
 
@@ -88,6 +97,10 @@ const resolveLegacyTabId = (categoryId, sectionId) => {
 const resolveTabId = ({ tabId, categoryId, sectionId } = {}) => {
   if (PROPERTY_WORKSPACE_TABS.some((tab) => tab.id === tabId)) {
     return tabId;
+  }
+
+  if (LEGACY_TAB_ALIASES[tabId]) {
+    return LEGACY_TAB_ALIASES[tabId];
   }
 
   return resolveLegacyTabId(tabId || categoryId, sectionId) || PROPERTY_WORKSPACE_DEFAULT_TAB;

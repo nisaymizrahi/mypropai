@@ -91,19 +91,19 @@ const PropertyWorkspaceSettingsPanel = ({
       <section className="surface-panel px-6 py-6 sm:px-7">
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
           <div>
-            <span className="eyebrow">Linked workspaces</span>
+            <span className="eyebrow">Project setup</span>
             <h2 className="mt-4 text-[2rem] font-semibold tracking-tight text-ink-900">
-              Keep this property connected
+              Keep this project connected
             </h2>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-ink-500">
-              Add or open the records behind analysis, financials, and management.
+              Add or open the records behind deal context, budget, execution, and management.
             </p>
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="rounded-[18px] bg-white px-4 py-4 ring-1 ring-ink-100">
               <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-400">
-                Analysis
+                Deal access
               </p>
               <p className="mt-2 text-sm font-semibold text-ink-900">
                 {propertyWorkspaceActive ? "Active" : hasPipelineWorkspace ? "Ready to activate" : "No deal yet"}
@@ -310,14 +310,14 @@ const PropertyWorkspaceStatusCard = ({
         </div>
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-400">
-            Analysis status
+            Deal activation
           </p>
-          <h3 className="mt-3 text-lg font-semibold text-ink-900">Property Workspace access</h3>
+          <h3 className="mt-3 text-lg font-semibold text-ink-900">Project Workspace deal access</h3>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-ink-500">
             {hasPipelineWorkspace
               ? propertyWorkspaceActive
-                ? "Analysis tools are active inside this property."
-                : "The linked deal is ready. Activate it here when you want analysis inside this workspace."
+                ? "Deal tools are active inside this project."
+                : "The linked deal is ready. Activate it here when you want deal context inside this workspace."
               : "Add a deal first if you want comps, saved reports, scope, and bids here."}
           </p>
           {pipelineLeadStatus ? (
@@ -343,7 +343,7 @@ const PropertyWorkspaceStatusCard = ({
                   Updating...
                 </>
               ) : (
-                "Deactivate analysis"
+                "Deactivate deal access"
               )}
             </button>
           ) : (
@@ -359,7 +359,7 @@ const PropertyWorkspaceStatusCard = ({
                   Updating...
                 </>
               ) : (
-                "Activate analysis"
+                "Activate deal access"
               )}
             </button>
           )}
