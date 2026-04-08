@@ -3,6 +3,7 @@ import { Link, NavLink, useLocation, useNavigate, useParams } from "react-router
 import toast from "react-hot-toast";
 
 import {
+  analyzeFullPropertyReport,
   analyzeLeadComps,
   createBudgetItem,
   createOneTimeCheckout,
@@ -76,6 +77,9 @@ const PropertyWorkspaceBudgetPage = lazy(() =>
 const PropertyWorkspaceExecutionPage = lazy(() =>
   import("../components/propertyWorkspace/PropertyWorkspaceExecutionPage")
 );
+const PropertyWorkspaceBidsPage = lazy(() =>
+  import("../components/propertyWorkspace/PropertyWorkspaceBidsPage")
+);
 const PropertyWorkspaceFilesPage = lazy(() =>
   import("../components/propertyWorkspace/PropertyWorkspaceFilesPage")
 );
@@ -94,45 +98,6 @@ const propertyTypeOptions = [
   { value: "land", label: "Land" },
   { value: "other", label: "Other" },
 ];
-
-const HOME_VIEW_IDS = {
-  today: "today",
-  "at-risk": "at-risk",
-  updates: "updates",
-  "property-details": "property-details",
-};
-
-const EXECUTION_VIEW_IDS = {
-  scope: "scope",
-  tasks: "tasks",
-  schedule: "schedule",
-  vendors: "vendors",
-  procurement: "procurement",
-};
-
-const BUDGET_VIEW_IDS = {
-  snapshot: "snapshot",
-  "cost-plan": "cost-plan",
-  payments: "payments",
-  capital: "capital",
-  draws: "draws",
-  reports: "reports",
-};
-
-const FILES_VIEW_IDS = {
-  "all-files": "all-files",
-  "loan-draw": "loan-draw",
-  "contracts-bids": "contracts-bids",
-  "receipts-invoices": "receipts-invoices",
-  photos: "photos",
-};
-
-const DEAL_VIEW_IDS = {
-  summary: "summary",
-  reports: "reports",
-  "renovation-scope": "renovation-scope",
-  "underwriting-vs-actuals": "underwriting-vs-actuals",
-};
 
 const toOptionalNumber = (value) => {
   if (value === "" || value === null || value === undefined) {
@@ -261,6 +226,9 @@ const buildFormState = (property) => ({
 
 const isSavedReportsBackendUnavailable = (error) =>
   String(error?.message || "").includes("Saved reports are not available on the server yet");
+
+const isProjectUpdatesLoadFailure = (error) =>
+  /failed to load project updates|not found|cannot get/i.test(String(error?.message || ""));
 
 const buildLeadCompsAnalysisSnapshotFromReport = (report) => {
   if (!report?.generatedAt) return null;
@@ -401,7 +369,7 @@ const buildPropertyCopilotSuggestions = ({
   if (latestReport || analysis) {
     suggestions.push("Summarize the latest comps report and recommended offer");
 
-    if (activeTabId === "deal") {
+    if (activeTabId === "analysis") {
       suggestions.push("What is the biggest comps risk or confidence signal right now?");
     }
   }
@@ -468,10 +436,12 @@ const PropertyWorkspacePage = () => {
   const [leadWorkspaceLoading, setLeadWorkspaceLoading] = useState(false);
   const [leadWorkspaceError, setLeadWorkspaceError] = useState("");
   const [analysis, setAnalysis] = useState(null);
+  const [propertyAnalysisReport, setPropertyAnalysisReport] = useState(null);
   const [filters, setFilters] = useState(() => buildCompsFilters());
   const [dealOverrides, setDealOverrides] = useState({});
   const [compsNotice, setCompsNotice] = useState("");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isPropertyAnalysisRunning, setIsPropertyAnalysisRunning] = useState(false);
   const [savedReports, setSavedReports] = useState([]);
   const [savedReportsLoading, setSavedReportsLoading] = useState(false);
   const [isSavingReport, setIsSavingReport] = useState(false);
@@ -717,7 +687,11 @@ const PropertyWorkspacePage = () => {
       setProjectUpdates(Array.isArray(updateRecords) ? updateRecords : []);
     } catch (updatesError) {
       setProjectUpdates([]);
-      setProjectUpdatesError(updatesError.message || "Failed to load project updates.");
+      if (isProjectUpdatesLoadFailure(updatesError)) {
+        setProjectUpdatesError("");
+      } else {
+        setProjectUpdatesError(updatesError.message || "Failed to load project updates.");
+      }
     } finally {
       setProjectUpdatesLoading(false);
     }
@@ -749,6 +723,7 @@ const PropertyWorkspacePage = () => {
       setLeadWorkspace(null);
       setLeadWorkspaceError("");
       setAnalysis(null);
+      setPropertyAnalysisReport(null);
       setFilters(buildCompsFilters());
       setDealOverrides({});
       setCompsNotice("");
@@ -823,6 +798,7 @@ const PropertyWorkspacePage = () => {
           ? buildAnalysisFromSavedReport(nextSavedReports[0], leadData)
           : null
       );
+      setPropertyAnalysisReport(null);
       setFilters(
         buildCompsFilters(
           leadData,
@@ -837,6 +813,7 @@ const PropertyWorkspacePage = () => {
     } catch (leadError) {
       setLeadWorkspace(null);
       setAnalysis(null);
+      setPropertyAnalysisReport(null);
       setSavedReports([]);
       setBids([]);
       setBillingAccess(null);
@@ -1303,7 +1280,7 @@ const PropertyWorkspacePage = () => {
 
     if (uncoveredScopeCount > 0 || projectVendorPacketGapCount > 0 || openBidCount > 0) {
       return {
-        value: "Review procurement",
+        value: "Review bids",
         helper:
           uncoveredScopeCount > 0
             ? `${uncoveredScopeCount} scope item${uncoveredScopeCount === 1 ? "" : "s"} still need awarded vendor coverage.`
@@ -1513,7 +1490,7 @@ const PropertyWorkspacePage = () => {
     if (budgetItems.length === 0 && bids.length === 0) {
       return {
         value: "No scope yet",
-        helper: "Build the cost plan first so procurement can track quotes, awards, and packet readiness.",
+        helper: "Build the cost plan first so bids can track quotes, awards, and packet readiness.",
         tone: "bg-mist-50/85",
       };
     }
@@ -1571,7 +1548,7 @@ const PropertyWorkspacePage = () => {
     }
 
     if (budgetItems.length === 0 && bids.length === 0) {
-      return "Build the cost plan first so procurement can track quote coverage, awards, and packet readiness.";
+      return "Build the cost plan first so bids can track quote coverage, awards, and packet readiness.";
     }
 
     if (!bids.length && uncoveredScopeCount === 0 && projectVendorPacketGapCount === 0) {
@@ -1667,7 +1644,7 @@ const PropertyWorkspacePage = () => {
 
       return {
         label: readyLabel,
-        onClick: () => handleViewSelect("deal", viewId || "summary"),
+        onClick: () => handleViewSelect("analysis", viewId || "summary"),
       };
     },
     [handleTabSelect, handleViewSelect, hasPipelineWorkspace, propertyWorkspaceActive]
@@ -1875,6 +1852,32 @@ const PropertyWorkspacePage = () => {
     }
   };
 
+  const handleRunPropertyAnalysis = async () => {
+    if (!pipelineLeadId || !leadWorkspace) {
+      toast.error("Create a linked deal first.");
+      return;
+    }
+
+    setIsPropertyAnalysisRunning(true);
+    setLeadWorkspaceError("");
+
+    try {
+      const report = await analyzeFullPropertyReport(
+        liveLead,
+        buildCompsFilterPayload(filters),
+        buildDealPayload(dealForm)
+      );
+      setPropertyAnalysisReport(report);
+      toast.success("Full property analysis is ready.");
+      await loadLeadBillingAccess();
+    } catch (analysisError) {
+      setLeadWorkspaceError(analysisError.message || "Property analysis failed.");
+      toast.error(analysisError.message || "Property analysis failed.");
+    } finally {
+      setIsPropertyAnalysisRunning(false);
+    }
+  };
+
   const handleSaveLeadReport = async ({
     subject,
     filters: reportFilters,
@@ -1929,7 +1932,7 @@ const PropertyWorkspacePage = () => {
             }
           : previous
       );
-      navigate(buildPropertyWorkspaceViewPath(propertyKey, "deal", "reports"));
+      navigate(buildPropertyWorkspaceViewPath(propertyKey, "analysis", "reports"));
       toast.success(
         acquisitionWorkspaceId
           ? "Deal Report saved to the project."
@@ -2305,11 +2308,11 @@ const PropertyWorkspacePage = () => {
             : `${openBidCount} quote${openBidCount === 1 ? "" : "s"} still need review before award.`;
 
       actions.push({
-        id: "procurement-review",
-        title: "Review procurement",
+        id: "bids-review",
+        title: "Review bids",
         detail: procurementDetail,
-        label: "Open procurement",
-        onClick: () => handleViewSelect("execution", "procurement"),
+        label: "Open bids",
+        onClick: () => handleViewSelect("bids", "comparison"),
       });
     }
 
@@ -2384,11 +2387,11 @@ const PropertyWorkspacePage = () => {
 
     if (hasPipelineWorkspace) {
       actions.push({
-        id: "deal",
-        title: "Review deal context",
+        id: "analysis",
+        title: "Review analysis context",
         detail: "Keep report history and original assumptions close to the live project.",
-        label: "Open deal",
-        onClick: () => handleViewSelect("deal", "summary"),
+        label: "Open analysis",
+        onClick: () => handleViewSelect("analysis", "summary"),
       });
     }
 
@@ -2541,7 +2544,7 @@ const PropertyWorkspacePage = () => {
       },
     };
 
-    if (activeTab.id === "home") {
+    if (activeTab.id === "overview") {
       return [addTaskAction, addExpenseAction, addBudgetItemAction, addUpdateAction];
     }
 
@@ -2549,12 +2552,12 @@ const PropertyWorkspacePage = () => {
       return [addVendorAction, addUpdateAction];
     }
 
-    if (activeTab.id === "execution" && activeView?.id === "procurement") {
-      return [addVendorAction, addExpenseAction, addUpdateAction];
-    }
-
     if (activeTab.id === "execution") {
       return [addTaskAction, addUpdateAction];
+    }
+
+    if (activeTab.id === "bids") {
+      return [addVendorAction, addExpenseAction, addUpdateAction];
     }
 
     if (activeTab.id === "budget" && activeView?.id === "cost-plan") {
@@ -2583,6 +2586,16 @@ const PropertyWorkspacePage = () => {
     property,
     requireAcquisitionWorkspace,
   ]);
+
+  const ActiveWorkspacePageComponent = useMemo(() => {
+    if (activeTab.id === "overview") return PropertyWorkspaceHomePage;
+    if (activeTab.id === "budget") return PropertyWorkspaceBudgetPage;
+    if (activeTab.id === "execution") return PropertyWorkspaceExecutionPage;
+    if (activeTab.id === "bids") return PropertyWorkspaceBidsPage;
+    if (activeTab.id === "files") return PropertyWorkspaceFilesPage;
+    if (activeTab.id === "analysis") return PropertyWorkspaceDealPage;
+    return null;
+  }, [activeTab.id]);
 
   if (loading) {
     return <LoadingStateCard label="Loading project workspace..." />;
@@ -2645,8 +2658,11 @@ const PropertyWorkspacePage = () => {
     projectVendorRecords,
     documentUploadRequestKey,
     pipelineLeadId,
+    acquisitionWorkspaceId,
     bids,
     renovationItems,
+    budgetItems,
+    vendors,
     handleBidsUpdated,
     loadPropertyTasks,
     buildDealSectionAction,
@@ -2667,23 +2683,16 @@ const PropertyWorkspacePage = () => {
     isStartingCheckout,
     handleSaveLeadReport,
     isSavingReport,
-    acquisitionWorkspaceId,
     compsNotice,
     pipelineLeadPath,
     leadPricingSummary,
     savedReports,
     savedReportsLoading,
     formatCurrency,
+    propertyAnalysisReport,
+    isPropertyAnalysisRunning,
+    handleRunPropertyAnalysis,
   };
-
-  const ActiveWorkspacePageComponent = useMemo(() => {
-    if (activeTab.id === "home") return PropertyWorkspaceHomePage;
-    if (activeTab.id === "budget") return PropertyWorkspaceBudgetPage;
-    if (activeTab.id === "execution") return PropertyWorkspaceExecutionPage;
-    if (activeTab.id === "files") return PropertyWorkspaceFilesPage;
-    if (activeTab.id === "deal") return PropertyWorkspaceDealPage;
-    return null;
-  }, [activeTab.id]);
 
   const renderSettingsTab = () => (
     <PropertyWorkspaceSettingsPanel
@@ -2770,7 +2779,7 @@ const PropertyWorkspacePage = () => {
         ) : null}
       </section>
 
-      {activeTab.id === "deal" && leadWorkspaceError && leadWorkspace ? (
+      {activeTab.id === "analysis" && leadWorkspaceError && leadWorkspace ? (
         <div className="rounded-[16px] border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
           {leadWorkspaceError}
         </div>
