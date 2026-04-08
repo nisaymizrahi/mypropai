@@ -22,6 +22,90 @@ const quickPrompts = [
   "Suggest a better rehab and ARV assumption for the selected scenario",
 ];
 
+const toNumber = (value, fallback = 0) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+};
+
+const formatCurrency = (value) => {
+  if (!Number.isFinite(Number(value))) {
+    return "—";
+  }
+
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
+  }).format(Number(value));
+};
+
+const buildLocalFallbackMessage = ({
+  leadAddress,
+  leadSnapshot = {},
+  scenarios = [],
+}) => {
+  if (!Array.isArray(scenarios) || scenarios.length === 0) {
+    return leadAddress
+      ? `The live project analysis assistant is temporarily unavailable for ${leadAddress}. Add at least one scenario in the Scenario Lab and try again once the backend is refreshed.`
+      : "The live project analysis assistant is temporarily unavailable. Add at least one scenario in the Scenario Lab and try again once the backend is refreshed.";
+  }
+
+  const acquisitionBasis =
+    toNumber(leadSnapshot?.targetOffer, null) ?? toNumber(leadSnapshot?.sellerAskingPrice, 0);
+
+  const strongestScenario = scenarios
+    .map((scenario) => {
+      const rehabEstimate = toNumber(scenario?.rehabEstimate, 0);
+      const arv = toNumber(scenario?.arv, 0);
+      const holdingMonths = Math.max(toNumber(scenario?.holdingMonths, 6) || 6, 0);
+      const holdingCost = Math.round(acquisitionBasis * 0.006 * holdingMonths);
+      const totalProjectCost = acquisitionBasis + rehabEstimate + holdingCost;
+      const projectedProfit = arv - totalProjectCost;
+
+      return {
+        scenarioId: String(scenario?.scenarioId || ""),
+        label: scenario?.label || "Scenario",
+        rehabEstimate,
+        arv,
+        holdingMonths,
+        extensionPlanned: Boolean(scenario?.extensionPlanned),
+        extensionSquareFootage: toNumber(scenario?.extensionSquareFootage, 0),
+        totalProjectCost,
+        projectedProfit,
+      };
+    })
+    .sort((left, right) => (right.projectedProfit || 0) - (left.projectedProfit || 0))[0];
+
+  if (!strongestScenario) {
+    return "The live project analysis assistant is temporarily unavailable. Try again in a moment.";
+  }
+
+  const caution =
+    strongestScenario.projectedProfit < 0
+      ? "This draft is still underwater on the current assumptions, so tighten the acquisition, rehab, or resale case before moving forward."
+      : !strongestScenario.arv
+        ? "The ARV still needs to be filled in before this read is decision-ready."
+        : !strongestScenario.rehabEstimate
+          ? "The rehab estimate still needs a real scope number before this read is trustworthy."
+          : strongestScenario.extensionPlanned && !strongestScenario.extensionSquareFootage
+            ? "The extension scenario still needs square footage and contractor pricing before you trust it."
+            : "Validate the rehab scope and resale comps with contractor feedback before treating this as a final decision.";
+
+  return [
+    `The live project analysis assistant is temporarily unavailable, so here is a local planning read${
+      leadAddress ? ` for ${leadAddress}` : ""
+    }.`,
+    `Best current draft: ${strongestScenario.label}.`,
+    `Projected spread is about ${formatCurrency(strongestScenario.projectedProfit)} on ${formatCurrency(
+      strongestScenario.arv
+    )} ARV, ${formatCurrency(strongestScenario.rehabEstimate)} rehab, and roughly ${formatCurrency(
+      strongestScenario.totalProjectCost
+    )} total project cost.`,
+    caution,
+    "Refresh after the backend deploy completes if you want deeper AI suggestions and draft patches.",
+  ].join(" ");
+};
+
 const MessageBubble = ({ message, onApply }) => {
   const isAssistant = message.role === "assistant";
   const hasPatches =
@@ -140,15 +224,26 @@ const LeadProjectAnalysisCopilot = ({
         )
       );
     } catch (error) {
+      const shouldUseLocalFallback =
+        error?.status === 404 ||
+        /not available on the server yet/i.test(String(error?.message || ""));
+
       setMessages((current) =>
         current.map((message) =>
           message.id === `assistant-${requestId}`
             ? {
-                id: `assistant-error-${requestId}`,
+                id: shouldUseLocalFallback
+                  ? `assistant-fallback-${requestId}`
+                  : `assistant-error-${requestId}`,
                 role: "assistant",
-                content:
-                  error.message ||
-                  "The project analysis assistant could not respond right now. Try again in a moment.",
+                content: shouldUseLocalFallback
+                  ? buildLocalFallbackMessage({
+                      leadAddress,
+                      leadSnapshot,
+                      scenarios,
+                    })
+                  : error.message ||
+                    "The project analysis assistant could not respond right now. Try again in a moment.",
                 patches: null,
               }
             : message
