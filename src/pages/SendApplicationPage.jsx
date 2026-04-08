@@ -67,7 +67,7 @@ const SendApplicationPage = () => {
         setManagedProperties(data || []);
       } catch (error) {
         if (isMounted) {
-          toast.error(error.message || "Failed to load managed properties");
+          toast.error(error.message || "Failed to load properties");
         }
       } finally {
         if (isMounted) {
@@ -288,7 +288,7 @@ const SendApplicationPage = () => {
             <div className="mt-8 space-y-3">
               <div className="rounded-[18px] bg-sand-50 px-4 py-4">
                 <p className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-400">
-                  Managed properties
+                  Available properties
                 </p>
                 <p className="mt-1 text-lg font-semibold text-ink-900">{managedProperties.length}</p>
               </div>
@@ -389,25 +389,25 @@ const SendApplicationPage = () => {
 
               {managedProperties.length === 0 && !isLoading && (
                 <div className="rounded-[22px] border border-dashed border-ink-200 bg-sand-50 p-5">
-                  <p className="text-sm font-semibold text-ink-900">No managed properties yet</p>
+                  <p className="text-sm font-semibold text-ink-900">No properties ready yet</p>
                   <p className="mt-2 text-sm leading-6 text-ink-500">
-                    You can still send a general application now, or create managed properties to
-                    attach invites to a specific property or unit later.
+                    You can still send a general application now, or create a property first if you
+                    want to attach invites to a specific address or unit later.
                   </p>
                   <div className="mt-4 flex flex-wrap gap-3">
                   <button
                     type="button"
-                    onClick={() => navigate("/properties/new?workspace=management")}
+                    onClick={() => navigate("/properties/new")}
                     className="primary-action"
                   >
-                    Create managed property
+                    Create property
                   </button>
                   <button
                     type="button"
-                    onClick={() => navigate("/management")}
+                    onClick={() => navigate("/properties")}
                     className="secondary-action"
                   >
-                    Open managed properties
+                    Open properties
                   </button>
                 </div>
               </div>
@@ -417,7 +417,7 @@ const SendApplicationPage = () => {
               <div className="rounded-[22px] border border-dashed border-ink-200 bg-sand-50 p-5">
                 <p className="text-sm font-semibold text-ink-900">No units match this selection</p>
                 <p className="mt-2 text-sm leading-6 text-ink-500">
-                  Choose another property, add units in management, or switch to a property-level or
+                  Choose another property, add units to the property record, or switch to a property-level or
                   general application invite.
                 </p>
               </div>

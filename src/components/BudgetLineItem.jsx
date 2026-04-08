@@ -6,7 +6,9 @@ import {
   getFundingSourceById,
   getFundingSourceLabel,
 } from "../utils/capitalStack";
+import { getExpenseStatusClasses, getExpenseStatusLabel } from "../utils/expenseOperations";
 import { formatCurrency } from "../utils/investmentMetrics";
+import { getPaymentCostClassLabel } from "../utils/paymentTaxonomy";
 import { getProjectScopeLabel } from "../utils/projectScopes";
 
 const formatDate = (value) => {
@@ -92,7 +94,7 @@ const BudgetLineItem = ({
           ) : null}
           {onAddExpense ? (
             <button type="button" onClick={onAddExpense} className="ghost-action">
-              Add expense
+              Add payment
             </button>
           ) : null}
         </div>
@@ -204,14 +206,14 @@ const BudgetLineItem = ({
         <section className="rounded-[22px] border border-ink-100 bg-white/85 p-4">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <p className="text-sm font-semibold text-ink-900">Expenses</p>
+              <p className="text-sm font-semibold text-ink-900">Payments</p>
               <p className="mt-1 text-sm text-ink-500">
-                Actual payments tied to this scope item appear here, including deposits and custom
-                purchases.
+                Actual project payments tied to this scope item appear here, including deposits,
+                retainage releases, and supplier purchases.
               </p>
             </div>
             <span className="rounded-full border border-verdigris-200 bg-verdigris-50 px-3 py-1 text-xs font-semibold text-verdigris-700">
-              {expenses.length} expense{expenses.length === 1 ? "" : "s"}
+              {expenses.length} payment{expenses.length === 1 ? "" : "s"}
             </span>
           </div>
 
@@ -231,9 +233,21 @@ const BudgetLineItem = ({
                   >
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                       <div>
-                        <p className="text-sm font-semibold text-ink-900">{expense.title}</p>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="text-sm font-semibold text-ink-900">{expense.title}</p>
+                          <span className="rounded-full bg-mist-50 px-3 py-1 text-[11px] font-semibold text-ink-700">
+                            {getPaymentCostClassLabel(expense.costClass)}
+                          </span>
+                          <span
+                            className={`rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] ${getExpenseStatusClasses(
+                              expense.status
+                            )}`}
+                          >
+                            {getExpenseStatusLabel(expense.status)}
+                          </span>
+                        </div>
                         <p className="mt-1 text-sm text-ink-500">
-                          {(expense.vendor?.name || expense.payeeName || "Custom expense") +
+                          {(expense.vendor?.name || expense.payeeName || "Direct payee") +
                             (expense.description ? ` • ${expense.description}` : "")}
                         </p>
                         <p className="mt-2 text-xs font-semibold uppercase tracking-[0.16em] text-ink-400">
@@ -285,7 +299,7 @@ const BudgetLineItem = ({
               })
             ) : (
               <div className="rounded-[18px] border border-dashed border-ink-200 bg-ink-50/40 p-4 text-sm leading-6 text-ink-500">
-                No expenses logged yet for this item.
+                No payments logged yet for this item.
               </div>
             )}
           </div>
@@ -335,7 +349,7 @@ const BudgetLineItem = ({
                     {receipt.title || receipt.payeeName || "Receipt"}
                   </p>
                   <p className="mt-1 text-xs font-semibold uppercase tracking-[0.16em] text-ink-400">
-                    {receipt.expense ? "Linked receipt" : "Awaiting expense"} • {formatDate(receipt.createdAt)}
+                    {receipt.expense ? "Linked receipt" : "Awaiting payment"} • {formatDate(receipt.createdAt)}
                   </p>
                 </div>
               ))}

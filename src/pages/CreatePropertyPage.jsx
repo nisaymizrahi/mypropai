@@ -36,11 +36,6 @@ const workspaceModeOptions = [
     label: "Property + financials",
     helper: "Advanced setup for financial work now.",
   },
-  {
-    value: "management",
-    label: "Management-ready",
-    helper: "Advanced setup for management now.",
-  },
 ];
 
 const workspaceModeMeta = {
@@ -89,21 +84,6 @@ const workspaceModeMeta = {
       "Work + docs ready",
     ],
   },
-  management: {
-    eyebrow: "New property + management",
-    title: "Create the property ready for management",
-    description:
-      "Create the property with management ready to link in.",
-    backTo: "/properties",
-    backLabel: "Back to properties",
-    submitLabel: "Create management-ready property",
-    successMessage: "Property and management workspace created.",
-    outcomes: [
-      "Property record",
-      "Management ready",
-      "Financials later",
-    ],
-  },
 };
 
 const ModeCard = ({ option, isActive, onSelect }) => (
@@ -149,7 +129,11 @@ const Field = ({ label, children, className = "" }) => (
 );
 
 const normalizeWorkspaceKey = (value) => {
-  if (["property_only", "pipeline", "acquisitions", "management"].includes(value)) {
+  if (value === "management") {
+    return "property_only";
+  }
+
+  if (["property_only", "pipeline", "acquisitions"].includes(value)) {
     return value;
   }
 
@@ -264,7 +248,7 @@ const CreatePropertyPage = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [showAdvancedModes, setShowAdvancedModes] = useState(
-    ["acquisitions", "management"].includes(initialWorkspace)
+    initialWorkspace === "acquisitions"
   );
 
   const currentMode = workspaceModeMeta[formData.workspaceKey] || workspaceModeMeta.pipeline;
@@ -500,13 +484,13 @@ const CreatePropertyPage = () => {
               <span className="eyebrow">Starting mode</span>
               <h3 className="mt-4 text-2xl font-semibold text-ink-900">Start simple</h3>
               <p className="mt-2 text-sm text-ink-500">
-                Deal + property is the recommended launch path. You can still open advanced setup when needed.
+                Deal + property is the recommended launch path. You can still open the financial workspace setup when needed.
               </p>
             </div>
             <button
               type="button"
               onClick={() => {
-                if (showAdvancedModes && ["acquisitions", "management"].includes(formData.workspaceKey)) {
+                if (showAdvancedModes && formData.workspaceKey === "acquisitions") {
                   handleModeSelect("pipeline");
                 }
                 setShowAdvancedModes((current) => !current);

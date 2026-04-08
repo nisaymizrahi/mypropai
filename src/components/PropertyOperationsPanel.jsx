@@ -50,6 +50,23 @@ const MetricTile = ({ icon: Icon, label, value, hint, tone = "text-ink-900" }) =
   </div>
 );
 
+const getTaskAssigneeLabel = (task = {}) => {
+  if (task?.assignee && typeof task.assignee === "object") {
+    return task.assignee.name || task.assignee.trade || "Assigned vendor";
+  }
+
+  return task?.assigneeName || task?.assignedVendorName || task?.assignee || "Unassigned";
+};
+
+const getVendorNextDueSortValue = (vendor = {}) => {
+  if (!vendor.nextDue) {
+    return Number.POSITIVE_INFINITY;
+  }
+
+  const parsed = new Date(vendor.nextDue);
+  return Number.isFinite(parsed.valueOf()) ? parsed.valueOf() : Number.POSITIVE_INFINITY;
+};
+
 const PropertyOperationsPanel = ({
   property,
   propertyKey,
@@ -177,6 +194,46 @@ const PropertyOperationsPanel = ({
           new Date(task.endDate) <= nextSevenDays
       ).length,
     [nextSevenDays, tasks, today]
+  );
+
+  const openTasks = useMemo(
+    () => tasks.filter((task) => String(task.status || "").trim() !== "Complete"),
+    [tasks]
+  );
+
+  const overdueTaskList = useMemo(
+    () =>
+      [...openTasks]
+        .filter((task) => task.endDate && new Date(task.endDate) < today)
+        .sort((left, right) => new Date(left.endDate) - new Date(right.endDate))
+        .slice(0, 6),
+    [openTasks, today]
+  );
+
+  const upcomingTaskList = useMemo(
+    () =>
+      [...openTasks]
+        .filter(
+          (task) =>
+            task.endDate &&
+            new Date(task.endDate) >= today &&
+            new Date(task.endDate) <= nextSevenDays
+        )
+        .sort((left, right) => new Date(left.endDate) - new Date(right.endDate))
+        .slice(0, 6),
+    [nextSevenDays, openTasks, today]
+  );
+
+  const unassignedOpenTasksCount = useMemo(
+    () =>
+      openTasks.filter((task) => {
+        if (task?.assignee && typeof task.assignee === "object") {
+          return !task.assignee?._id && !task.assignee?.name;
+        }
+
+        return !task?.assignee && !task?.assigneeName && !task?.assignedVendorName;
+      }).length,
+    [openTasks]
   );
 
   const vendorDirectory = useMemo(() => {
@@ -308,7 +365,7 @@ const PropertyOperationsPanel = ({
       const vendorName =
         (typeof expense.vendor === "object" ? expense.vendor?.name : "") ||
         expense.payeeName ||
-        "Expense payee";
+        "Payment payee";
       const entry = ensureVendor({
         key: vendorId || `name:${vendorName}`,
         name: vendorName,
@@ -348,6 +405,77 @@ const PropertyOperationsPanel = ({
       vendorDirectory.filter(
         (vendor) => !vendor.linkedVendor || vendor.procurement.blockingIssuesCount > 0
       ).length,
+    [vendorDirectory]
+  );
+  const readyToPayCount = useMemo(
+    () => vendorDirectory.filter((vendor) => vendor.procurement.paymentReady).length,
+    [vendorDirectory]
+  );
+  const renewalWatchCount = useMemo(
+    () =>
+      vendorDirectory.filter((vendor) => vendor.procurement.renewalsDueCount > 0).length,
+    [vendorDirectory]
+  );
+  const highRiskVendors = useMemo(
+    () =>
+      [...vendorDirectory]
+        .filter(
+          (vendor) =>
+            !vendor.linkedVendor ||
+            vendor.procurement.blockingIssuesCount > 0 ||
+            (vendor.openTasks > 0 && !vendor.procurement.assignmentReady)
+        )
+        .sort((left, right) => {
+          const rightPriority =
+            right.procurement.blockingIssuesCount * 100 +
+            (right.openTasks > 0 && !right.procurement.assignmentReady ? 10 : 0) +
+            (right.linkedVendor ? 0 : 1);
+          const leftPriority =
+            left.procurement.blockingIssuesCount * 100 +
+            (left.openTasks > 0 && !left.procurement.assignmentReady ? 10 : 0) +
+            (left.linkedVendor ? 0 : 1);
+
+          if (rightPriority !== leftPriority) {
+            return rightPriority - leftPriority;
+          }
+
+          return getVendorNextDueSortValue(left) - getVendorNextDueSortValue(right);
+        })
+        .slice(0, 6),
+    [vendorDirectory]
+  );
+  const readyNowVendors = useMemo(
+    () =>
+      [...vendorDirectory]
+        .filter(
+          (vendor) =>
+            vendor.procurement.paymentReady ||
+            vendor.procurement.assignmentReady ||
+            vendor.procurement.renewalsDueCount > 0
+        )
+        .sort((left, right) => {
+          const rightReadiness =
+            (right.procurement.paymentReady ? 2 : 0) +
+            (right.procurement.assignmentReady ? 1 : 0);
+          const leftReadiness =
+            (left.procurement.paymentReady ? 2 : 0) +
+            (left.procurement.assignmentReady ? 1 : 0);
+
+          if (rightReadiness !== leftReadiness) {
+            return rightReadiness - leftReadiness;
+          }
+
+          return right.commitmentAmount + right.paidToDate - (left.commitmentAmount + left.paidToDate);
+        })
+        .slice(0, 6),
+    [vendorDirectory]
+  );
+  const vendorScheduleWatchlist = useMemo(
+    () =>
+      [...vendorDirectory]
+        .filter((vendor) => vendor.openTasks > 0 || vendor.nextDue)
+        .sort((left, right) => getVendorNextDueSortValue(left) - getVendorNextDueSortValue(right))
+        .slice(0, 6),
     [vendorDirectory]
   );
 
@@ -433,7 +561,7 @@ const PropertyOperationsPanel = ({
           </section>
         ) : null}
 
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
           <MetricTile
             icon={CalendarDaysIcon}
             label="Scheduled tasks"
@@ -455,10 +583,116 @@ const PropertyOperationsPanel = ({
           />
           <MetricTile
             icon={UserGroupIcon}
-            label="Assigned vendors"
-            value={vendorDirectory.length}
-            hint="Vendors currently touching this project."
+            label="Unassigned work"
+            value={unassignedOpenTasksCount}
+            hint="Open tasks still missing a vendor owner."
+            tone={unassignedOpenTasksCount > 0 ? "text-sand-700" : "text-ink-900"}
           />
+        </div>
+
+        <div className="grid gap-4 xl:grid-cols-3">
+          <section className="section-card p-5 sm:p-6">
+            <span className="eyebrow">Schedule watch</span>
+            <h4 className="mt-4 text-xl font-semibold text-ink-900">Past due now</h4>
+            <div className="mt-5 space-y-3">
+              {overdueTaskList.length > 0 ? (
+                overdueTaskList.map((task) => (
+                  <div
+                    key={task._id || `${task.title}-${task.endDate}`}
+                    className="rounded-[18px] border border-clay-100 bg-clay-50/55 px-4 py-3"
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <p className="text-sm font-semibold text-ink-900">
+                          {task.title || "Untitled task"}
+                        </p>
+                        <p className="mt-1 text-sm text-ink-500">{getTaskAssigneeLabel(task)}</p>
+                      </div>
+                      <span className="rounded-full border border-clay-200 bg-white px-3 py-1 text-xs font-semibold text-clay-700">
+                        {task.endDate ? formatTimelineDate(task.endDate) : "No due date"}
+                      </span>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="rounded-[18px] border border-dashed border-ink-200 bg-ink-50/35 px-4 py-4 text-sm leading-6 text-ink-500">
+                  No overdue work right now.
+                </div>
+              )}
+            </div>
+          </section>
+
+          <section className="section-card p-5 sm:p-6">
+            <span className="eyebrow">This week</span>
+            <h4 className="mt-4 text-xl font-semibold text-ink-900">Due in the next 7 days</h4>
+            <div className="mt-5 space-y-3">
+              {upcomingTaskList.length > 0 ? (
+                upcomingTaskList.map((task) => (
+                  <div
+                    key={task._id || `${task.title}-${task.endDate}`}
+                    className="rounded-[18px] border border-sand-100 bg-sand-50/55 px-4 py-3"
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <p className="text-sm font-semibold text-ink-900">
+                          {task.title || "Untitled task"}
+                        </p>
+                        <p className="mt-1 text-sm text-ink-500">{getTaskAssigneeLabel(task)}</p>
+                      </div>
+                      <span className="rounded-full border border-sand-200 bg-white px-3 py-1 text-xs font-semibold text-sand-700">
+                        {task.endDate ? formatTimelineDate(task.endDate) : "No due date"}
+                      </span>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="rounded-[18px] border border-dashed border-ink-200 bg-ink-50/35 px-4 py-4 text-sm leading-6 text-ink-500">
+                  No due-soon work in the current window.
+                </div>
+              )}
+            </div>
+          </section>
+
+          <section className="section-card p-5 sm:p-6">
+            <span className="eyebrow">Vendor handoffs</span>
+            <h4 className="mt-4 text-xl font-semibold text-ink-900">Dependencies that affect timing</h4>
+            <div className="mt-5 space-y-3">
+              {vendorScheduleWatchlist.length > 0 ? (
+                vendorScheduleWatchlist.map((vendor) => (
+                  <div
+                    key={vendor.key}
+                    className="rounded-[18px] border border-ink-100 bg-ink-50/50 px-4 py-3"
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <p className="text-sm font-semibold text-ink-900">{vendor.name}</p>
+                        <p className="mt-1 text-sm text-ink-500">
+                          {vendor.openTasks} open task{vendor.openTasks === 1 ? "" : "s"}
+                          {vendor.trade ? ` • ${vendor.trade}` : ""}
+                        </p>
+                      </div>
+                      <span
+                        className={`rounded-full px-3 py-1 text-xs font-semibold ${getVendorProcurementStateClasses(
+                          vendor.procurement.overallState
+                        )}`}
+                      >
+                        {vendor.procurement.overallLabel}
+                      </span>
+                    </div>
+                    <p className="mt-3 text-sm leading-6 text-ink-500">
+                      {vendor.nextDue
+                        ? `Next due ${formatTimelineDate(vendor.nextDue)}`
+                        : "No committed due date yet"}
+                    </p>
+                  </div>
+                ))
+              ) : (
+                <div className="rounded-[18px] border border-dashed border-ink-200 bg-ink-50/35 px-4 py-4 text-sm leading-6 text-ink-500">
+                  Vendor handoffs will appear here once assignments and due dates are in place.
+                </div>
+              )}
+            </div>
+          </section>
         </div>
 
         <ScheduleTab
@@ -513,9 +747,9 @@ const PropertyOperationsPanel = ({
             />
             <MetricTile
               icon={BuildingOffice2Icon}
-              label="Cost events"
+              label="Payment events"
               value={eventsByLane.costs.length}
-              hint="Expenses recorded against the project."
+              hint="Payments recorded against the project."
             />
             <MetricTile
               icon={DocumentTextIcon}
@@ -625,114 +859,203 @@ const PropertyOperationsPanel = ({
           />
           <MetricTile
             icon={ClockIcon}
+            label="Ready to pay"
+            value={readyToPayCount}
+            hint="Vendor packets ready for clean release of funds."
+          />
+          <MetricTile
+            icon={BuildingOffice2Icon}
             label="Paid to vendors"
             value={formatCurrency(
               vendorDirectory.reduce((sum, vendor) => sum + vendor.paidToDate, 0)
             )}
-            hint="Payments linked to vendor records or payees."
+            hint={`Vendor-linked payments recorded. ${renewalWatchCount} packet${renewalWatchCount === 1 ? "" : "s"} on renewal watch.`}
           />
         </div>
 
-        <section className="section-card p-6 sm:p-7">
-          <span className="eyebrow">Property vendor roster</span>
-          <h4 className="mt-4 text-2xl font-semibold text-ink-900">Vendors touching this job</h4>
+        <div className="grid gap-4 xl:grid-cols-2">
+          <section className="section-card p-6 sm:p-7">
+            <span className="eyebrow">Action queue</span>
+            <h4 className="mt-4 text-2xl font-semibold text-ink-900">Vendors needing attention</h4>
 
-          <div className="mt-8 grid gap-4 xl:grid-cols-2">
-            {vendorDirectory.length > 0 ? (
-              vendorDirectory.map((vendor) => (
-                <div key={vendor.key} className="rounded-[24px] border border-ink-100 bg-white/90 p-5">
-                  <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                    <div>
-                      <p className="text-lg font-semibold text-ink-900">{vendor.name}</p>
-                      <p className="mt-1 text-sm font-medium text-ink-500">
-                        {vendor.trade || "Trade not specified"}
-                      </p>
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        <span
-                          className={`rounded-full px-3 py-1 text-xs font-semibold ${getVendorProcurementStateClasses(
-                            vendor.procurement.overallState
-                          )}`}
-                        >
-                          {vendor.procurement.overallLabel}
-                        </span>
-                        {vendor.linkedVendor ? (
-                          <span
-                            className={`rounded-full px-3 py-1 text-xs font-semibold ${getVendorComplianceClasses(
-                              vendor.vendorRecord
-                            )}`}
-                          >
-                            {getVendorComplianceLabel(vendor.vendorRecord)}
-                          </span>
-                        ) : null}
-                        <span className="rounded-full border border-ink-100 bg-white px-3 py-1 text-xs font-semibold text-ink-600">
-                          {vendor.procurement.paymentReady ? "Payment backup ready" : "Payment backup needed"}
-                        </span>
+            <div className="mt-6 space-y-3">
+              {highRiskVendors.length > 0 ? (
+                highRiskVendors.map((vendor) => (
+                  <div
+                    key={vendor.key}
+                    className="rounded-[20px] border border-clay-100 bg-clay-50/55 p-4"
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <p className="text-base font-semibold text-ink-900">{vendor.name}</p>
+                        <p className="mt-1 text-sm text-ink-500">
+                          {vendor.trade || "Trade not specified"}
+                        </p>
                       </div>
+                      <span
+                        className={`rounded-full px-3 py-1 text-xs font-semibold ${getVendorProcurementStateClasses(
+                          vendor.procurement.overallState
+                        )}`}
+                      >
+                        {vendor.procurement.overallLabel}
+                      </span>
                     </div>
-                    <span className="rounded-full border border-verdigris-200 bg-verdigris-50 px-3 py-1 text-xs font-semibold text-verdigris-700">
-                      {vendor.commitments} commitment{vendor.commitments === 1 ? "" : "s"}
-                    </span>
-                  </div>
-
-                  <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                    <div className="rounded-[18px] border border-ink-100 bg-ink-50/55 p-4">
-                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-400">
-                        Committed
-                      </p>
-                      <p className="mt-2 text-lg font-semibold text-ink-900">
-                        {formatCurrency(vendor.commitmentAmount)}
-                      </p>
-                    </div>
-                    <div className="rounded-[18px] border border-ink-100 bg-ink-50/55 p-4">
-                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-400">
-                        Paid
-                      </p>
-                      <p className="mt-2 text-lg font-semibold text-ink-900">
-                        {formatCurrency(vendor.paidToDate)}
-                      </p>
-                    </div>
-                    <div className="rounded-[18px] border border-ink-100 bg-ink-50/55 p-4">
-                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-400">
-                        Open tasks
-                      </p>
-                      <p className="mt-2 text-lg font-semibold text-ink-900">{vendor.openTasks}</p>
-                    </div>
-                    <div className="rounded-[18px] border border-ink-100 bg-ink-50/55 p-4">
-                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-400">
-                        Next due
-                      </p>
-                      <p className="mt-2 text-lg font-semibold text-ink-900">
-                          {vendor.nextDue ? formatTimelineDate(vendor.nextDue) : "No due date"}
-                      </p>
-                    </div>
-                  </div>
-
-                  {vendor.email || vendor.phone ? (
-                    <div className="mt-4 rounded-[18px] border border-ink-100 bg-ink-50/40 p-4 text-sm leading-6 text-ink-600">
-                      {vendor.email ? <p>{vendor.email}</p> : null}
-                      {vendor.phone ? <p>{vendor.phone}</p> : null}
-                    </div>
-                  ) : null}
-
-                  <div className="mt-4 rounded-[18px] border border-sand-100 bg-sand-50/60 p-4">
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sand-700">
-                      Packet gaps
-                    </p>
-                    <p className="mt-2 text-sm leading-6 text-sand-900">
+                    <p className="mt-3 text-sm leading-6 text-ink-600">
                       {vendor.procurement.nextActions[0]
                         ? vendor.procurement.nextActions.join(" • ")
-                        : "Vendor packet looks healthy for this stage of the job."}
+                        : "Packet cleanup is recommended before new work or new payments."}
                     </p>
                   </div>
+                ))
+              ) : (
+                <div className="rounded-[20px] border border-dashed border-ink-200 bg-ink-50/35 p-4 text-sm leading-6 text-ink-500">
+                  No vendor packet blockers right now.
                 </div>
-              ))
-            ) : (
-              <div className="rounded-[24px] border border-dashed border-ink-200 bg-ink-50/40 p-6 text-center text-sm leading-6 text-ink-500 xl:col-span-2">
-                No project-specific vendor activity yet. Add commitments, assign tasks, or record
-                vendor expenses to populate this roster.
-              </div>
-            )}
+              )}
+            </div>
+          </section>
+
+          <section className="section-card p-6 sm:p-7">
+            <span className="eyebrow">Ready now</span>
+            <h4 className="mt-4 text-2xl font-semibold text-ink-900">Vendors ready to use or pay</h4>
+
+            <div className="mt-6 space-y-3">
+              {readyNowVendors.length > 0 ? (
+                readyNowVendors.map((vendor) => (
+                  <div
+                    key={vendor.key}
+                    className="rounded-[20px] border border-verdigris-100 bg-verdigris-50/55 p-4"
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <p className="text-base font-semibold text-ink-900">{vendor.name}</p>
+                        <p className="mt-1 text-sm text-ink-500">
+                          {formatCurrency(vendor.commitmentAmount)} committed • {formatCurrency(vendor.paidToDate)} paid
+                        </p>
+                      </div>
+                      <span
+                        className={`rounded-full px-3 py-1 text-xs font-semibold ${getVendorProcurementStateClasses(
+                          vendor.procurement.overallState
+                        )}`}
+                      >
+                        {vendor.procurement.overallLabel}
+                      </span>
+                    </div>
+                    <p className="mt-3 text-sm leading-6 text-ink-600">
+                      {vendor.procurement.paymentReady
+                        ? "Payment support is in place."
+                        : vendor.procurement.assignmentReady
+                          ? "Packet is ready for new assignments."
+                          : "This vendor is mostly ready but still needs packet cleanup."}
+                    </p>
+                  </div>
+                ))
+              ) : (
+                <div className="rounded-[20px] border border-dashed border-ink-200 bg-ink-50/35 p-4 text-sm leading-6 text-ink-500">
+                  Vendors will show up here once their packet is complete enough to assign or pay.
+                </div>
+              )}
+            </div>
+          </section>
+        </div>
+
+        <section className="section-card p-6 sm:p-7">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <span className="eyebrow">Vendor control table</span>
+              <h4 className="mt-4 text-2xl font-semibold text-ink-900">Run the roster without opening every record</h4>
+            </div>
+            <p className="text-sm leading-6 text-ink-500">
+              Scan packet readiness, commitments, live payments, and due pressure in one place.
+            </p>
           </div>
+
+          {vendorDirectory.length > 0 ? (
+            <div className="mt-8 overflow-x-auto">
+              <table className="min-w-full divide-y divide-ink-100 text-left text-sm">
+                <thead>
+                  <tr className="text-xs uppercase tracking-[0.16em] text-ink-400">
+                    <th className="pb-3 pr-4 font-semibold">Vendor</th>
+                    <th className="pb-3 pr-4 font-semibold">Packet</th>
+                    <th className="pb-3 pr-4 font-semibold">Commitments</th>
+                    <th className="pb-3 pr-4 font-semibold">Paid</th>
+                    <th className="pb-3 pr-4 font-semibold">Open tasks</th>
+                    <th className="pb-3 pr-4 font-semibold">Next due</th>
+                    <th className="pb-3 font-semibold">Next action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-ink-100">
+                  {vendorDirectory.map((vendor) => (
+                    <tr key={vendor.key} className="align-top">
+                      <td className="py-4 pr-4">
+                        <p className="font-semibold text-ink-900">{vendor.name}</p>
+                        <p className="mt-1 text-sm text-ink-500">
+                          {vendor.trade || "Trade not specified"}
+                        </p>
+                        {(vendor.email || vendor.phone) && (
+                          <p className="mt-2 text-xs leading-5 text-ink-400">
+                            {[vendor.email, vendor.phone].filter(Boolean).join(" • ")}
+                          </p>
+                        )}
+                      </td>
+                      <td className="py-4 pr-4">
+                        <div className="flex flex-col gap-2">
+                          <span
+                            className={`inline-flex w-fit rounded-full px-3 py-1 text-xs font-semibold ${getVendorProcurementStateClasses(
+                              vendor.procurement.overallState
+                            )}`}
+                          >
+                            {vendor.procurement.overallLabel}
+                          </span>
+                          {vendor.linkedVendor ? (
+                            <span
+                              className={`inline-flex w-fit rounded-full px-3 py-1 text-xs font-semibold ${getVendorComplianceClasses(
+                                vendor.vendorRecord
+                              )}`}
+                            >
+                              {getVendorComplianceLabel(vendor.vendorRecord)}
+                            </span>
+                          ) : (
+                            <span className="inline-flex w-fit rounded-full border border-ink-100 bg-white px-3 py-1 text-xs font-semibold text-ink-500">
+                              Unlinked payee
+                            </span>
+                          )}
+                          <span className="text-xs text-ink-400">
+                            {vendor.procurement.completedRequiredCount}/{vendor.procurement.requiredCount} required items ready
+                          </span>
+                        </div>
+                      </td>
+                      <td className="py-4 pr-4 text-sm font-semibold text-ink-900">
+                        {formatCurrency(vendor.commitmentAmount)}
+                        <p className="mt-1 text-xs font-medium text-ink-400">
+                          {vendor.commitments} commitment{vendor.commitments === 1 ? "" : "s"}
+                        </p>
+                      </td>
+                      <td className="py-4 pr-4 text-sm font-semibold text-ink-900">
+                        {formatCurrency(vendor.paidToDate)}
+                      </td>
+                      <td className="py-4 pr-4 text-sm font-semibold text-ink-900">
+                        {vendor.openTasks}
+                      </td>
+                      <td className="py-4 pr-4 text-sm text-ink-600">
+                        {vendor.nextDue ? formatTimelineDate(vendor.nextDue) : "No due date"}
+                      </td>
+                      <td className="py-4 text-sm leading-6 text-ink-600">
+                        {vendor.procurement.nextActions[0]
+                          ? vendor.procurement.nextActions.join(" • ")
+                          : "Vendor packet looks healthy for the current stage."}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="mt-8 rounded-[24px] border border-dashed border-ink-200 bg-ink-50/40 p-6 text-center text-sm leading-6 text-ink-500">
+              No project-specific vendor activity yet. Add commitments, assign tasks, or record
+              vendor payments to populate this roster.
+            </div>
+          )}
         </section>
       </div>
     );
@@ -742,9 +1065,9 @@ const PropertyOperationsPanel = ({
     <div className="space-y-6">
       {!embedded ? (
         <section className="surface-panel px-6 py-7 sm:px-7">
-          <span className="eyebrow">Operations / Activity</span>
+          <span className="eyebrow">Operations / Updates</span>
           <h3 className="mt-4 font-display text-[2.15rem] leading-[0.96] text-ink-900">
-            Watch the property activity stream across schedule, vendors, costs, and documents
+            Watch the execution feed across schedule, vendors, payments, and documents
           </h3>
           <p className="mt-4 max-w-3xl text-sm leading-7 text-ink-500 sm:text-base">
             This feed gives you one quick place to scan what has changed recently without jumping
@@ -774,7 +1097,7 @@ const PropertyOperationsPanel = ({
         />
         <MetricTile
           icon={BuildingOffice2Icon}
-          label="Expenses posted"
+          label="Payments posted"
           value={expenses.length}
           hint="Cost entries contributing to the activity feed."
         />
@@ -782,7 +1105,7 @@ const PropertyOperationsPanel = ({
 
       <section className="section-card p-6 sm:p-7">
         <span className="eyebrow">Recent activity</span>
-        <h4 className="mt-4 text-2xl font-semibold text-ink-900">Property event feed</h4>
+        <h4 className="mt-4 text-2xl font-semibold text-ink-900">Execution event feed</h4>
 
         <div className="mt-8 space-y-4">
           {recentActivity.length > 0 ? (
@@ -811,7 +1134,7 @@ const PropertyOperationsPanel = ({
             })
           ) : (
             <div className="rounded-[24px] border border-dashed border-ink-200 bg-ink-50/40 p-6 text-center text-sm leading-6 text-ink-500">
-              No recent activity yet. Start adding tasks, documents, or costs and the feed will
+              No recent activity yet. Start adding tasks, documents, or payments and the feed will
               populate automatically.
             </div>
           )}

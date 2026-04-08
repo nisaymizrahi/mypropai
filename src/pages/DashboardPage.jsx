@@ -115,7 +115,7 @@ const DashboardPage = () => {
   const activeWorkspaces =
     propertyHub.activeWorkspaces ??
     kpis.activeWorkspaces ??
-    workspaceCounts.pipeline + workspaceCounts.acquisitions + workspaceCounts.management;
+    workspaceCounts.pipeline + workspaceCounts.acquisitions;
   const workspaceCoverageRate =
     propertyHub.workspaceCoverageRate ??
     kpis.workspaceCoverageRate ??
@@ -235,28 +235,28 @@ const DashboardPage = () => {
           <DashboardStatCard
           title="Active workspaces"
           value={activeWorkspaces}
-          detail="Combined pipeline, project management, and management placements across the portfolio."
+          detail="Combined deal and financial workspace placements across the portfolio."
           tone="warning"
           eyebrow="Coverage"
           icon={RectangleStackIcon}
           progress={workspaceCoverageRate}
         />
         </Link>
-        <Link to="/management" className="block">
+        <Link to="/properties" className="block">
           <DashboardStatCard
-          title="Gross monthly rent"
+          title="Projected monthly rent"
           value={currencyFormatter.format(monthlyRent)}
-          detail="Expected monthly rental income currently under management."
+          detail="Expected monthly rental income across the tracked portfolio."
           tone="success"
           eyebrow="Cashflow"
           icon={CurrencyDollarIcon}
         />
         </Link>
-        <Link to="/management" className="block">
+        <Link to="/properties" className="block">
           <DashboardStatCard
-          title="Occupancy rate"
+          title="Occupied unit rate"
           value={`${occupancyRate.toFixed(0)}%`}
-          detail="Leased unit share across your current management portfolio."
+          detail="Leased unit share across the tracked portfolio."
           tone={occupancyRate >= 90 ? "success" : occupancyRate >= 75 ? "warning" : "danger"}
           eyebrow="Leasing"
           icon={BuildingOffice2Icon}

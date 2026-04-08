@@ -6,15 +6,10 @@ import {
   BuildingOffice2Icon,
   Cog6ToothIcon,
   HomeModernIcon,
-  WrenchScrewdriverIcon,
 } from "@heroicons/react/24/outline";
 
 import { PROPERTY_STRATEGIES } from "../utils/propertyStrategy";
 import { INVESTOR_TERMS } from "../utils/investorTerminology";
-
-const managementStrategies = PROPERTY_STRATEGIES.filter((strategy) =>
-  ["fix_and_rent", "rental"].includes(strategy.value)
-);
 
 const LinkedWorkspaceCard = ({
   eyebrow,
@@ -73,18 +68,13 @@ const PropertyWorkspaceSettingsPanel = ({
   isUpdatingWorkspaceStatus,
   onCreatePipelineWorkspace,
   onCreateAcquisitionWorkspace,
-  onCreateManagementWorkspace,
   isCreatingPipelineWorkspace,
   isCreatingAcquisitionWorkspace,
-  isCreatingManagementWorkspace,
   acquisitionStrategy,
-  managementStrategy,
   onAcquisitionStrategyChange,
-  onManagementStrategyChange,
 }) => {
   const hasPipelineWorkspace = Boolean(property?.workspaces?.pipeline);
   const hasAcquisitionsWorkspace = Boolean(property?.workspaces?.acquisitions);
-  const hasManagementWorkspace = Boolean(property?.workspaces?.management);
 
   return (
     <div className="space-y-4">
@@ -96,7 +86,7 @@ const PropertyWorkspaceSettingsPanel = ({
               Keep this project connected
             </h2>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-ink-500">
-              Add or open the records behind deal context, budget, execution, and management.
+              Add or open the records behind deal context, budget, and execution.
             </p>
           </div>
 
@@ -114,11 +104,7 @@ const PropertyWorkspaceSettingsPanel = ({
                 Linked records
               </p>
               <p className="mt-2 text-sm font-semibold text-ink-900">
-                {[
-                  property?.workspaces?.pipeline,
-                  property?.workspaces?.acquisitions,
-                  property?.workspaces?.management,
-                ].filter(Boolean).length}
+                {[property?.workspaces?.pipeline, property?.workspaces?.acquisitions].filter(Boolean).length}
               </p>
             </div>
           </div>
@@ -134,7 +120,7 @@ const PropertyWorkspaceSettingsPanel = ({
         isUpdatingWorkspaceStatus={isUpdatingWorkspaceStatus}
       />
 
-      <div className="grid gap-4 xl:grid-cols-3">
+      <div className="grid gap-4 xl:grid-cols-2">
         <LinkedWorkspaceCard
           eyebrow="Deal link"
           title="Deal record"
@@ -203,48 +189,6 @@ const PropertyWorkspaceSettingsPanel = ({
                 className="primary-action disabled:cursor-not-allowed disabled:opacity-70"
               >
                 {isCreatingAcquisitionWorkspace ? "Creating..." : "Create acquisitions"}
-              </button>
-            )
-          }
-        />
-
-        <LinkedWorkspaceCard
-          eyebrow="Management"
-          title="Operations after stabilization"
-          icon={WrenchScrewdriverIcon}
-          tone="bg-verdigris-50/60"
-          status={hasManagementWorkspace ? "Linked" : "Optional"}
-          helper={
-            hasManagementWorkspace
-              ? "Units, leases, and long-term operations are linked."
-              : "Add this when the property moves into rentals."
-          }
-          footer={
-            !hasManagementWorkspace ? (
-              <StrategyControl
-                label="Management strategy"
-                value={managementStrategy}
-                options={managementStrategies}
-                onChange={onManagementStrategyChange}
-              />
-            ) : null
-          }
-          action={
-            hasManagementWorkspace ? (
-              <Link
-                to={property.workspaces.management.path}
-                className="secondary-action"
-              >
-                Open management
-              </Link>
-            ) : (
-              <button
-                type="button"
-                onClick={onCreateManagementWorkspace}
-                disabled={isCreatingManagementWorkspace}
-                className="primary-action disabled:cursor-not-allowed disabled:opacity-70"
-              >
-                {isCreatingManagementWorkspace ? "Creating..." : "Create management"}
               </button>
             )
           }
