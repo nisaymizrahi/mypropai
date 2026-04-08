@@ -15,23 +15,22 @@ const footerCollections = [
   {
     title: "Product",
     links: [
-      { label: "Homepage", to: "/" },
       { label: "Product", to: "/product" },
       { label: "Pricing", to: "/pricing" },
+      { label: "Resources", to: "/resources" },
     ],
   },
   {
     title: "Explore",
-    links: marketingSecondaryNavItems,
+    links: [
+      { label: "Compare", to: "/compare/flipper-force" },
+      { label: "About", to: "/about" },
+    ],
   },
 ];
 
 const navLinkClassName = ({ isActive }) =>
-  `segmented-option ${
-    isActive
-      ? "segmented-option-active"
-      : "text-ink-500 hover:bg-white/80 hover:text-ink-900"
-  }`;
+  `public-nav-link ${isActive ? "public-nav-link-active" : ""}`.trim();
 
 const trackDatasetEvent = (event) => {
   if (!(event.target instanceof Element)) {
@@ -69,16 +68,37 @@ const trackDatasetEvent = (event) => {
 function MarketingLayout({ children }) {
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
 
+  const closeMoreMenu = () => setIsMoreMenuOpen(false);
+
   return (
     <div className="public-shell min-h-screen text-ink-900" onClickCapture={trackDatasetEvent}>
-      <div className="mx-auto flex min-h-screen max-w-[1280px] flex-col px-4 py-4 sm:px-6 lg:px-8">
-        <header className="surface-panel-strong sticky top-4 z-30 space-y-4 px-5 py-4 backdrop-blur-md">
-          <div className="flex flex-wrap items-start gap-4 lg:items-center">
-            <Link to="/" className="shrink-0">
-              <BrandLogo caption="Fix-and-flip workspace for operators" />
+      <div className="mx-auto flex min-h-screen max-w-[1320px] flex-col px-4 py-4 sm:px-6 lg:px-8">
+        <header className="public-header-shell sticky top-4 z-30 px-4 py-3 sm:px-5">
+          <div className="flex items-center gap-3">
+            <Link to="/" className="flex min-w-0 shrink-0 items-center gap-3" onClick={closeMoreMenu}>
+              <BrandLogo imageClassName="h-9 max-w-[150px] sm:h-10 sm:max-w-[166px]" />
+              <p className="hidden max-w-[12rem] text-xs leading-5 text-ink-500 xl:block">
+                Investor workspace for lead-to-project execution
+              </p>
             </Link>
 
-            <div className="ml-auto flex flex-wrap items-center gap-2">
+            <nav className="ml-2 hidden items-center gap-1 lg:flex" aria-label="Primary">
+              {marketingNavItems.map((item) => (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  className={navLinkClassName}
+                  data-analytics-event="marketing_nav_click"
+                  data-analytics-label={item.label}
+                  data-analytics-location="header_nav"
+                  data-analytics-category="navigation"
+                >
+                  {item.label}
+                </NavLink>
+              ))}
+            </nav>
+
+            <div className="ml-auto flex items-center gap-2">
               <Link
                 to="/login"
                 className="ghost-action"
@@ -100,90 +120,79 @@ function MarketingLayout({ children }) {
                 data-analytics-category="conversion"
               >
                 Start free
-                <ArrowRightIcon className="ml-2 h-4 w-4" />
+                <ArrowRightIcon className="hidden h-4 w-4 sm:block" />
               </Link>
               <button
                 type="button"
                 onClick={() => setIsMoreMenuOpen((current) => !current)}
                 className="ghost-action lg:hidden"
+                aria-controls="public-mobile-nav"
                 aria-expanded={isMoreMenuOpen}
-                aria-label={isMoreMenuOpen ? "Close more links" : "Open more links"}
+                aria-label={isMoreMenuOpen ? "Close menu" : "Open menu"}
               >
                 {isMoreMenuOpen ? <XMarkIcon className="h-4 w-4" /> : <Bars3Icon className="h-4 w-4" />}
-                {isMoreMenuOpen ? "Close" : "More"}
+                {isMoreMenuOpen ? "Close" : "Menu"}
               </button>
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <nav className="segmented-control flex flex-wrap items-center gap-1 text-sm">
-              {marketingNavItems.map((item) => (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  className={navLinkClassName}
-                  data-analytics-event="marketing_nav_click"
-                  data-analytics-label={item.label}
-                  data-analytics-location="header_nav"
-                  data-analytics-category="navigation"
-                >
-                  {item.label}
-                </NavLink>
-              ))}
-            </nav>
-
-            <div className="hidden flex-wrap items-center gap-4 text-sm text-ink-500 lg:flex">
-              {marketingSecondaryNavItems.map((item) => (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  className="transition hover:text-ink-900"
-                  data-analytics-event="marketing_nav_click"
-                  data-analytics-label={item.label}
-                  data-analytics-location="header_secondary_nav"
-                  data-analytics-category="navigation"
-                >
-                  {item.label}
-                </NavLink>
-              ))}
-            </div>
-          </div>
-
           {isMoreMenuOpen ? (
-            <div className="grid gap-2 rounded-[22px] border border-ink-100 bg-white/80 p-4 lg:hidden">
-              {marketingSecondaryNavItems.map((item) => (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  onClick={() => setIsMoreMenuOpen(false)}
-                  className="rounded-[14px] px-3 py-2 text-sm text-ink-600 transition hover:bg-sand-50 hover:text-ink-900"
-                  data-analytics-event="marketing_nav_click"
-                  data-analytics-label={item.label}
-                  data-analytics-location="mobile_more_menu"
-                  data-analytics-category="navigation"
-                >
-                  {item.label}
-                </NavLink>
-              ))}
+            <div id="public-mobile-nav" className="public-mobile-menu mt-3 lg:hidden" aria-label="Mobile navigation">
+              <div className="grid gap-2">
+                {marketingNavItems.map((item) => (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    onClick={closeMoreMenu}
+                    className="rounded-[16px] px-4 py-3 text-sm font-semibold text-ink-700 transition hover:bg-white hover:text-ink-900"
+                    data-analytics-event="marketing_nav_click"
+                    data-analytics-label={item.label}
+                    data-analytics-location="mobile_nav"
+                    data-analytics-category="navigation"
+                  >
+                    {item.label}
+                  </NavLink>
+                ))}
+              </div>
+
+              <div className="editorial-divider my-3" />
+
+              <div className="grid gap-2">
+                {marketingSecondaryNavItems.map((item) => (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    onClick={closeMoreMenu}
+                    className="rounded-[16px] px-4 py-3 text-sm font-medium text-ink-600 transition hover:bg-white hover:text-ink-900"
+                    data-analytics-event="marketing_nav_click"
+                    data-analytics-label={item.label}
+                    data-analytics-location="mobile_secondary_nav"
+                    data-analytics-category="navigation"
+                  >
+                    {item.label}
+                  </NavLink>
+                ))}
+              </div>
             </div>
           ) : null}
         </header>
 
-        <main className="marketing-stage flex-1 space-y-6 py-10 lg:py-12">{children}</main>
+        <main className="marketing-stage flex-1 space-y-8 py-8 lg:py-12">{children}</main>
 
-        <footer className="pb-8">
-          <div className="marketing-spotlight px-6 py-6 sm:px-7">
-            <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_220px_220px]">
-              <div>
+        <footer className="pb-8 pt-6" role="contentinfo">
+          <div className="public-footer-shell px-6 py-7 sm:px-7">
+            <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_220px_220px]">
+              <div className="max-w-xl">
                 <span className="eyebrow">Fliprop</span>
-                <h2 className="mt-4 max-w-xl font-display text-[2rem] leading-none text-ink-900">
-                  Go from lead to rehab-ready workspace without rebuilding the deal in three tools.
+                <h2 className="mt-5 font-display text-[2rem] leading-[0.98] text-ink-900">
+                  A calmer operating system for investor teams moving from lead review into execution.
                 </h2>
-                <p className="mt-4 max-w-2xl text-sm leading-7 text-ink-600 sm:text-base">
-                  Start free, centralize the lead and project first, then turn on Pro when recurring
-                  deal analysis becomes part of the weekly workflow.
+                <p className="mt-4 text-sm leading-7 text-ink-600 sm:text-base">
+                  Start free, keep the deal story intact, and turn on Pro only when recurring
+                  analysis becomes part of the weekly workflow.
                 </p>
-                <div className="mt-5 flex flex-wrap gap-3">
+
+                <div className="mt-6 flex flex-wrap gap-3">
                   <Link
                     to="/signup"
                     className="primary-action"

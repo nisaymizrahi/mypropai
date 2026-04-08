@@ -174,7 +174,7 @@ const getProjectQuickActions = (property) => {
       },
       {
         label: "Budget",
-        to: buildPropertyWorkspaceSectionPath(propertyKey, "budget", "line-items"),
+        to: buildPropertyWorkspaceSectionPath(propertyKey, "budget", "payments"),
       },
       {
         label: "Deal",
@@ -187,7 +187,7 @@ const getProjectQuickActions = (property) => {
     return [
       {
         label: "Open Budget",
-        to: buildPropertyWorkspaceSectionPath(propertyKey, "budget", "line-items"),
+        to: buildPropertyWorkspaceSectionPath(propertyKey, "budget", "payments"),
         primary: true,
       },
       {
@@ -207,7 +207,7 @@ const getProjectQuickActions = (property) => {
       },
       {
         label: "Budget",
-        to: buildPropertyWorkspaceSectionPath(propertyKey, "budget", "line-items"),
+        to: buildPropertyWorkspaceSectionPath(propertyKey, "budget", "payments"),
       },
       {
         label: "Execution",

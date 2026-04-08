@@ -16,12 +16,25 @@ import {
 } from "../utils/vendors";
 import { getVendorProcurementSummary } from "../utils/vendorProcurement";
 
-const DocumentMetric = ({ label, value }) => (
-  <div className="rounded-[18px] border border-ink-100 bg-white/85 p-4">
+const DocumentMetric = ({ label, value, hint }) => (
+  <div className="rounded-[20px] border border-ink-100 bg-white/88 px-4 py-4">
     <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-400">{label}</p>
     <p className="mt-2 text-xl font-semibold text-ink-900">{value}</p>
+    {hint ? <p className="mt-1 text-sm leading-6 text-ink-500">{hint}</p> : null}
   </div>
 );
+
+const getDocumentStateClasses = (state) => {
+  if (state === "expired") {
+    return "border border-clay-200 bg-clay-50 text-clay-700";
+  }
+
+  if (state === "expiring") {
+    return "border border-sand-200 bg-sand-50 text-sand-700";
+  }
+
+  return "border border-verdigris-200 bg-verdigris-50 text-verdigris-700";
+};
 
 const VendorDocumentsPanel = ({ vendor, onUpdated }) => {
   const [formData, setFormData] = useState({
@@ -197,36 +210,37 @@ const VendorDocumentsPanel = ({ vendor, onUpdated }) => {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <DocumentMetric label="Total files" value={documents.length} />
-        <DocumentMetric
-          label="Packet coverage"
-          value={`${procurement.completedRequiredCount}/${procurement.requiredCount}`}
-        />
-        <DocumentMetric label="Expiring soon" value={expiringCount} />
-        <DocumentMetric label="Expired" value={expiredCount} />
-      </div>
-
-      <section className="section-card p-6 sm:p-7">
-        <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_360px]">
+    <div className="space-y-5">
+      <section className="surface-panel px-5 py-5 sm:px-6">
+        <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
           <div>
             <span className="eyebrow">Vendor documents</span>
-            <h3 className="mt-4 text-3xl font-semibold text-ink-900">
-              Quotes, contracts, insurance, and payment backup
+            <h3 className="mt-4 text-[1.8rem] font-medium tracking-tight text-ink-900">
+              Quotes, contracts, insurance, and payout backup
             </h3>
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-ink-500">
-              Store vendor files with document types and expiration dates so assignment and payment
-              decisions stay clear.
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-ink-500">
+              Keep vendor documents organized by category and expiration so assignment and payment
+              decisions stay easy to trust.
             </p>
 
+            <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <DocumentMetric label="Total files" value={documents.length} />
+              <DocumentMetric
+                label="Packet coverage"
+                value={`${procurement.completedRequiredCount}/${procurement.requiredCount}`}
+                hint="Required packet items currently covered."
+              />
+              <DocumentMetric label="Expiring soon" value={expiringCount} />
+              <DocumentMetric label="Expired" value={expiredCount} />
+            </div>
+
             {storageOverview ? (
-              <div className="mt-6 rounded-[18px] border border-ink-100 bg-white/85 px-4 py-4 text-sm text-ink-600">
+              <div className="mt-5 rounded-[18px] border border-ink-100 bg-white/85 px-4 py-4 text-sm text-ink-600">
                 <p className="font-semibold text-ink-900">
                   {formatStorageBytes(storageOverview.bytesUsed)} of{" "}
                   {formatStorageBytes(storageOverview.totalStorageQuotaBytes)} used
                 </p>
-                <p className="mt-2">
+                <p className="mt-2 leading-6">
                   {formatStorageBytes(storageOverview.bytesRemaining)} remaining. Max file size:{" "}
                   {formatStorageBytes(storageOverview.maxFileSizeBytes)} on your{" "}
                   {storageOverview.tierLabel} plan.
@@ -235,25 +249,41 @@ const VendorDocumentsPanel = ({ vendor, onUpdated }) => {
             ) : null}
 
             {error ? (
-              <div className="mt-6 rounded-[18px] border border-clay-200 bg-clay-50 px-4 py-3 text-sm text-clay-700">
+              <div className="mt-5 rounded-[18px] border border-clay-200 bg-clay-50 px-4 py-3 text-sm text-clay-700">
                 {error}
               </div>
             ) : null}
 
-            <div className="mt-6 rounded-[22px] border border-sand-100 bg-sand-50/60 p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sand-700">
+            <div className="mt-5 rounded-[20px] border border-sand-100 bg-sand-50/70 px-4 py-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-sand-700">
                 Packet guidance
               </p>
               <p className="mt-2 text-sm leading-6 text-sand-900">
                 {procurement.nextActions[0]
                   ? procurement.nextActions.join(" • ")
-                  : "This vendor packet is in a good place. Upload project-specific change orders or invoices as work moves forward."}
+                  : "The vendor packet is in a good place right now. Upload project-specific change orders, invoices, or final backup as work moves forward."}
               </p>
             </div>
           </div>
 
-          <form onSubmit={handleUpload} className="rounded-[24px] border border-ink-100 bg-white/90 p-5">
-            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-ink-400">New upload</p>
+          <form
+            onSubmit={handleUpload}
+            className="rounded-[24px] border border-ink-100 bg-white/92 p-5"
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-400">
+                  New upload
+                </p>
+                <p className="mt-2 text-sm leading-6 text-ink-500">
+                  Add vendor packet files with the right category and dates so the ledger stays
+                  useful later.
+                </p>
+              </div>
+              <span className="rounded-full border border-ink-100 bg-ink-50 px-3 py-1 text-xs font-semibold text-ink-500">
+                {file ? "File ready" : "Awaiting file"}
+              </span>
+            </div>
 
             <div className="mt-5 space-y-4">
               <label className="space-y-2">
@@ -263,7 +293,7 @@ const VendorDocumentsPanel = ({ vendor, onUpdated }) => {
                   value={formData.displayName}
                   onChange={handleChange}
                   className="auth-input"
-                  placeholder="2026 COI, kitchen bid, W-9"
+                  placeholder="2026 COI, kitchen bid, signed MSA"
                 />
               </label>
 
@@ -328,6 +358,11 @@ const VendorDocumentsPanel = ({ vendor, onUpdated }) => {
                   onChange={(event) => setFile(event.target.files?.[0] || null)}
                   className="auth-input"
                 />
+                {file ? (
+                  <p className="text-sm text-ink-500">
+                    Ready to upload: <span className="font-semibold text-ink-700">{file.name}</span>
+                  </p>
+                ) : null}
               </label>
 
               <button type="submit" disabled={isUploading} className="primary-action w-full justify-center">
@@ -336,52 +371,102 @@ const VendorDocumentsPanel = ({ vendor, onUpdated }) => {
             </div>
           </form>
         </div>
+      </section>
 
-        {sortedDocuments.length > 0 ? (
-          <div className="mt-8 grid gap-4 xl:grid-cols-2">
+      {sortedDocuments.length > 0 ? (
+        <section className="section-card overflow-hidden p-0">
+          <div className="flex flex-col gap-3 border-b border-ink-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-400">
+                Document ledger
+              </p>
+              <p className="mt-1 text-sm text-ink-500">
+                Denser vendor file view for compliance, payout, and packet review.
+              </p>
+            </div>
+            <span className="rounded-full border border-ink-100 bg-white px-3 py-1.5 text-xs font-semibold text-ink-500">
+              {sortedDocuments.length} file{sortedDocuments.length === 1 ? "" : "s"}
+            </span>
+          </div>
+
+          <div className="hidden gap-4 border-b border-ink-100 bg-ink-50/50 px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-400 md:grid md:grid-cols-[minmax(0,1.45fr)_190px_140px_120px_120px_150px]">
+            <span>Document</span>
+            <span>Category</span>
+            <span>State</span>
+            <span>Issue date</span>
+            <span>Expiration</span>
+            <span className="text-right">Actions</span>
+          </div>
+
+          <div className="divide-y divide-ink-100">
             {sortedDocuments.map((document) => {
               const state = getVendorDocumentState(document);
-              const stateClasses =
-                state === "expired"
-                  ? "border border-clay-200 bg-clay-50 text-clay-700"
-                  : state === "expiring"
-                    ? "border border-sand-200 bg-sand-50 text-sand-700"
-                    : "border border-verdigris-200 bg-verdigris-50 text-verdigris-700";
 
               return (
-                <div key={document._id} className="rounded-[22px] border border-ink-100 bg-white/85 p-5">
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                      <p className="text-lg font-semibold text-ink-900">{document.displayName}</p>
-                      <p className="mt-1 text-sm font-medium text-ink-500">{document.category}</p>
-                    </div>
-                    <span className={`rounded-full px-3 py-1 text-xs font-semibold ${stateClasses}`}>
+                <div
+                  key={document._id}
+                  className="grid gap-4 px-5 py-4 md:grid-cols-[minmax(0,1.45fr)_190px_140px_120px_120px_150px] md:items-center"
+                >
+                  <div>
+                    <p className="text-sm font-semibold text-ink-900">{document.displayName}</p>
+                    <p className="mt-1 text-sm leading-6 text-ink-500">
+                      {document.notes || "No document notes saved."}
+                    </p>
+                    <p className="mt-1 text-xs font-medium uppercase tracking-[0.16em] text-ink-400">
+                      Uploaded {formatVendorDate(document.uploadedAt, "Recently uploaded")}
+                    </p>
+                  </div>
+
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-400 md:hidden">
+                      Category
+                    </p>
+                    <p className="mt-1 text-sm text-ink-700 md:mt-0">{document.category}</p>
+                  </div>
+
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-400 md:hidden">
+                      State
+                    </p>
+                    <span
+                      className={`mt-1 inline-flex rounded-full px-3 py-1 text-xs font-semibold md:mt-0 ${getDocumentStateClasses(
+                        state
+                      )}`}
+                    >
                       {getVendorDocumentStateLabel(document)}
                     </span>
                   </div>
 
-                  <div className="mt-4 space-y-1 text-sm text-ink-500">
-                    <p>Uploaded {formatVendorDate(document.uploadedAt, "Recently uploaded")}</p>
-                    <p>Issue date: {formatVendorDate(document.issueDate, "Not set")}</p>
-                    <p>Expires: {formatVendorDate(document.expiresAt, "No expiration")}</p>
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-400 md:hidden">
+                      Issue date
+                    </p>
+                    <p className="mt-1 text-sm text-ink-700 md:mt-0">
+                      {formatVendorDate(document.issueDate, "Not set")}
+                    </p>
                   </div>
 
-                  <p className="mt-4 text-sm leading-6 text-ink-600">
-                    {document.notes || "No notes saved for this document."}
-                  </p>
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-400 md:hidden">
+                      Expiration
+                    </p>
+                    <p className="mt-1 text-sm text-ink-700 md:mt-0">
+                      {formatVendorDate(document.expiresAt, "No expiration")}
+                    </p>
+                  </div>
 
-                  <div className="mt-5 flex flex-wrap gap-3">
+                  <div className="flex flex-wrap gap-2 md:justify-end">
                     <button
                       type="button"
                       onClick={() => handleOpenDocument(document)}
-                      className="secondary-action"
+                      className="secondary-action min-h-0 px-4 py-2 text-sm"
                     >
-                      Open file
+                      Open
                     </button>
                     <button
                       type="button"
                       onClick={() => handleDelete(document._id)}
-                      className="ghost-action text-clay-700"
+                      className="ghost-action min-h-0 px-4 py-2 text-sm text-clay-700"
                     >
                       Delete
                     </button>
@@ -390,15 +475,16 @@ const VendorDocumentsPanel = ({ vendor, onUpdated }) => {
               );
             })}
           </div>
-        ) : (
-          <div className="mt-8 rounded-[20px] border border-dashed border-ink-200 bg-ink-50/40 px-6 py-12 text-center">
-            <p className="text-lg font-medium text-ink-900">No vendor documents yet</p>
-            <p className="mt-2 text-sm leading-6 text-ink-500">
-              Upload quotes, W-9s, insurance certificates, licenses, and contracts here.
-            </p>
-          </div>
-        )}
-      </section>
+        </section>
+      ) : (
+        <div className="section-card px-6 py-14 text-center">
+          <p className="text-lg font-medium text-ink-900">No vendor documents yet</p>
+          <p className="mt-2 text-sm leading-6 text-ink-500">
+            Upload quotes, W-9s, insurance certificates, licenses, contracts, and payout backup
+            here.
+          </p>
+        </div>
+      )}
     </div>
   );
 };

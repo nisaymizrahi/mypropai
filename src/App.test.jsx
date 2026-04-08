@@ -32,6 +32,22 @@ vi.mock(
       return normalizePath(routePath) === normalizePath(currentPath);
     };
 
+    const useParams = () => {
+      const currentParts = normalizePath(globalThis.location.pathname)
+        .split("/")
+        .filter(Boolean);
+
+      if (currentParts[0] === "management" && currentParts[1] && currentParts[1] !== "leases" && currentParts[1] !== "units") {
+        return { propertyId: currentParts[1] };
+      }
+
+      if ((currentParts[0] === "project-management" || currentParts[0] === "investments") && currentParts[1]) {
+        return { id: currentParts[1] };
+      }
+
+      return {};
+    };
+
     const Routes = ({ children }) => {
       const currentPath = globalThis.location.pathname;
       const routeChildren = React.Children.toArray(children);
@@ -47,6 +63,12 @@ vi.mock(
       Navigate,
       Route,
       Routes,
+      useLocation: () => ({
+        pathname: globalThis.location.pathname,
+        search: globalThis.location.search,
+        hash: globalThis.location.hash,
+      }),
+      useParams,
     };
   },
 );
@@ -89,6 +111,10 @@ describe("App routes", () => {
     window.history.pushState({}, "", path);
     return render(<App />);
   };
+
+  beforeEach(() => {
+    window.scrollTo = vi.fn();
+  });
 
   test("renders the homepage at the root route", async () => {
     renderAtPath("/");
@@ -162,16 +188,29 @@ describe("App routes", () => {
     expect(screen.getByText("Navigate:/properties/new")).toBeInTheDocument();
   });
 
-  test("redirects parked protected feature routes into leads", () => {
+  test("redirects retired management routes into the property hub", () => {
     renderAtPath("/management");
 
-    expect(screen.getByText("Navigate:/leads")).toBeInTheDocument();
+    expect(screen.getByText("Navigate:/properties")).toBeInTheDocument();
+  });
+
+  test("redirects retired management property routes into the matching property workspace", () => {
+    renderAtPath("/management/property-123");
+
+    expect(screen.getByText("Navigate:/properties/property-123")).toBeInTheDocument();
   });
 
   test("renders property workspace routes when opened directly", async () => {
     renderAtPath("/properties/property-123");
 
     expect(await screen.findByText("Property workspace screen")).toBeInTheDocument();
+  });
+
+  test("resets scroll position when the route changes", async () => {
+    renderAtPath("/properties/property-123/home");
+
+    expect(await screen.findByText("Property workspace screen")).toBeInTheDocument();
+    expect(window.scrollTo).toHaveBeenCalledWith({ top: 0, left: 0, behavior: "auto" });
   });
 
   test("redirects unknown routes back to the homepage", () => {

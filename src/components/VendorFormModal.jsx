@@ -132,7 +132,7 @@ const VendorFormModal = ({ isOpen, onClose, onSaved, vendor = null }) => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink-950/60 p-4 backdrop-blur-sm">
-      <div className="surface-panel-strong max-h-[92vh] w-full max-w-4xl overflow-y-auto px-6 py-6 sm:px-7">
+      <div className="surface-panel-strong max-h-[94vh] w-full max-w-5xl overflow-y-auto px-6 py-6 sm:px-7">
         <div className="flex items-start justify-between gap-4">
           <div>
             <span className="eyebrow">Vendor directory</span>
@@ -140,8 +140,8 @@ const VendorFormModal = ({ isOpen, onClose, onSaved, vendor = null }) => {
               {vendor?._id ? "Edit vendor" : "Add vendor"}
             </h2>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-ink-500">
-              Keep specialties, contact information, coverage, and assignment readiness in one
-              place so vendor decisions stay fast.
+              Capture trade coverage, contact details, service area, and internal notes without
+              slowing down the operating flow.
             </p>
           </div>
 
@@ -150,59 +150,91 @@ const VendorFormModal = ({ isOpen, onClose, onSaved, vendor = null }) => {
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="mt-8 space-y-6">
-          <div className="grid gap-4 md:grid-cols-2">
-            <label className="space-y-2">
-              <span className="text-sm font-medium text-ink-700">Vendor / company name</span>
-              <input
-                name="name"
-                value={formData.name}
-                onChange={handleChange}
-                className="auth-input"
-                placeholder="Northline Plumbing"
-                required
-              />
-            </label>
-
-            <label className="space-y-2">
-              <span className="text-sm font-medium text-ink-700">Primary contact name</span>
-              <input
-                name="contactName"
-                value={formData.contactName}
-                onChange={handleChange}
-                className="auth-input"
-                placeholder="Maria Alvarez"
-              />
-            </label>
-          </div>
-
-          <div>
-            <div className="flex flex-wrap items-center justify-between gap-3">
+        <form onSubmit={handleSubmit} className="mt-8 space-y-5">
+          <section className="section-card p-5 sm:p-6">
+            <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-sm font-medium text-ink-700">Specialties</p>
-                <p className="mt-1 text-sm text-ink-500">
-                  Select the work this vendor can cover, then add anything custom.
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-400">
+                  Basics
+                </p>
+                <p className="mt-2 text-sm leading-6 text-ink-500">
+                  Start with the vendor identity, status, and a short operating summary.
                 </p>
               </div>
-              <div className="flex gap-2">
+              <span className="rounded-full border border-ink-100 bg-white px-3 py-1.5 text-xs font-semibold text-ink-500">
+                {formData.specialties.length} specialt{formData.specialties.length === 1 ? "y" : "ies"}
+              </span>
+            </div>
+
+            <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-[minmax(0,1.2fr)_220px]">
+              <label className="space-y-2">
+                <span className="text-sm font-medium text-ink-700">Vendor / company name</span>
+                <input
+                  name="name"
+                  value={formData.name}
+                  onChange={handleChange}
+                  className="auth-input"
+                  placeholder="Northline Plumbing"
+                  required
+                />
+              </label>
+
+              <label className="space-y-2">
+                <span className="text-sm font-medium text-ink-700">Status</span>
+                <select
+                  name="status"
+                  value={formData.status}
+                  onChange={handleChange}
+                  className="auth-input"
+                >
+                  {VENDOR_STATUS_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+
+            <label className="mt-4 block space-y-2">
+              <span className="text-sm font-medium text-ink-700">Description</span>
+              <textarea
+                name="description"
+                rows="3"
+                value={formData.description}
+                onChange={handleChange}
+                className="auth-input"
+                placeholder="Preferred scope, crew strengths, pricing position, or a short summary."
+              />
+            </label>
+          </section>
+
+          <section className="section-card p-5 sm:p-6">
+            <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-400">
+                  Specialties
+                </p>
+                <p className="mt-2 text-sm leading-6 text-ink-500">
+                  Choose the trade work this vendor can cover, then add anything custom.
+                </p>
+              </div>
+
+              <div className="grid gap-2 sm:grid-cols-[minmax(0,220px)_auto]">
                 <input
                   name="customSpecialty"
                   value={formData.customSpecialty}
                   onChange={handleChange}
-                  className="auth-input min-w-[180px]"
+                  className="auth-input"
                   placeholder="Custom specialty"
                 />
-                <button
-                  type="button"
-                  onClick={handleAddCustomSpecialty}
-                  className="secondary-action"
-                >
+                <button type="button" onClick={handleAddCustomSpecialty} className="secondary-action">
                   Add custom
                 </button>
               </div>
             </div>
 
-            <div className="mt-4 flex flex-wrap gap-2">
+            <div className="mt-5 flex flex-wrap gap-2">
               {specialtyOptions.map((specialty) => {
                 const selected = formData.specialties.includes(specialty);
                 return (
@@ -212,7 +244,7 @@ const VendorFormModal = ({ isOpen, onClose, onSaved, vendor = null }) => {
                     onClick={() => toggleSpecialty(specialty)}
                     className={`rounded-full px-3 py-2 text-sm font-medium transition ${
                       selected
-                        ? "bg-ink-900 text-white"
+                        ? "bg-ink-900 text-white shadow-[0_12px_20px_rgba(18,37,50,0.14)]"
                         : "border border-ink-100 bg-white text-ink-600 hover:bg-ink-50"
                     }`}
                   >
@@ -221,107 +253,107 @@ const VendorFormModal = ({ isOpen, onClose, onSaved, vendor = null }) => {
                 );
               })}
             </div>
-          </div>
+          </section>
 
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <label className="space-y-2 xl:col-span-2">
-              <span className="text-sm font-medium text-ink-700">Email</span>
+          <section className="section-card p-5 sm:p-6">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-400">
+              Contact & coverage
+            </p>
+            <p className="mt-2 text-sm leading-6 text-ink-500">
+              Keep the primary contact and market coverage clean so assignments move faster.
+            </p>
+
+            <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              <label className="space-y-2 xl:col-span-2">
+                <span className="text-sm font-medium text-ink-700">Primary contact name</span>
+                <input
+                  name="contactName"
+                  value={formData.contactName}
+                  onChange={handleChange}
+                  className="auth-input"
+                  placeholder="Maria Alvarez"
+                />
+              </label>
+
+              <label className="space-y-2 xl:col-span-2">
+                <span className="text-sm font-medium text-ink-700">Email</span>
+                <input
+                  name="email"
+                  type="email"
+                  value={formData.email}
+                  onChange={handleChange}
+                  className="auth-input"
+                  placeholder="crew@northline.com"
+                />
+              </label>
+
+              <label className="space-y-2">
+                <span className="text-sm font-medium text-ink-700">Phone</span>
+                <input
+                  name="phone"
+                  value={formData.phone}
+                  onChange={handleChange}
+                  className="auth-input"
+                  placeholder="(555) 555-0123"
+                />
+              </label>
+
+              <label className="space-y-2 xl:col-span-3">
+                <span className="text-sm font-medium text-ink-700">Service area</span>
+                <input
+                  name="serviceArea"
+                  value={formData.serviceArea}
+                  onChange={handleChange}
+                  className="auth-input"
+                  placeholder="Dallas-Fort Worth, Collin County, North Austin"
+                />
+              </label>
+
+              <label className="space-y-2 md:col-span-2 xl:col-span-4">
+                <span className="text-sm font-medium text-ink-700">Address</span>
+                <input
+                  name="address"
+                  value={formData.address}
+                  onChange={handleChange}
+                  className="auth-input"
+                  placeholder="123 Main St, Dallas, TX"
+                />
+              </label>
+            </div>
+          </section>
+
+          <section className="section-card p-5 sm:p-6">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-400">
+              Internal context
+            </p>
+            <p className="mt-2 text-sm leading-6 text-ink-500">
+              Use this area for operating notes, pricing posture, quality observations, and
+              emergency-work context.
+            </p>
+
+            <label className="mt-5 flex items-center gap-3 rounded-[18px] border border-ink-100 bg-white/85 px-4 py-3 text-sm text-ink-700">
               <input
-                name="email"
-                type="email"
-                value={formData.email}
+                type="checkbox"
+                name="afterHoursAvailable"
+                checked={formData.afterHoursAvailable}
+                onChange={handleChange}
+                className="h-4 w-4 rounded border-ink-300 text-verdigris-600 focus:ring-verdigris-500"
+              />
+              Available for after-hours or emergency work
+            </label>
+
+            <label className="mt-4 block space-y-2">
+              <span className="text-sm font-medium text-ink-700">Internal notes</span>
+              <textarea
+                name="notes"
+                rows="4"
+                value={formData.notes}
                 onChange={handleChange}
                 className="auth-input"
-                placeholder="crew@northline.com"
+                placeholder="Insurance concerns, pricing notes, quality observations, or assignment rules."
               />
             </label>
-
-            <label className="space-y-2">
-              <span className="text-sm font-medium text-ink-700">Phone</span>
-              <input
-                name="phone"
-                value={formData.phone}
-                onChange={handleChange}
-                className="auth-input"
-                placeholder="(555) 555-0123"
-              />
-            </label>
-
-            <label className="space-y-2">
-              <span className="text-sm font-medium text-ink-700">Status</span>
-              <select
-                name="status"
-                value={formData.status}
-                onChange={handleChange}
-                className="auth-input"
-              >
-                {VENDOR_STATUS_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-2">
-            <label className="space-y-2">
-              <span className="text-sm font-medium text-ink-700">Address</span>
-              <input
-                name="address"
-                value={formData.address}
-                onChange={handleChange}
-                className="auth-input"
-                placeholder="123 Main St, Dallas, TX"
-              />
-            </label>
-
-            <label className="space-y-2">
-              <span className="text-sm font-medium text-ink-700">Service area</span>
-              <input
-                name="serviceArea"
-                value={formData.serviceArea}
-                onChange={handleChange}
-                className="auth-input"
-                placeholder="Dallas-Fort Worth, Collin County, North Austin"
-              />
-            </label>
-          </div>
-
-          <label className="flex items-center gap-3 rounded-[18px] border border-ink-100 bg-white/85 px-4 py-3 text-sm text-ink-700">
-            <input
-              type="checkbox"
-              name="afterHoursAvailable"
-              checked={formData.afterHoursAvailable}
-              onChange={handleChange}
-              className="h-4 w-4 rounded border-ink-300 text-verdigris-600 focus:ring-verdigris-500"
-            />
-            Available for after-hours or emergency work
-          </label>
-
-          <label className="space-y-2">
-            <span className="text-sm font-medium text-ink-700">Description</span>
-            <textarea
-              name="description"
-              rows="3"
-              value={formData.description}
-              onChange={handleChange}
-              className="auth-input"
-              placeholder="Preferred scope, crew strengths, pricing position, or general summary."
-            />
-          </label>
-
-          <label className="space-y-2">
-            <span className="text-sm font-medium text-ink-700">Internal notes</span>
-            <textarea
-              name="notes"
-              rows="4"
-              value={formData.notes}
-              onChange={handleChange}
-              className="auth-input"
-              placeholder="Insurance concerns, pricing notes, quality observations, or assignment rules."
-            />
-          </label>
+          </section>
 
           {error ? (
             <div className="rounded-[16px] border border-clay-200 bg-clay-50 px-4 py-3 text-sm text-clay-700">

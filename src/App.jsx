@@ -1,5 +1,12 @@
 import React, { Suspense, lazy, useEffect, useState } from "react";
-import { BrowserRouter as Router, Routes, Route, Navigate, useParams } from "react-router-dom";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+  useLocation,
+  useParams,
+} from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 
 import AppShellErrorBoundary from "./components/AppShellErrorBoundary";
@@ -30,6 +37,7 @@ const ResetPasswordPage = lazy(() => import("./pages/ResetPasswordPage"));
 const SignupPage = lazy(() => import("./pages/SignupPage"));
 const CompsReportPage = lazy(() => import("./pages/CompsReportPage"));
 const LeadsPage = lazy(() => import("./pages/LeadsPage"));
+const LeadsComparePage = lazy(() => import("./pages/LeadsComparePage"));
 const MarketSearchPage = lazy(() => import("./pages/MarketSearchPage"));
 const LeadDetailPage = lazy(() => import("./pages/LeadDetailPage"));
 const CreatePropertyPage = lazy(() => import("./pages/CreatePropertyPage"));
@@ -51,10 +59,6 @@ const parkedPublicPaths = [
 const parkedProtectedPaths = [
   "/tenant-dashboard",
   "/tools",
-  "/management",
-  "/management/:propertyId",
-  "/management/leases/:leaseId",
-  "/management/units/:unitId/listing",
   "/applications",
   "/applications/send",
   "/applications/:id",
@@ -139,10 +143,54 @@ const LegacyProjectWorkspaceRedirect = () => {
   );
 };
 
+const LegacyManagementRedirect = () => {
+  const { propertyId } = useParams();
+  const target = propertyId ? `/properties/${encodeURIComponent(propertyId)}` : "/properties";
+
+  return (
+    <ProtectedRoute>
+      <Navigate to={target} replace />
+    </ProtectedRoute>
+  );
+};
+
+const ScrollToTopOnRouteChange = () => {
+  const location = useLocation();
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    if (location.hash) {
+      const targetId = decodeURIComponent(location.hash.replace(/^#/, ""));
+
+      window.requestAnimationFrame(() => {
+        const targetElement = document.getElementById(targetId);
+
+        if (targetElement) {
+          targetElement.scrollIntoView({ block: "start" });
+          return;
+        }
+
+        window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+      });
+
+      return;
+    }
+
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  }, [location.hash, location.pathname, location.search]);
+
+  return null;
+};
+
 function App() {
   return (
     <AuthProvider>
       <Router>
+        <ScrollToTopOnRouteChange />
+
         <Toaster
           position="top-right"
           reverseOrder={false}
@@ -315,6 +363,15 @@ function App() {
             />
 
             <Route
+              path="/leads/compare"
+              element={
+                <ProtectedLayoutRoute>
+                  <LeadsComparePage />
+                </ProtectedLayoutRoute>
+              }
+            />
+
+            <Route
               path="/leads/:id"
               element={
                 <ProtectedLayoutRoute>
@@ -422,6 +479,35 @@ function App() {
               element={<LegacyProjectWorkspaceRedirect />}
             />
 
+            <Route
+              path="/management"
+              element={
+                <ProtectedRoute>
+                  <Navigate to="/properties" replace />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/management/leases/:leaseId"
+              element={
+                <ProtectedRoute>
+                  <Navigate to="/applications" replace />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/management/units/:unitId/listing"
+              element={
+                <ProtectedRoute>
+                  <Navigate to="/properties" replace />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route path="/management/:propertyId" element={<LegacyManagementRedirect />} />
+
             <Route path="/investments" element={<LeadsRedirectRoute />} />
 
             <Route
@@ -448,6 +534,15 @@ function App() {
 
             <Route
               path="/properties/:propertyKey/:tab"
+              element={
+                <ProtectedLayoutRoute>
+                  <PropertyWorkspacePage />
+                </ProtectedLayoutRoute>
+              }
+            />
+
+            <Route
+              path="/properties/:propertyKey/:tab/:view"
               element={
                 <ProtectedLayoutRoute>
                   <PropertyWorkspacePage />

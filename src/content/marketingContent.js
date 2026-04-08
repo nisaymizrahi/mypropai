@@ -1,11 +1,11 @@
 export const marketingNavItems = [
   { label: "Product", to: "/product" },
   { label: "Pricing", to: "/pricing" },
+  { label: "Resources", to: "/resources" },
 ];
 
 export const marketingSecondaryNavItems = [
   { label: "Compare", to: "/compare/flipper-force" },
-  { label: "Resources", to: "/resources" },
   { label: "About", to: "/about" },
 ];
 

@@ -59,7 +59,7 @@ const ApplicationsPage = () => {
         setManagedProperties(data || []);
       } catch (err) {
         if (isMounted) {
-          toast.error(err.message || "Failed to load managed properties");
+          toast.error(err.message || "Failed to load properties");
         }
       } finally {
         if (isMounted) {
@@ -334,12 +334,10 @@ const ApplicationsPage = () => {
               </button>
               <button
                 type="button"
-                onClick={() =>
-                  navigate(selectedPropertyId ? `/management/${selectedPropertyId}` : "/management")
-                }
+                onClick={() => navigate("/properties")}
                 className="secondary-action"
               >
-                {selectedPropertyId ? "Open property" : "Open properties"}
+                Open property hub
               </button>
             </div>
           </div>
@@ -354,8 +352,8 @@ const ApplicationsPage = () => {
                   {selectedProperty
                     ? selectedProperty.address
                     : managedProperties.length > 0
-                      ? "All managed properties"
-                      : "No managed properties"}
+                      ? "All leasing properties"
+                      : "No leasing properties"}
                 </h3>
               </div>
               <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-verdigris-50 text-verdigris-700">
@@ -459,16 +457,16 @@ const ApplicationsPage = () => {
           columns={applicationColumns}
           rows={[]}
           rowKey={(application) => application._id}
-          emptyTitle="No managed properties yet"
-          emptyDescription="Start management on a property first so leasing can stay tied to a real address and unit roster."
+          emptyTitle="No properties ready yet"
+          emptyDescription="Create a property first so leasing can stay tied to a real address and unit roster."
           emptyActions={
             <>
               <button
                 type="button"
-                onClick={() => navigate("/properties/new?workspace=management")}
+                onClick={() => navigate("/properties/new")}
                 className="primary-action"
               >
-                Create managed property
+                Create property
               </button>
               <button
                 type="button"
@@ -564,12 +562,10 @@ const ApplicationsPage = () => {
                 </button>
                 <button
                   type="button"
-                  onClick={() =>
-                    navigate(selectedPropertyId ? `/management/${selectedPropertyId}` : "/management")
-                  }
+                  onClick={() => navigate("/properties")}
                   className="secondary-action"
                 >
-                  {selectedPropertyId ? "Open property" : "Open properties"}
+                  Open property hub
                 </button>
               </>
             ) : null

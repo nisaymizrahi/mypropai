@@ -478,9 +478,13 @@ export const askLeadProjectAnalysisCopilot = async (leadId, payload) => {
     body: JSON.stringify(payload),
   });
   if (!res.ok) {
-    throw new Error(
-      await getErrorMessage(res, "Failed to reach the project analysis assistant")
-    );
+    const message =
+      res.status === 404
+        ? "Project analysis assistant is not available on the server yet. Redeploy the backend and refresh the app."
+        : await getErrorMessage(res, "Failed to reach the project analysis assistant");
+    const error = new Error(message);
+    error.status = res.status;
+    throw error;
   }
   return res.json();
 };

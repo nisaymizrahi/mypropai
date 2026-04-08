@@ -419,8 +419,10 @@ function DashboardLayout({ children }) {
     }),
     [basePageMeta, pageHeaderConfig]
   );
+  const floatingUtilityActions = pageHeaderConfig?.floatingActions || null;
   const showPipelineShortcut =
-    location.pathname.startsWith("/leads") || location.pathname.startsWith("/properties");
+    !floatingUtilityActions &&
+    (location.pathname.startsWith("/leads") || location.pathname.startsWith("/properties"));
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -568,6 +570,10 @@ function DashboardLayout({ children }) {
           <Link to="/leads" className="secondary-action">
             Potential Properties
           </Link>
+        ) : null}
+
+        {floatingUtilityActions ? (
+          <div className="flex items-center gap-2">{floatingUtilityActions}</div>
         ) : null}
 
         <UserInfoBanner />
