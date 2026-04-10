@@ -227,6 +227,23 @@ const describeConsentState = (isAllowed, when) => {
 
 const formatCompsCreditCount = (value = 0) => `${Number(value || 0)} credit${Number(value || 0) === 1 ? "" : "s"}`;
 
+const getCreditGrantValidationMessage = ({ credits, reason }) => {
+  const parsedCredits = Number(credits);
+  if (!Number.isInteger(parsedCredits) || parsedCredits <= 0) {
+    return "Credits must be a whole number greater than zero.";
+  }
+
+  if (parsedCredits > 1000) {
+    return "Credits cannot exceed 1000 in a single grant.";
+  }
+
+  if (String(reason || "").trim().length < 3) {
+    return "Add a short reason so the audit trail explains why credits were granted.";
+  }
+
+  return "";
+};
+
 const downloadBlob = (blob, filename) => {
   const url = window.URL.createObjectURL(blob);
   const link = document.createElement("a");
@@ -672,13 +689,19 @@ const PlatformManagerPage = () => {
       return;
     }
 
+    const validationMessage = getCreditGrantValidationMessage(creditGrantForm);
+    if (validationMessage) {
+      toast.error(validationMessage);
+      return;
+    }
+
     const credits = Number(creditGrantForm.credits);
     await runDetailAction(
       "grant-credits",
       () =>
         grantPlatformManagerCompsCredits(selectedUser.id, {
           credits,
-          reason: creditGrantForm.reason,
+          reason: creditGrantForm.reason.trim(),
         }),
       `${credits} comps credit${credits === 1 ? "" : "s"} granted.`
     );
@@ -694,6 +717,11 @@ const PlatformManagerPage = () => {
   }, []);
 
   const selectedUser = detail?.user || filteredUsers.find((entry) => entry.id === selectedUserId) || null;
+  const creditGrantValidationMessage = useMemo(
+    () => getCreditGrantValidationMessage(creditGrantForm),
+    [creditGrantForm]
+  );
+  const isCreditGrantSubmitDisabled = detailBusyKey !== "" || Boolean(creditGrantValidationMessage);
 
   return (
     <div className="space-y-6">
@@ -1642,6 +1670,7 @@ const PlatformManagerPage = () => {
                                 <input
                                   type="number"
                                   min="1"
+                                  max="1000"
                                   step="1"
                                   inputMode="numeric"
                                   value={creditGrantForm.credits}
@@ -1651,6 +1680,7 @@ const PlatformManagerPage = () => {
                                       credits: event.target.value,
                                     }))
                                   }
+                                  aria-invalid={Boolean(creditGrantValidationMessage)}
                                   className="auth-input mt-2"
                                 />
                               </label>
@@ -1668,13 +1698,22 @@ const PlatformManagerPage = () => {
                                   }
                                   rows={3}
                                   placeholder="Why are you granting extra comps credits?"
+                                  aria-invalid={Boolean(creditGrantValidationMessage)}
                                   className="auth-input mt-2 min-h-[104px]"
                                 />
                               </label>
                             </div>
+                            <p
+                              className={`text-sm leading-6 ${
+                                creditGrantValidationMessage ? "text-clay-700" : "text-ink-500"
+                              }`}
+                            >
+                              {creditGrantValidationMessage ||
+                                "Grant whole-number credits and include a short audit reason so support context stays clear."}
+                            </p>
                             <button
                               type="submit"
-                              disabled={detailBusyKey !== ""}
+                              disabled={isCreditGrantSubmitDisabled}
                               className="primary-action w-full justify-center"
                             >
                               {detailBusyKey === "grant-credits"
